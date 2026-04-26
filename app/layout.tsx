@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Fraunces, Montserrat, DM_Mono } from 'next/font/google'
 import './globals.css'
-import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
+import Providers from '@/components/layout/Providers'
+import PublicChrome from '@/components/layout/PublicChrome'
 
 // ── Fraunces — display serif pour les titres ──────────────────────────────────
 const fraunces = Fraunces({
@@ -53,9 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${fraunces.variable} ${montserrat.variable} ${dmMono.variable}`}
     >
       <body className="bg-cream text-ink font-body antialiased">
-        <Navbar />
-        <main className="min-h-screen">{children}</main>
-        <Footer />
+        <Providers>
+          <PublicChrome>{children}</PublicChrome>
+        </Providers>
       </body>
     </html>
   )

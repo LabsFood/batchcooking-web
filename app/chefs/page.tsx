@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { Star, MapPin, ArrowRight, Check, Users } from 'lucide-react'
 import { CHEFS } from '@/lib/mock-data'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 const REGIONS = ['Toutes les régions', 'Île-de-France', 'Provence-Alpes-Côte d\'Azur', 'Occitanie', 'Auvergne-Rhône-Alpes']
 
@@ -174,17 +175,19 @@ export default function ChefsPage() {
                       </div>
                     )}
 
-                    <Link
-                      href={chef.available ? `/reservation?chef=${chef.id}` : '#'}
-                      className={`self-start ${
-                        chef.available
-                          ? 'btn-primary text-xs px-5 py-2.5'
-                          : 'btn-outline text-xs px-5 py-2.5 opacity-50 pointer-events-none'
-                      }`}
-                    >
-                      {chef.available ? 'Réserver avec ce chef' : "Liste d'attente"}
-                      {chef.available && <ArrowRight className="w-3.5 h-3.5 icon-arrow" />}
-                    </Link>
+                    {chef.available ? (
+                      <ReserveButton
+                        href={`/reservation?chef=${chef.id}`}
+                        className="self-start text-xs px-5 py-2.5"
+                      >
+                        Réserver avec ce chef
+                        <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                      </ReserveButton>
+                    ) : (
+                      <span className="self-start btn-outline text-xs px-5 py-2.5 opacity-50 pointer-events-none">
+                        Liste d&apos;attente
+                      </span>
+                    )}
                   </div>
                 </div>
               </motion.div>

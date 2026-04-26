@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight, Star, Leaf, ChefHat } from 'lucide-react'
 import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAnimations'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 const FADE = {
   hidden: { opacity: 0, y: 28 },
@@ -26,9 +27,9 @@ export default function Hero() {
         strokeWidth={1}
       />
       {/* Animated steaming pot — bottom left corner */}
-      <div className="absolute left-6 bottom-6 hidden xl:block pointer-events-none">
+      {/* <div className="absolute left-6 bottom-6 hidden xl:block pointer-events-none">
         <SteamingPot size={130} />
-      </div>
+      </div> */}
       {/* Floating ingredients — top center */}
       <div className="absolute top-32 left-1/2 -translate-x-[60%] hidden xl:block pointer-events-none opacity-90">
         <FloatingIngredients size={120} />
@@ -66,10 +67,10 @@ export default function Hero() {
               variants={FADE} custom={0.28} initial="hidden" animate="show"
               className="flex flex-wrap items-center gap-4 mt-10"
             >
-              <Link href="/reservation" className="btn btn-primary">
+              <ReserveButton>
                 Réserver ma session
                 <ArrowRight className="w-4 h-4 icon-arrow" />
-              </Link>
+              </ReserveButton>
               <Link href="/#how-it-works" className="btn btn-outline">
                 Comment ça marche ?
               </Link>

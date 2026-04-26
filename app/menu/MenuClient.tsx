@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight, ShoppingCart, Plus, Check, ChefHat, Clock, Users, Flame } from 'lucide-react'
 import type { Meal } from '@/types'
+import ReserveButton from '@/components/shared/ReserveButton'
+import EquipmentSection from '@/components/shared/EquipmentSection'
 
 export default function MenuClient({ meals }: { meals: Meal[] }) {
   const [selected, setSelected] = useState<string[]>([])
@@ -46,10 +48,14 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
                 <span className="text-white/70 ml-2">/ {MAX} max</span>
               </span>
             </div>
-            <Link href={`/reservation?meals=${selected.join(',')}`} className="btn-navy text-xs px-5 py-2.5">
+            <ReserveButton
+              href={`/reservation?meals=${selected.join(',')}`}
+              variant="navy"
+              className="text-xs px-5 py-2.5"
+            >
               Réserver ma session
               <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-            </Link>
+            </ReserveButton>
           </div>
         </div>
       )}
@@ -136,10 +142,10 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
             <p className="text-ink-mid mb-6 max-w-md mx-auto leading-relaxed">
               Soumettez une demande personnalisée. Notre chef vous fera une proposition tarifaire adaptée.
             </p>
-            <Link href="/reservation?custom=true" className="btn-primary">
+            <ReserveButton href="/reservation?custom=true">
               Faire une demande personnalisée
               <ArrowRight className="w-4 h-4 icon-arrow" />
-            </Link>
+            </ReserveButton>
           </div>
         </div>
       </section>

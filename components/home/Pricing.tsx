@@ -2,8 +2,8 @@
 
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
-import Link from 'next/link'
 import { Check, ArrowRight, Clock, Users, Utensils } from 'lucide-react'
+import ReserveButton from '@/components/shared/ReserveButton'
 import { PLANS } from '@/lib/mock-data'
 import { formatPrice } from '@/lib/utils'
 
@@ -100,13 +100,14 @@ export default function Pricing() {
                 </ul>
 
                 {/* CTA */}
-                <Link
+                <ReserveButton
                   href={`/reservation?plan=${plan.id}`}
-                  className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'} w-full justify-center`}
+                  variant={plan.popular ? 'primary' : 'outline'}
+                  className="w-full justify-center"
                 >
                   Choisir {plan.name}
                   <ArrowRight className="w-4 h-4 icon-arrow" />
-                </Link>
+                </ReserveButton>
               </div>
             </motion.div>
           ))}

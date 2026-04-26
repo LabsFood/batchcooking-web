@@ -1,0 +1,272 @@
+// Mock data for the client dashboard. Decoupled from the public site mocks
+// so we can iterate freely without breaking landing-page sections.
+
+export type OrderStatus = 'pending' | 'confirmed' | 'shopping' | 'cooking' | 'delivered' | 'cancelled'
+
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  shopping: 'Liste de courses prête',
+  cooking: 'En cuisine',
+  delivered: 'Livrée',
+  cancelled: 'Annulée',
+}
+
+export const ORDER_STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'shopping', 'cooking', 'delivered']
+
+export type DashboardOrder = {
+  id: string
+  reference: string
+  date: string // ISO
+  timeSlot: string
+  chef: string
+  formula: 'Essentiel' | 'Confort' | 'Premium' | 'Sur-mesure'
+  meals: { name: string; portions: number }[]
+  persons: number
+  amountTTC: number
+  amountAfterTax: number
+  status: OrderStatus
+  shoppingByClient: boolean
+  shoppingList?: { aisle: string; items: { name: string; qty: string }[] }[]
+  notes?: string
+}
+
+export const DASHBOARD_ORDERS: DashboardOrder[] = [
+  {
+    id: 'ord_001',
+    reference: 'LF-2026-0142',
+    date: '2026-05-03T09:00:00.000Z',
+    timeSlot: '9h00 – 11h00',
+    chef: 'Ivy Siyaptze',
+    formula: 'Confort',
+    meals: [
+      { name: 'Poulet rôti aux herbes', portions: 4 },
+      { name: 'Risotto champignons', portions: 3 },
+      { name: 'Curry lentilles corail', portions: 4 },
+      { name: 'Saumon en papillote', portions: 2 },
+    ],
+    persons: 3,
+    amountTTC: 220,
+    amountAfterTax: 110,
+    status: 'confirmed',
+    shoppingByClient: true,
+    shoppingList: [
+      {
+        aisle: 'Fruits & légumes',
+        items: [
+          { name: 'Pommes de terre', qty: '1.5 kg' },
+          { name: 'Courgettes', qty: '4 unités' },
+          { name: 'Champignons de Paris', qty: '500 g' },
+          { name: 'Tomates cerise', qty: '2 barquettes' },
+        ],
+      },
+      {
+        aisle: 'Boucherie & poisson',
+        items: [
+          { name: 'Poulet fermier', qty: '1 entier (1.6 kg)' },
+          { name: 'Pavés de saumon', qty: '4 pièces' },
+        ],
+      },
+      {
+        aisle: 'Épicerie',
+        items: [
+          { name: 'Riz arborio', qty: '500 g' },
+          { name: 'Lentilles corail', qty: '500 g' },
+          { name: 'Lait de coco', qty: '2 boîtes' },
+        ],
+      },
+    ],
+    notes: 'Pas trop salé pour le risotto svp.',
+  },
+  {
+    id: 'ord_002',
+    reference: 'LF-2026-0119',
+    date: '2026-04-19T10:00:00.000Z',
+    timeSlot: '10h00 – 12h00',
+    chef: 'Ivy Siyaptze',
+    formula: 'Essentiel',
+    meals: [
+      { name: 'Bœuf bourguignon', portions: 4 },
+      { name: 'Gratin de légumes', portions: 4 },
+      { name: 'Tajine d’agneau', portions: 4 },
+    ],
+    persons: 2,
+    amountTTC: 150,
+    amountAfterTax: 75,
+    status: 'delivered',
+    shoppingByClient: false,
+  },
+  {
+    id: 'ord_003',
+    reference: 'LF-2026-0094',
+    date: '2026-03-29T09:30:00.000Z',
+    timeSlot: '9h30 – 11h30',
+    chef: 'Ivy Siyaptze',
+    formula: 'Sur-mesure',
+    meals: [
+      { name: 'Lasagnes maison', portions: 6 },
+      { name: 'Soupe miso légumes', portions: 4 },
+    ],
+    persons: 4,
+    amountTTC: 180,
+    amountAfterTax: 90,
+    status: 'delivered',
+    shoppingByClient: true,
+  },
+  {
+    id: 'ord_004',
+    reference: 'LF-2026-0151',
+    date: '2026-05-24T09:00:00.000Z',
+    timeSlot: '9h00 – 11h30',
+    chef: 'Ivy Siyaptze',
+    formula: 'Confort',
+    meals: [
+      { name: 'Pâtes pesto rouge', portions: 3 },
+      { name: 'Curry de pois chiches', portions: 4 },
+    ],
+    persons: 3,
+    amountTTC: 240,
+    amountAfterTax: 120,
+    status: 'pending',
+    shoppingByClient: false,
+  },
+]
+
+// ─── Personalisation requests ────────────────────────────────────────────────
+
+export type CustomRequestStatus = 'draft' | 'submitted' | 'in-review' | 'quoted' | 'accepted' | 'declined'
+
+export type CustomRequest = {
+  id: string
+  title: string
+  createdAt: string
+  status: CustomRequestStatus
+  persons: number
+  meals: number
+  cuisine?: string
+  diet?: string[]
+  brief: string
+  quote?: { amountTTC: number; amountAfterTax: number; note?: string }
+}
+
+export const CUSTOM_REQUESTS: CustomRequest[] = [
+  {
+    id: 'req_001',
+    title: 'Brunch d’anniversaire — 8 personnes',
+    createdAt: '2026-04-22T14:30:00.000Z',
+    status: 'quoted',
+    persons: 8,
+    meals: 6,
+    cuisine: 'Méditerranéen',
+    diet: ['Végétarien', 'Sans-gluten'],
+    brief:
+      'Un brunch dimanche pour mes 30 ans, autour de 8 personnes, ambiance méditerranéenne, deux convives sans gluten et une végétarienne stricte.',
+    quote: { amountTTC: 320, amountAfterTax: 160, note: 'Inclut 1h de service supplémentaire.' },
+  },
+  {
+    id: 'req_002',
+    title: 'Régime sportif — 2 semaines',
+    createdAt: '2026-04-10T09:10:00.000Z',
+    status: 'in-review',
+    persons: 2,
+    meals: 14,
+    cuisine: 'Cuisine du monde',
+    diet: ['High-protein'],
+    brief:
+      'Programme musculation phase de prise. 2200 kcal/jour, 180g de protéines. Variété de cuisines (asiatique, mexicain, libanais).',
+  },
+]
+
+// ─── Chat with admin ─────────────────────────────────────────────────────────
+
+export type ChatMessage = {
+  id: string
+  from: 'me' | 'admin'
+  author: string
+  avatar?: string
+  text: string
+  at: string // ISO
+  read?: boolean
+}
+
+export const CHAT_MESSAGES: ChatMessage[] = [
+  {
+    id: 'm_001',
+    from: 'admin',
+    author: 'Ivy · Lab’s Food',
+    text: 'Bonjour Sophie ! Pour samedi, je préfère arriver à 9h pétantes — ça vous va ?',
+    at: '2026-04-25T14:02:00.000Z',
+    read: true,
+  },
+  {
+    id: 'm_002',
+    from: 'me',
+    author: 'Vous',
+    text: 'Parfait pour 9h. Vous voulez la liste mise à jour avant ou après ?',
+    at: '2026-04-25T14:08:00.000Z',
+    read: true,
+  },
+  {
+    id: 'm_003',
+    from: 'admin',
+    author: 'Ivy · Lab’s Food',
+    text: 'Avant, idéalement vendredi soir — je passe commande chez le poissonnier le matin.',
+    at: '2026-04-25T14:11:00.000Z',
+    read: true,
+  },
+  {
+    id: 'm_004',
+    from: 'admin',
+    author: 'Ivy · Lab’s Food',
+    text: 'Et petite proposition : j’ajouterais un dahl coco-curcuma pour Lina, c’est doux et sans gluten. OK ?',
+    at: '2026-04-26T08:32:00.000Z',
+    read: false,
+  },
+]
+
+// ─── Profile preferences ────────────────────────────────────────────────────
+
+export type ProfilePrefs = {
+  diets: string[]
+  allergies: string[]
+  dislikes: string[]
+  favorites: string[]
+  spiceLevel: 1 | 2 | 3 | 4 | 5
+  household: { adults: number; kids: number }
+  kitchenNotes: string
+}
+
+export const DEFAULT_PREFS: ProfilePrefs = {
+  diets: ['Sans-porc'],
+  allergies: ['Fruits à coque'],
+  dislikes: ['Coriandre', 'Olives'],
+  favorites: ['Risotto', 'Curry', 'Tajine'],
+  spiceLevel: 3,
+  household: { adults: 2, kids: 1 },
+  kitchenNotes: 'Cuisine ouverte, plaque induction, four traditionnel. Pas de robot pâtissier.',
+}
+
+// ─── Stats ──────────────────────────────────────────────────────────────────
+
+export const DASHBOARD_STATS = {
+  sessionsTotal: 8,
+  mealsCooked: 47,
+  hoursSaved: 96,
+  moneySaved: 380, // crédit d'impôt cumulé
+  loyaltyPoints: 4,
+  loyaltyTarget: 5,
+  badges: [
+    { id: 'b1', label: 'Première Toque', emoji: '🎩', earnedAt: '2026-01-12' },
+    { id: 'b2', label: 'Chef Aventureux', emoji: '🌍', earnedAt: '2026-02-26' },
+    { id: 'b3', label: 'Marmiton du Mois', emoji: '🍯', earnedAt: '2026-04-04' },
+  ],
+  weeklyMealMix: [
+    { week: 'S14', meals: 6 },
+    { week: 'S15', meals: 4 },
+    { week: 'S16', meals: 7 },
+    { week: 'S17', meals: 5 },
+    { week: 'S18', meals: 8 },
+    { week: 'S19', meals: 6 },
+    { week: 'S20', meals: 7 },
+  ],
+}

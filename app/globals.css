@@ -11,24 +11,30 @@
     --font-montserrat: 'Montserrat', sans-serif;
     --font-mono:       'DM Mono',    monospace;
 
-    /* Brand */
-    --navy:        #00234B;
-    --navy-mid:    #2C3E50;
-    --terra:       #D96941;
-    --terra-deep:  #B84F2A;
+    /* Brand — Lab's Food palette : navy / amber / mint */
+    --navy:        #2C3E50;   /* primary navy (logo blue) */
+    --navy-mid:    #34495E;
+    --navy-deep:   #1F2D3D;
+    --terra:       #F39C12;   /* legacy alias → now amber */
+    --terra-deep:  #D68B0E;
     --amber:       #F39C12;
+    --amber-deep:  #D68B0E;
+    --amber-soft:  #FCE3B5;
     --peach:       #FAD7A0;
+    --mint:        #D1F2EB;
+    --mint-deep:   #A7E0D0;
+    --mint-ink:    #14695F;
 
-    /* Surfaces (warm bistro) */
-    --cream:       #FBF6EE;   /* main page bg */
-    --cream-soft:  #F5EEE2;   /* alt section bg */
-    --cream-deep:  #EDE3D2;   /* contrast bg */
+    /* Surfaces */
+    --cream:       #FBFCFD;   /* main page bg — cool off-white */
+    --cream-soft:  #F1F5F8;   /* alt section bg */
+    --cream-deep:  #E5ECF1;   /* contrast bg */
     --paper:       #FFFFFF;
 
     /* Text */
-    --ink:         #1F1A14;   /* near-black warm */
-    --ink-mid:     #4A4135;
-    --ink-soft:    #7A6F61;
+    --ink:         #1F2A37;
+    --ink-mid:     #4B5867;
+    --ink-soft:    #7B8794;
   }
 }
 
@@ -52,9 +58,9 @@
 
   ::-webkit-scrollbar        { width: 8px; }
   ::-webkit-scrollbar-track  { background: var(--cream-soft); }
-  ::-webkit-scrollbar-thumb  { background: var(--terra); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb  { background: var(--amber); border-radius: 4px; }
 
-  ::selection { background: rgba(217,105,65,0.25); color: var(--ink); }
+  ::selection { background: rgba(243,156,18,0.28); color: var(--ink); }
 }
 
 /* ─── Typography ────────────────────────────────────────────────────────────── */
@@ -140,11 +146,11 @@
   .card-base {
     background: var(--paper);
     border-radius: 1rem;
-    border: 1px solid rgba(31,26,20,0.06);
+    border: 1px solid rgba(31,42,55,0.06);
     transition: box-shadow 0.4s ease, transform 0.4s ease;
   }
   .card-base:hover {
-    box-shadow: 0 24px 60px -20px rgba(31,26,20,0.18);
+    box-shadow: 0 24px 60px -20px rgba(31,42,55,0.18);
     transform: translateY(-4px);
   }
 
@@ -158,7 +164,7 @@
     width: 6px; height: 6px; border-radius: 999px;
     background: var(--terra);
   }
-  .dot-row .dot.muted { background: rgba(217,105,65,0.3); }
+  .dot-row .dot.muted { background: rgba(243,156,18,0.3); }
 
   /* Section divider with center dot */
   .section-divider {
@@ -172,7 +178,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(217,105,65,0.25);
+    background: rgba(243,156,18,0.25);
   }
 }
 
@@ -254,7 +260,7 @@
   .btn-primary:hover {
     background: var(--terra-deep);
     transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(217,105,65,0.6);
+    box-shadow: 0 18px 36px -12px rgba(243,156,18,0.6);
   }
   .btn-primary:active { transform: translateY(-1px); }
 
@@ -262,7 +268,7 @@
   .btn-navy:hover {
     background: #001A38;
     transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(0,35,75,0.5);
+    box-shadow: 0 18px 36px -12px rgba(44,62,80,0.5);
   }
   .btn-navy:active { transform: translateY(-1px); }
 
@@ -274,7 +280,7 @@
   .btn-outline:hover {
     color: #FFFFFF;
     transform: translateY(-2px);
-    box-shadow: 0 16px 30px -12px rgba(0,35,75,0.35);
+    box-shadow: 0 16px 30px -12px rgba(44,62,80,0.35);
   }
 
   .btn-outline-light {
@@ -343,10 +349,10 @@
     border: 1px solid currentColor;
   }
 
-  .chip-terra  { color: var(--terra); background: rgba(217,105,65,0.08); }
-  .chip-navy   { color: var(--navy);  background: rgba(0,35,75,0.06); }
+  .chip-terra  { color: var(--terra); background: rgba(243,156,18,0.08); }
+  .chip-navy   { color: var(--navy);  background: rgba(44,62,80,0.06); }
   .chip-amber  { color: #8B6200;       background: rgba(243,156,18,0.14); border-color: rgba(243,156,18,0.4); }
-  .chip-cream  { color: var(--ink-mid); background: var(--cream-soft); border-color: rgba(31,26,20,0.1); }
+  .chip-cream  { color: var(--ink-mid); background: var(--cream-soft); border-color: rgba(31,42,55,0.1); }
 
   /* Legacy aliases (badge-*) — keep older code rendering correctly */
   .badge-terra,
@@ -367,11 +373,11 @@
     border-radius: 999px;
     border: 1px solid transparent;
   }
-  .badge-terra { color: var(--terra); background: rgba(217,105,65,0.1);  border-color: rgba(217,105,65,0.3); }
-  .badge-navy  { color: var(--navy);  background: rgba(0,35,75,0.06);    border-color: rgba(0,35,75,0.18); }
+  .badge-terra { color: var(--terra); background: rgba(243,156,18,0.1);  border-color: rgba(243,156,18,0.3); }
+  .badge-navy  { color: var(--navy);  background: rgba(44,62,80,0.06);    border-color: rgba(44,62,80,0.18); }
   .badge-amber { color: #8B6200;       background: rgba(243,156,18,0.14); border-color: rgba(243,156,18,0.4); }
   .badge-mint  { color: #14695F;       background: rgba(209,242,235,0.7); border-color: rgba(20,105,95,0.25); }
-  .badge-cream { color: var(--ink-mid); background: var(--cream-soft);    border-color: rgba(31,26,20,0.12); }
+  .badge-cream { color: var(--ink-mid); background: var(--cream-soft);    border-color: rgba(31,42,55,0.12); }
   .badge-gold  { color: #8B6200;       background: rgba(212,175,55,0.18); border-color: rgba(212,175,55,0.45); }
 }
 
@@ -385,7 +391,7 @@
     font-size: 0.875rem;
     background: var(--paper);
     color: var(--ink);
-    border: 1.5px solid rgba(31,26,20,0.12);
+    border: 1.5px solid rgba(31,42,55,0.12);
     border-radius: 0.75rem;
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -393,7 +399,7 @@
   .input-base::placeholder { color: var(--ink-soft); opacity: 0.7; }
   .input-base:focus {
     border-color: var(--terra);
-    box-shadow: 0 0 0 4px rgba(217,105,65,0.12);
+    box-shadow: 0 0 0 4px rgba(243,156,18,0.12);
   }
 
   .input-pill {
@@ -403,7 +409,7 @@
     font-size: 0.875rem;
     background: var(--paper);
     color: var(--ink);
-    border: 1.5px solid rgba(31,26,20,0.1);
+    border: 1.5px solid rgba(31,42,55,0.1);
     border-radius: 999px;
     outline: none;
     transition: border-color 0.2s ease;

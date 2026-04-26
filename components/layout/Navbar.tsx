@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, ChefHat, ArrowRight } from 'lucide-react'
+import { Menu, X, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Logo from '@/components/shared/Logo'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 const NAV_LINKS = [
   { label: 'Concept',         href: '/#concept' },
   { label: 'Menu',            href: '/menu' },
-  { label: 'Recettes',        href: '/recettes' },
   { label: 'Chefs',           href: '/chefs' },
   { label: 'Avantage fiscal', href: '/avantage-fiscal' },
   { label: 'FAQ',             href: '/faq' },
@@ -51,19 +52,7 @@ export default function Navbar() {
         <div className="container-xl flex items-center justify-between">
 
           {/* ── Logo ─────────────────────────────────────────────────────── */}
-          <Link href="/" className="group flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-terra flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12">
-              <ChefHat className="w-5 h-5 text-white" strokeWidth={2} />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="font-display text-xl font-bold text-navy tracking-tight">
-                Lab&apos;s Food
-              </span>
-              <span className="label-muted text-[9px] mt-1 tracking-[0.2em]">
-                Batch Cooking
-              </span>
-            </div>
-          </Link>
+          <Logo size="md" />
 
           {/* ── Desktop Nav ──────────────────────────────────────────────── */}
           <nav className="hidden lg:flex items-center gap-1">
@@ -94,10 +83,10 @@ export default function Navbar() {
             >
               Connexion
             </Link>
-            <Link href="/reservation" className="btn btn-primary text-xs px-5 py-3">
+            <ReserveButton className="text-xs px-5 py-3">
               Réserver
               <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-            </Link>
+            </ReserveButton>
           </div>
 
           {/* ── Mobile burger ────────────────────────────────────────────── */}
@@ -143,10 +132,10 @@ export default function Navbar() {
               <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
                 Connexion
               </Link>
-              <Link href="/reservation" className="btn btn-primary justify-center w-full">
+              <ReserveButton className="justify-center w-full">
                 Réserver ma session
                 <ArrowRight className="w-4 h-4 icon-arrow" />
-              </Link>
+              </ReserveButton>
             </div>
 
             <p className="mt-6 text-center text-xs text-white/40">

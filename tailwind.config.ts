@@ -13,26 +13,36 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: '#00234B',
-          mid: '#2C3E50',
+          DEFAULT: '#2C3E50',
+          mid: '#34495E',
+          deep: '#1F2D3D',
         },
         terra: {
-          DEFAULT: '#D96941',
-          deep: '#B84F2A',
+          DEFAULT: '#F39C12',
+          deep: '#D68B0E',
         },
-        amber: '#F39C12',
+        amber: {
+          DEFAULT: '#F39C12',
+          deep: '#D68B0E',
+          soft: '#FCE3B5',
+        },
+        mint: {
+          DEFAULT: '#D1F2EB',
+          deep: '#A7E0D0',
+          ink: '#14695F',
+        },
         peach: '#FAD7A0',
         cream: {
-          DEFAULT: '#FBF6EE',
-          soft: '#F5EEE2',
-          deep: '#EDE3D2',
+          DEFAULT: '#FBFCFD',
+          soft: '#F1F5F8',
+          deep: '#E5ECF1',
         },
         ink: {
-          DEFAULT: '#1F1A14',
-          mid: '#4A4135',
-          soft: '#7A6F61',
+          DEFAULT: '#1F2A37',
+          mid: '#4B5867',
+          soft: '#7B8794',
         },
-        border: 'rgba(31,26,20,0.10)',
+        border: 'rgba(31,42,55,0.10)',
       },
       fontFamily: {
         display: ['var(--font-fraunces)', ...fontFamily.serif],

@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import {
-  ChefHat, Instagram, Facebook, Youtube,
+  Instagram, Facebook, Youtube,
   Mail, Phone, MapPin, ArrowRight, ArrowUpRight,
 } from 'lucide-react'
+import Logo from '@/components/shared/Logo'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 const LINKS = {
   service: [
@@ -10,7 +12,6 @@ const LINKS = {
     { label: 'Comment ça marche',     href: '/#how-it-works' },
     { label: 'Nos formules',          href: '/#pricing' },
     { label: 'Menu de la semaine',    href: '/menu' },
-    { label: 'Recettes du monde',     href: '/recettes' },
   ],
   chefs: [
     { label: 'Nos chefs',         href: '/chefs' },
@@ -69,15 +70,15 @@ export default function Footer() {
                 </h3>
               </div>
               <div className="lg:justify-self-end">
-                <Link
-                  href="/reservation"
+                <ReserveButton
+                  asChild
                   className="group inline-flex items-center gap-4 bg-white text-navy rounded-full pl-8 pr-3 py-3 font-semibold uppercase text-sm tracking-[0.08em] hover:bg-navy hover:text-white transition-colors duration-300"
                 >
                   Réserver ma session
                   <span className="w-11 h-11 rounded-full bg-terra text-white flex items-center justify-center group-hover:bg-white group-hover:text-navy transition-colors duration-300">
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </span>
-                </Link>
+                </ReserveButton>
               </div>
             </div>
           </div>
@@ -101,14 +102,7 @@ export default function Footer() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-14 border-b border-white/10">
             {/* Brand statement */}
             <div className="lg:col-span-7">
-              <Link href="/" className="inline-flex items-center gap-3 mb-7 group">
-                <div className="w-12 h-12 rounded-full bg-terra flex items-center justify-center group-hover:rotate-12 transition-transform">
-                  <ChefHat className="w-6 h-6 text-white" />
-                </div>
-                <span className="font-display font-bold text-white text-2xl">
-                  Lab&apos;s Food
-                </span>
-              </Link>
+              <Logo variant="white" size="lg" className="mb-7" />
               <p
                 className="font-display font-bold text-white leading-[0.95]"
                 style={{ fontSize: 'clamp(2.2rem, 5vw, 4.5rem)', letterSpacing: '-0.025em' }}

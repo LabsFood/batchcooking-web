@@ -1,80 +1,278 @@
 'use client'
-import { FileText, Calendar, ShoppingCart, LogOut, ArrowRight } from 'lucide-react'
+
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import {
+  ArrowRight,
+  CalendarRange,
+  Clock,
+  Sparkles,
+  ShoppingBasket,
+  ChefHat,
+  Trophy,
+  MessageCircle,
+  Flame,
+} from 'lucide-react'
+import {
+  DASHBOARD_ORDERS,
+  DASHBOARD_STATS,
+  CHAT_MESSAGES,
+  CUSTOM_REQUESTS,
+  ORDER_STATUS_LABEL,
+} from '@/lib/dashboard-mock'
 
-const TABS = [
-  { icon: Calendar,     label: 'Mes réservations',   count: 2 },
-  { icon: ShoppingCart, label: 'Listes de courses',  count: 3 },
-  { icon: FileText,     label: 'Mes factures',       count: 5 },
-]
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
 
-export default function EspaceClientPage() {
+export default function DashboardOverviewPage() {
+  const upcoming = DASHBOARD_ORDERS.find((o) => ['pending', 'confirmed'].includes(o.status))
+  const lastMessage = CHAT_MESSAGES[CHAT_MESSAGES.length - 1]
+  const pendingCustom = CUSTOM_REQUESTS[0]
+
   return (
-    <div className="page-transition pt-24 min-h-screen bg-cream">
-      {/* Header */}
-      <section className="bg-navy text-white py-16 lg:py-20">
-        <div className="container-xl flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+    <div className="space-y-6">
+      {/* ── Hero card ─────────────────────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-navy-mid to-navy text-white p-6 lg:p-8"
+      >
+        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/30 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-12 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" />
+
+        <div className="relative grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 items-end">
           <div>
-            <p className="eyebrow mb-3" style={{ color: '#F39C12' }}>Espace personnel</p>
-            <h1 className="font-display font-bold text-white leading-tight"
-              style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '-0.02em' }}>
-              Bonjour, <span className="text-terra italic font-medium">Sophie 👋</span>
-            </h1>
-            <p className="text-white/60 text-sm mt-2">
-              Formule Confort · Cliente depuis janvier 2026
-            </p>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber/20 text-amber text-[10px] font-mono uppercase tracking-[0.2em]">
+              <Flame className="w-3 h-3" /> Prochaine session
+            </span>
+            {upcoming ? (
+              <>
+                <h2 className="font-display text-3xl lg:text-4xl font-bold mt-4 leading-tight">
+                  {formatDate(upcoming.date)}
+                </h2>
+                <p className="text-white/65 mt-2 text-sm">
+                  {upcoming.timeSlot} · Avec <span className="text-amber font-semibold">{upcoming.chef}</span> · Formule {upcoming.formula}
+                </p>
+
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  {upcoming.meals.slice(0, 3).map((m) => (
+                    <span key={m.name} className="text-xs px-3 py-1 rounded-full bg-white/10 border border-white/15">
+                      {m.name}
+                    </span>
+                  ))}
+                  {upcoming.meals.length > 3 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-white/5 text-white/60">
+                      +{upcoming.meals.length - 3} autres
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    href={`/espace-client/commandes/${upcoming.id}`}
+                    className="inline-flex items-center gap-2 bg-amber hover:bg-amber-deep text-navy font-semibold rounded-full px-5 py-2.5 text-sm transition-colors"
+                  >
+                    Voir le détail
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <Link
+                    href="/espace-client/messages"
+                    className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white rounded-full px-5 py-2.5 text-sm transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Écrire à Ivy
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="font-display text-3xl font-bold mt-4">Pas de session prévue</h2>
+                <p className="text-white/65 mt-2 text-sm">Lance ta prochaine session de batch cooking.</p>
+              </>
+            )}
           </div>
-          <button className="btn-outline-light text-xs px-5 py-2.5 self-start md:self-auto">
-            <LogOut className="w-3.5 h-3.5" /> Déconnexion
-          </button>
+
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-5 backdrop-blur-sm">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber font-mono mb-3">
+              Cette saison chez Lab&apos;s Food
+            </p>
+            <Stat label="Sessions réalisées" value={DASHBOARD_STATS.sessionsTotal} accent="amber" />
+            <Stat label="Plats cuisinés" value={DASHBOARD_STATS.mealsCooked} />
+            <Stat label="Heures gagnées" value={`${DASHBOARD_STATS.hoursSaved} h`} />
+            <Stat label="Crédit d'impôt cumulé" value={`${DASHBOARD_STATS.moneySaved} €`} accent="mint" />
+          </div>
         </div>
+      </motion.section>
+
+      {/* ── Quick actions ─────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <QuickAction
+          href="/espace-client/menus"
+          Icon={ChefHat}
+          title="Menus"
+          subtitle="Découvrir cette semaine"
+          accent="amber"
+        />
+        <QuickAction
+          href="/espace-client/personnalisation"
+          Icon={Sparkles}
+          title="Personnaliser"
+          subtitle="Brunch, régime, événement…"
+          accent="mint"
+        />
+        <QuickAction
+          href="/espace-client/commandes"
+          Icon={CalendarRange}
+          title="Commandes"
+          subtitle="Suivi & historique"
+          accent="navy"
+        />
+        <QuickAction
+          href="/espace-client/statistiques"
+          Icon={Trophy}
+          title="Mes badges"
+          subtitle="Club Marmitons"
+          accent="amber"
+        />
       </section>
 
-      <div className="container-xl py-12 lg:py-16">
-        {/* Quick tiles */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-          {TABS.map(({ icon: Icon, label, count }) => (
-            <button key={label}
-              className="card-base p-6 text-left flex items-center gap-4 group">
-              <div className="w-12 h-12 rounded-full bg-[rgba(217,105,65,0.1)] flex items-center justify-center flex-shrink-0 group-hover:bg-terra transition-colors">
-                <Icon className="w-5 h-5 text-terra group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-navy">{label}</p>
-                <p className="text-xs text-ink-soft mt-0.5">
-                  {count} document{count > 1 ? 's' : ''}
-                </p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-ink-soft group-hover:text-terra group-hover:translate-x-1 transition-all" />
-            </button>
-          ))}
+      {/* ── 2-column row ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent orders */}
+        <div className="lg:col-span-2 bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
+            <Link href="/espace-client/commandes" className="text-xs font-semibold text-amber hover:underline inline-flex items-center gap-1">
+              Tout voir <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <ul className="divide-y divide-[rgba(31,42,55,0.06)]">
+            {DASHBOARD_ORDERS.slice(0, 3).map((o) => (
+              <li key={o.id} className="py-3 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-soft text-amber-deep flex items-center justify-center flex-shrink-0">
+                  <CalendarRange className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-navy truncate">
+                    {o.formula} · {o.meals.length} plats
+                  </p>
+                  <p className="text-xs text-ink-soft truncate">
+                    {formatDate(o.date)} · {o.amountTTC}€ TTC
+                  </p>
+                </div>
+                <span
+                  className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${
+                    o.status === 'delivered'
+                      ? 'bg-mint text-mint-ink'
+                      : o.status === 'pending'
+                        ? 'bg-amber-soft text-amber-deep'
+                        : 'bg-cream-deep text-navy'
+                  }`}
+                >
+                  {ORDER_STATUS_LABEL[o.status]}
+                </span>
+                <Link
+                  href={`/espace-client/commandes/${o.id}`}
+                  className="text-ink-soft hover:text-navy"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Next session */}
-        <div className="bg-paper rounded-2xl p-8 lg:p-10 border border-[rgba(31,26,20,0.06)]">
-          <h2 className="font-display font-bold text-navy text-2xl mb-6">
-            Prochaine session
-          </h2>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 lg:p-6 rounded-xl bg-cream border border-[rgba(217,105,65,0.2)]">
-            <div>
-              <p className="font-semibold text-navy">Session Confort · 7 plats</p>
-              <p className="text-sm text-ink-mid mt-1">
-                Samedi 3 mai 2026 · 9h00 · Avec Ivy Siyaptze
-              </p>
+        {/* Activity */}
+        <div className="space-y-6">
+          {/* Last message */}
+          <div className="bg-mint/40 border border-mint-deep/40 rounded-3xl p-5">
+            <div className="flex items-center gap-2 text-mint-ink text-[10px] uppercase tracking-[0.2em] font-mono mb-3">
+              <MessageCircle className="w-3.5 h-3.5" /> Dernier message
             </div>
-            <span className="chip chip-terra">Confirmée</span>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/reservation" className="btn-primary">
-              Réserver une nouvelle session
-              <ArrowRight className="w-4 h-4 icon-arrow" />
-            </Link>
-            <Link href="/menu" className="btn-outline">
-              Voir le menu de la semaine
+            <p className="text-sm font-semibold text-navy mb-1">{lastMessage.author}</p>
+            <p className="text-sm text-ink-mid leading-relaxed line-clamp-3">{lastMessage.text}</p>
+            <Link
+              href="/espace-client/messages"
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-mint-ink hover:underline"
+            >
+              Répondre <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
+
+          {/* Custom request */}
+          {pendingCustom && (
+            <div className="bg-paper border border-[rgba(31,42,55,0.06)] rounded-3xl p-5">
+              <div className="flex items-center gap-2 text-amber text-[10px] uppercase tracking-[0.2em] font-mono mb-3">
+                <Sparkles className="w-3.5 h-3.5" /> Demande perso
+              </div>
+              <p className="text-sm font-semibold text-navy mb-1">{pendingCustom.title}</p>
+              <p className="text-xs text-ink-soft mb-3">
+                Statut : <span className="text-navy font-semibold">{pendingCustom.status}</span>
+                {pendingCustom.quote && ` · ${pendingCustom.quote.amountTTC}€ proposés`}
+              </p>
+              <Link
+                href="/espace-client/personnalisation"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber hover:underline"
+              >
+                Voir la demande <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+function Stat({ label, value, accent }: { label: string; value: string | number; accent?: 'amber' | 'mint' }) {
+  const accentClass =
+    accent === 'amber' ? 'text-amber' : accent === 'mint' ? 'text-mint-deep' : 'text-white'
+  return (
+    <div className="flex items-baseline justify-between py-1.5 border-b border-white/5 last:border-0">
+      <span className="text-[11px] text-white/55 uppercase tracking-[0.12em]">{label}</span>
+      <span className={`font-display text-xl font-bold ${accentClass}`}>{value}</span>
+    </div>
+  )
+}
+
+function QuickAction({
+  href,
+  Icon,
+  title,
+  subtitle,
+  accent,
+}: {
+  href: string
+  Icon: any
+  title: string
+  subtitle: string
+  accent: 'amber' | 'mint' | 'navy'
+}) {
+  const styles =
+    accent === 'amber'
+      ? 'bg-amber-soft text-amber-deep'
+      : accent === 'mint'
+        ? 'bg-mint text-mint-ink'
+        : 'bg-navy text-amber'
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl bg-paper border border-[rgba(31,42,55,0.06)] p-4 hover:border-amber transition-colors flex items-center gap-3"
+    >
+      <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${styles}`}>
+        <Icon className="w-4 h-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-navy leading-tight truncate">{title}</p>
+        <p className="text-[11px] text-ink-soft mt-0.5 truncate">{subtitle}</p>
+      </div>
+    </Link>
   )
 }
