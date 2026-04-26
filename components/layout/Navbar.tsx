@@ -1,0 +1,160 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Menu, X, ChefHat, ArrowRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const NAV_LINKS = [
+  { label: 'Concept',         href: '/#concept' },
+  { label: 'Menu',            href: '/menu' },
+  { label: 'Recettes',        href: '/recettes' },
+  { label: 'Chefs',           href: '/chefs' },
+  { label: 'Avantage fiscal', href: '/avantage-fiscal' },
+  { label: 'FAQ',             href: '/faq' },
+]
+
+export default function Navbar() {
+  const [scrolled, setScrolled]     = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 30)
+    fn()
+    window.addEventListener('scroll', fn, { passive: true })
+    return () => window.removeEventListener('scroll', fn)
+  }, [])
+
+  useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
+
+  return (
+    <>
+      <motion.header
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className={cn(
+          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+          scrolled
+            ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-3'
+            : 'bg-cream py-5'
+        )}
+      >
+        <div className="container-xl flex items-center justify-between">
+
+          {/* ── Logo ─────────────────────────────────────────────────────── */}
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-terra flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12">
+              <ChefHat className="w-5 h-5 text-white" strokeWidth={2} />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-xl font-bold text-navy tracking-tight">
+                Lab&apos;s Food
+              </span>
+              <span className="label-muted text-[9px] mt-1 tracking-[0.2em]">
+                Batch Cooking
+              </span>
+            </div>
+          </Link>
+
+          {/* ── Desktop Nav ──────────────────────────────────────────────── */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {NAV_LINKS.map((link) => {
+              const active = pathname === link.href || (link.href.startsWith('/#') && pathname === '/')
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200',
+                    pathname === link.href
+                      ? 'text-terra'
+                      : 'text-ink-mid hover:text-terra'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* ── Desktop CTAs ─────────────────────────────────────────────── */}
+          <div className="hidden lg:flex items-center gap-3">
+            <Link
+              href="/auth/login"
+              className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+            >
+              Connexion
+            </Link>
+            <Link href="/reservation" className="btn btn-primary text-xs px-5 py-3">
+              Réserver
+              <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+            </Link>
+          </div>
+
+          {/* ── Mobile burger ────────────────────────────────────────────── */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 text-navy hover:text-terra transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+      </motion.header>
+
+      {/* ── Mobile Menu ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-40 bg-navy flex flex-col pt-24 px-8 pb-10"
+          >
+            <nav className="flex flex-col gap-1 mb-auto">
+              {NAV_LINKS.map((link, i) => (
+                <motion.div
+                  key={link.href}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Link
+                    href={link.href}
+                    className="block py-4 font-display text-3xl font-bold text-white hover:text-terra transition-colors border-b border-white/10"
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              ))}
+            </nav>
+
+            <div className="flex flex-col gap-3 pt-8">
+              <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
+                Connexion
+              </Link>
+              <Link href="/reservation" className="btn btn-primary justify-center w-full">
+                Réserver ma session
+                <ArrowRight className="w-4 h-4 icon-arrow" />
+              </Link>
+            </div>
+
+            <p className="mt-6 text-center text-xs text-white/40">
+              Lun–Ven · 9h–17h
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
