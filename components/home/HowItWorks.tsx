@@ -2,33 +2,38 @@
 
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { ShoppingCart, CalendarCheck, ChefHat, Utensils } from 'lucide-react'
+import {
+  WhiskingBowl,
+  CalendarCheck,
+  SteamingPot,
+  ShoppingBag,
+} from '@/components/shared/CookingAnimations'
 
 const STEPS = [
   {
     number: '01',
-    icon: Utensils,
+    Anim: WhiskingBowl,
     title: 'Choisissez vos recettes',
     description:
       'Parcourez notre menu hebdomadaire et sélectionnez jusqu\'à 7 plats parmi notre catalogue de recettes du monde.',
   },
   {
     number: '02',
-    icon: CalendarCheck,
+    Anim: CalendarCheck,
     title: 'Réservez votre session',
     description:
       'Choisissez votre formule, sélectionnez votre chef selon votre région et réservez un créneau.',
   },
   {
     number: '03',
-    icon: ChefHat,
+    Anim: SteamingPot,
     title: 'Le chef cuisine chez vous',
     description:
       'Le jour J, votre chef professionnel arrive et prépare tous vos plats en 2 à 4 heures dans votre cuisine.',
   },
   {
     number: '04',
-    icon: ShoppingCart,
+    Anim: ShoppingBag,
     title: 'Profitez toute la semaine',
     description:
       'Recevez votre liste de courses optimisée et savourez des repas sains, prêts à servir.',
@@ -65,7 +70,7 @@ export default function HowItWorks() {
           <div className="hidden lg:block absolute top-12 left-[12%] right-[12%] h-px border-t-2 border-dashed border-[rgba(217,105,65,0.3)] -z-0" />
 
           {STEPS.map((step, i) => {
-            const Icon = step.icon
+            const Anim = step.Anim
             return (
               <motion.div
                 key={step.number}
@@ -74,13 +79,11 @@ export default function HowItWorks() {
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
                 className="relative bg-paper rounded-2xl p-7 border border-[rgba(31,26,20,0.06)] hover:shadow-[0_24px_60px_-20px_rgba(31,26,20,0.18)] transition-shadow duration-500"
               >
-                {/* Number circle */}
-                <div className="relative w-20 h-20 mx-auto mb-5">
-                  <div className="absolute inset-0 rounded-full bg-cream-deep" />
-                  <div className="absolute inset-2 rounded-full bg-paper border-2 border-terra flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-terra" />
-                  </div>
-                  <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-navy text-white text-[10px] font-mono font-semibold flex items-center justify-center">
+                {/* Animated cooking icon */}
+                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full bg-cream-soft" />
+                  <Anim size={88} className="relative z-10" />
+                  <span className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-navy text-white text-[10px] font-mono font-semibold flex items-center justify-center z-20">
                     {step.number}
                   </span>
                 </div>

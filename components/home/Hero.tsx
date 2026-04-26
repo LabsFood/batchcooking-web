@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight, Star, Leaf, ChefHat } from 'lucide-react'
+import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAnimations'
 
 const FADE = {
   hidden: { opacity: 0, y: 28 },
@@ -24,6 +25,14 @@ export default function Hero() {
         className="absolute -left-6 bottom-10 w-40 h-40 text-terra opacity-[0.08] -rotate-45 pointer-events-none"
         strokeWidth={1}
       />
+      {/* Animated steaming pot — bottom left corner */}
+      <div className="absolute left-6 bottom-6 hidden xl:block pointer-events-none">
+        <SteamingPot size={130} />
+      </div>
+      {/* Floating ingredients — top center */}
+      <div className="absolute top-32 left-1/2 -translate-x-[60%] hidden xl:block pointer-events-none opacity-90">
+        <FloatingIngredients size={120} />
+      </div>
 
       <div className="container-xl relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">

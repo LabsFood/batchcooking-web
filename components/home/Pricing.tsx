@@ -42,9 +42,9 @@ export default function Pricing() {
               className={`relative flex ${plan.popular ? 'md:-mt-6' : ''}`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                  <span className="chip chip-amber px-4 py-1.5 shadow-md whitespace-nowrap">
-                    ★ Le plus populaire
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-terra text-white text-[11px] font-semibold tracking-[0.14em] uppercase px-5 py-2 shadow-[0_10px_24px_-8px_rgba(217,105,65,0.6)] whitespace-nowrap">
+                    <span className="text-amber">★</span> Le plus populaire
                   </span>
                 </div>
               )}

@@ -15,7 +15,10 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git -c user.email=\"dev@labsfood.local\" -c user.name=\"Lab's Food\" commit -m \"init: project baseline with new design system\")"
+      "Bash(git -c user.email=\"dev@labsfood.local\" -c user.name=\"Lab's Food\" commit -m \"init: project baseline with new design system\")",
+      "Bash(git checkout *)",
+      "Bash(curl -sf -o /dev/null http://localhost:3005/)",
+      "Bash(git -c user.email=dev@labsfood.local -c 'user.name=Lab'\\\\''s Food' commit -m 'feat: add cooking SVG animations + redesigned footer + fix pricing badge *)"
     ]
   }
 }
