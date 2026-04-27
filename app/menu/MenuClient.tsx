@@ -49,7 +49,7 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
               </span>
             </div>
             <ReserveButton
-              href={`/reservation?meals=${selected.join(',')}`}
+              meals={selected.join(',')}
               variant="navy"
               className="text-xs px-5 py-2.5"
             >
@@ -142,7 +142,7 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
             <p className="text-ink-mid mb-6 max-w-md mx-auto leading-relaxed">
               Soumettez une demande personnalisée. Notre chef vous fera une proposition tarifaire adaptée.
             </p>
-            <ReserveButton href="/reservation?custom=true">
+            <ReserveButton href="/espace-client/personnalisation">
               Faire une demande personnalisée
               <ArrowRight className="w-4 h-4 icon-arrow" />
             </ReserveButton>

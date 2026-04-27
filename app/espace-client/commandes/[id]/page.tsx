@@ -1,8 +1,6 @@
 'use client'
 
-import { use } from 'react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -42,10 +40,27 @@ function formatDate(iso: string) {
   })
 }
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function OrderDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const order = DASHBOARD_ORDERS.find((o) => o.id === id)
-  if (!order) notFound()
+
+  if (!order) {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center">
+        <p className="text-6xl mb-4" aria-hidden>🍳</p>
+        <h2 className="font-display text-2xl font-bold text-navy mb-2">
+          Commande introuvable
+        </h2>
+        <p className="text-ink-mid mb-6">
+          Cette commande n&apos;existe plus ou n&apos;a jamais existé. Retour à ta liste.
+        </p>
+        <Link href="/espace-client/commandes" className="btn btn-primary text-xs">
+          <ArrowLeft className="w-4 h-4" />
+          Toutes mes commandes
+        </Link>
+      </div>
+    )
+  }
 
   const currentStep = ORDER_STATUS_FLOW.indexOf(order.status)
 

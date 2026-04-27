@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { CheckCircle, ArrowRight, FileText } from 'lucide-react'
-import Link from 'next/link'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 export const metadata: Metadata = { title: 'Avantage Fiscal' }
 
@@ -85,10 +85,10 @@ export default function AvantagesFiscalPage() {
           </div>
 
           <div className="mt-10 flex flex-wrap gap-4">
-            <Link href="/reservation" className="btn-primary">
+            <ReserveButton>
               Réserver et économiser 50%
               <ArrowRight className="w-4 h-4 icon-arrow" />
-            </Link>
+            </ReserveButton>
             <a href="#" className="btn-outline">
               <FileText className="w-4 h-4" />
               Télécharger le guide fiscal

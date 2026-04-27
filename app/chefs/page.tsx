@@ -176,10 +176,7 @@ export default function ChefsPage() {
                     )}
 
                     {chef.available ? (
-                      <ReserveButton
-                        href={`/reservation?chef=${chef.id}`}
-                        className="self-start text-xs px-5 py-2.5"
-                      >
+                      <ReserveButton className="self-start text-xs px-5 py-2.5">
                         Réserver avec ce chef
                         <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
                       </ReserveButton>

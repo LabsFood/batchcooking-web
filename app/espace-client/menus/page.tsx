@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Plus, Check, Clock, Users, Flame, Sparkles, ArrowRight, ChefHat } from 'lucide-react'
 import { WEEKLY_MEALS } from '@/lib/mock-data'
 import ReserveButton from '@/components/shared/ReserveButton'
 
-export default function DashboardMenusPage() {
+function DashboardMenusInner() {
+  const params = useSearchParams()
+  const reserveMode = params.get('reserve') === '1'
   const [picked, setPicked] = useState<string[]>([])
   const MAX = 7
   const toggle = (id: string) =>
@@ -17,6 +20,26 @@ export default function DashboardMenusPage() {
 
   return (
     <div className="space-y-6">
+      {/* Reserve-flow banner */}
+      {reserveMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl bg-amber-soft/70 border border-amber/40 p-4 lg:p-5 flex items-start gap-3"
+        >
+          <span className="w-10 h-10 rounded-xl bg-amber text-navy flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </span>
+          <div className="flex-1 text-sm text-navy">
+            <p className="font-semibold">D&apos;abord les plats, ensuite la réservation.</p>
+            <p className="text-xs text-ink-mid mt-0.5 leading-relaxed">
+              Sélectionne entre 1 et {MAX} plats ci-dessous, puis clique sur
+              <strong className="text-navy"> Continuer ma réservation</strong>.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Hero strip */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-mint via-mint/80 to-mint-deep/30 p-6 lg:p-7 border border-mint-deep/30">
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-center">
@@ -34,14 +57,19 @@ export default function DashboardMenusPage() {
             <span className="px-3 py-1 rounded-full bg-paper text-navy text-xs font-semibold border border-mint-deep/40">
               {picked.length} / {MAX} sélectionnés
             </span>
-            <ReserveButton
-              href={`/reservation?meals=${picked.join(',')}`}
-              variant="navy"
-              className="text-xs"
-            >
-              Réserver avec ces plats
-              <ArrowRight className="w-4 h-4 icon-arrow" />
-            </ReserveButton>
+            {picked.length > 0 ? (
+              <Link
+                href={`/espace-client/reservation?meals=${picked.join(',')}`}
+                className="btn btn-navy text-xs"
+              >
+                {reserveMode ? 'Continuer ma réservation' : 'Réserver avec ces plats'}
+                <ArrowRight className="w-4 h-4 icon-arrow" />
+              </Link>
+            ) : (
+              <span className="btn btn-navy text-xs opacity-40 cursor-not-allowed">
+                Sélectionne 1 plat minimum
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -123,5 +151,13 @@ export default function DashboardMenusPage() {
         </Link>
       </section>
     </div>
+  )
+}
+
+export default function DashboardMenusPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardMenusInner />
+    </Suspense>
   )
 }

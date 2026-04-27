@@ -127,11 +127,7 @@ export default function Pricing() {
                 })}
               </ul>
 
-              <ReserveButton
-                href="/reservation?plan=base"
-                variant="amber"
-                className="mt-8 text-xs"
-              >
+              <ReserveButton variant="amber" className="mt-8 text-xs">
                 Réserver une session
                 <ArrowRight className="w-4 h-4 icon-arrow" />
               </ReserveButton>
