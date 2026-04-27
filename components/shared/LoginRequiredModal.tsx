@@ -90,8 +90,8 @@ export default function LoginRequiredModal() {
             className="relative w-full max-w-lg bg-navy text-white rounded-3xl overflow-hidden shadow-[0_40px_100px_-20px_rgba(31,42,55,0.55)]"
           >
             {/* Glow */}
-            <div className="absolute -top-20 -right-16 w-64 h-64 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" />
+            {/* <div className="absolute -top-20 -right-16 w-64 h-64 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" /> */}
 
             <button
               onClick={close}

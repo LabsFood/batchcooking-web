@@ -47,7 +47,7 @@ export default function Hero() {
             <motion.h1
               variants={FADE} custom={0.08} initial="hidden" animate="show"
               className="h-display text-navy"
-              style={{ fontSize: 'clamp(2.6rem, 6.5vw, 5.5rem)' }}
+              style={{ fontSize: 'clamp(2.6rem, 6.5vw, 5rem)' }}
             >
               Une semaine entière<br />
               de repas faits maison<br />
@@ -113,10 +113,15 @@ export default function Hero() {
               {/* Main framed image — rounded shape */}
               <div className="relative rounded-[40%_60%_45%_55%/55%_45%_55%_45%] overflow-hidden aspect-[4/5] shadow-[0_30px_80px_-30px_rgba(31,26,20,0.4)]">
                 <img
-                  src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&auto=format&fit=crop&q=80"
+                  src="/images/ivyCuisine.png"
                   alt="Chef cuisinier à domicile"
                   className="w-full h-full object-cover"
                 />
+                {/* <img
+                  src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&auto=format&fit=crop&q=80"
+                  alt="Chef cuisinier à domicile"
+                  className="w-full h-full object-cover"
+                /> */}
               </div>
 
               {/* Floating circle badge — top left */}

@@ -287,7 +287,7 @@ export const CHEFS: Chef[] = [
   {
     id: 'c1',
     name: 'Ivy Siyaptze',
-    avatar: 'https://images.unsplash.com/photo-1607631568010-a87245c0daf8?w=400&auto=format&fit=crop',
+    avatar: '/images/IvyChef.png',
     specialty: 'Cuisine française & fusion',
     region: 'Île-de-France',
     city: 'Paris',
