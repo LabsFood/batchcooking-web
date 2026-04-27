@@ -1,4 +1,5 @@
 import FAQ from '@/components/home/FAQ'
+import EquipmentSection from '@/components/shared/EquipmentSection'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function FAQPage() {
         </div>
       </section>
       <FAQ />
+      <EquipmentSection variant="paper" />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { ArrowRight, Star, MapPin } from 'lucide-react'
+import { ArrowRight, Star, MapPin, Award, ChefHat } from 'lucide-react'
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import { CHEFS } from '@/lib/mock-data'
@@ -8,72 +8,116 @@ import { CHEFS } from '@/lib/mock-data'
 export default function FeaturedChefs() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-80px' })
+  const ivy = CHEFS[0] // Solo chef pour la version actuelle
 
   return (
-    <section ref={ref} className="section-padding section-cream-soft">
-      <div className="container-xl">
+    <section ref={ref} className="section-padding section-cream-soft relative overflow-hidden">
+      <div className="absolute -top-32 -left-20 w-96 h-96 rounded-full bg-amber/10 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-20 w-96 h-96 rounded-full bg-mint/30 blur-3xl pointer-events-none" />
+
+      <div className="container-xl relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center max-w-2xl mx-auto mb-14"
         >
-          <p className="eyebrow mb-5 justify-center">Notre équipe</p>
+          <p className="eyebrow mb-5 justify-center">Le chef</p>
           <h2 className="h-section">
-            Des chefs passionnés <span className="accent">& certifiés.</span>
+            Une cheffe, mille <span className="accent">plats.</span>
           </h2>
           <p className="text-ink-mid mt-5 leading-relaxed">
-            Tous nos chefs sont des professionnels diplômés, agréés Service à la Personne,
-            sélectionnés pour leur expertise et leur passion.
+            Pour cette première saison, c&apos;est <span className="font-semibold text-navy">Ivy</span> qui
+            cuisine chez vous. Fondatrice de Lab&apos;s Food, formée en restauration gastronomique,
+            spécialiste des cuisines du monde et de la nutrition saine.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {CHEFS.map((chef, i) => (
-            <motion.div
-              key={chef.id}
-              initial={{ opacity: 0, y: 24 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: i * 0.08 }}
-              className="group text-center"
-            >
-              {/* Image */}
-              <div className="relative mb-5 mx-auto w-fit">
-                <div className="relative w-44 h-44 rounded-full overflow-hidden border-4 border-paper shadow-[0_20px_40px_-15px_rgba(31,26,20,0.25)]">
-                  <img
-                    src={chef.avatar}
-                    alt={chef.name}
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
-                  />
-                  {!chef.available && (
-                    <div className="absolute inset-0 bg-navy/70 flex items-center justify-center">
-                      <span className="chip chip-cream">Indisponible</span>
-                    </div>
-                  )}
-                </div>
-                {/* Rating badge */}
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-paper px-3 py-1 rounded-full shadow-md flex items-center gap-1 border border-[rgba(31,26,20,0.06)]">
-                  <Star className="w-3 h-3 fill-amber text-amber" />
-                  <span className="text-xs font-semibold text-navy">{chef.rating}</span>
-                </div>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-5xl mx-auto"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] bg-paper rounded-3xl overflow-hidden shadow-[0_30px_80px_-30px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.06)]">
+            {/* Portrait */}
+            <div className="relative aspect-[4/5] lg:aspect-auto">
+              <img
+                src={ivy.avatar}
+                alt={ivy.name}
+                className="w-full h-full object-cover object-top"
+              />
+              {/* Floating ratings badge */}
+              <div className="absolute bottom-5 left-5 bg-paper rounded-2xl px-4 py-2.5 shadow-[0_18px_40px_-15px_rgba(31,42,55,0.3)] flex items-center gap-2">
+                <Star className="w-4 h-4 fill-amber text-amber" />
+                <span className="font-display font-bold text-navy">{ivy.rating}</span>
+                <span className="text-xs text-ink-soft">· {ivy.reviewCount} avis</span>
+              </div>
+              {/* Sessions badge */}
+              <div className="absolute top-5 left-5 bg-navy text-amber rounded-full px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] flex items-center gap-1.5">
+                <ChefHat className="w-3 h-3" /> {ivy.sessionsDone}+ sessions
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-7 lg:p-10 flex flex-col">
+              <p className="text-amber font-mono text-[10px] uppercase tracking-[0.22em] mb-2">
+                Fondatrice & cheffe
+              </p>
+              <h3 className="font-display text-3xl lg:text-4xl font-bold text-navy leading-tight">
+                {ivy.name}
+              </h3>
+              <p className="text-terra font-semibold mt-2 text-sm">{ivy.specialty}</p>
+              <div className="flex items-center gap-1.5 text-xs text-ink-soft mt-2">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>{ivy.city}, {ivy.region}</span>
               </div>
 
-              <h3 className="font-display text-xl font-bold text-navy mb-1">{chef.name}</h3>
-              <p className="text-terra text-sm font-semibold mb-2">{chef.specialty}</p>
-              <div className="flex items-center justify-center gap-1.5 text-xs text-ink-soft">
-                <MapPin className="w-3 h-3" />
-                <span>{chef.city}</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              <p className="text-ink-mid text-sm leading-relaxed mt-5">{ivy.bio}</p>
 
-        <div className="flex justify-center mt-14">
-          <Link href="/chefs" className="btn btn-outline">
-            Voir tous les chefs
-            <ArrowRight className="w-4 h-4 icon-arrow" />
-          </Link>
-        </div>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {ivy.specialties.map((s) => (
+                  <span
+                    key={s}
+                    className="text-[11px] font-mono uppercase tracking-[0.12em] px-3 py-1 rounded-full bg-mint/40 text-mint-ink border border-mint-deep/30"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                {ivy.badges.map((b) => (
+                  <span
+                    key={b}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-soft text-amber-deep"
+                  >
+                    <Award className="w-3 h-3" /> {b}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-auto pt-7 flex flex-wrap gap-3">
+                <Link href="/chefs" className="btn btn-primary text-xs">
+                  Lire son histoire
+                  <ArrowRight className="w-4 h-4 icon-arrow" />
+                </Link>
+                <span className="inline-flex items-center gap-2 text-xs text-ink-mid">
+                  <span className="w-2 h-2 rounded-full bg-mint-deep animate-pulse" />
+                  Disponible cette semaine
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Soon */}
+          <p className="text-center text-xs text-ink-soft mt-8 max-w-md mx-auto">
+            D&apos;autres chefs rejoindront Lab&apos;s Food très bientôt — Marseille, Lyon, Toulouse.
+            <Link href="/chefs/rejoindre" className="text-amber font-semibold hover:underline ml-1">
+              Devenir chef ?
+            </Link>
+          </p>
+        </motion.div>
       </div>
     </section>
   )

@@ -18,7 +18,8 @@
       "Bash(git -c user.email=\"dev@labsfood.local\" -c user.name=\"Lab's Food\" commit -m \"init: project baseline with new design system\")",
       "Bash(git checkout *)",
       "Bash(curl -sf -o /dev/null http://localhost:3005/)",
-      "Bash(git -c user.email=dev@labsfood.local -c 'user.name=Lab'\\\\''s Food' commit -m 'feat: add cooking SVG animations + redesigned footer + fix pricing badge *)"
+      "Bash(git -c user.email=dev@labsfood.local -c 'user.name=Lab'\\\\''s Food' commit -m 'feat: add cooking SVG animations + redesigned footer + fix pricing badge *)",
+      "Bash(node -e \"const l=require\\('lucide-react'\\); ['Blend','Cookie','CookingPot','Microwave','Refrigerator','Cog','Scale','Timer','Package'].forEach\\(n => console.log\\(n, !!l[n]\\)\\);\")"
     ]
   }
 }

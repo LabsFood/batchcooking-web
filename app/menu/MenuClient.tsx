@@ -149,6 +149,8 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
           </div>
         </div>
       </section>
+
+      <EquipmentSection variant="paper" compact />
     </div>
   )
 }
