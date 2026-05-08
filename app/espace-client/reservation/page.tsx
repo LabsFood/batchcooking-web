@@ -140,10 +140,15 @@ function ReservationFlow() {
 
       <AnimatePresence mode="wait">
         {step === 'plats' && (
-          <StepCard key="plats" title="Choisis jusqu'à 7 plats" subtitle="Le menu est renouvelé chaque semaine.">
-            {selectedMeals.length === 0 && (
+          <StepCard
+            key="plats"
+            title="Choisis tes plats — entre 3 et 7"
+            subtitle="Le menu est renouvelé chaque semaine. Le minimum pour passer à la liste de courses est de 3 plats."
+          >
+            {selectedMeals.length < 3 && (
               <div className="rounded-2xl border border-amber/40 bg-amber-soft/40 p-4 mb-4 text-sm text-navy">
-                Sélectionne au moins <strong>1 plat</strong> pour continuer.
+                Sélectionne au moins <strong>3 plats</strong> pour passer à la liste de
+                courses. Tu en as actuellement <strong>{selectedMeals.length}</strong>.
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -183,10 +188,12 @@ function ReservationFlow() {
               </Link>
               <button
                 onClick={next}
-                disabled={selectedMeals.length === 0}
+                disabled={selectedMeals.length < 3}
                 className="btn btn-primary disabled:opacity-50"
               >
-                Continuer ({selectedMeals.length}/7)
+                {selectedMeals.length < 3
+                  ? `Encore ${3 - selectedMeals.length} plat${3 - selectedMeals.length > 1 ? 's' : ''} minimum`
+                  : `Continuer (${selectedMeals.length}/7)`}
                 <ArrowRight className="w-4 h-4 icon-arrow" />
               </button>
             </div>

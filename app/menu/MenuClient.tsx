@@ -106,25 +106,9 @@ export default function MenuClient({ meals }: { meals: Meal[] }) {
                     <h3 className="font-display text-lg font-bold text-navy mb-2 leading-tight">
                       {meal.name}
                     </h3>
-                    <p className="text-ink-mid text-sm leading-relaxed line-clamp-2 mb-4 flex-1">
+                    <p className="text-ink-mid text-sm leading-relaxed line-clamp-3 flex-1">
                       {meal.description}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-ink-soft pt-3 border-t border-[rgba(31,26,20,0.06)]">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-terra" />
-                        {meal.portions}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-terra" />
-                        {meal.prepTime >= 60 ? `${Math.floor(meal.prepTime / 60)}h` : `${meal.prepTime}min`}
-                      </span>
-                      {meal.calories && (
-                        <span className="flex items-center gap-1">
-                          <Flame className="w-3.5 h-3.5 text-terra" />
-                          {meal.calories}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </motion.div>
               )

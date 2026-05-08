@@ -98,7 +98,7 @@ export default function FeaturedChefs() {
               </div>
 
               <div className="mt-auto pt-7 flex flex-wrap gap-3">
-                <Link href="/chefs" className="btn btn-primary text-xs">
+                <Link href="/a-propos" className="btn btn-primary text-xs">
                   Lire son histoire
                   <ArrowRight className="w-4 h-4 icon-arrow" />
                 </Link>
@@ -109,14 +109,6 @@ export default function FeaturedChefs() {
               </div>
             </div>
           </div>
-
-          {/* Soon */}
-          <p className="text-center text-xs text-ink-soft mt-8 max-w-md mx-auto">
-            D&apos;autres chefs rejoindront Lab&apos;s Food très bientôt — Marseille, Lyon, Toulouse.
-            <Link href="/chefs/rejoindre" className="text-amber font-semibold hover:underline ml-1">
-              Devenir chef ?
-            </Link>
-          </p>
         </motion.div>
       </div>
     </section>

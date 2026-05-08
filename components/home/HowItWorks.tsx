@@ -15,28 +15,28 @@ const STEPS = [
     Anim: WhiskingBowl,
     title: 'Choisissez vos recettes',
     description:
-      'Parcourez notre menu hebdomadaire et sélectionnez jusqu\'à 7 plats parmi notre catalogue de recettes du monde.',
+      'Parcourez le menu de la semaine et sélectionnez à partir de 3 plats parmi nos recettes du monde.',
   },
   {
     number: '02',
-    Anim: CalendarCheck,
-    title: 'Réservez votre session',
+    Anim: ShoppingBag,
+    title: 'Recevez la liste de courses',
     description:
-      'Choisissez votre formule, sélectionnez votre chef selon votre région et réservez un créneau.',
+      'Vous recevez la liste d\'ingrédients précise au moins 3 jours avant — bio, producteurs locaux, vous gardez la main.',
   },
   {
     number: '03',
-    Anim: SteamingPot,
-    title: 'Le chef cuisine chez vous',
+    Anim: CalendarCheck,
+    title: 'Réservez votre session',
     description:
-      'Le jour J, votre chef professionnel arrive et prépare tous vos plats en 2 à 4 heures dans votre cuisine.',
+      'Choisissez la date, le créneau et l\'option courses. Validation et paiement en quelques clics.',
   },
   {
     number: '04',
-    Anim: ShoppingBag,
-    title: 'Profitez toute la semaine',
+    Anim: SteamingPot,
+    title: 'Ivy cuisine chez vous',
     description:
-      'Recevez votre liste de courses optimisée et savourez des repas sains, prêts à servir.',
+      'Le jour J, Ivy arrive et prépare vos plats en 2 à 3 heures. La cuisine repart propre, le frigo plein.',
   },
 ]
 

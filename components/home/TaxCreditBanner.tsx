@@ -1,15 +1,20 @@
 'use client'
-import Link from 'next/link'
 import { ArrowRight, Percent } from 'lucide-react'
 import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import AvantageFiscalModal from '@/components/shared/AvantageFiscalModal'
 
 export default function TaxCreditBanner() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
+  const [open, setOpen] = useState(false)
 
   return (
-    <section ref={ref} className="py-20 lg:py-24 relative overflow-hidden">
+    <section
+      id="tax-credit"
+      ref={ref}
+      className="py-20 lg:py-24 relative overflow-hidden"
+    >
       <div className="container-xl">
         <div className="relative bg-navy rounded-3xl overflow-hidden p-10 lg:p-16">
           {/* Decorative oversized 50% */}
@@ -45,14 +50,19 @@ export default function TaxCreditBanner() {
                 </p>
               </div>
 
-              <h2 className="font-display font-bold text-white leading-tight mb-5"
-                style={{ fontSize: 'clamp(1.8rem, 3.6vw, 3rem)', letterSpacing: '-0.02em' }}>
-                50% remboursés grâce au crédit d&apos;impôt
-                <span className="text-terra italic font-medium"> Services à la Personne.</span>
+              <h2
+                className="font-display font-bold text-white leading-tight mb-5"
+                style={{ fontSize: 'clamp(1.8rem, 3.6vw, 3rem)', letterSpacing: '-0.02em' }}
+              >
+                Le batch cooking,<br />
+                <span className="text-terra italic font-medium">
+                  un Service à la Personne.
+                </span>
               </h2>
               <p className="text-white/70 text-base lg:text-lg leading-relaxed max-w-2xl">
-                Lab&apos;s Food est agréé SAP. Une session à 150€ vous revient effectivement
-                à <span className="text-amber font-semibold">75€</span> après crédit d&apos;impôt.
+                Préparation de repas à domicile = service éligible SAP. Grâce à
+                l&apos;Avance immédiate de l&apos;Urssaf, vous ne réglez que la moitié de la
+                facture — l&apos;autre moitié est versée directement à Lab&apos;s Food.
               </p>
             </motion.div>
 
@@ -62,14 +72,20 @@ export default function TaxCreditBanner() {
               transition={{ duration: 0.7, delay: 0.1 }}
               className="lg:col-span-4 lg:flex lg:justify-end"
             >
-              <Link href="/avantage-fiscal" className="btn btn-primary">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="btn btn-primary"
+              >
                 En savoir plus
                 <ArrowRight className="w-4 h-4 icon-arrow" />
-              </Link>
+              </button>
             </motion.div>
           </div>
         </div>
       </div>
+
+      <AvantageFiscalModal isOpen={open} onClose={() => setOpen(false)} />
     </section>
   )
 }

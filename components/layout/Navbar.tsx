@@ -10,11 +10,10 @@ import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 
 const NAV_LINKS = [
-  { label: 'Concept',         href: '/#concept' },
-  { label: 'Menu',            href: '/menu' },
-  { label: 'Chefs',           href: '/chefs' },
-  { label: 'Avantage fiscal', href: '/avantage-fiscal' },
-  { label: 'FAQ',             href: '/faq' },
+  { label: 'Concept',  href: '/#concept' },
+  { label: 'Menu',     href: '/menu' },
+  { label: 'À propos', href: '/a-propos' },
+  { label: 'FAQ',      href: '/faq' },
 ]
 
 export default function Navbar() {

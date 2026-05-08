@@ -137,8 +137,8 @@ export default function DashboardOverviewPage() {
         <QuickAction
           href="/espace-client/statistiques"
           Icon={Trophy}
-          title="Mes badges"
-          subtitle="Club Marmitons"
+          title="Statistiques"
+          subtitle="Tes plats, ton temps gagné"
           accent="amber"
         />
       </section>

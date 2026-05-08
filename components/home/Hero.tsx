@@ -88,16 +88,16 @@ export default function Hero() {
                   ))}
                 </div>
                 <p className="text-sm text-ink-mid">
-                  <span className="font-semibold text-ink">4.9/5</span> · 330+ avis
+                  <span className="font-semibold text-ink">4.9/5</span> · clients vérifiés
                 </p>
               </div>
               <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
               <p className="text-sm text-ink-mid">
-                <span className="font-semibold text-terra">−50%</span> crédit d&apos;impôt SAP
+                <span className="font-semibold text-terra">−50%</span> Avance immédiate Urssaf
               </p>
               <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
               <p className="text-sm text-ink-mid">
-                <span className="font-semibold text-ink">400+</span> sessions
+                <span className="font-semibold text-ink">30+</span> sessions à domicile
               </p>
             </motion.div>
           </div>

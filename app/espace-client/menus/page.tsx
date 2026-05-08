@@ -33,7 +33,7 @@ function DashboardMenusInner() {
           <div className="flex-1 text-sm text-navy">
             <p className="font-semibold">D&apos;abord les plats, ensuite la réservation.</p>
             <p className="text-xs text-ink-mid mt-0.5 leading-relaxed">
-              Sélectionne entre 1 et {MAX} plats ci-dessous, puis clique sur
+              Sélectionne entre 3 et {MAX} plats ci-dessous, puis clique sur
               <strong className="text-navy"> Continuer ma réservation</strong>.
             </p>
           </div>
@@ -57,7 +57,7 @@ function DashboardMenusInner() {
             <span className="px-3 py-1 rounded-full bg-paper text-navy text-xs font-semibold border border-mint-deep/40">
               {picked.length} / {MAX} sélectionnés
             </span>
-            {picked.length > 0 ? (
+            {picked.length >= 3 ? (
               <Link
                 href={`/espace-client/reservation?meals=${picked.join(',')}`}
                 className="btn btn-navy text-xs"
@@ -67,7 +67,7 @@ function DashboardMenusInner() {
               </Link>
             ) : (
               <span className="btn btn-navy text-xs opacity-40 cursor-not-allowed">
-                Sélectionne 1 plat minimum
+                Encore {3 - picked.length} plat{3 - picked.length > 1 ? 's' : ''} minimum
               </span>
             )}
           </div>
@@ -115,16 +115,9 @@ function DashboardMenusInner() {
                 <h4 className="font-display text-base font-bold text-navy leading-tight line-clamp-2">
                   {meal.name}
                 </h4>
-                <p className="text-xs text-ink-soft mt-1.5 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-ink-soft mt-1.5 line-clamp-3 leading-relaxed">
                   {meal.description}
                 </p>
-                <div className="flex items-center gap-3 mt-3 text-[11px] text-ink-mid">
-                  <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> {meal.portions}</span>
-                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {meal.prepTime}min</span>
-                  {meal.calories && (
-                    <span className="inline-flex items-center gap-1"><Flame className="w-3 h-3" /> {meal.calories}</span>
-                  )}
-                </div>
               </div>
             </motion.button>
           )

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { type ReactNode } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import CookieBanner from '@/components/shared/CookieBanner'
 
 const HIDDEN_PREFIXES = ['/espace-client', '/auth']
 
@@ -20,6 +21,7 @@ export default function PublicChrome({ children }: { children: ReactNode }) {
       <Navbar />
       <main className="min-h-screen">{children}</main>
       <Footer />
+      <CookieBanner />
     </>
   )
 }

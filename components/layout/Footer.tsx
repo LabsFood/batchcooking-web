@@ -13,18 +13,17 @@ const LINKS = {
     { label: 'Nos formules',          href: '/#pricing' },
     { label: 'Menu de la semaine',    href: '/menu' },
   ],
-  chefs: [
-    { label: 'Nos chefs',         href: '/chefs' },
-    { label: 'Devenir chef',      href: '/chefs/rejoindre' },
-    { label: 'Avantage fiscal',   href: '/avantage-fiscal' },
-    { label: 'Témoignages',       href: '/#testimonials' },
-    { label: 'FAQ',               href: '/faq' },
+  about: [
+    { label: 'À propos',         href: '/a-propos' },
+    { label: 'Notre histoire',   href: '/a-propos#histoire' },
+    { label: 'Témoignages',      href: '/#testimonials' },
+    { label: 'FAQ',              href: '/faq' },
   ],
   legal: [
-    { label: 'Mentions légales',     href: '/mentions-legales' },
-    { label: 'CGV / CGU',            href: '/cgv' },
-    { label: 'Confidentialité',      href: '/confidentialite' },
-    { label: 'Attestation SAP',      href: '/attestation-sap' },
+    { label: 'Mentions légales',  href: '/mentions-legales' },
+    { label: 'CGV',               href: '/cgv' },
+    { label: 'Confidentialité',   href: '/confidentialite' },
+    { label: 'Cookies',           href: '/confidentialite#cookies' },
   ],
 }
 
@@ -204,9 +203,9 @@ export default function Footer() {
               {LINKS.service.map((l) => <FooterLink key={l.href} {...l} />)}
             </FooterColumn>
 
-            {/* Chefs & infos */}
-            <FooterColumn title="Chefs & infos">
-              {LINKS.chefs.map((l) => <FooterLink key={l.href} {...l} />)}
+            {/* À propos */}
+            <FooterColumn title="À propos">
+              {LINKS.about.map((l) => <FooterLink key={l.href} {...l} />)}
             </FooterColumn>
 
             {/* Legal */}

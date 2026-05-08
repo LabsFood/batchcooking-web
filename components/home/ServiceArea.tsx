@@ -6,10 +6,10 @@ import { MapPin, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 const CITIES = [
-  { name: 'Nice',         note: 'Hyper-centre & quartier port' },
-  { name: 'Cannes',       note: 'La Croisette & alentours' },
-  { name: 'Antibes',      note: 'Vieille ville, Juan-les-Pins' },
-  { name: 'Monaco',       note: 'Sur demande' },
+  { name: 'Nice', note: 'Hyper-centre & quartier port' },
+  { name: 'Cannes', note: 'La Croisette & alentours' },
+  { name: 'Antibes', note: 'Vieille ville, Juan-les-Pins' },
+  { name: 'Monaco', note: 'Sur demande' },
   { name: 'Saint-Tropez', note: 'En saison' },
 ]
 
@@ -28,7 +28,7 @@ export default function ServiceArea() {
         >
           <p className="eyebrow mb-5 justify-center">Zone d&apos;intervention</p>
           <h2 className="h-section">
-            Lab&apos;s Food débarque sur la <span className="accent">Côte d&apos;Azur.</span>
+            Lab&apos;s Food intervient sur la <span className="accent">Côte d&apos;Azur.</span>
           </h2>
           <p className="text-ink-mid mt-5 leading-relaxed">
             Nous lançons d&apos;abord là où le soleil et les marchés sont les meilleurs.

@@ -15,11 +15,9 @@ import {
   ChefHat,
   ArrowRight,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { DASHBOARD_STATS } from '@/lib/dashboard-mock'
 import ReserveButton from '@/components/shared/ReserveButton'
 
 const NAV = [
@@ -50,11 +48,6 @@ export default function DashboardSidebar() {
     .join('')
     .toUpperCase() || 'GO'
 
-  const loyaltyPct = Math.min(
-    100,
-    Math.round((DASHBOARD_STATS.loyaltyPoints / DASHBOARD_STATS.loyaltyTarget) * 100),
-  )
-
   return (
     <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
       <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.55)] relative">
@@ -79,29 +72,8 @@ export default function DashboardSidebar() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{user?.name || 'Invité'}</p>
-                <p className="text-[11px] text-white/55 truncate">Formule Confort</p>
+                <p className="text-[11px] text-white/55 truncate">{user?.email || 'Espace client'}</p>
               </div>
-            </div>
-
-            {/* Loyalty progress */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-white/55">
-                <span>Club Marmitons</span>
-                <span className="text-amber font-semibold">
-                  {DASHBOARD_STATS.loyaltyPoints}/{DASHBOARD_STATS.loyaltyTarget}
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${loyaltyPct}%` }}
-                  transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-                  className="h-full bg-gradient-to-r from-amber to-amber-deep"
-                />
-              </div>
-              <p className="mt-2 text-[11px] text-white/55 leading-tight">
-                Plus qu&apos;une session avant le brunch offert avec Ivy 🥐
-              </p>
             </div>
           </div>
 

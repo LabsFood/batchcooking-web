@@ -7,10 +7,9 @@ import {
   X,
   Sparkles,
   Heart,
-  Gift,
-  Trophy,
   Bell,
   ChefHat,
+  ShoppingBasket,
   ArrowRight,
 } from 'lucide-react'
 import { useReservationGate } from '@/lib/reservation-gate-context'
@@ -19,7 +18,7 @@ const PERKS = [
   {
     Icon: Sparkles,
     title: 'Ivy te reconnaît',
-    text: 'Ton chef garde tes goûts, allergies et envies — fini de tout réexpliquer chaque semaine.',
+    text: 'Ta cheffe garde tes goûts, allergies et envies — fini de tout réexpliquer chaque semaine.',
   },
   {
     Icon: Heart,
@@ -27,19 +26,14 @@ const PERKS = [
     text: 'Préférences, restrictions, plats préférés : ton profil cuisine plus vite que toi.',
   },
   {
-    Icon: Gift,
-    title: 'Le badge "Première Toque"',
-    text: '10 % sur ta toute première session, et un dessert offert si tu invites un·e ami·e.',
-  },
-  {
-    Icon: Trophy,
-    title: 'Le club des Marmitons',
-    text: '1 session = 1 point. 5 points = un brunch chez toi avec Ivy.',
+    Icon: ShoppingBasket,
+    title: 'Ta liste de courses, prête',
+    text: 'Listes par rayons envoyées 3 jours avant — tu choisis bio, local ou Drive.',
   },
   {
     Icon: Bell,
     title: 'Tu suis ta commande',
-    text: 'Du paiement à la dernière touche du chef : statut, liste de courses, photos.',
+    text: 'Du paiement à la dernière touche d’Ivy : statut, liste de courses, notes du chef.',
   },
 ] as const
 

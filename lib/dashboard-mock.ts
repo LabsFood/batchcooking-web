@@ -248,25 +248,20 @@ export const DEFAULT_PREFS: ProfilePrefs = {
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
 
+// Stats côté client : ces chiffres sont "personnels" (votre activité avec
+// Lab's Food). Le total entreprise (~30 sessions) est affiché côté public.
 export const DASHBOARD_STATS = {
-  sessionsTotal: 8,
-  mealsCooked: 47,
-  hoursSaved: 96,
-  moneySaved: 380, // crédit d'impôt cumulé
-  loyaltyPoints: 4,
-  loyaltyTarget: 5,
-  badges: [
-    { id: 'b1', label: 'Première Toque', emoji: '🎩', earnedAt: '2026-01-12' },
-    { id: 'b2', label: 'Chef Aventureux', emoji: '🌍', earnedAt: '2026-02-26' },
-    { id: 'b3', label: 'Marmiton du Mois', emoji: '🍯', earnedAt: '2026-04-04' },
-  ],
+  sessionsTotal: 4,
+  mealsCooked: 18,
+  hoursSaved: 32,
+  moneySaved: 240, // après Avance immédiate Urssaf
   weeklyMealMix: [
-    { week: 'S14', meals: 6 },
-    { week: 'S15', meals: 4 },
-    { week: 'S16', meals: 7 },
-    { week: 'S17', meals: 5 },
-    { week: 'S18', meals: 8 },
-    { week: 'S19', meals: 6 },
-    { week: 'S20', meals: 7 },
+    { week: 'S14', meals: 4 },
+    { week: 'S15', meals: 0 },
+    { week: 'S16', meals: 5 },
+    { week: 'S17', meals: 0 },
+    { week: 'S18', meals: 6 },
+    { week: 'S19', meals: 0 },
+    { week: 'S20', meals: 3 },
   ],
 }
