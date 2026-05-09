@@ -132,20 +132,10 @@ export default function FoodCarousel() {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="max-w-2xl mx-auto text-center mb-12 lg:mb-14"
         >
-          <p className="eyebrow mb-5 justify-center">Cuisines du monde</p>
+          <p className="eyebrow mb-5 justify-center">Gastronomie</p>
           <h2 className="h-section">
-            Une semaine, <span className="accent">21 pays</span><br />
-            au creux de votre cuisine.
+            Cuisines du monde
           </h2>
-          <p className="text-ink-mid mt-5 leading-relaxed">
-            Africain, méditerranéen, asiatique, européen… Ivy puise dans ses carnets de
-            voyage pour vous proposer des menus authentiques, validés au contact des
-            cultures locales.
-          </p>
-          <div className="mt-5 inline-flex items-center gap-2 text-xs text-mint-ink bg-mint/40 border border-mint-deep/40 rounded-full px-3 py-1">
-            <Globe2 className="w-3.5 h-3.5" />
-            21 cuisines explorées
-          </div>
         </motion.div>
       </div>
 
