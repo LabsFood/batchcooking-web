@@ -66,8 +66,8 @@ export default function AProposPage() {
               className="font-display font-bold leading-[0.95]"
               style={{ fontSize: 'clamp(2.4rem, 6vw, 4.6rem)', letterSpacing: '-0.02em' }}
             >
-              Vous redonner du temps,<br />
-              <span className="text-amber italic font-medium">
+              Vous redonner du temps,
+              <span className="text-amber italic font-medium pl-3">
                 et le goût des bonnes choses.
               </span>
             </h1>
@@ -94,7 +94,7 @@ export default function AProposPage() {
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-5 relative"
           >
-            <div className="relative rounded-[40%_60%_45%_55%/55%_45%_55%_45%] overflow-hidden aspect-[4/5] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]">
+            <div className="relative overflow-hidden aspect-[4/5] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]">
               <img
                 src="/images/IvyChef.png"
                 alt="Ivy Siyaptze, cheffe et fondatrice de Lab's Food"
@@ -136,8 +136,8 @@ export default function AProposPage() {
           <div className="lg:col-span-5">
             <p className="eyebrow mb-4">Mon histoire</p>
             <h2 className="h-section">
-              Tout a commencé par<br />
-              <span className="accent">un regard de soulagement.</span>
+              Tout a commencé par
+              <span className="accent pl-2">un regard de soulagement.</span>
             </h2>
             <div className="mt-6 inline-flex items-center gap-3 px-4 py-2.5 rounded-full bg-mint/40 border border-mint-deep/40 text-mint-ink">
               <Sparkles className="w-3.5 h-3.5" />
@@ -231,7 +231,7 @@ export default function AProposPage() {
         </div>
       </section>
 
-      {/* ─── ZONE ─────────────────────────────────────────────────────── */}
+      {/* ─── ZONE ───────────────────────────────────────────────────────
       <section className="section-padding">
         <div className="container-xl grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div>
@@ -264,10 +264,10 @@ export default function AProposPage() {
             />
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ─── CTA ──────────────────────────────────────────────────────── */}
-      <section className="section-padding section-paper">
+      {/* <section className="section-padding section-paper">
         <div className="container-xl">
           <div className="relative overflow-hidden rounded-3xl bg-navy text-white p-10 lg:p-14 text-center">
             <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
@@ -292,7 +292,7 @@ export default function AProposPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   )
 }
