@@ -8,29 +8,29 @@ import ReserveButton from '@/components/shared/ReserveButton'
 
 const LINKS = {
   service: [
-    { label: 'Notre concept',         href: '/#concept' },
-    { label: 'Comment ça marche',     href: '/#how-it-works' },
-    { label: 'Nos formules',          href: '/#pricing' },
-    { label: 'Menu de la semaine',    href: '/menu' },
+    { label: 'Notre concept', href: '/#concept' },
+    { label: 'Comment ça marche', href: '/#how-it-works' },
+    { label: 'Nos formules', href: '/#pricing' },
+    { label: 'Menu de la semaine', href: '/menu' },
   ],
   about: [
-    { label: 'À propos',         href: '/a-propos' },
-    { label: 'Notre histoire',   href: '/a-propos#histoire' },
-    { label: 'Témoignages',      href: '/#testimonials' },
-    { label: 'FAQ',              href: '/faq' },
+    { label: 'À propos', href: '/a-propos' },
+    { label: 'Notre histoire', href: '/a-propos#histoire' },
+    { label: 'Témoignages', href: '/#testimonials' },
+    { label: 'FAQ', href: '/faq' },
   ],
   legal: [
-    { label: 'Mentions légales',  href: '/mentions-legales' },
-    { label: 'CGV',               href: '/cgv' },
-    { label: 'Confidentialité',   href: '/confidentialite' },
-    { label: 'Cookies',           href: '/confidentialite#cookies' },
+    { label: 'Mentions légales', href: '/mentions-legales' },
+    { label: 'CGV', href: '/cgv' },
+    { label: 'Confidentialité', href: '/confidentialite' },
+    { label: 'Cookies', href: '/confidentialite#cookies' },
   ],
 }
 
 const SOCIAL = [
   { Icon: Instagram, label: 'Instagram', href: '#' },
-  { Icon: Facebook,  label: 'Facebook',  href: '#' },
-  { Icon: Youtube,   label: 'YouTube',   href: '#' },
+  { Icon: Facebook, label: 'Facebook', href: '#' },
+  { Icon: Youtube, label: 'YouTube', href: '#' },
 ]
 
 export default function Footer() {
@@ -223,7 +223,7 @@ export default function Footer() {
                 backgroundImage: 'linear-gradient(180deg, rgba(245,238,226,0.18) 0%, rgba(245,238,226,0.04) 100%)',
               }}
             >
-              Lab&apos;s Food.
+              Lab&apos;s Food
             </h2>
           </div>
 
