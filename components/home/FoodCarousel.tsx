@@ -56,12 +56,12 @@ const ROW_A: Dish[] = [
     flag: '🇮🇳',
     img: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=900&auto=format&fit=crop&q=80',
   },
-  {
-    name: 'Sushi assortis',
-    country: 'Japon',
-    flag: '🇯🇵',
-    img: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=900&auto=format&fit=crop&q=80',
-  },
+  // {
+  //   name: 'Sushi assortis',
+  //   country: 'Japon',
+  //   flag: '🇯🇵',
+  //   img: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=900&auto=format&fit=crop&q=80',
+  // },
 ]
 
 const ROW_B: Dish[] = [
@@ -83,24 +83,24 @@ const ROW_B: Dish[] = [
     flag: '🇱🇧',
     img: 'https://images.unsplash.com/photo-1544510808-91bcbee1df55?w=900&auto=format&fit=crop&q=80',
   },
-  {
-    name: 'Ceviche péruvien',
-    country: 'Pérou',
-    flag: '🇵🇪',
-    img: 'https://images.unsplash.com/photo-1535400255456-984b2d9a91d2?w=900&auto=format&fit=crop&q=80',
-  },
+  // {
+  //   name: 'Ceviche péruvien',
+  //   country: 'Pérou',
+  //   flag: '🇵🇪',
+  //   img: 'https://images.unsplash.com/photo-1535400255456-984b2d9a91d2?w=900&auto=format&fit=crop&q=80',
+  // },
   {
     name: 'Pad thaï',
     country: 'Thaïlande',
     flag: '🇹🇭',
     img: 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=900&auto=format&fit=crop&q=80',
   },
-  {
-    name: 'Yassa poulet',
-    country: 'Côte d’Ivoire',
-    flag: '🇨🇮',
-    img: 'https://images.unsplash.com/photo-1604908554027-790b2cb22a44?w=900&auto=format&fit=crop&q=80',
-  },
+  // {
+  //   name: 'Yassa poulet',
+  //   country: 'Côte d’Ivoire',
+  //   flag: '🇨🇮',
+  //   img: 'https://images.unsplash.com/photo-1604908554027-790b2cb22a44?w=900&auto=format&fit=crop&q=80',
+  // },
   {
     name: 'Pasta carbonara',
     country: 'Italie',
