@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { createPortal } from 'react-dom'
 import {
   X,
   Banknote,
@@ -57,25 +57,19 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
     }
   }, [isOpen, onClose])
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/70 backdrop-blur-sm overflow-y-auto"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-3xl my-8 bg-paper rounded-3xl overflow-hidden shadow-[0_40px_100px_-20px_rgba(31,42,55,0.5)]"
-          >
+  if (typeof document === 'undefined' || !isOpen) return null
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/70 backdrop-blur-sm overflow-y-auto"
+      style={{ opacity: 1 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ opacity: 1 }}
+        className="relative w-full max-w-3xl my-8 bg-paper rounded-3xl overflow-hidden shadow-[0_40px_100px_-20px_rgba(31,42,55,0.5)]"
+      >
             <button
               onClick={onClose}
               aria-label="Fermer"
@@ -188,9 +182,8 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
                 </button>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </div>
+    </div>,
+    document.body,
   )
 }

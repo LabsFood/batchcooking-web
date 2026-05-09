@@ -16,7 +16,7 @@ const FADE = {
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-cream pt-32 pb-20 lg:pt-40 lg:pb-28">
+    <section className="relative overflow-hidden bg-white pt-32 pb-20 lg:pt-40 lg:pb-28">
       {/* Decorative dot grid — top right */}
       <div className="absolute top-32 right-12 hidden lg:block opacity-30 pointer-events-none">
         <DotGrid rows={5} cols={5} />
@@ -111,9 +111,9 @@ export default function Hero() {
               className="relative"
             >
               {/* Main framed image — rounded shape */}
-              <div className="relative  ">
+              <div className="relative">
                 <img
-                  src="/shapeIvy.png"
+                  src="/shapeIvy_transparent.png"
                   alt="Chef cuisinier à domicile"
                   className="w-full h-full object-cover"
                 />
@@ -140,7 +140,7 @@ export default function Hero() {
                   </defs>
                   <text fontSize="9" fill="#00234B" letterSpacing="2" fontFamily="var(--font-mono)">
                     <textPath href="#circlePath">
-                      Lab&apos;s Food · Batch Cooking · Lab&apos;s Food ·
+                      Batch Cooking · À Domicile · ·
                     </textPath>
                   </text>
                 </svg>
