@@ -29,8 +29,7 @@ export default function FeaturedChefs() {
           </h2>
           <p className="text-ink-mid mt-5 leading-relaxed">
             Pour cette première saison, c&apos;est <span className="font-semibold text-navy">Ivy</span> qui
-            cuisine chez vous. Fondatrice de Lab&apos;s Food, formée en restauration gastronomique,
-            spécialiste des cuisines du monde et de la nutrition saine.
+            cuisine chez vous.
           </p>
         </motion.div>
 

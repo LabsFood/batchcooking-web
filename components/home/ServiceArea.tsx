@@ -10,7 +10,7 @@ const CITIES = [
   { name: 'Cannes', note: 'La Croisette & alentours' },
   { name: 'Antibes', note: 'Vieille ville, Juan-les-Pins' },
   { name: 'Monaco', note: 'Sur demande' },
-  { name: 'Saint-Tropez', note: 'En saison' },
+  // { name: 'Saint-Tropez', note: 'En saison' },
 ]
 
 export default function ServiceArea() {
