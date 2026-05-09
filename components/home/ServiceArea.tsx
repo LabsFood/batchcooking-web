@@ -31,10 +31,10 @@ export default function ServiceArea() {
           <h2 className="h-section">
             Lab&apos;s Food intervient sur la <span className="accent">Côte d&apos;Azur.</span>
           </h2>
-          <p className="text-ink-mid mt-5 leading-relaxed">
+          {/* <p className="text-ink-mid mt-5 leading-relaxed">
             Nous lançons d&apos;abord là où le soleil et les marchés sont les meilleurs.
             Ivy se déplace dans toute la French Riviera, de Cannes à Monaco.
-          </p>
+          </p> */}
         </motion.div>
 
         <motion.div
@@ -80,7 +80,7 @@ export default function ServiceArea() {
                 Là où nous cuisinons aujourd&apos;hui.
               </h3>
               <p className="text-white/65 text-sm mt-3">
-                Sélection des villes desservies. D&apos;autres régions arrivent vite (Marseille, Lyon, Paris).
+                Très bientôt dans toute la France.
               </p>
 
               <ul className="mt-6 space-y-2">
