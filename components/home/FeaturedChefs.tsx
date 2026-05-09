@@ -17,9 +17,10 @@ export default function FeaturedChefs() {
 
       <div className="container-xl relative">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="text-center max-w-2xl mx-auto mb-14"
         >
           <p className="eyebrow mb-5 justify-center">Le chef</p>
@@ -34,9 +35,10 @@ export default function FeaturedChefs() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 40, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
           className="max-w-5xl mx-auto"
         >
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] bg-paper rounded-3xl overflow-hidden shadow-[0_30px_80px_-30px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.06)]">

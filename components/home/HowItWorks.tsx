@@ -49,9 +49,10 @@ export default function HowItWorks() {
       <div className="container-xl" ref={ref}>
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="text-center max-w-3xl mx-auto mb-20"
         >
           <p className="eyebrow mb-5 justify-center">Le processus</p>
@@ -74,10 +75,11 @@ export default function HowItWorks() {
             return (
               <motion.div
                 key={step.number}
-                initial={{ opacity: 0, y: 24 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
-                className="relative bg-paper rounded-2xl p-7 border border-[rgba(31,26,20,0.06)] hover:shadow-[0_24px_60px_-20px_rgba(31,26,20,0.18)] transition-shadow duration-500"
+                initial={{ opacity: 0, y: 40, filter: 'blur(8px)', scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.15 }}
+                className="relative bg-paper rounded-2xl p-7 border border-[rgba(31,26,20,0.06)] hover:shadow-[0_24px_60px_-20px_rgba(31,26,20,0.18)] transition-shadow duration-500 hover:-translate-y-1 transform"
               >
                 {/* Animated cooking icon */}
                 <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">

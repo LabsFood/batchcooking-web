@@ -16,9 +16,10 @@ export default function FeaturedMenu() {
       <div className="container-xl">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7 }}
+          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="text-center max-w-2xl mx-auto mb-16"
         >
           <p className="eyebrow mb-5 justify-center">Cette semaine</p>
@@ -35,10 +36,11 @@ export default function FeaturedMenu() {
           {featured.map((meal, i) => (
             <motion.div
               key={meal.id}
-              initial={{ opacity: 0, y: 32 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: i * 0.08 }}
-              className="card-base overflow-hidden group flex flex-col"
+              initial={{ opacity: 0, y: 40, filter: 'blur(8px)', scale: 0.95 }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.15 }}
+              className="card-base overflow-hidden group flex flex-col hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
             >
               {/* Image */}
               <div className="relative h-56 overflow-hidden">
@@ -66,7 +68,7 @@ export default function FeaturedMenu() {
                 <p className="text-ink-mid text-sm leading-relaxed line-clamp-2 mb-5 flex-1">
                   {meal.description}
                 </p>
-                <div className="flex items-center gap-4 text-xs text-ink-soft pt-4 border-t border-[rgba(31,26,20,0.06)]">
+                {/* <div className="flex items-center gap-4 text-xs text-ink-soft pt-4 border-t border-[rgba(31,26,20,0.06)]">
                   <span className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-terra" /> {meal.portions}
                   </span>
@@ -79,7 +81,7 @@ export default function FeaturedMenu() {
                       <Flame className="w-3.5 h-3.5 text-terra" /> {meal.calories}
                     </span>
                   )}
-                </div>
+                </div> */}
               </div>
             </motion.div>
           ))}

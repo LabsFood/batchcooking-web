@@ -36,9 +36,10 @@ export default function TaxCreditBanner() {
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -24 }}
-              animate={inView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.7 }}
+              initial={{ opacity: 0, x: -40, filter: 'blur(8px)' }}
+              whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-8"
             >
               <div className="flex items-center gap-3 mb-5">
@@ -67,9 +68,10 @@ export default function TaxCreditBanner() {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              animate={inView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.7, delay: 0.1 }}
+              initial={{ opacity: 0, x: 40, filter: 'blur(8px)' }}
+              whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
               className="lg:col-span-4 lg:flex lg:justify-end"
             >
               <button

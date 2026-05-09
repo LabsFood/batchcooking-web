@@ -7,10 +7,10 @@ import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAni
 import ReserveButton from '@/components/shared/ReserveButton'
 
 const FADE = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 40, filter: 'blur(8px)' },
   show: (d = 0) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as const, delay: d },
+    opacity: 1, y: 0, filter: 'blur(0px)',
+    transition: { duration: 1, ease: [0.16, 1, 0.3, 1] as const, delay: d },
   }),
 }
 

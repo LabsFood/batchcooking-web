@@ -21,9 +21,10 @@ export default function ServiceArea() {
     <section ref={ref} className="section-padding section-cream relative overflow-hidden">
       <div className="container-xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="text-center max-w-2xl mx-auto mb-12"
         >
           <p className="eyebrow mb-5 justify-center">Zone d&apos;intervention</p>
@@ -37,9 +38,10 @@ export default function ServiceArea() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 40, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 max-w-6xl mx-auto"
         >
           {/* Map */}
@@ -85,9 +87,10 @@ export default function ServiceArea() {
                 {CITIES.map((c, i) => (
                   <motion.li
                     key={c.name}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={inView ? { opacity: 1, x: 0 } : {}}
-                    transition={{ delay: 0.2 + i * 0.07, duration: 0.4 }}
+                    initial={{ opacity: 0, x: -16, filter: 'blur(4px)' }}
+                    whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.3 + i * 0.1, duration: 0.6 }}
                     className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0"
                   >
                     <span className="w-7 h-7 rounded-lg bg-amber/15 text-amber flex items-center justify-center flex-shrink-0 mt-0.5">

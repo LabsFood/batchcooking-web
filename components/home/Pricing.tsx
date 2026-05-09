@@ -62,9 +62,10 @@ export default function Pricing() {
       <div className="container-xl relative" ref={ref}>
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="text-center max-w-2xl mx-auto mb-12"
         >
           <p className="eyebrow mb-5 justify-center">Service Batch Cooking</p>
@@ -80,9 +81,10 @@ export default function Pricing() {
         <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-6 max-w-6xl mx-auto items-start">
           {/* Base card */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, x: -40, filter: 'blur(8px)' }}
+            whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             className="relative rounded-3xl bg-navy text-white p-7 lg:p-9 overflow-hidden"
           >
             <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/20 blur-3xl pointer-events-none" />
@@ -109,9 +111,10 @@ export default function Pricing() {
                   return (
                     <motion.li
                       key={f}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={isInView ? { opacity: 1, x: 0 } : {}}
-                      transition={{ delay: 0.15 + i * 0.05 }}
+                      initial={{ opacity: 0, x: -16, filter: 'blur(4px)' }}
+                      whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2 + i * 0.1, duration: 0.6 }}
                       className="flex items-start gap-3"
                     >
                       <span
@@ -136,9 +139,10 @@ export default function Pricing() {
 
           {/* Estimator + add-ons */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, x: 40, filter: 'blur(8px)' }}
+            whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.9, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
             className="space-y-4"
           >
             {/* Estimator */}
@@ -197,9 +201,10 @@ export default function Pricing() {
               {ADD_ONS.map((a, i) => (
                 <motion.div
                   key={a.title}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
+                  initial={{ opacity: 0, y: 16, filter: 'blur(4px)' }}
+                  whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.3 + i * 0.1, duration: 0.6 }}
                   className="flex items-start gap-3 bg-paper rounded-2xl p-4 border border-[rgba(31,42,55,0.06)]"
                 >
                   <span className="w-9 h-9 rounded-xl bg-amber-soft text-amber-deep flex items-center justify-center flex-shrink-0">
