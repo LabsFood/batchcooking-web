@@ -19,7 +19,7 @@ const BASE_INCLUDES = [
   '2 h chez vous, en une seule session',
   '3 repas pour la semaine',
   'Jusqu\'à 3 adultes',
-  'Liste de menus optimisée chaque semaine',
+  // 'Liste de menus optimisée chaque semaine',
   'Vous fournissez les ingrédients',
 ]
 
@@ -36,12 +36,12 @@ const ADD_ONS = [
     text: 'Sportif, post-partum, végé, sans gluten… on adapte.',
     badge: 'Inclus à étudier',
   },
-  {
-    Icon: ShoppingBasket,
-    title: 'On fait les courses',
-    text: 'Option : on s\'occupe des courses et on livre.',
-    badge: 'En option',
-  },
+  // {
+  //   Icon: ShoppingBasket,
+  //   title: 'On fait les courses',
+  //   text: 'Option : on s\'occupe des courses et on livre.',
+  //   badge: 'En option',
+  // },
 ]
 
 export default function Pricing() {
@@ -155,7 +155,7 @@ export default function Pricing() {
                 <Stepper label="Adultes" value={persons} setValue={setPersons} min={1} max={10} />
                 <Stepper label="Repas supplémentaires" value={extraMeals} setValue={setExtraMeals} min={0} max={10} />
 
-                <button
+                {/* <button
                   type="button"
                   onClick={() => setWithShopping((v) => !v)}
                   className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${withShopping ? 'bg-amber-soft border border-amber/40' : 'bg-paper border border-[rgba(31,42,55,0.08)]'
@@ -175,7 +175,7 @@ export default function Pricing() {
                     }`}>
                     {withShopping && <Check className="w-3 h-3" strokeWidth={3} />}
                   </span>
-                </button>
+                </button> */}
               </div>
 
               <div className="mt-6 flex items-end justify-between p-4 rounded-2xl bg-navy text-white">
