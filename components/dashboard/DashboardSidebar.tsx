@@ -21,14 +21,14 @@ import { useAuth } from '@/lib/auth-context'
 import ReserveButton from '@/components/shared/ReserveButton'
 
 const NAV = [
-  { href: '/espace-client',                  label: 'Aperçu',          Icon: LayoutDashboard, badge: null },
-  { href: '/espace-client/commandes',        label: 'Mes commandes',    Icon: CalendarRange,   badge: '2' },
-  { href: '/espace-client/menus',            label: 'Menus',            Icon: UtensilsCrossed, badge: null },
-  { href: '/espace-client/personnalisation', label: 'Personnalisation', Icon: Sparkles,        badge: null },
-  { href: '/espace-client/messages',         label: 'Messages',         Icon: MessageCircle,   badge: '1' },
-  { href: '/espace-client/profil',           label: 'Profil',           Icon: UserCircle2,     badge: null },
-  { href: '/espace-client/statistiques',     label: 'Statistiques',     Icon: BarChart3,       badge: null },
-  { href: '/espace-client/parametres',       label: 'Paramètres',       Icon: Settings,        badge: null },
+  { href: '/espace-client', label: 'Aperçu', Icon: LayoutDashboard, badge: null },
+  { href: '/espace-client/commandes', label: 'Mes commandes', Icon: CalendarRange, badge: '2' },
+  { href: '/espace-client/menus', label: 'Menus', Icon: UtensilsCrossed, badge: null },
+  { href: '/espace-client/personnalisation', label: 'Personnalisation', Icon: Sparkles, badge: null },
+  { href: '/espace-client/messages', label: 'Messages', Icon: MessageCircle, badge: '1' },
+  { href: '/espace-client/profil', label: 'Profil', Icon: UserCircle2, badge: null },
+  { href: '/espace-client/statistiques', label: 'Statistiques', Icon: BarChart3, badge: null },
+  { href: '/espace-client/parametres', label: 'Paramètres', Icon: Settings, badge: null },
 ]
 
 export default function DashboardSidebar() {
@@ -52,8 +52,8 @@ export default function DashboardSidebar() {
     <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
       <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.55)] relative">
         {/* glow */}
-        <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-amber/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-mint/10 blur-3xl pointer-events-none" />
+        {/* <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-amber/20 blur-3xl pointer-events-none" /> */}
+        {/* <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-mint/10 blur-3xl pointer-events-none" /> */}
 
         <div className="relative flex flex-col h-full">
           {/* Logo */}

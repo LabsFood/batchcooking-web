@@ -44,8 +44,8 @@ export default function DashboardOverviewPage() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-navy-mid to-navy text-white p-6 lg:p-8"
       >
-        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/30 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-12 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" />
+        {/* <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/30 blur-3xl pointer-events-none" /> */}
+        {/* <div className="absolute -bottom-24 -left-12 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" /> */}
 
         <div className="relative grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 items-end">
           <div>
@@ -168,13 +168,12 @@ export default function DashboardOverviewPage() {
                   </p>
                 </div>
                 <span
-                  className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${
-                    o.status === 'delivered'
+                  className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${o.status === 'delivered'
                       ? 'bg-mint text-mint-ink'
                       : o.status === 'pending'
                         ? 'bg-amber-soft text-amber-deep'
                         : 'bg-cream-deep text-navy'
-                  }`}
+                    }`}
                 >
                   {ORDER_STATUS_LABEL[o.status]}
                 </span>
