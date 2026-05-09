@@ -34,9 +34,9 @@ const STEPS = [
   {
     number: '04',
     Anim: SteamingPot,
-    title: 'Ivy cuisine chez vous',
+    title: 'Un chef cuisine chez vous',
     description:
-      'Le jour J, Ivy arrive et prépare vos plats en 2 à 3 heures. La cuisine repart propre, le frigo plein.',
+      'Le jour J, un cuisinier arrive et prépare vos plats en 2 à 3 heures. La cuisine repart propre, le frigo plein.',
   },
 ]
 

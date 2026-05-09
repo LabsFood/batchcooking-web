@@ -102,7 +102,7 @@ export default function Pricing() {
                 <span className="text-white/60 text-sm">la session</span>
               </div>
               <p className="text-amber font-semibold mt-2 text-sm">
-                soit {BASE_PRICE / 2}€ après crédit d&apos;impôt SAP (-50%)
+                Après réduction de 50% du crédit d&apos;impôt (soit 100€ TTC)
               </p>
 
               <ul className="mt-7 space-y-3">
@@ -118,9 +118,8 @@ export default function Pricing() {
                       className="flex items-start gap-3"
                     >
                       <span
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${
-                          isShopping ? 'bg-mint/20 text-mint-deep' : 'bg-amber/20 text-amber'
-                        }`}
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isShopping ? 'bg-mint/20 text-mint-deep' : 'bg-amber/20 text-amber'
+                          }`}
                       >
                         {isShopping ? <ShoppingBasket className="w-3 h-3" /> : <Check className="w-3 h-3" strokeWidth={3} />}
                       </span>
@@ -159,14 +158,12 @@ export default function Pricing() {
                 <button
                   type="button"
                   onClick={() => setWithShopping((v) => !v)}
-                  className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${
-                    withShopping ? 'bg-amber-soft border border-amber/40' : 'bg-paper border border-[rgba(31,42,55,0.08)]'
-                  }`}
+                  className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${withShopping ? 'bg-amber-soft border border-amber/40' : 'bg-paper border border-[rgba(31,42,55,0.08)]'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                      withShopping ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-mid'
-                    }`}>
+                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${withShopping ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-mid'
+                      }`}>
                       <ShoppingBasket className="w-4 h-4" />
                     </span>
                     <div>
@@ -174,9 +171,8 @@ export default function Pricing() {
                       <p className="text-[11px] text-ink-soft">Liste, achats & livraison</p>
                     </div>
                   </div>
-                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    withShopping ? 'bg-amber border-amber text-navy' : 'border-[rgba(31,42,55,0.2)]'
-                  }`}>
+                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${withShopping ? 'bg-amber border-amber text-navy' : 'border-[rgba(31,42,55,0.2)]'
+                    }`}>
                     {withShopping && <Check className="w-3 h-3" strokeWidth={3} />}
                   </span>
                 </button>
