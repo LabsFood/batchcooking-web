@@ -77,7 +77,7 @@ export default function Testimonials() {
                 )}
                 <div className="flex-1">
                   <p className="text-navy font-semibold">{t.clientName}</p>
-                  <p className="text-ink-soft text-sm">{t.clientCity} · Formule {t.planUsed}</p>
+                  {/* <p className="text-ink-soft text-sm">{t.clientCity} · Formule {t.planUsed}</p> */}
                 </div>
                 <span className="hidden md:inline-flex chip chip-amber">Avis vérifié</span>
               </div>
@@ -100,9 +100,8 @@ export default function Testimonials() {
                 <button
                   key={i}
                   onClick={() => setActive(i)}
-                  className={`h-2 rounded-full transition-all ${
-                    active === i ? 'w-8 bg-terra' : 'w-2 bg-ink-soft/30 hover:bg-ink-soft/50'
-                  }`}
+                  className={`h-2 rounded-full transition-all ${active === i ? 'w-8 bg-terra' : 'w-2 bg-ink-soft/30 hover:bg-ink-soft/50'
+                    }`}
                   aria-label={`Témoignage ${i + 1}`}
                 />
               ))}

@@ -98,7 +98,7 @@ export default function ServiceArea() {
                     </span>
                     <div className="min-w-0">
                       <p className="font-semibold text-sm leading-tight">{c.name}</p>
-                      <p className="text-[11px] text-white/55 mt-0.5">{c.note}</p>
+                      {/* <p className="text-[11px] text-white/55 mt-0.5">{c.note}</p> */}
                     </div>
                   </motion.li>
                 ))}
