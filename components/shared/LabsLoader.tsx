@@ -88,8 +88,8 @@ export default function LabsLoader({
             <Image
               src="/logo.png"
               alt="Lab's Food"
-              width={px - 16}
-              height={px - 16}
+              width={px - 10}
+              height={px - 10}
               priority
               className="object-contain"
             />

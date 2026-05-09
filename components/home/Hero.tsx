@@ -111,9 +111,9 @@ export default function Hero() {
               className="relative"
             >
               {/* Main framed image — rounded shape */}
-              <div className="relative rounded-[40%_60%_45%_55%/55%_45%_55%_45%] overflow-hidden aspect-[4/5] shadow-[0_30px_80px_-30px_rgba(31,26,20,0.4)]">
+              <div className="relative  ">
                 <img
-                  src="/images/ivyCuisine.png"
+                  src="/shapeIvy.png"
                   alt="Chef cuisinier à domicile"
                   className="w-full h-full object-cover"
                 />

@@ -33,7 +33,7 @@ export default function Logo({
         style={{ width: mark, height: mark }}
       >
         <Image
-          src="/logo.png"
+          src="/logoOfficiel.png"
           alt="Lab's Food"
           fill
           priority
