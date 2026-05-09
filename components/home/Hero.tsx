@@ -46,7 +46,7 @@ export default function Hero() {
 
             <motion.h1
               variants={FADE} custom={0.08} initial="hidden" animate="show"
-              className="h-display text-navy"
+              className="h-display text-navy font-fraunces"
               style={{ fontSize: 'clamp(2.6rem, 6.5vw, 5rem)' }}
             >
               Une semaine entière<br />
@@ -93,7 +93,7 @@ export default function Hero() {
               </div>
               <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
               <p className="text-sm text-ink-mid">
-                <span className="font-semibold text-terra">−50%</span> Avance immédiate Urssaf
+                <span className="font-semibold text-terra">−50%</span> Avance immédiate
               </p>
               <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
               <p className="text-sm text-ink-mid">
@@ -152,7 +152,7 @@ export default function Hero() {
                   <ChefHat className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-navy leading-tight">Chef professionnel</p>
+                  <p className="text-sm font-semibold text-navy leading-tight">Chef à domicile</p>
                   <p className="text-xs text-ink-soft mt-0.5">certifié & assuré chez vous</p>
                 </div>
               </div>

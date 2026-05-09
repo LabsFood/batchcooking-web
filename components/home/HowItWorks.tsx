@@ -13,23 +13,23 @@ const STEPS = [
   {
     number: '01',
     Anim: WhiskingBowl,
-    title: 'Choisissez vos recettes',
+    title: 'Choisissez vos repas',
     description:
-      'Parcourez le menu de la semaine et sélectionnez à partir de 3 plats parmi nos recettes du monde.',
+      'Parcourez le menu de la semaine et sélectionnez à partir de 3 repas dans notre catalogue.',
   },
   {
     number: '02',
-    Anim: ShoppingBag,
-    title: 'Recevez la liste de courses',
-    description:
-      'Vous recevez la liste d\'ingrédients précise au moins 3 jours avant — bio, producteurs locaux, vous gardez la main.',
-  },
-  {
-    number: '03',
     Anim: CalendarCheck,
     title: 'Réservez votre session',
     description:
-      'Choisissez la date, le créneau et l\'option courses. Validation et paiement en quelques clics.',
+      'Choisissez la date, le créneau',
+  },
+  {
+    number: '03',
+    Anim: ShoppingBag,
+    title: 'Recevez la liste de courses',
+    description:
+      'Vous recevez la liste de courses, classée par rayons, au moins 3 jours avant la prestation.',
   },
   {
     number: '04',
@@ -90,7 +90,7 @@ export default function HowItWorks() {
                   </span>
                 </div>
 
-                <h3 className="font-display text-xl font-bold text-navy text-center mb-3">
+                <h3 className="font-display text-md font-semibold text-navy text-center mb-3">
                   {step.title}
                 </h3>
                 <p className="text-ink-mid text-sm leading-relaxed text-center">

@@ -1,5 +1,6 @@
 import Hero from '@/components/home/Hero'
 import Concept from '@/components/home/Concept'
+import FoodCarousel from '@/components/home/FoodCarousel'
 import HowItWorks from '@/components/home/HowItWorks'
 import FeaturedMenu from '@/components/home/FeaturedMenu'
 import TaxCreditBanner from '@/components/home/TaxCreditBanner'
@@ -14,6 +15,7 @@ export default function HomePage() {
     <div className="page-transition">
       <Hero />
       <Concept />
+      <FoodCarousel />
       <HowItWorks />
       <FeaturedMenu />
       <TaxCreditBanner />

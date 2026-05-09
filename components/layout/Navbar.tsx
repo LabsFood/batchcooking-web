@@ -10,14 +10,14 @@ import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 
 const NAV_LINKS = [
-  { label: 'Concept',  href: '/#concept' },
-  { label: 'Menu',     href: '/menu' },
+  { label: 'Concept', href: '/#concept' },
+  { label: 'Menu', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
-  { label: 'FAQ',      href: '/faq' },
+  { label: 'FAQ', href: '/faq' },
 ]
 
 export default function Navbar() {
-  const [scrolled, setScrolled]     = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
 
@@ -62,7 +62,7 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200',
+                    'px-4 py-2 text-sm font-semibold rounded-full transition-colors duration-200',
                     pathname === link.href
                       ? 'text-terra'
                       : 'text-ink-mid hover:text-terra'

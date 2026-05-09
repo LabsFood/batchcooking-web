@@ -74,7 +74,7 @@ export default function Concept() {
               <ChefHatSparkle size={64} />
               <div>
                 <p className="font-display text-4xl font-bold text-terra leading-none">
-                  400+
+                  30+
                 </p>
                 <p className="text-ink text-sm font-semibold mt-1">Sessions réalisées</p>
                 <p className="text-ink-soft text-xs">en France entière</p>
@@ -96,11 +96,11 @@ export default function Concept() {
             </h2>
             <p className="text-ink-mid leading-relaxed mb-5">
               Le batch cooking consiste à préparer tous ses repas de la semaine en une seule session.
-              Lab&apos;s Food va plus loin : un chef professionnel vient directement chez vous pour prendre
+              Lab&apos;s Food va plus loin : un(e) cuisinier(e) vient directement chez vous pour prendre
               en charge l&apos;intégralité de la session — de la mise en place à la conservation.
             </p>
             <p className="text-ink-mid leading-relaxed mb-10">
-              Cuisine française, africaine, asiatique, orientale... notre catalogue de recettes du monde
+              Cuisine européenne, africaine, americaine , ... notre catalogue de recettes du monde
               garantit variété et découverte, semaine après semaine.
             </p>
 

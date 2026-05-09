@@ -1,14 +1,24 @@
 import type { Metadata } from 'next'
-import { Fraunces, Montserrat, DM_Mono } from 'next/font/google'
+import { Montserrat, DM_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import Providers from '@/components/layout/Providers'
 import PublicChrome from '@/components/layout/PublicChrome'
 
-// ── Fraunces — display serif pour les titres ──────────────────────────────────
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['300', '400', '600', '700', '900'],
-  style: ['normal', 'italic'],
+// ── Fraunces — display serif (fichiers locaux variable font) ──────────────────
+const fraunces = localFont({
+  src: [
+    {
+      path: '../public/fraunces-font-family/Fraunces-VariableFont_SOFTWONKopszwght.ttf',
+      style: 'normal',
+      weight: '100 900',
+    },
+    {
+      path: '../public/fraunces-font-family/Fraunces-Italic-VariableFont_SOFTWONKopszwght.ttf',
+      style: 'italic',
+      weight: '100 900',
+    },
+  ],
   variable: '--font-fraunces',
   display: 'swap',
 })
