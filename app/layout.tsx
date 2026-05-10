@@ -4,7 +4,7 @@ import localFont from 'next/font/local'
 import './globals.css'
 import Providers from '@/components/layout/Providers'
 import PublicChrome from '@/components/layout/PublicChrome'
-// import PWARegister from '@/components/shared/PWARegister'
+import PWARegister from '@/components/shared/PWARegister'
 
 // ── Fraunces — display serif (fichiers locaux variable font) ──────────────────
 const fraunces = localFont({
@@ -101,7 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <PublicChrome>{children}</PublicChrome>
         </Providers>
-        {/* <PWARegister /> */}
+        <PWARegister />
       </body>
     </html>
   )
