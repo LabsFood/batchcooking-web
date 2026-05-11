@@ -23,7 +23,7 @@ export default function TaxCreditBanner() {
               className="font-display font-bold leading-none text-terra opacity-15"
               style={{ fontSize: 'clamp(10rem, 22vw, 22rem)' }}
             >
-              50%
+              -50%
             </span>
           </div>
 

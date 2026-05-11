@@ -52,7 +52,7 @@ export default function Footer() {
               className="absolute -top-6 -right-6 font-display font-bold text-white/[0.08] leading-none select-none pointer-events-none"
               style={{ fontSize: 'clamp(8rem, 18vw, 18rem)' }}
             >
-              Hello.
+              Cook.
             </span>
 
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -93,8 +93,8 @@ export default function Footer() {
           ))}
         </div>
         {/* Decorative blurred gradient — bottom right */}
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(217,105,65,0.18), transparent 70%)' }} />
+        {/* <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(217,105,65,0.18), transparent 70%)' }} /> */}
 
         <div className="container-xl relative">
           {/* Top : Brand statement + Newsletter */}

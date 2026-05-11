@@ -32,7 +32,7 @@ const VALUES = [
     Icon: Globe2,
     title: 'Des saveurs du monde entier',
     text:
-      'Inspirée par 21 pays explorés, Ivy vous propose des menus authentiques validés au contact des cultures locales.',
+      'Inspirée par plusieurs pays explorés, nous vous proposons des menus authentiques.',
   },
   {
     Icon: Salad,
@@ -54,8 +54,8 @@ export default function AProposPage() {
     <div className="page-transition pt-24 bg-cream min-h-screen">
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-navy text-white py-20 lg:py-28">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-mint/15 blur-3xl pointer-events-none" />
+        {/* <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-amber/25 blur-3xl pointer-events-none" /> */}
+        {/* <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-mint/15 blur-3xl pointer-events-none" /> */}
 
         <div className="container-xl relative grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7">
@@ -94,9 +94,9 @@ export default function AProposPage() {
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-5 relative"
           >
-            <div className="relative overflow-hidden aspect-[4/5] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]">
+            <div className="relative overflow-hidden aspect-[4/5] rounded-lg">
               <img
-                src="/images/IvyChef.png"
+                src="/IvyOfficielle.png"
                 alt="Ivy Siyaptze, cheffe et fondatrice de Lab's Food"
                 className="w-full h-full object-cover"
               />
@@ -107,7 +107,7 @@ export default function AProposPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold leading-tight">Ivy Siyaptze</p>
-                <p className="text-xs text-ink-soft mt-0.5">Cheffe & fondatrice</p>
+                <p className="text-xs text-ink-soft mt-0.5">Fondatrice</p>
               </div>
             </div>
           </motion.div>
@@ -148,20 +148,20 @@ export default function AProposPage() {
           </div>
 
           <div className="lg:col-span-7 space-y-5 text-ink-mid leading-relaxed">
-            <p>
+            <p className='text-justify'>
               Tout a commencé par un simple regard de soulagement. Celui de ma tante, alors
               enceinte et épuisée par le rythme du quotidien. Pour l&apos;aider, j&apos;ai tout
               naturellement pris les commandes de sa cuisine pour lui préparer ses repas de la
               semaine. La voir retrouver le sourire, se détendre et savourer ce temps libre
               retrouvé a été un véritable déclic.
             </p>
-            <p>
+            <p className='text-justify'>
               Je me suis sentie utile, comme un ange gardien tombé du ciel. Je me suis alors
               posé une question évidente : pourquoi ne pas apporter cette même sérénité à
               d&apos;autres mamans, et plus largement, à tous ceux qui rêvent de bien manger sans
               avoir le temps de cuisiner ?
             </p>
-            <p>
+            <p className='text-justify'>
               Dans la vie, je suis ingénieure de formation, spécialisée en gestion de projets
               et excellence opérationnelle. Des mots qui peuvent sembler bien loin de la
               gastronomie ! Pourtant, c&apos;est exactement le secret d&apos;un <em>batch cooking</em>{' '}
@@ -169,7 +169,7 @@ export default function AProposPage() {
               simplement choisi de mettre cette rigueur au service de ma plus grande passion :
               régaler les autres.
             </p>
-            <p>
+            <p className='text-justify'>
               Mon inspiration culinaire, je la puise dans mes carnets de voyage. J&apos;ai eu la
               chance d&apos;explorer 21 pays, et c&apos;est sur le terrain, au cœur des cuisines du
               monde entier, que j&apos;ai forgé mon savoir-faire. Lors de mes longs séjours à
@@ -177,7 +177,7 @@ export default function AProposPage() {
               transmettent les traditions familiales, et je valide parfois ces acquis par des
               certifications sur place.
             </p>
-            <p>
+            <p className='text-justify'>
               C&apos;est ce véritable tour du monde qui me permet aujourd&apos;hui de vous proposer
               des menus authentiques, savoureux et infiniment variés, pour que chaque semaine
               soit une nouvelle découverte.
@@ -185,7 +185,7 @@ export default function AProposPage() {
 
             <blockquote className="relative pl-6 border-l-2 border-amber py-2 mt-8">
               <Quote className="w-5 h-5 text-amber absolute -left-3 -top-1 bg-cream" />
-              <p className="font-display text-lg lg:text-xl text-navy italic leading-relaxed">
+              <p className="font-display text-lg lg:text-xl text-navy italic leading-relaxed text-justify">
                 Mon but est simple : vous soulager de la fameuse charge mentale du
                 « qu&apos;est-ce qu&apos;on mange ce soir ? » tout en prenant soin de votre
                 alimentation.

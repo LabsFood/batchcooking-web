@@ -33,7 +33,7 @@ export default function Logo({
         style={{ width: mark, height: mark }}
       >
         <Image
-          src="/logoOfficiel.png"
+          src="/LogoOrange.png"
           alt="Lab's Food"
           fill
           priority
@@ -50,7 +50,7 @@ export default function Logo({
             className={cn(
               'font-display font-bold tracking-tight',
               text,
-              isWhite ? 'text-white' : 'text-navy',
+              isWhite ? 'text-white' : 'text-terra',
             )}
           >
             Lab&apos;s Food

@@ -127,7 +127,7 @@ export default function Testimonials() {
         >
           {[
             { value: '4.9/5', label: 'Note moyenne' },
-            { value: '330+', label: 'Avis vérifiés' },
+            { value: '+330', label: 'Avis vérifiés' },
             { value: '98%', label: 'Satisfaction' },
             { value: '87%', label: 'Renouvellement' },
           ].map((s) => (
