@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, ArrowRight } from 'lucide-react'
+import { Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
+import { useAuth } from '@/lib/auth-context'
 
 const NAV_LINKS = [
   { label: 'Concept', href: '/#concept' },
@@ -20,6 +21,10 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
+  const { user, isAuthenticated, isReady } = useAuth()
+
+  const firstName = user?.name.split(' ')[0] ?? ''
+  const initial = user?.name?.[0]?.toUpperCase() ?? 'G'
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30)
@@ -28,7 +33,13 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  useEffect(() => { setMobileOpen(false) }, [pathname])
+  // Ferme le menu mobile au changement de route. Ajustement pendant le rendu
+  // plutôt qu'en effet : évite le double rendu (react-hooks/set-state-in-effect).
+  const [lastPathname, setLastPathname] = useState(pathname)
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname)
+    setMobileOpen(false)
+  }
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
@@ -76,12 +87,39 @@ export default function Navbar() {
 
           {/* ── Desktop CTAs ─────────────────────────────────────────────── */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link
-              href="/auth/login"
-              className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
-            >
-              Connexion
-            </Link>
+            {/* Tant que Clerk n'a pas résolu la session, on ne rend ni l'un ni
+                l'autre : afficher « Connexion » puis le basculer donnerait un
+                flash désagréable sur chaque chargement de page. */}
+            {isReady &&
+              (isAuthenticated ? (
+                <Link
+                  href="/espace-client"
+                  className="flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full border border-[rgba(31,42,55,0.10)] hover:border-amber transition-colors"
+                >
+                  {user?.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatar}
+                      alt=""
+                      className="w-7 h-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="w-7 h-7 rounded-full bg-navy text-amber font-bold text-[11px] flex items-center justify-center">
+                      {initial}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold text-navy max-w-[110px] truncate">
+                    {firstName}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+                >
+                  Connexion
+                </Link>
+              ))}
             <ReserveButton className="text-xs px-5 py-3">
               Réserver
               <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
@@ -128,9 +166,20 @@ export default function Navbar() {
             </nav>
 
             <div className="flex flex-col gap-3 pt-8">
-              <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
-                Connexion
-              </Link>
+              {isReady &&
+                (isAuthenticated ? (
+                  <Link
+                    href="/espace-client"
+                    className="btn btn-outline-light justify-center w-full"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Mon espace client
+                  </Link>
+                ) : (
+                  <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
+                    Connexion
+                  </Link>
+                ))}
               <ReserveButton className="justify-center w-full">
                 Réserver ma session
                 <ArrowRight className="w-4 h-4 icon-arrow" />

@@ -1,27 +1,14 @@
 'use client'
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { SignIn } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
-import { useAuth } from '@/lib/auth-context'
+import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 
 function LoginInner() {
-  const [showPwd, setShowPwd] = useState(false)
-  const [email, setEmail] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const { signIn } = useAuth()
-  const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/espace-client'
-
-  const handle = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    // Mock — pas de validation, on accepte tout
-    signIn(email || 'sophie@labsfood.fr', email ? undefined : 'Sophie M.')
-    setTimeout(() => router.push(next), 300)
-  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-cream">
@@ -36,48 +23,12 @@ function LoginInner() {
           </h1>
           <p className="text-ink-mid mb-8">Connectez-vous à votre espace client.</p>
 
-          <div className="rounded-xl border border-amber/30 bg-amber-soft/40 px-4 py-3 mb-6">
-            <p className="text-xs text-ink-mid leading-relaxed">
-              <span className="font-semibold text-navy">Mode démo</span> — clique simplement
-              sur <span className="font-semibold">Se connecter</span>, on charge un compte de démonstration.
-            </p>
-          </div>
-
-          <form onSubmit={handle} className="space-y-5">
-            <Field label="Email">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="votre@email.fr"
-                className="input-base"
-              />
-            </Field>
-            <Field label="Mot de passe">
-              <div className="relative">
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  className="input-base pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-navy transition-colors"
-                  aria-label={showPwd ? 'Masquer' : 'Afficher'}
-                >
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </Field>
-            <div className="flex justify-end">
-              <a href="#" className="text-sm text-terra hover:underline font-medium">Mot de passe oublié ?</a>
-            </div>
-            <button type="submit" disabled={submitting} className="btn btn-primary w-full mt-2 disabled:opacity-60">
-              {submitting ? 'Connexion…' : 'Se connecter'}
-              {!submitting && <ArrowRight className="w-4 h-4 icon-arrow" />}
-            </button>
-          </form>
+          <SignIn
+            appearance={clerkAuthAppearance}
+            signInUrl="/auth/login"
+            signUpUrl="/auth/register"
+            forceRedirectUrl={next}
+          />
 
           <p className="text-center text-sm text-ink-mid mt-8">
             Pas encore de compte ?{' '}
@@ -112,14 +63,5 @@ export default function LoginPage() {
     <Suspense fallback={null}>
       <LoginInner />
     </Suspense>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="label-muted block mb-2">{label}</label>
-      {children}
-    </div>
   )
 }

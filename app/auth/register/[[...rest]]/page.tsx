@@ -1,29 +1,14 @@
 'use client'
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { SignUp } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
-import { useAuth } from '@/lib/auth-context'
+import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 
 function RegisterInner() {
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [showPwd, setShowPwd] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const { signIn } = useAuth()
-  const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/espace-client'
-
-  const handle = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    const fullName = `${firstName} ${lastName}`.trim() || 'Sophie M.'
-    signIn(email || 'sophie@labsfood.fr', fullName)
-    setTimeout(() => router.push(next), 300)
-  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-cream">
@@ -39,66 +24,11 @@ function RegisterInner() {
           </h1>
           <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes — Ivy t&apos;attend.</p>
 
-          <div className="rounded-xl border border-amber/30 bg-amber-soft/40 px-4 py-3 mb-6">
-            <p className="text-xs text-ink-mid leading-relaxed">
-              <span className="font-semibold text-navy">Mode démo</span> — clique simplement sur
-              <span className="font-semibold"> Créer mon compte</span>, on charge un compte de démonstration.
-            </p>
-          </div>
-
-          <form onSubmit={handle} className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Prénom">
-                <input
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Marie"
-                  className="input-base"
-                />
-              </Field>
-              <Field label="Nom">
-                <input
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Dupont"
-                  className="input-base"
-                />
-              </Field>
-            </div>
-
-            <Field label="Email">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="votre@email.fr"
-                className="input-base"
-              />
-            </Field>
-
-            <Field label="Mot de passe">
-              <div className="relative">
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  placeholder="Minimum 8 caractères"
-                  className="input-base pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-navy transition-colors"
-                  aria-label={showPwd ? 'Masquer' : 'Afficher'}
-                >
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </Field>
-
-            <button type="submit" disabled={submitting} className="btn btn-primary w-full mt-2 disabled:opacity-60">
-              {submitting ? 'Création…' : 'Créer mon compte'}
-              {!submitting && <ArrowRight className="w-4 h-4 icon-arrow" />}
-            </button>
-          </form>
+          <SignUp
+            appearance={clerkAuthAppearance}
+            signInUrl="/auth/login"
+            forceRedirectUrl={next}
+          />
 
           <p className="text-center text-xs text-ink-soft mt-6 leading-relaxed">
             En créant un compte, tu acceptes nos{' '}
@@ -142,14 +72,5 @@ export default function RegisterPage() {
     <Suspense fallback={null}>
       <RegisterInner />
     </Suspense>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="label-muted block mb-2">{label}</label>
-      {children}
-    </div>
   )
 }
