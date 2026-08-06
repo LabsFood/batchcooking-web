@@ -57,3 +57,10 @@ labs-food/
 │   └── mock-data.ts  # Données de test
 └── types/index.ts    # Types TypeScript
 ```
+
+## État du projet
+
+Données et authentification **mockées** (`lib/mock-data.ts`, `lib/dashboard-mock.ts`,
+`lib/auth-context.tsx`) — pas encore connecté à l'API `LF-BackEnd`. Voir
+[AGENTS.md](./AGENTS.md) pour le détail du stack, des variables d'environnement et
+de la cible de déploiement.
