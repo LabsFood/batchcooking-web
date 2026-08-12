@@ -2,9 +2,12 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, X, Sparkles, Flame, Save, Check } from 'lucide-react'
+import { Plus, X, Sparkles, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
 import { DEFAULT_PREFS, type ProfilePrefs } from '@/lib/dashboard-mock'
 import { useAuth } from '@/lib/auth-context'
+import { useMeProfile, useUpdateMeProfile } from '@/lib/api/me-profile'
+import { ApiError } from '@/lib/api/client'
+import type { ClientProfile, ClientProfilePatch } from '@/lib/api/types'
 
 const SUGGEST = {
   diets: ['Végétarien', 'Vegan', 'Sans-porc', 'Sans-bœuf', 'Halal', 'Casher', 'Sans-gluten', 'Sans-lactose'],
@@ -12,10 +15,81 @@ const SUGGEST = {
   favorites: ['Risotto', 'Curry', 'Lasagnes', 'Tajine', 'Wok', 'Saumon', 'Pad thaï'],
 }
 
+/** Profil vierge (aucun profil encore créé côté API). */
+const EMPTY_PREFS: ProfilePrefs = {
+  diets: [],
+  allergies: [],
+  dislikes: [],
+  favorites: [],
+  spiceLevel: 3,
+  household: DEFAULT_PREFS.household,
+  kitchenNotes: '',
+}
+
+function clampSpice(n: number): ProfilePrefs['spiceLevel'] {
+  const v = Math.min(5, Math.max(1, Math.round(n || 3)))
+  return v as ProfilePrefs['spiceLevel']
+}
+
+/** `client_profiles` (API) → état éditable de la page. `household` n'est pas
+    fourni par l'API : on garde la valeur par défaut (champ à exposer côté back). */
+function toPrefs(p: ClientProfile | null): ProfilePrefs {
+  if (!p) return EMPTY_PREFS
+  return {
+    diets: p.dietaryPreferences ?? [],
+    allergies: p.allergies ?? [],
+    dislikes: p.dislikes ?? [],
+    favorites: p.favorites ?? [],
+    spiceLevel: clampSpice(p.spiceLevel),
+    household: DEFAULT_PREFS.household,
+    kitchenNotes: p.kitchenNotes ?? '',
+  }
+}
+
 export default function ProfilPage() {
+  const { data, isPending, isError, error, refetch } = useMeProfile()
+
+  if (isPending) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <div className="h-64 rounded-3xl bg-cream-soft animate-pulse" />
+        <div className="space-y-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-32 rounded-3xl bg-cream-soft animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="max-w-md mx-auto text-center py-16">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+          <AlertTriangle className="h-6 w-6" />
+        </span>
+        <h2 className="font-display text-xl font-bold text-navy mb-2">
+          Impossible de charger ton profil
+        </h2>
+        <p className="text-ink-mid text-sm mb-6">
+          {error instanceof ApiError ? error.message : 'Réessaie dans un instant.'}
+        </p>
+        <button onClick={() => refetch()} className="btn btn-primary">
+          <RotateCw className="w-4 h-4" /> Réessayer
+        </button>
+      </div>
+    )
+  }
+
+  // Monté une fois la donnée résolue → l'état local s'initialise proprement
+  // depuis le serveur, sans synchronisation par effet.
+  return <ProfileForm initial={toPrefs(data.profile)} />
+}
+
+function ProfileForm({ initial }: { initial: ProfilePrefs }) {
   const { user } = useAuth()
-  const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
-  const [saved, setSaved] = useState(false)
+  const update = useUpdateMeProfile()
+  const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
 
   const addTo = (key: 'diets' | 'allergies' | 'dislikes' | 'favorites', value: string) => {
     if (!value.trim()) return
@@ -26,8 +100,16 @@ export default function ProfilPage() {
   }
 
   const save = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    // `household` volontairement omis : pas encore supporté par l'API.
+    const patch: ClientProfilePatch = {
+      dietaryPreferences: prefs.diets,
+      allergies: prefs.allergies,
+      dislikes: prefs.dislikes,
+      favorites: prefs.favorites,
+      spiceLevel: prefs.spiceLevel,
+      kitchenNotes: prefs.kitchenNotes,
+    }
+    update.mutate(patch)
   }
 
   return (
@@ -66,11 +148,27 @@ export default function ProfilPage() {
 
         <button
           onClick={save}
-          className="btn btn-primary w-full justify-center"
+          disabled={update.isPending}
+          className="btn btn-primary w-full justify-center disabled:opacity-60"
         >
-          {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          {saved ? 'Profil enregistré' : 'Enregistrer'}
+          {update.isPending ? (
+            <RotateCw className="w-4 h-4 animate-spin" />
+          ) : update.isSuccess ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {update.isPending
+            ? 'Enregistrement…'
+            : update.isSuccess
+              ? 'Profil enregistré'
+              : 'Enregistrer'}
         </button>
+        {update.isError && (
+          <p className="text-xs text-red-700 text-center">
+            Échec de l&apos;enregistrement. Réessaie.
+          </p>
+        )}
       </aside>
 
       {/* Cards */}
