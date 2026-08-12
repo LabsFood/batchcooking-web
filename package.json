@@ -6,8 +6,8 @@
     "dev": "next dev -p 3005",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "lint": "next lint",
+    "prepare": "husky"
   },
   "dependencies": {
     "@clerk/localizations": "^4.13.10",
@@ -46,8 +46,15 @@
     "autoprefixer": "^10.5.0",
     "eslint": "^9",
     "eslint-config-next": "^16.2.12",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ]
   }
 }
