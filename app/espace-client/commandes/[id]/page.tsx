@@ -1,5 +1,6 @@
 'use client'
 
+import { use } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -40,8 +41,12 @@ function formatDate(iso: string) {
   })
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default function OrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
   const order = DASHBOARD_ORDERS.find((o) => o.id === id)
 
   if (!order) {

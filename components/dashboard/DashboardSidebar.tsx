@@ -72,7 +72,9 @@ export default function DashboardSidebar() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{user?.name || 'Invité'}</p>
-                <p className="text-[11px] text-white/55 truncate">{user?.email || 'Espace client'}</p>
+                <p className="text-[11px] text-white/55 truncate">
+                  {user?.email || (user?.username && `@${user.username}`) || 'Espace client'}
+                </p>
               </div>
             </div>
           </div>
