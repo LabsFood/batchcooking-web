@@ -1,0 +1,15 @@
+# Vérification avant push : on lance le build de production.
+# `next build` fait aussi le typecheck TypeScript, donc un build vert garantit
+# qu'on ne pousse pas de code qui casse la CI ou le déploiement.
+# Pour ignorer ponctuellement (à éviter) : git push --no-verify
+
+echo "▶  Pre-push : build de production en cours…"
+
+if ! npm run build; then
+  echo ""
+  echo "❌ Build échoué — push annulé."
+  echo "   Corrige les erreurs ci-dessus puis relance le push."
+  exit 1
+fi
+
+echo "✅ Build OK — push autorisé."
