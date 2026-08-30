@@ -20,6 +20,7 @@ import {
   CUSTOM_REQUESTS,
   ORDER_STATUS_LABEL,
 } from '@/lib/dashboard-mock'
+import CulinaryMap from '@/components/dashboard/CulinaryMap'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', {
@@ -37,6 +38,9 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Carte culinaire — pièce maîtresse de l'accueil (CL-01) ────── */}
+      <CulinaryMap />
+
       {/* ── Hero card ─────────────────────────────────────────────────── */}
       <motion.section
         initial={{ opacity: 0, y: 16 }}
@@ -87,7 +91,7 @@ export default function DashboardOverviewPage() {
                     className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white rounded-full px-5 py-2.5 text-sm transition-colors"
                   >
                     <MessageCircle className="w-4 h-4" />
-                    Écrire à Ivy
+                    Écrire à mon chef
                   </Link>
                 </div>
               </>

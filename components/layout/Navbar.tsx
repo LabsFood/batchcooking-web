@@ -15,16 +15,20 @@ const NAV_LINKS = [
   { label: 'Menu', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
   { label: 'FAQ', href: '/faq' },
+  // Entrée de recrutement : mène au parcours de candidature batch cooker.
+  { label: 'Nous rejoindre', href: '/devenir-chef' },
 ]
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
-  const { user, isAuthenticated, isReady } = useAuth()
+  const { user, isAuthenticated, isReady, role, roleLabel } = useAuth()
 
   const firstName = user?.name.split(' ')[0] ?? ''
   const initial = user?.name?.[0]?.toUpperCase() ?? 'G'
+  // Chaque rôle a son espace : on renvoie vers le bon.
+  const spaceHref = role === 'chef' ? '/espace-chef' : '/espace-client'
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30)
@@ -93,7 +97,7 @@ export default function Navbar() {
             {isReady &&
               (isAuthenticated ? (
                 <Link
-                  href="/espace-client"
+                  href={spaceHref}
                   className="flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full border border-[rgba(31,42,55,0.10)] hover:border-amber transition-colors"
                 >
                   {user?.avatar ? (
@@ -108,8 +112,15 @@ export default function Navbar() {
                       {initial}
                     </span>
                   )}
-                  <span className="text-sm font-semibold text-navy max-w-[110px] truncate">
-                    {firstName}
+                  <span className="flex flex-col leading-none">
+                    <span className="text-sm font-semibold text-navy max-w-[110px] truncate">
+                      {firstName}
+                    </span>
+                    {roleLabel && (
+                      <span className="text-[9px] uppercase tracking-[0.12em] text-terra font-semibold mt-0.5">
+                        {roleLabel}
+                      </span>
+                    )}
                   </span>
                 </Link>
               ) : (
@@ -168,12 +179,9 @@ export default function Navbar() {
             <div className="flex flex-col gap-3 pt-8">
               {isReady &&
                 (isAuthenticated ? (
-                  <Link
-                    href="/espace-client"
-                    className="btn btn-outline-light justify-center w-full"
-                  >
+                  <Link href={spaceHref} className="btn btn-outline-light justify-center w-full">
                     <LayoutDashboard className="w-4 h-4" />
-                    Mon espace client
+                    {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
                   </Link>
                 ) : (
                   <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">

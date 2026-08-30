@@ -201,7 +201,7 @@ function ReservationFlow() {
         )}
 
         {step === 'infos' && (
-          <StepCard key="infos" title="Quand & où on cuisine ?" subtitle="Date, créneau, adresse — Ivy gère le reste.">
+          <StepCard key="infos" title="Quand & où on cuisine ?" subtitle="Date, créneau, adresse — ton chef gère le reste.">
             <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -368,7 +368,7 @@ function ReservationFlow() {
               C&apos;est parti, {user?.name?.split(' ')[0] || 'gourmand·e'} !
             </h2>
             <p className="text-ink-mid leading-relaxed mb-2">
-              Ton chef Ivy te confirme la session par message dans les minutes qui viennent.
+              Ton chef te confirme la session par message dans les minutes qui viennent.
             </p>
             <p className="text-xs font-mono text-ink-soft mb-6">
               Référence : <span className="text-navy font-semibold">{reference}</span>

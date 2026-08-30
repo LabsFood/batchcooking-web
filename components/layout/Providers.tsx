@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { makeQueryClient } from '@/lib/api/query-client'
 import { ReservationGateProvider } from '@/lib/reservation-gate-context'
 import LoginRequiredModal from '@/components/shared/LoginRequiredModal'
@@ -16,6 +17,10 @@ export default function Providers({ children }: { children: ReactNode }) {
         {children}
         <LoginRequiredModal />
       </ReservationGateProvider>
+      {/* Devtools React Query — exclus du bundle de production. */}
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+      )}
     </QueryClientProvider>
   )
 }

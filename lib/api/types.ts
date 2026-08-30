@@ -24,10 +24,46 @@ export interface ClientProfile {
   kitchenNotes: string | null
 }
 
-/** Réponse de `GET /me/profile` — user + profil optionnel (null si non créé). */
+/** Profil prestataire (`chef_profiles`). */
+export interface ChefProfile {
+  id: string
+  userId: string
+  displayName: string
+  bio?: string | null
+  city?: string | null
+  serviceRadiusKm: number
+  /** Toujours `false` à l'auto-inscription — seul un admin peut l'activer. */
+  isActive: boolean
+  isVerified: boolean
+}
+
+/**
+ * Réponse de `GET /me/profile` — user + le profil correspondant à `users.role`.
+ * `profileType` indique lequel des deux profils est renvoyé.
+ */
 export interface MeProfile {
   user: Me
-  profile: ClientProfile | null
+  profileType: 'client' | 'chef' | 'none'
+  profile: ClientProfile | ChefProfile | null
+}
+
+/**
+ * Corps de `PATCH /me/chef-profile` (onboarding chef, formulaire 2).
+ *
+ * ⚠️ Cet appel **promeut `users.role` de `client` à `chef`** et remet toujours
+ * `isActive` / `isVerified` à `false` : seul un admin peut activer un chef via
+ * `PATCH /admin/chefs/:id/verification`.
+ */
+export interface ChefProfilePatch {
+  /** Requis par l'API. */
+  displayName: string
+  bio?: string
+  city?: string
+  /** Entre 1 et 200 km. */
+  serviceRadiusKm?: number
+  firstName?: string
+  lastName?: string
+  phone?: string
 }
 
 /** Corps de `PATCH /me/profile` (mise à jour partielle). */

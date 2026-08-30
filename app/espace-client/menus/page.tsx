@@ -46,7 +46,7 @@ function DashboardMenusInner() {
           <div>
             <p className="eyebrow mb-3" style={{ color: 'var(--mint-ink)' }}>Semaine 18</p>
             <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
-              Compose ton menu — Ivy s&apos;occupe du reste.
+              Compose ton menu — ton chef s&apos;occupe du reste.
             </h2>
             <p className="text-ink-mid text-sm mt-2 max-w-xl leading-relaxed">
               Sélectionne jusqu&apos;à <span className="font-semibold text-navy">{MAX} plats</span> pour

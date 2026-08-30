@@ -246,7 +246,7 @@ export default function OrderDetailPage({
             </span>
             <div className="text-sm">
               <p className="font-semibold text-navy">Une question ?</p>
-              <p className="text-xs text-ink-mid">Écris à Ivy directement.</p>
+              <p className="text-xs text-ink-mid">Écris à ton chef directement.</p>
             </div>
           </Link>
 

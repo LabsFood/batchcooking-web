@@ -6,7 +6,10 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/shared/CookieBanner'
 
-const HIDDEN_PREFIXES = ['/espace-client', '/auth']
+/* Espaces connectés et parcours d'inscription : ils portent leur propre
+   chrome (sidebar / topbar), la navbar et le footer publics n'y ont pas leur
+   place. */
+const HIDDEN_PREFIXES = ['/espace-client', '/espace-chef', '/devenir-chef', '/auth']
 
 export default function PublicChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname()
