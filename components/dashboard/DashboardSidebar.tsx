@@ -5,14 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   CalendarRange,
-  UtensilsCrossed,
-  Sparkles,
   MessageCircle,
   UserCircle2,
-  BarChart3,
-  Settings,
   LogOut,
   ChefHat,
+  ShoppingBasket,
   ArrowRight,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
@@ -20,20 +17,65 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import ReserveButton from '@/components/shared/ReserveButton'
 
-const NAV = [
-  { href: '/espace-client', label: 'Aperçu', Icon: LayoutDashboard, badge: null },
-  { href: '/espace-client/commandes', label: 'Mes commandes', Icon: CalendarRange, badge: '2' },
-  { href: '/espace-client/menus', label: 'Menus', Icon: UtensilsCrossed, badge: null },
-  { href: '/espace-client/personnalisation', label: 'Personnalisation', Icon: Sparkles, badge: null },
-  { href: '/espace-client/messages', label: 'Messages', Icon: MessageCircle, badge: '1' },
-  { href: '/espace-client/profil', label: 'Profil', Icon: UserCircle2, badge: null },
-  { href: '/espace-client/statistiques', label: 'Statistiques', Icon: BarChart3, badge: null },
-  { href: '/espace-client/parametres', label: 'Paramètres', Icon: Settings, badge: null },
+/**
+ * Navigation client — 6 entrées principales, conformément à l'architecture
+ * cible (§ 4.2 du brief). Les sous-entrées ne s'affichent que lorsque leur
+ * section est active, pour garder la barre lisible.
+ */
+const NAV: {
+  href: string
+  label: string
+  Icon: typeof LayoutDashboard
+  badge?: string
+  children?: { href: string; label: string }[]
+}[] = [
+  { href: '/espace-client', label: 'Accueil', Icon: LayoutDashboard },
+  {
+    href: '/espace-client/chefs',
+    label: 'Réserver',
+    Icon: ChefHat,
+    children: [
+      { href: '/espace-client/chefs', label: 'Trouver un batch cooker' },
+      { href: '/espace-client/menus', label: 'Menus & plats' },
+      { href: '/espace-client/reservation', label: 'Composer ma session' },
+      { href: '/espace-client/personnalisation', label: 'Demande sur-mesure' },
+    ],
+  },
+  {
+    href: '/espace-client/commandes',
+    label: 'Mes sessions',
+    Icon: CalendarRange,
+    badge: '2',
+    children: [
+      { href: '/espace-client/commandes', label: 'À venir & réalisées' },
+      { href: '/espace-client/conservation', label: 'Réchauffage & conservation' },
+    ],
+  },
+  { href: '/espace-client/courses', label: 'Ma liste de courses', Icon: ShoppingBasket },
+  { href: '/espace-client/messages', label: 'Messagerie', Icon: MessageCircle, badge: '1' },
+  {
+    href: '/espace-client/compte',
+    label: 'Mon compte',
+    Icon: UserCircle2,
+    children: [
+      { href: '/espace-client/compte', label: 'Adresses & paiement' },
+      { href: '/espace-client/profil', label: 'Profil & goûts' },
+      { href: '/espace-client/statistiques', label: 'Mes statistiques' },
+      { href: '/espace-client/parametres', label: 'Paramètres' },
+    ],
+  },
 ]
+
+/** Une section est active si l'URL correspond à elle ou à l'une de ses filles. */
+function sectionActive(pathname: string, item: (typeof NAV)[number]) {
+  if (item.href === '/espace-client') return pathname === item.href
+  if (pathname.startsWith(item.href)) return true
+  return (item.children ?? []).some((c) => pathname.startsWith(c.href))
+}
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
 
   const handleLogout = () => {
@@ -72,7 +114,12 @@ export default function DashboardSidebar() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{user?.name || 'Invité'}</p>
-                <p className="text-[11px] text-white/55 truncate">
+                {roleLabel && (
+                  <span className="mt-0.5 inline-flex items-center rounded-full bg-amber/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-amber">
+                    {roleLabel}
+                  </span>
+                )}
+                <p className="text-[11px] text-white/55 truncate mt-0.5">
                   {user?.email || (user?.username && `@${user.username}`) || 'Espace client'}
                 </p>
               </div>
@@ -82,11 +129,9 @@ export default function DashboardSidebar() {
           {/* Nav */}
           <nav className="px-3 flex-1 overflow-y-auto custom-scroll">
             <ul className="space-y-1">
-              {NAV.map(({ href, label, Icon, badge }) => {
-                const active =
-                  href === '/espace-client'
-                    ? pathname === href
-                    : pathname.startsWith(href)
+              {NAV.map((item) => {
+                const { href, label, Icon, badge, children } = item
+                const active = sectionActive(pathname, item)
                 return (
                   <li key={href}>
                     <Link
@@ -111,6 +156,30 @@ export default function DashboardSidebar() {
                         </span>
                       )}
                     </Link>
+
+                    {/* Sous-entrées : visibles uniquement sur la section active */}
+                    {active && children && (
+                      <ul className="mt-1 mb-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
+                        {children.map((c) => {
+                          const on = pathname === c.href
+                          return (
+                            <li key={c.href}>
+                              <Link
+                                href={c.href}
+                                className={cn(
+                                  'block px-3 py-1.5 rounded-lg text-[13px] transition-colors',
+                                  on
+                                    ? 'text-amber font-semibold'
+                                    : 'text-white/55 hover:text-white hover:bg-white/5',
+                                )}
+                              >
+                                {c.label}
+                              </Link>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
                   </li>
                 )
               })}

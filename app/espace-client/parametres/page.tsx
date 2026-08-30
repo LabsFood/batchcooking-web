@@ -72,7 +72,7 @@ export default function ParametresPage() {
       <Section title="Notifications" eyebrow="Préférences" Icon={Bell}>
         {[
           { key: 'email', label: 'Emails de service', sub: 'Confirmations, rappels, listes de courses.' },
-          { key: 'sms', label: 'SMS de session', sub: 'Pour le jour J, par Ivy.' },
+          { key: 'sms', label: 'SMS de session', sub: 'Pour le jour J, par ton chef.' },
           { key: 'weekly', label: 'Newsletter hebdo', sub: 'Le menu de la semaine, chaque lundi.' },
           { key: 'marketing', label: 'Offres spéciales', sub: 'Promos, événements, brunchs surprises.' },
         ].map((row) => (

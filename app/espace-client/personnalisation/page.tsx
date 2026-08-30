@@ -54,7 +54,7 @@ export default function PersonnalisationPage() {
           Décris ce que tu as <span className="text-terra italic font-medium">en tête.</span>
         </h2>
         <p className="text-ink-mid text-sm mb-6 leading-relaxed">
-          Ivy te chiffre dans les 24h. Les options réelles (forfait + ajustement) s&apos;adaptent
+          Les chefs te répondent sous 24 h. Les options réelles (forfait + ajustement) s&apos;adaptent
           au nombre de personnes et de plats.
         </p>
 
@@ -149,7 +149,7 @@ export default function PersonnalisationPage() {
             </div>
             {r.quote && (
               <div className="rounded-xl bg-amber-soft/60 border border-amber/30 p-3 text-sm">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-amber-deep font-mono mb-1">Devis Ivy</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-amber-deep font-mono mb-1">Devis chef</p>
                 <p className="font-display text-xl font-bold text-navy">{r.quote.amountTTC} €</p>
                 <p className="text-[11px] text-ink-mid">soit {r.quote.amountAfterTax} € après crédit d&apos;impôt</p>
                 {r.quote.note && <p className="text-[11px] text-ink-mid mt-1.5 italic">{r.quote.note}</p>}

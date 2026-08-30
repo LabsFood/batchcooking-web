@@ -22,7 +22,7 @@ function RegisterInner() {
             style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)', letterSpacing: '-0.02em' }}>
             Bienvenue chez <span className="text-terra italic font-medium">Lab&apos;s Food.</span>
           </h1>
-          <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes — Ivy t&apos;attend.</p>
+          <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes</p>
 
           <SignUp
             appearance={clerkAuthAppearance}

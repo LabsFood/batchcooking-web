@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Send, Paperclip, ChefHat, Phone, Sparkles } from 'lucide-react'
-import { CHAT_MESSAGES, type ChatMessage } from '@/lib/dashboard-mock'
+import { CHAT_MESSAGES, DASHBOARD_ORDERS, type ChatMessage } from '@/lib/dashboard-mock'
 
 const CANNED = [
   'Je peux décaler la session ?',
@@ -46,7 +46,7 @@ export default function MessagesPage() {
         {
           id: `m_${Date.now() + 1}`,
           from: 'admin',
-          author: 'Ivy · Lab’s Food',
+          author: 'Lab’s Food',
           text: 'Bien reçu ! Je regarde ça et je reviens vers toi 🍳',
           at: new Date().toISOString(),
           read: true,
@@ -64,6 +64,15 @@ export default function MessagesPage() {
     else last.items.push(m)
   })
 
+  // Chef de la prestation en cours — plusieurs chefs peuvent intervenir.
+  const chefName = DASHBOARD_ORDERS[0]?.chef ?? 'Mon chef'
+  const chefInitials = chefName
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
       {/* Chat */}
@@ -73,12 +82,12 @@ export default function MessagesPage() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-11 h-11 rounded-full bg-navy text-amber font-bold flex items-center justify-center">
-                IS
+                {chefInitials}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-mint-deep border-2 border-paper" />
             </div>
             <div>
-              <p className="font-semibold text-navy text-sm leading-tight">Ivy Siyaptze</p>
+              <p className="font-semibold text-navy text-sm leading-tight">{chefName}</p>
               <p className="text-[11px] text-mint-ink">En ligne · répond &lt; 1h</p>
             </div>
           </div>
@@ -149,7 +158,7 @@ export default function MessagesPage() {
                 }
               }}
               rows={1}
-              placeholder="Écris à Ivy…"
+              placeholder="Écris à ton chef…"
               className="flex-1 resize-none bg-cream-soft rounded-2xl px-4 py-3 text-sm outline-none focus:bg-paper focus:ring-2 focus:ring-amber/50 transition"
             />
             <button
@@ -182,7 +191,7 @@ export default function MessagesPage() {
           <ChefHat className="w-5 h-5 text-amber mb-3" />
           <p className="font-display text-lg font-bold leading-tight">Ton chef à portée de message.</p>
           <p className="text-white/65 text-xs mt-2 leading-relaxed">
-            Tu peux écrire à Ivy pour ajuster un plat, demander une astuce de conservation ou
+            Tu peux écrire à ton chef pour ajuster un plat, demander une astuce de conservation ou
             partager un retour après ta session.
           </p>
         </div>

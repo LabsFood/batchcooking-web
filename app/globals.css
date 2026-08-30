@@ -133,14 +133,6 @@
     color: var(--terra);
   }
 
-  .eyebrow::before {
-    content: '';
-    width: 28px;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.8;
-  }
-
   .label-brand {
     font-family: var(--font-mono), monospace;
     font-size: 0.7rem;
@@ -733,4 +725,45 @@
   .text-peach {
     color: var(--peach);
   }
+}
+
+/* ── Intégration des composants Clerk (<SignIn> / <SignUp>) ───────────────────
+   Clerk applique ses propres styles avec une spécificité élevée : les classes
+   utilitaires passées via `appearance` (shadow-none, hidden…) ne suffisent pas
+   à les neutraliser. On fond donc la carte Clerk dans la mise en page de la
+   page (sinon on voit deux cartes superposées) et on masque son pied
+   « Secured by / Development mode ». Le !important est nécessaire ici. */
+.cl-cardBox,
+.cl-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 3px !important;
+}
+
+.cl-footer {
+  display: none !important;
+}
+
+/* Connexions sociales desactivees : email + mot de passe uniquement.
+   (A desactiver aussi cote dashboard Clerk pour couper les endpoints OAuth.) */
+.cl-socialButtons,
+.cl-socialButtonsBlockButton,
+.cl-dividerRow {
+  display: none !important;
+}
+
+/* Boutons principaux en pilule, comme le reste du design system. */
+.cl-formButtonPrimary {
+  border-radius: 9999px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 600 !important;
+}
+
+
+/* Les rangees de champs Clerk ne s'etirent pas toujours a la largeur du
+   formulaire (champ mot de passe + bouton oeil) : on force l'alignement. */
+.cl-formFieldRow {
+  width: 100% !important;
 }

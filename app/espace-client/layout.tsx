@@ -25,8 +25,14 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
     // renverrait aussitôt ici (session active) → boucle infinie.
     if (isReady && !isAuthenticated) {
       router.replace('/auth/login?next=/espace-client')
+      return
     }
-  }, [isReady, isAuthenticated, router])
+    // Un batch cooker a son propre espace : on l'y envoie au lieu de lui
+    // opposer un cul-de-sac.
+    if (role === 'chef') {
+      router.replace('/espace-chef')
+    }
+  }, [isReady, isAuthenticated, role, router])
 
   // Clerk pas prêt, non connecté, ou /me en cours → loader.
   if (!isReady || !isAuthenticated || me.isPending) {
@@ -57,16 +63,9 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
     )
   }
 
-  // Rôle chef : zone dédiée pas encore construite.
+  // Rôle chef : redirection en cours vers /espace-chef (cf. effet ci-dessus).
   if (role === 'chef') {
-    return (
-      <GateScreen
-        Icon={ChefHat}
-        title="Espace chef bientôt disponible"
-        text="Ton compte chef est bien reconnu. L'espace dédié aux chefs arrive prochainement — reviens vite !"
-        primary={{ label: 'Se déconnecter', onClick: signOut }}
-      />
-    )
+    return <LabsLoader fullscreen label="Direction votre espace chef…" />
   }
 
   // Rôle admin : compte réservé à la console d'administration.

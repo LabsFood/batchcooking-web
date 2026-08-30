@@ -81,9 +81,13 @@ export default function ProfilPage() {
     )
   }
 
+  // `GET /me/profile` renvoie soit un profil client, soit un profil chef :
+  // on ne garde que le profil de goûts (`profileType === 'client'`).
+  const clientProfile = data.profileType === 'client' ? (data.profile as ClientProfile) : null
+
   // Monté une fois la donnée résolue → l'état local s'initialise proprement
   // depuis le serveur, sans synchronisation par effet.
-  return <ProfileForm initial={toPrefs(data.profile)} />
+  return <ProfileForm initial={toPrefs(clientProfile)} />
 }
 
 function ProfileForm({ initial }: { initial: ProfilePrefs }) {

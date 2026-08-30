@@ -2,6 +2,15 @@
 
 import { useCallback, useMemo } from 'react'
 import { useClerk, useUser } from '@clerk/nextjs'
+import { useMe } from './api/me'
+import type { Role } from './api/types'
+
+/** Libellés des rôles applicatifs, affichés dans les dashboards. */
+export const ROLE_LABEL: Record<Role, string> = {
+  client: 'Client',
+  chef: 'Batch cooker',
+  admin: 'Administrateur',
+}
 
 /**
  * Adaptateur au-dessus de Clerk.
@@ -23,12 +32,18 @@ type AuthValue = {
   user: AppUser | null
   isAuthenticated: boolean
   isReady: boolean
+  /** Rôle applicatif issu de `GET /me` — `null` tant qu'il n'est pas résolu. */
+  role: Role | null
+  /** Libellé français du rôle, prêt à afficher. */
+  roleLabel: string | null
   signOut: () => void
 }
 
 export function useAuth(): AuthValue {
   const { user, isLoaded, isSignedIn } = useUser()
   const clerk = useClerk()
+  const me = useMe()
+  const role = me.data?.role ?? null
 
   const signOut = useCallback(() => {
     void clerk.signOut({ redirectUrl: '/' })
@@ -58,7 +73,9 @@ export function useAuth(): AuthValue {
         : null,
       isAuthenticated: !!isSignedIn,
       isReady: isLoaded,
+      role,
+      roleLabel: role ? ROLE_LABEL[role] : null,
       signOut,
     }
-  }, [user, isLoaded, isSignedIn, signOut])
+  }, [user, isLoaded, isSignedIn, role, signOut])
 }
