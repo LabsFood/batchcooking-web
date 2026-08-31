@@ -13,8 +13,6 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-RUN apk update && apk upgrade --no-cache
-
 ENV NODE_ENV=production \
     PORT=3000
 
