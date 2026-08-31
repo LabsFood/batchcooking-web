@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
+import { useMeKey } from './keys'
 import type { ChefProfile, ChefProfilePatch } from './types'
 
 /**
@@ -12,18 +13,19 @@ import type { ChefProfile, ChefProfilePatch } from './types'
  *  - remet `isActive` et `isVerified` à `false` : le chef n'est réservable
  *    qu'après vérification par un admin (`PATCH /admin/chefs/:id/verification`).
  *
- * On invalide `['me']` et `['me','profile']` car le rôle et le profil changent.
+ * On invalide toute la racine du compte (`['me', userId]`) car le rôle et le
+ * profil changent : ça couvre `/me` et `/me/profile` d'un seul coup.
  */
 export function useUpdateChefProfile() {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
+  const meKey = useMeKey()
 
   return useMutation({
     mutationFn: (patch: ChefProfilePatch) =>
       apiFetch<ChefProfile>('/me/chef-profile', { method: 'PATCH', body: patch }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me'] })
-      qc.invalidateQueries({ queryKey: ['me', 'profile'] })
+      qc.invalidateQueries({ queryKey: meKey })
     },
   })
 }

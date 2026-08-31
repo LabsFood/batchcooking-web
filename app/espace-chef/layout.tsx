@@ -1,67 +1,48 @@
 'use client'
 
 import { useEffect, type ReactNode } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ShieldAlert, ArrowLeft, LogOut } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
 import { ChefSidebar, ChefMobileNav } from '@/components/chef/ChefNav'
 import LabsLoader from '@/components/shared/LabsLoader'
 
 /**
- * Garde de rôle.
+ * Garde de rôle, symétrique de celle de /espace-client (qui renvoie déjà les
+ * chefs ici).
  *
- * `DEMO_MODE` laisse entrer tout compte authentifié : le module tourne sur des
- * données simulées et l'endpoint `/me` n'est pas encore exploitable (401 tant
- * que le backend n'a pas ajouté les origines dans `authorizedParties`).
- * Passer à `false` pour activer le contrôle strict `role === 'chef'`.
+ * Le contrôle se déclenche sur `me.isSuccess`, pas sur l'absence de rôle : tant
+ * que `/me` échoue (401 tant que le backend n'a pas ajouté les origines dans
+ * `authorizedParties`), le rôle est inconnu et tout compte authentifié entre —
+ * c'est ce que couvrait l'ancien `DEMO_MODE`, qui laissait en revanche entrer
+ * un client dont le rôle était parfaitement connu.
  */
-const DEMO_MODE = true
-
 export default function EspaceChefLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isReady, signOut } = useAuth()
+  const { isAuthenticated, isReady } = useAuth()
   const router = useRouter()
   const me = useMe()
 
   const role = me.data?.role
+  // Rôle résolu et différent de `chef` : ce compte n'a rien à faire ici.
+  const isIntruder = me.isSuccess && role !== 'chef'
 
   useEffect(() => {
     if (isReady && !isAuthenticated) {
       router.replace('/auth/login?next=/espace-chef')
+      return
     }
-  }, [isReady, isAuthenticated, router])
+    // Un client pouvait rester coincé ici : `?next=/espace-chef` laissé dans
+    // l'URL de login après la déconnexion d'un chef, ou simple lien direct.
+    // On le renvoie vers son espace plutôt que de lui opposer un cul-de-sac.
+    if (isIntruder) {
+      router.replace('/espace-client')
+    }
+  }, [isReady, isAuthenticated, isIntruder, router])
 
-  if (!isReady || !isAuthenticated) {
+  // Clerk pas prêt, non connecté, ou redirection en cours → loader. On ne rend
+  // surtout pas le dashboard chef entre-temps.
+  if (!isReady || !isAuthenticated || isIntruder) {
     return <LabsLoader fullscreen label="On allume les fourneaux…" />
-  }
-
-  // Contrôle strict : uniquement quand le backend est prêt.
-  if (!DEMO_MODE && me.isSuccess && role !== 'chef') {
-    return (
-      <div className="min-h-screen bg-cream flex items-center justify-center px-6">
-        <div className="max-w-md w-full text-center">
-          <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-navy text-amber">
-            <ShieldAlert className="h-7 w-7" />
-          </span>
-          <h1 className="font-display text-2xl font-bold text-navy mb-2">
-            Espace réservé aux batch cookers
-          </h1>
-          <p className="text-ink-mid text-sm leading-relaxed mb-8">
-            Ce compte n&apos;a pas le rôle chef. Connecte-toi avec un compte batch
-            cooker pour accéder à cet espace.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button onClick={signOut} className="btn btn-primary">
-              <LogOut className="w-4 h-4" /> Se déconnecter
-            </button>
-            <Link href="/" className="btn btn-outline">
-              <ArrowLeft className="w-4 h-4" /> Retour au site
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (

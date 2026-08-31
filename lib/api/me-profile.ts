@@ -3,17 +3,17 @@
 import { useAuth } from '@clerk/nextjs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
+import { useMeKey } from './keys'
 import type { ClientProfile, ClientProfilePatch, MeProfile } from './types'
-
-const KEY = ['me', 'profile'] as const
 
 /** `GET /me/profile` — user + profil de goûts (null tant qu'il n'est pas créé). */
 export function useMeProfile() {
   const apiFetch = useApiFetch()
   const { isLoaded, isSignedIn } = useAuth()
+  const meKey = useMeKey()
 
   return useQuery({
-    queryKey: KEY,
+    queryKey: [...meKey, 'profile'],
     queryFn: () => apiFetch<MeProfile>('/me/profile'),
     enabled: isLoaded && !!isSignedIn,
   })
@@ -23,12 +23,13 @@ export function useMeProfile() {
 export function useUpdateMeProfile() {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
+  const meKey = useMeKey()
 
   return useMutation({
     mutationFn: (patch: ClientProfilePatch) =>
       apiFetch<ClientProfile>('/me/profile', { method: 'PATCH', body: patch }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEY })
+      qc.invalidateQueries({ queryKey: [...meKey, 'profile'] })
     },
   })
 }

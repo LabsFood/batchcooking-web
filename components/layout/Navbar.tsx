@@ -91,11 +91,15 @@ export default function Navbar() {
 
           {/* ── Desktop CTAs ─────────────────────────────────────────────── */}
           <div className="hidden lg:flex items-center gap-3">
-            {/* Tant que Clerk n'a pas résolu la session, on ne rend ni l'un ni
-                l'autre : afficher « Connexion » puis le basculer donnerait un
-                flash désagréable sur chaque chargement de page. */}
-            {isReady &&
-              (isAuthenticated ? (
+            {/* « Connexion » est l'état par défaut, y compris tant que Clerk
+                n'a pas résolu la session. On gatait tout le bloc sur `isReady`
+                pour éviter un flash — au prix d'un trou : sur les pages
+                prérendues servies par le CDN, clerk-js met un temps variable à
+                répondre (et ne répond jamais si son handshake échoue, ce qui
+                arrive avec une instance de dev sur un vrai domaine), et le
+                bouton restait absent. Un bref « Connexion » chez un visiteur
+                déjà connecté est très préférable à un bouton manquant. */}
+            {isReady && isAuthenticated ? (
                 <Link
                   href={spaceHref}
                   className="flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full border border-[rgba(31,42,55,0.10)] hover:border-amber transition-colors"
@@ -123,14 +127,14 @@ export default function Navbar() {
                     )}
                   </span>
                 </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
-                >
-                  Connexion
-                </Link>
-              ))}
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+              >
+                Connexion
+              </Link>
+            )}
             <ReserveButton className="text-xs px-5 py-3">
               Réserver
               <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
@@ -177,17 +181,17 @@ export default function Navbar() {
             </nav>
 
             <div className="flex flex-col gap-3 pt-8">
-              {isReady &&
-                (isAuthenticated ? (
-                  <Link href={spaceHref} className="btn btn-outline-light justify-center w-full">
-                    <LayoutDashboard className="w-4 h-4" />
-                    {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
-                  </Link>
-                ) : (
-                  <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
-                    Connexion
-                  </Link>
-                ))}
+              {/* Même règle que sur desktop : jamais de trou à la place du CTA. */}
+              {isReady && isAuthenticated ? (
+                <Link href={spaceHref} className="btn btn-outline-light justify-center w-full">
+                  <LayoutDashboard className="w-4 h-4" />
+                  {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
+                </Link>
+              ) : (
+                <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
+                  Connexion
+                </Link>
+              )}
               <ReserveButton className="justify-center w-full">
                 Réserver ma session
                 <ArrowRight className="w-4 h-4 icon-arrow" />
