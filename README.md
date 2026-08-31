@@ -160,7 +160,7 @@ labs-food/
 `public/fraunces-font-family/`), Montserrat (corps), DM Mono (labels et
 références).
 
-**Charte de marque** — trois branches, documentées sur `/brand`
+**Charte de marque** trois branches, documentées sur `/brand`
 ([components/shared/BrandGuidelines.tsx](components/shared/BrandGuidelines.tsx)) :
 
 | Branche | Principale | Secondaire | Clair |
