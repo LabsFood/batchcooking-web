@@ -1,9 +1,15 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-// Tout l'espace client est privé. Le reste du site (vitrine, menu, réservation
-// publique) reste accessible sans compte — la gate de réservation côté client
-// s'occupe d'inviter à se connecter au bon moment.
-const isProtectedRoute = createRouteMatcher(['/espace-client(.*)'])
+// Les deux espaces connectés sont privés. Le reste du site (vitrine, menu,
+// réservation publique) reste accessible sans compte — la gate de réservation
+// côté client s'occupe d'inviter à se connecter au bon moment.
+//
+// `/espace-chef` manquait ici : il répondait 200 à un visiteur anonyme et ne
+// s'appuyait que sur la garde client de son layout.
+const isProtectedRoute = createRouteMatcher([
+  '/espace-client(.*)',
+  '/espace-chef(.*)',
+])
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
