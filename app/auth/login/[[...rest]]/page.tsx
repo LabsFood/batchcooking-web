@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { SignIn } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
+import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
 
 function LoginInner() {
   const params = useSearchParams()
@@ -23,12 +24,14 @@ function LoginInner() {
           </h1>
           <p className="text-ink-mid mb-8">Connectez-vous à votre espace client.</p>
 
-          <SignIn
-            appearance={clerkAuthAppearance}
-            signInUrl="/auth/login"
-            signUpUrl="/auth/register"
-            forceRedirectUrl={next}
-          />
+          <ClerkWidgetGate>
+            <SignIn
+              appearance={clerkAuthAppearance}
+              signInUrl="/auth/login"
+              signUpUrl="/auth/register"
+              forceRedirectUrl={next}
+            />
+          </ClerkWidgetGate>
 
           <p className="text-center text-sm text-ink-mid mt-8">
             Pas encore de compte ?{' '}

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { SignUp } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
+import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
 
 function RegisterInner() {
   const params = useSearchParams()
@@ -24,11 +25,13 @@ function RegisterInner() {
           </h1>
           <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes</p>
 
-          <SignUp
-            appearance={clerkAuthAppearance}
-            signInUrl="/auth/login"
-            forceRedirectUrl={next}
-          />
+          <ClerkWidgetGate>
+            <SignUp
+              appearance={clerkAuthAppearance}
+              signInUrl="/auth/login"
+              forceRedirectUrl={next}
+            />
+          </ClerkWidgetGate>
 
           <p className="text-center text-xs text-ink-soft mt-6 leading-relaxed">
             En créant un compte, tu acceptes nos{' '}

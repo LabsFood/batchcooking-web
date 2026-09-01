@@ -191,9 +191,18 @@ exploitant la sortie `standalone` de Next.js, exécutée par un utilisateur non
 root et exposant le **port 3000**.
 
 ```bash
-docker build -t labs-food .
+docker build -t labs-food \
+  --build-arg NEXT_PUBLIC_API_URL=https://lf-api.labsfood.fr \
+  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_xxx .
 docker run -p 3000:3000 --env-file .env.local labs-food
 ```
+
+> **Les `NEXT_PUBLIC_*` sont des variables de *build*, pas d'exécution.** Next
+> les fige dans le bundle client pendant `npm run build` ; les passer seulement
+> au `docker run` (ou les ajouter sur Vercel sans redéployer) laisse le
+> navigateur avec `undefined`. Sur Vercel elles doivent exister dans les
+> *Environment Variables* du scope **Production** *avant* le déploiement — un
+> simple redémarrage ne suffit pas, il faut un nouveau build.
 
 Cible de déploiement : Railway (conteneur). Voir [AGENTS.md](./AGENTS.md) pour
 le contexte projet destiné aux agents.
