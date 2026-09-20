@@ -1,329 +1,743 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Info,
-  MapPin,
-  Plus,
-  Users,
-  X,
-} from 'lucide-react'
-import ChefPage, { Card } from '@/components/chef/ChefPage'
+import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Lock, MapPin, Plus, Trash2, X } from 'lucide-react'
+import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import StatusBadge, { MissionBadge } from '@/components/chef/StatusBadge'
-import { CHEF_AVAILABILITY, CHEF_MISSIONS, CHEF_REQUESTS } from '@/lib/chef/mock'
-import { cn } from '@/lib/utils'
+import { CHEF_MISSIONS, CHEF_REQUESTS, CHEF_PROFILE } from '@/lib/chef/mock'
+import {
+  DEFAULT_WEEKLY_SLOTS,
+  WEEKDAYS,
+  dayKey,
+  newSlotId,
+  rangeLabel,
+  timeLabel,
+  toHHMM,
+  toMinutes,
+  weekdayIndex,
+  weeklyHours,
+  workingRanges,
+  type DateException,
+  type WeeklySlot,
+  type WeekdayIndex,
+} from '@/lib/chef/schedule'
 
-const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+/* ─────────────────────────────────────────────────────────────────────────────
+   Agenda.
+
+   Quatre échelles de lecture — jour, semaine, mois, année — sur les mêmes
+   données : les prestations acceptées, les demandes en attente de réponse, et
+   les horaires de travail que le batch cooker pose lui-même. Les horaires se
+   déclinent en une trame hebdomadaire, ajustable jour par jour.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+type View = 'day' | 'week' | 'month' | 'year'
+
 const MONTHS = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
 ]
 
-/** Clé de jour stable, indépendante du fuseau. */
-const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+/** « 9h00 – 11h30 » → minutes depuis minuit. */
+function parseSlot(slot: string): { start: number; end: number } {
+  const parts = [...slot.matchAll(/(\d{1,2})\s*h\s*(\d{0,2})/g)].map(
+    (m) => Number(m[1]) * 60 + Number(m[2] || 0),
+  )
+  return { start: parts[0] ?? 9 * 60, end: parts[1] ?? (parts[0] ?? 9 * 60) + 120 }
+}
 
-type DayEvent =
-  | { kind: 'mission'; id: string; label: string; time: string; status: (typeof CHEF_MISSIONS)[number]['status'] }
-  | { kind: 'request'; id: string; label: string; time: string }
+interface AgendaEvent {
+  id: string
+  kind: 'mission' | 'request'
+  title: string
+  subtitle: string
+  date: Date
+  start: number
+  end: number
+  status?: (typeof CHEF_MISSIONS)[number]['status']
+}
+
+const EVENTS: AgendaEvent[] = [
+  ...CHEF_MISSIONS.filter((m) => m.status !== 'cancelled').map((m) => {
+    const { start, end } = parseSlot(m.timeSlot)
+    return {
+      id: m.id,
+      kind: 'mission' as const,
+      title: m.client,
+      subtitle: m.city,
+      date: new Date(m.date),
+      start,
+      end,
+      status: m.status,
+    }
+  }),
+  ...CHEF_REQUESTS.filter((r) => r.status === 'new').map((r) => {
+    const { start, end } = parseSlot(r.timeSlot)
+    return {
+      id: r.id,
+      kind: 'request' as const,
+      title: r.client,
+      subtitle: 'Demande à confirmer',
+      date: new Date(r.date),
+      start,
+      end,
+    }
+  }),
+]
+
+const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b)
+const addDays = (d: Date, n: number) => {
+  const x = new Date(d)
+  x.setDate(x.getDate() + n)
+  return x
+}
+const startOfWeek = (d: Date) => addDays(d, -weekdayIndex(d))
 
 export default function ChefAgendaPage() {
-  // Mois affiché : on part du mois courant, calculé une seule fois.
-  const [cursor, setCursor] = useState(() => {
-    const now = new Date()
-    return { year: now.getFullYear(), month: now.getMonth() }
-  })
-  const [selected, setSelected] = useState<string | null>(null)
-  const [slots, setSlots] = useState(CHEF_AVAILABILITY.slots)
+  const [view, setView] = useState<View>('week')
+  const [cursor, setCursor] = useState(() => new Date())
+  const [weekly, setWeekly] = useState<WeeklySlot[]>(DEFAULT_WEEKLY_SLOTS)
+  const [exceptions, setExceptions] = useState<DateException[]>([])
+  const [selected, setSelected] = useState<Date | null>(null)
 
-  const todayKey = useMemo(() => dayKey(new Date()), [])
+  const eventsOf = (d: Date) => EVENTS.filter((e) => sameDay(e.date, d)).sort((a, b) => a.start - b.start)
+  const rangesOf = (d: Date) => workingRanges(d, weekly, exceptions)
 
-  /** Évènements indexés par jour : prestations confirmées + demandes en attente. */
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, DayEvent[]>()
-    const push = (k: string, e: DayEvent) => map.set(k, [...(map.get(k) ?? []), e])
+  const step = (dir: -1 | 1) => {
+    const d = new Date(cursor)
+    if (view === 'day') d.setDate(d.getDate() + dir)
+    else if (view === 'week') d.setDate(d.getDate() + 7 * dir)
+    else if (view === 'month') d.setMonth(d.getMonth() + dir)
+    else d.setFullYear(d.getFullYear() + dir)
+    setCursor(d)
+  }
 
-    CHEF_MISSIONS.forEach((m) =>
-      push(dayKey(new Date(m.date)), {
-        kind: 'mission',
-        id: m.id,
-        label: m.client,
-        time: m.timeSlot,
-        status: m.status,
-      }),
-    )
-    CHEF_REQUESTS.filter((r) => r.status === 'new').forEach((r) =>
-      push(dayKey(new Date(r.date)), {
-        kind: 'request',
-        id: r.id,
-        label: r.client,
-        time: r.timeSlot,
-      }),
-    )
-    return map
-  }, [])
+  const label =
+    view === 'day'
+      ? cursor.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : view === 'week'
+        ? `Semaine du ${startOfWeek(cursor).getDate()} ${MONTHS[startOfWeek(cursor).getMonth()]}`
+        : view === 'month'
+          ? `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
+          : String(cursor.getFullYear())
 
-  /** Grille du mois : 6 semaines de 7 jours, commençant un lundi. */
-  const grid = useMemo(() => {
-    const first = new Date(cursor.year, cursor.month, 1)
-    // getDay() : 0 = dimanche → on ramène à une semaine commençant lundi.
-    const offset = (first.getDay() + 6) % 7
-    const start = new Date(cursor.year, cursor.month, 1 - offset)
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
-      return { date: d, key: dayKey(d), inMonth: d.getMonth() === cursor.month }
-    })
-  }, [cursor])
-
-  const move = (dir: -1 | 1) =>
-    setCursor(({ year, month }) => {
-      const m = month + dir
-      if (m < 0) return { year: year - 1, month: 11 }
-      if (m > 11) return { year: year + 1, month: 0 }
-      return { year, month: m }
-    })
-
-  const openDay = selected ? eventsByDay.get(selected) ?? [] : []
-
-  const toggleDay = (day: string) =>
-    setSlots((prev) =>
-      prev.map((s) =>
-        s.day === day ? { ...s, ranges: s.ranges.length ? [] : ['9h – 13h'] } : s,
-      ),
-    )
+  const openDay = (d: Date) => {
+    setCursor(d)
+    setSelected(d)
+  }
 
   return (
-    <ChefPage title="Agenda" subtitle="Vos prestations, vos demandes et vos disponibilités.">
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
-        {/* ── Calendrier ─────────────────────────────────────────────── */}
-        <Card className="p-0 overflow-hidden">
-          {/* Barre de navigation du mois */}
-          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[rgba(31,42,55,0.08)]">
-            <div className="flex items-center gap-2">
-              <span className="w-9 h-9 rounded-xl bg-navy text-amber flex items-center justify-center">
-                <CalendarDays className="w-4 h-4" />
-              </span>
-              <h2 className="font-display text-xl font-bold text-navy capitalize">
-                {MONTHS[cursor.month]} {cursor.year}
-              </h2>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => move(-1)}
-                aria-label="Mois précédent"
-                className="w-9 h-9 rounded-xl border border-[rgba(31,42,55,0.1)] flex items-center justify-center text-navy hover:border-amber transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  const n = new Date()
-                  setCursor({ year: n.getFullYear(), month: n.getMonth() })
-                }}
-                className="px-3 h-9 rounded-xl border border-[rgba(31,42,55,0.1)] text-xs font-semibold text-navy hover:border-amber transition-colors"
-              >
-                Aujourd&apos;hui
-              </button>
-              <button
-                onClick={() => move(1)}
-                aria-label="Mois suivant"
-                className="w-9 h-9 rounded-xl border border-[rgba(31,42,55,0.1)] flex items-center justify-center text-navy hover:border-amber transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+    <ChefPage title="Agenda" subtitle="Vos prestations et vos horaires de travail.">
+      <div className="space-y-5">
+        {/* Barre de navigation */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => step(-1)}
+              aria-label="Période précédente"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setCursor(new Date())}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold text-ink-mid hover:bg-paper hover:text-navy"
+            >
+              Aujourd&apos;hui
+            </button>
+            <button
+              onClick={() => step(1)}
+              aria-label="Période suivante"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <p className="ml-2 font-display text-lg font-bold capitalize text-navy">{label}</p>
           </div>
 
-          {/* En-tête des jours */}
-          <div className="grid grid-cols-7 border-b border-[rgba(31,42,55,0.06)] bg-cream-soft">
-            {WEEKDAYS.map((d) => (
-              <div
-                key={d}
-                className="py-2.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft"
+          <div className="flex rounded-full border border-[rgba(31,42,55,0.1)] bg-paper p-0.5">
+            {([
+              { id: 'day' as View, label: 'Jour' },
+              { id: 'week' as View, label: 'Semaine' },
+              { id: 'month' as View, label: 'Mois' },
+              { id: 'year' as View, label: 'Année' },
+            ]).map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setView(v.id)}
+                aria-pressed={view === v.id}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  view === v.id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy'
+                }`}
               >
-                {d}
-              </div>
+                {v.label}
+              </button>
             ))}
           </div>
+        </div>
 
-          {/* Grille */}
-          <div className="grid grid-cols-7">
-            {grid.map(({ date, key, inMonth }) => {
-              const events = eventsByDay.get(key) ?? []
-              const isToday = key === todayKey
-              const isSelected = key === selected
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelected(isSelected ? null : key)}
-                  className={cn(
-                    'relative min-h-[92px] border-b border-r border-[rgba(31,42,55,0.06)] p-2 text-left align-top transition-colors',
-                    inMonth ? 'bg-paper' : 'bg-cream-soft/50',
-                    isSelected && 'bg-amber-soft/50',
-                    'hover:bg-cream-soft',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
-                      isToday
-                        ? 'bg-navy text-amber'
-                        : inMonth
-                          ? 'text-navy'
-                          : 'text-ink-soft/60',
-                    )}
-                  >
-                    {date.getDate()}
-                  </span>
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-5">
+            {view === 'day' && <DayView date={cursor} events={eventsOf(cursor)} ranges={rangesOf(cursor)} />}
+            {view === 'week' && (
+              <WeekView start={startOfWeek(cursor)} eventsOf={eventsOf} rangesOf={rangesOf} onOpenDay={openDay} />
+            )}
+            {view === 'month' && (
+              <MonthView cursor={cursor} eventsOf={eventsOf} rangesOf={rangesOf} onOpenDay={openDay} />
+            )}
+            {view === 'year' && (
+              <YearView
+                year={cursor.getFullYear()}
+                onOpenMonth={(m) => {
+                  setCursor(new Date(cursor.getFullYear(), m, 1))
+                  setView('month')
+                }}
+              />
+            )}
 
-                  <div className="mt-1 space-y-1">
-                    {events.slice(0, 2).map((e) => (
-                      <span
-                        key={e.id}
-                        className={cn(
-                          'block truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                          e.kind === 'mission'
-                            ? 'bg-navy text-white'
-                            : 'bg-amber-soft text-amber-deep',
-                        )}
-                      >
-                        {e.label}
-                      </span>
-                    ))}
-                    {events.length > 2 && (
-                      <span className="block text-[10px] text-ink-soft">
-                        +{events.length - 2} autre{events.length - 2 > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Légende */}
-          <div className="flex flex-wrap items-center gap-4 px-5 py-3 border-t border-[rgba(31,42,55,0.06)]">
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-mid">
-              <span className="w-3 h-3 rounded bg-navy" /> Prestation
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-mid">
-              <span className="w-3 h-3 rounded bg-amber-soft border border-amber/40" /> Demande en attente
-            </span>
-          </div>
-        </Card>
-
-        {/* ── Colonne latérale ───────────────────────────────────────── */}
-        <div className="space-y-4">
-          {/* Détail du jour sélectionné */}
-          {selected && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card
-                title={new Date(selected).toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })}
-                action={
-                  <button
-                    onClick={() => setSelected(null)}
-                    aria-label="Fermer"
-                    className="text-ink-soft hover:text-navy"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+            {/* Journée sélectionnée */}
+            {selected && (
+              <DayPanel
+                date={selected}
+                events={eventsOf(selected)}
+                ranges={rangesOf(selected)}
+                closed={exceptions.some((e) => e.date === dayKey(selected) && e.kind === 'closed')}
+                onClose={() => setSelected(null)}
+                onAddSlot={(start, end) =>
+                  setExceptions((prev) => [
+                    ...prev.filter((e) => !(e.date === dayKey(selected) && e.kind === 'closed')),
+                    { id: newSlotId(), date: dayKey(selected), kind: 'extra', start, end },
+                  ])
                 }
-              >
-                {openDay.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-ink-soft">
-                    Rien de prévu ce jour-là.
-                  </p>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {openDay.map((e) => (
-                      <li
-                        key={e.id}
-                        className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-3"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <p className="text-sm font-semibold text-navy">{e.label}</p>
-                          {e.kind === 'mission' ? (
-                            <MissionBadge status={e.status} />
-                          ) : (
-                            <StatusBadge tone="warning">Demande</StatusBadge>
-                          )}
-                        </div>
-                        <p className="text-xs text-ink-soft inline-flex items-center gap-1.5">
-                          <Clock className="w-3 h-3" /> {e.time}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Zone d'intervention */}
-          <Card title="Zone d'intervention">
-            <p className="text-sm text-navy inline-flex items-start gap-2">
-              <MapPin className="w-4 h-4 text-terra mt-0.5 shrink-0" />
-              {CHEF_AVAILABILITY.zone}
-            </p>
-            <p className="text-xs text-ink-soft mt-2">Modifiable depuis votre profil.</p>
-          </Card>
-
-          {/* Disponibilités hebdomadaires */}
-          <Card
-            title="Mes disponibilités"
-            action={
-              <button className="text-xs text-terra font-semibold hover:underline inline-flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> Créneau
-              </button>
-            }
-          >
-            <ul className="space-y-1.5">
-              {slots.map((s) => {
-                const open = s.ranges.length > 0
-                return (
-                  <li
-                    key={s.day}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(31,42,55,0.08)] px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-navy">{s.day}</p>
-                      <p className="text-[11px] text-ink-soft truncate">
-                        {open ? s.ranges.join(' · ') : 'Indisponible'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => toggleDay(s.day)}
-                      className={cn(
-                        'px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors shrink-0',
-                        open ? 'bg-mint text-mint-ink' : 'bg-cream-deep text-ink-mid',
-                      )}
-                    >
-                      {open ? 'Ouvert' : 'Fermé'}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
-
-          <div className="rounded-2xl bg-cream-soft px-4 py-3 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-ink-soft mt-0.5 shrink-0" />
-            <p className="text-xs text-ink-mid leading-relaxed">
-              La synchronisation Google, Apple et Outlook est prévue dans une version
-              ultérieure.
-            </p>
+                onToggleClosed={() =>
+                  setExceptions((prev) => {
+                    const key = dayKey(selected)
+                    const isClosed = prev.some((e) => e.date === key && e.kind === 'closed')
+                    return isClosed
+                      ? prev.filter((e) => !(e.date === key && e.kind === 'closed'))
+                      : [...prev.filter((e) => e.date !== key), { id: newSlotId(), date: key, kind: 'closed' }]
+                  })
+                }
+                onRemoveExtra={(id) => setExceptions((prev) => prev.filter((e) => e.id !== id))}
+                exceptions={exceptions.filter((e) => e.date === dayKey(selected))}
+              />
+            )}
           </div>
+
+          {/* Horaires de travail */}
+          <aside className="space-y-5">
+            <WeeklyHoursEditor weekly={weekly} onChange={setWeekly} />
+            <Card title="Zone d’intervention">
+              <p className="flex items-start gap-2 text-sm text-ink-mid">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+                {CHEF_PROFILE.city} et alentours
+              </p>
+              <p className="mt-2 text-[13px] text-ink-soft">
+                Vos zones se modifient depuis <span className="font-semibold text-navy">Ma vitrine</span>.
+              </p>
+            </Card>
+          </aside>
         </div>
       </div>
     </ChefPage>
+  )
+}
+
+// ── Vue jour ────────────────────────────────────────────────────────────────
+
+const DAY_START = 6 * 60
+const DAY_END = 23 * 60
+const pct = (min: number) => ((min - DAY_START) / (DAY_END - DAY_START)) * 100
+
+function DayView({
+  date,
+  events,
+  ranges,
+}: {
+  date: Date
+  events: AgendaEvent[]
+  ranges: { id: string; start: number; end: number }[]
+}) {
+  const hours = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, i) => DAY_START + i * 60)
+
+  return (
+    <Card title={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}>
+      <div className="relative" style={{ height: 620 }}>
+        {/* Grille horaire */}
+        {hours.map((h) => (
+          <div key={h} className="absolute left-0 right-0 flex items-start gap-3" style={{ top: `${pct(h)}%` }}>
+            <span className="w-10 shrink-0 text-[11px] tabular-nums text-ink-soft">{timeLabel(h)}</span>
+            <span className="mt-1.5 h-px flex-1 bg-[rgba(31,42,55,0.07)]" />
+          </div>
+        ))}
+
+        {/* Horaires de travail */}
+        <div className="absolute inset-y-0 left-14 right-0">
+          {ranges.map((r) => (
+            <div
+              key={r.id}
+              className="absolute left-0 right-0 rounded-lg bg-mint/40"
+              style={{ top: `${pct(r.start)}%`, height: `${pct(r.end) - pct(r.start)}%` }}
+            >
+              <span className="sr-only">Disponible {rangeLabel(r.start, r.end)}</span>
+            </div>
+          ))}
+
+          {/* Prestations */}
+          {events.map((e, i) => (
+            <div
+              key={e.id}
+              className={`absolute rounded-xl px-3 py-2 text-white shadow-[0_6px_16px_-8px_rgba(15,23,32,0.6)] ${
+                e.kind === 'mission' ? 'bg-navy' : 'bg-amber text-navy'
+              }`}
+              style={{
+                top: `${pct(e.start)}%`,
+                height: `${Math.max(pct(e.end) - pct(e.start), 5)}%`,
+                left: `${i * 4}%`,
+                right: 0,
+              }}
+            >
+              <p className="truncate text-xs font-semibold">{e.title}</p>
+              <p className={`truncate text-[11px] ${e.kind === 'mission' ? 'text-white/70' : 'text-navy/70'}`}>
+                {rangeLabel(e.start, e.end)} · {e.subtitle}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {events.length === 0 && ranges.length === 0 && (
+        <p className="mt-3 text-center text-[13px] text-ink-soft">Journée libre, aucun horaire posé.</p>
+      )}
+    </Card>
+  )
+}
+
+// ── Vue semaine ─────────────────────────────────────────────────────────────
+
+function WeekView({
+  start,
+  eventsOf,
+  rangesOf,
+  onOpenDay,
+}: {
+  start: Date
+  eventsOf: (d: Date) => AgendaEvent[]
+  rangesOf: (d: Date) => { id: string; start: number; end: number }[]
+  onOpenDay: (d: Date) => void
+}) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
+  const today = new Date()
+
+  return (
+    <Card className="!p-0 overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-[rgba(31,42,55,0.08)]">
+        {days.map((d) => {
+          const isToday = sameDay(d, today)
+          return (
+            <button
+              key={d.toISOString()}
+              onClick={() => onOpenDay(d)}
+              className={`px-2 py-2.5 text-center transition-colors hover:bg-cream-soft ${isToday ? 'bg-amber-soft/40' : ''}`}
+            >
+              <span className="block text-[11px] uppercase tracking-wide text-ink-soft">
+                {WEEKDAYS[weekdayIndex(d)].slice(0, 3)}
+              </span>
+              <span className={`block text-sm font-bold tabular-nums ${isToday ? 'text-amber-deep' : 'text-navy'}`}>
+                {d.getDate()}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-7" style={{ height: 520 }}>
+        {days.map((d) => {
+          const events = eventsOf(d)
+          const ranges = rangesOf(d)
+          return (
+            <div
+              key={d.toISOString()}
+              className="relative border-r border-[rgba(31,42,55,0.06)] last:border-r-0"
+            >
+              {ranges.map((r) => (
+                <div
+                  key={r.id}
+                  className="absolute left-0.5 right-0.5 rounded bg-mint/40"
+                  style={{ top: `${pct(r.start)}%`, height: `${pct(r.end) - pct(r.start)}%` }}
+                />
+              ))}
+              {events.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => onOpenDay(d)}
+                  className={`absolute left-0.5 right-0.5 overflow-hidden rounded-lg px-1.5 py-1 text-left ${
+                    e.kind === 'mission' ? 'bg-navy text-white' : 'bg-amber text-navy'
+                  }`}
+                  style={{ top: `${pct(e.start)}%`, height: `${Math.max(pct(e.end) - pct(e.start), 6)}%` }}
+                >
+                  <span className="block truncate text-[10px] font-bold">{timeLabel(e.start)}</span>
+                  <span className="block truncate text-[11px] font-semibold">{e.title}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+// ── Vue mois ────────────────────────────────────────────────────────────────
+
+function MonthView({
+  cursor,
+  eventsOf,
+  rangesOf,
+  onOpenDay,
+}: {
+  cursor: Date
+  eventsOf: (d: Date) => AgendaEvent[]
+  rangesOf: (d: Date) => { id: string; start: number; end: number }[]
+  onOpenDay: (d: Date) => void
+}) {
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+  const gridStart = addDays(first, -weekdayIndex(first))
+  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
+  const today = new Date()
+
+  return (
+    <Card className="!p-0 overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-[rgba(31,42,55,0.08)] bg-cream-soft/60">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+            {d.slice(0, 3)}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {days.map((d) => {
+          const inMonth = d.getMonth() === cursor.getMonth()
+          const events = eventsOf(d)
+          const works = rangesOf(d).length > 0
+          const isToday = sameDay(d, today)
+          return (
+            <button
+              key={d.toISOString()}
+              onClick={() => onOpenDay(d)}
+              className={`min-h-[92px] border-b border-r border-[rgba(31,42,55,0.06)] p-1.5 text-left align-top transition-colors hover:bg-cream-soft ${
+                inMonth ? '' : 'bg-cream-soft/40'
+              }`}
+            >
+              <span className="flex items-center justify-between">
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
+                    isToday ? 'bg-amber text-navy' : inMonth ? 'text-navy' : 'text-ink-soft/60'
+                  }`}
+                >
+                  {d.getDate()}
+                </span>
+                {works && <span className="h-1.5 w-1.5 rounded-full bg-mint-deep" title="Horaires posés" />}
+              </span>
+              <span className="mt-1 block space-y-0.5">
+                {events.slice(0, 2).map((e) => (
+                  <span
+                    key={e.id}
+                    className={`block truncate rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      e.kind === 'mission' ? 'bg-navy text-white' : 'bg-amber text-navy'
+                    }`}
+                  >
+                    {timeLabel(e.start)} {e.title}
+                  </span>
+                ))}
+                {events.length > 2 && (
+                  <span className="block px-1 text-[10px] text-ink-soft">+{events.length - 2} autre(s)</span>
+                )}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+// ── Vue année ───────────────────────────────────────────────────────────────
+
+function YearView({ year, onOpenMonth }: { year: number; onOpenMonth: (month: number) => void }) {
+  const counts = useMemo(() => {
+    const out = Array(12).fill(0)
+    for (const e of EVENTS) if (e.date.getFullYear() === year) out[e.date.getMonth()]++
+    return out
+  }, [year])
+
+  return (
+    <Card title={`Année ${year}`}>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {MONTHS.map((m, i) => (
+          <li key={m}>
+            <button
+              onClick={() => onOpenMonth(i)}
+              className="w-full rounded-xl border border-[rgba(31,42,55,0.08)] p-4 text-left transition-colors hover:border-navy hover:bg-cream-soft"
+            >
+              <p className="font-display text-base font-bold capitalize text-navy">{m}</p>
+              <p className="mt-1 text-[13px] text-ink-soft">
+                {counts[i] === 0 ? 'Aucune prestation' : `${counts[i]} prestation${counts[i] > 1 ? 's' : ''}`}
+              </p>
+              {counts[i] > 0 && (
+                <span className="mt-2 flex gap-1" aria-hidden>
+                  {Array.from({ length: Math.min(counts[i], 8) }, (_, k) => (
+                    <span key={k} className="h-1.5 w-1.5 rounded-full bg-navy" />
+                  ))}
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+// ── Journée sélectionnée ────────────────────────────────────────────────────
+
+function DayPanel({
+  date,
+  events,
+  ranges,
+  closed,
+  exceptions,
+  onClose,
+  onAddSlot,
+  onToggleClosed,
+  onRemoveExtra,
+}: {
+  date: Date
+  events: AgendaEvent[]
+  ranges: { id: string; start: number; end: number }[]
+  closed: boolean
+  exceptions: DateException[]
+  onClose: () => void
+  onAddSlot: (start: number, end: number) => void
+  onToggleClosed: () => void
+  onRemoveExtra: (id: string) => void
+}) {
+  const [start, setStart] = useState('09:00')
+  const [end, setEnd] = useState('13:00')
+  const invalid = toMinutes(end) <= toMinutes(start)
+
+  return (
+    <Card
+      title={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+      action={
+        <button
+          onClick={onClose}
+          aria-label="Fermer le détail du jour"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      }
+    >
+      {/* Prestations du jour */}
+      {events.length === 0 ? (
+        <Empty text="Aucune prestation ce jour-là." />
+      ) : (
+        <ul className="mb-5 space-y-2">
+          {events.map((e) => (
+            <li
+              key={e.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(31,42,55,0.08)] px-3 py-2.5"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-navy">{e.title}</p>
+                <p className="text-xs text-ink-soft">
+                  {rangeLabel(e.start, e.end)} · {e.subtitle}
+                </p>
+              </div>
+              {e.kind === 'mission' && e.status ? (
+                <MissionBadge status={e.status} />
+              ) : (
+                <StatusBadge tone="warning">À confirmer</StatusBadge>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Horaires du jour */}
+      <div className="border-t border-[rgba(31,42,55,0.08)] pt-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-navy">Mes horaires ce jour-là</h3>
+          <button
+            onClick={onToggleClosed}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              closed ? 'bg-navy text-white' : 'text-ink-mid hover:bg-cream-soft hover:text-navy'
+            }`}
+          >
+            <Lock className="h-3.5 w-3.5" aria-hidden /> {closed ? 'Journée fermée' : 'Fermer la journée'}
+          </button>
+        </div>
+
+        {closed ? (
+          <p className="rounded-xl bg-cream-soft px-4 py-3 text-[13px] text-ink-mid">
+            Vous ne recevrez aucune demande pour cette date.
+          </p>
+        ) : (
+          <>
+            {ranges.length === 0 ? (
+              <p className="mb-3 text-[13px] text-ink-soft">Aucun horaire posé : ajoutez un créneau ponctuel.</p>
+            ) : (
+              <ul className="mb-3 flex flex-wrap gap-2">
+                {ranges.map((r) => {
+                  const extra = exceptions.find((e) => e.id === r.id)
+                  return (
+                    <li key={r.id}>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-mint/60 py-1 pl-3 pr-1 text-xs font-semibold text-mint-ink">
+                        <Clock className="h-3 w-3" aria-hidden /> {rangeLabel(r.start, r.end)}
+                        {extra ? (
+                          <button
+                            onClick={() => onRemoveExtra(r.id)}
+                            aria-label={`Retirer le créneau ${rangeLabel(r.start, r.end)}`}
+                            className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-mint-deep"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        ) : (
+                          <span className="pr-2 text-[10px] font-normal text-mint-ink/70">hebdo</span>
+                        )}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-xs text-ink-soft">
+                De
+                <input
+                  type="time"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="input-base ml-2 w-auto py-2 text-sm"
+                />
+              </label>
+              <label className="text-xs text-ink-soft">
+                à
+                <input
+                  type="time"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="input-base ml-2 w-auto py-2 text-sm"
+                />
+              </label>
+              <button
+                onClick={() => onAddSlot(toMinutes(start), toMinutes(end))}
+                disabled={invalid}
+                className="btn btn-outline px-4 py-2 text-xs disabled:opacity-50"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" aria-hidden /> Ajouter ce créneau
+              </button>
+            </div>
+            {invalid && <p className="mt-2 text-[13px] text-red-700">L’heure de fin doit suivre l’heure de début.</p>}
+          </>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ── Trame hebdomadaire ──────────────────────────────────────────────────────
+
+function WeeklyHoursEditor({ weekly, onChange }: { weekly: WeeklySlot[]; onChange: (v: WeeklySlot[]) => void }) {
+  const [openDay, setOpenDay] = useState<WeekdayIndex | null>(null)
+  const [start, setStart] = useState('09:00')
+  const [end, setEnd] = useState('13:00')
+
+  const add = (weekday: WeekdayIndex) => {
+    const s = toMinutes(start)
+    const e = toMinutes(end)
+    if (e <= s) return
+    onChange([...weekly, { id: newSlotId(), weekday, start: s, end: e }])
+    setOpenDay(null)
+  }
+
+  return (
+    <Card title="Mes horaires de travail">
+      <p className="mb-4 text-[13px] leading-relaxed text-ink-mid">
+        Cette trame se répète chaque semaine. Les clients ne peuvent réserver que sur ces créneaux ; ajustez un jour
+        précis depuis le calendrier.
+      </p>
+
+      <ul className="space-y-2">
+        {WEEKDAYS.map((label, i) => {
+          const weekday = i as WeekdayIndex
+          const slots = weekly.filter((s) => s.weekday === weekday).sort((a, b) => a.start - b.start)
+          return (
+            <li key={label} className="rounded-xl border border-[rgba(31,42,55,0.08)] px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-navy">{label}</span>
+                <button
+                  onClick={() => setOpenDay(openDay === weekday ? null : weekday)}
+                  aria-label={`Ajouter un créneau le ${label.toLowerCase()}`}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {slots.length === 0 ? (
+                <p className="mt-1 text-xs text-ink-soft">Indisponible</p>
+              ) : (
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {slots.map((s) => (
+                    <li key={s.id}>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-mint/60 py-1 pl-2.5 pr-1 text-[11px] font-semibold text-mint-ink">
+                        {rangeLabel(s.start, s.end)}
+                        <button
+                          onClick={() => onChange(weekly.filter((x) => x.id !== s.id))}
+                          aria-label={`Retirer ${rangeLabel(s.start, s.end)} le ${label.toLowerCase()}`}
+                          className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-mint-deep"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {openDay === weekday && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[rgba(31,42,55,0.06)] pt-2">
+                  <input
+                    type="time"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    aria-label="Début"
+                    className="input-base w-auto py-1.5 text-xs"
+                  />
+                  <input
+                    type="time"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    aria-label="Fin"
+                    className="input-base w-auto py-1.5 text-xs"
+                  />
+                  <button onClick={() => add(weekday)} className="btn btn-primary px-3 py-1.5 text-[11px]">
+                    Ajouter
+                  </button>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+
+      <p className="mt-4 text-[13px] text-ink-soft">
+        Total : <span className="font-semibold tabular-nums text-navy">{weeklyHours(weekly)} h</span> par semaine
+        {weekly.length > 0 && <> · premier créneau à {toHHMM(Math.min(...weekly.map((s) => s.start)))}</>}
+      </p>
+    </Card>
   )
 }

@@ -62,7 +62,7 @@ export const CHEF_NAV = [
     group: 'Mon dossier',
     items: [
       { href: '/espace-chef/profil', label: 'Mon profil', Icon: UserCircle2 },
-      { href: '/espace-chef/dossier', label: 'Conformité', Icon: ShieldCheck },
+      { href: '/espace-chef/dossier', label: 'Documents', Icon: ShieldCheck },
       { href: '/espace-chef/parametres', label: 'Paramètres', Icon: Settings },
     ],
   },
@@ -70,7 +70,7 @@ export const CHEF_NAV = [
     group: 'Relation',
     items: [
       { href: '/espace-chef/messagerie', label: 'Messagerie', Icon: MessageCircle, badge: '1' },
-      { href: '/espace-chef/avis', label: 'Avis & réputation', Icon: Star },
+      { href: '/espace-chef/avis', label: 'Avis', Icon: Star },
       { href: '/espace-chef/litiges', label: 'Litiges & support', Icon: LifeBuoy },
     ],
   },

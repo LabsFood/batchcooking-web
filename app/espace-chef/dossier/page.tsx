@@ -35,8 +35,8 @@ const FAMILY_ORDER: DocFamily[] = ['blocking', 'conditional', 'recommended']
 
 const FAMILY_HINT: Record<DocFamily, string> = {
   blocking: 'Sans ces pièces, votre compte ne peut pas être activé.',
-  conditional: 'Demandées selon votre voie SAP et les options que vous acceptez.',
-  recommended: 'Facultatives — elles renforcent votre vitrine et rassurent les clients.',
+  conditional: 'Demandées d’après la situation que vous avez déclarée à la candidature.',
+  recommended: 'Elles renforcent votre vitrine et rassurent les clients.',
 }
 
 /** Étapes visibles de la machine à états (hors cas d'exception). */
@@ -102,7 +102,7 @@ export default function ChefDossierPage() {
 
   return (
     <ChefPage
-      title="Mon dossier"
+      title="Mes documents"
       subtitle="Déposez vos pièces à votre rythme — l'état se met à jour automatiquement."
     >
       <div className="space-y-5">
@@ -110,17 +110,19 @@ export default function ChefDossierPage() {
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
-              <p className="eyebrow mb-2">État du dossier</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                État du dossier
+              </p>
               <DossierBadge status={status} />
               <p className="text-xs text-ink-mid mt-2 max-w-sm leading-relaxed">
                 {active
                   ? 'Votre dossier est complet : vous apparaissez dans la recherche et pouvez accepter des prestations.'
-                  : "Vous pouvez préparer votre offre dès maintenant. L'acceptation de prestations sera débloquée une fois les pièces bloquantes validées."}
+                  : "Vous pouvez préparer votre offre dès maintenant. L'acceptation de prestations sera débloquée une fois vos pièces obligatoires validées."}
               </p>
             </div>
             <div className="flex-1 min-w-[220px]">
               <div className="flex justify-between text-xs text-ink-mid mb-1.5">
-                <span>Pièces bloquantes validées</span>
+                <span>Pièces obligatoires validées</span>
                 <span className="font-semibold text-navy">{score} %</span>
               </div>
               <div className="h-2.5 rounded-full bg-cream-deep overflow-hidden">
@@ -183,10 +185,10 @@ export default function ChefDossierPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="font-display text-lg font-bold text-navy">
                         {family === 'blocking'
-                          ? 'Pièces bloquantes'
+                          ? 'Pièces obligatoires'
                           : family === 'conditional'
-                            ? 'Pièces conditionnelles'
-                            : 'Pièces recommandées'}
+                            ? 'Selon votre situation'
+                            : 'Pièces facultatives'}
                       </h2>
                       <StatusBadge
                         tone={
@@ -336,9 +338,9 @@ export default function ChefDossierPage() {
                       <p className="text-xs text-ink-soft mt-0.5 max-w-md leading-relaxed">
                         {s === 'draft' && 'Votre candidature est enregistrée.'}
                         {s === 'incomplete' &&
-                          'Il reste des pièces bloquantes à fournir ou à corriger.'}
+                          'Il reste des pièces obligatoires à fournir ou à corriger.'}
                         {s === 'reviewing' &&
-                          "Toutes les pièces bloquantes sont déposées : l'équipe les vérifie sous 48 h ouvrées."}
+                          "Toutes vos pièces obligatoires sont déposées : l'équipe les vérifie sous 48 h ouvrées."}
                         {s === 'validated' &&
                           'Votre vitrine est visible et vous pouvez accepter des prestations.'}
                       </p>
@@ -363,7 +365,7 @@ export default function ChefDossierPage() {
                   className={`text-xs leading-relaxed ${status === 'suspended' ? 'text-red-700' : 'text-ink-mid'}`}
                 >
                   {status === 'suspended'
-                    ? 'Votre compte est suspendu : une pièce bloquante a expiré. Renouvelez-la pour réactiver automatiquement votre visibilité.'
+                    ? 'Votre compte est suspendu : une pièce obligatoire a expiré. Renouvelez-la pour réactiver automatiquement votre visibilité.'
                     : "Votre dossier est complet, sauf l'immatriculation. Ajoutez votre SIRET dès que vous l'avez : les autres pièces restent valables."}
                 </p>
               </div>

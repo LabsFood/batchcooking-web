@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { label: 'Menu', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
   { label: 'FAQ', href: '/faq' },
+  { label: 'Contact', href: '/contact' },
   // Entrée de recrutement : mène au parcours de candidature batch cooker.
   { label: 'Nous rejoindre', href: '/devenir-chef' },
 ]

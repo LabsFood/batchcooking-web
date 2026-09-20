@@ -33,10 +33,24 @@ export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
 /** Famille : conditionne le blocage de l'activation. */
 export type DocFamily = 'blocking' | 'recommended' | 'conditional'
 
+/*
+ * Libellés tournés vers le batch cooker : « bloquant » et « conditionnel »
+ * décrivent notre instruction interne, pas ce qu'on attend de lui.
+ */
 export const DOC_FAMILY_LABEL: Record<DocFamily, string> = {
-  blocking: 'Bloquant',
-  recommended: 'Recommandé',
-  conditional: 'Conditionnel',
+  blocking: 'Obligatoire',
+  recommended: 'Facultatif',
+  conditional: 'Selon votre situation',
+}
+
+/** Situation déclarée à la candidature — commande la pièce d'autorisation de travail. */
+export type WorkStatus = 'eu-citizen' | 'residence-permit' | 'renewal-pending' | 'other'
+
+export const WORK_STATUS_LABEL: Record<WorkStatus, string> = {
+  'eu-citizen': 'Ressortissant français ou de l’Union européenne',
+  'residence-permit': 'Titre de séjour autorisant à travailler',
+  'renewal-pending': 'Titre de séjour en cours de renouvellement',
+  other: 'Autre situation',
 }
 
 /** Voie « services à la personne ». Type B = coopérative (retenu en premier). */
@@ -55,6 +69,8 @@ export interface DocCondition {
   sapPath?: SapPath
   acceptsCesu?: boolean
   vulnerablePublics?: boolean
+  /** Pièce appelée par la situation déclarée (titre de séjour, récépissé…). */
+  workStatus?: WorkStatus
 }
 
 export interface DocDefinition {
@@ -163,7 +179,12 @@ export function completionScore(
 /** Filtre le référentiel selon la configuration du batch cooker. */
 export function applicableDocuments(
   definitions: DocDefinition[],
-  ctx: { sapPath: SapPath; acceptsCesu: boolean; vulnerablePublics: boolean },
+  ctx: {
+    sapPath: SapPath
+    acceptsCesu: boolean
+    vulnerablePublics: boolean
+    workStatus?: WorkStatus
+  },
 ): DocDefinition[] {
   return definitions.filter((d) => {
     const c = d.condition
@@ -171,6 +192,7 @@ export function applicableDocuments(
     if (c.sapPath && c.sapPath !== ctx.sapPath) return false
     if (c.acceptsCesu && !ctx.acceptsCesu) return false
     if (c.vulnerablePublics && !ctx.vulnerablePublics) return false
+    if (c.workStatus && c.workStatus !== ctx.workStatus) return false
     return true
   })
 }
