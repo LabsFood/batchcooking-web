@@ -1,626 +1,968 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Building2,
   Check,
-  ChefHat,
-  ClipboardCheck,
+  CheckCircle2,
+  Clock,
   FileText,
   Info,
+  Loader2,
   Mail,
   MapPin,
-  ShieldCheck,
-  Upload,
-  X,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
-import StatusBadge from '@/components/chef/StatusBadge'
-import { DOC_DEFINITIONS } from '@/lib/chef/mock'
-import { REGIONS, regionLabel } from '@/lib/chef/regions'
-import { applicableDocuments, SAP_PATH_LABEL, type SapPath } from '@/lib/chef/states'
+import ZonePicker from '@/components/chef/application/ZonePicker'
+import DocumentSlot from '@/components/chef/application/DocumentSlot'
+import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
+import { regionLabel } from '@/lib/chef/regions'
+import {
+  DEFAULT_VALUES,
+  LEGAL_FORMS,
+  WORK_STATUSES,
+  buildPayload,
+  labelOf,
+  requiredDocuments,
+  submitApplication,
+  toFormData,
+  validateStep,
+  type ApplicationValues,
+  type FieldErrors,
+  type LegalForm,
+  type StepId,
+  type UploadedDoc,
+  type WorkStatus,
+} from '@/lib/chef/application'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Onboarding batch cooker.
+   Candidature batch cooker.
 
-   Parcours volontairement **reprenable** : chaque étape est enregistrée, et le
-   dépôt des pièces peut s'étaler sur plusieurs jours. L'étape « Pièces » ne
-   force rien : on peut la quitter et revenir plus tard depuis Mon dossier.
+   Six étapes validées une à une. Les pièces peuvent être déposées plus tard :
+   une candidature part sans elles, et elles restent à compléter depuis l'espace
+   chef. L'envoi construit le multipart exact de `POST /chefs/applications`
+   (cf. lib/chef/application.ts) ; l'appel réseau est simulé pour l'instant.
    ───────────────────────────────────────────────────────────────────────────── */
 
-const STEPS = [
-  { id: 'account', label: 'Candidature', Icon: ChefHat },
-  { id: 'right', label: "Droit d'exercer", Icon: ShieldCheck },
-  { id: 'company', label: 'Entreprise', Icon: Building2 },
-  { id: 'sap', label: 'Voie SAP', Icon: FileText },
-  { id: 'docs', label: 'Pièces', Icon: Upload },
-  { id: 'recap', label: 'Récapitulatif', Icon: ClipboardCheck },
-] as const
-
-type StepId = (typeof STEPS)[number]['id']
-
-const RIGHT_OPTIONS = [
-  { id: 'a', label: 'Ressortissant français ou UE', doc: "Pièce d'identité" },
-  { id: 'b', label: 'Titre de séjour avec droit au travail', doc: 'Titre de séjour' },
-  { id: 'c', label: 'Titre de séjour à renouveler', doc: 'Récépissé de renouvellement' },
-  { id: 'd', label: 'Autre situation', doc: 'Étude au cas par cas' },
+const STEPS: { id: StepId; label: string; detail: string }[] = [
+  { id: 'identity', label: 'Vos coordonnées', detail: 'Identité et adresse' },
+  { id: 'zones', label: 'Zones d’intervention', detail: 'Régions et villes' },
+  { id: 'status', label: 'Votre situation', detail: 'Autorisation de travail' },
+  { id: 'company', label: 'Votre activité', detail: 'Statut et services à la personne' },
+  { id: 'documents', label: 'Justificatifs', detail: 'À déposer maintenant ou plus tard' },
+  { id: 'review', label: 'Relecture et envoi', detail: 'Vérifier puis envoyer' },
 ]
 
-const COMPANY_FORMS = [
-  { id: 'micro', label: 'Micro-entreprise' },
-  { id: 'ei', label: 'Entreprise individuelle' },
-  { id: 'sasu', label: 'SASU / EURL' },
-  { id: 'pending', label: 'Pas encore immatriculé' },
-]
+const SHOW_PAYLOAD = process.env.NODE_ENV !== 'production'
+
+/*
+ * Brouillon de session : un rechargement ne doit pas effacer six étapes de
+ * saisie. sessionStorage plutôt que localStorage (données personnelles, oubliées
+ * à la fermeture de l'onglet). Ni les fichiers ni le consentement ne sont gardés.
+ */
+const DRAFT_KEY = 'lf:chef-application'
+
+interface Draft {
+  values: ApplicationValues
+  step: StepId
+  furthest: number
+}
+
+function readDraft(): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const d = JSON.parse(raw) as Partial<Draft>
+    if (!d.values || !STEPS.some((s) => s.id === d.step)) return null
+    return {
+      values: { ...DEFAULT_VALUES, ...d.values, consent: false },
+      step: d.step as StepId,
+      furthest: Math.min(Number(d.furthest) || 0, STEPS.length - 1),
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeDraft(d: Draft | null) {
+  try {
+    if (d) sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...d, values: { ...d.values, consent: false } }))
+    else sessionStorage.removeItem(DRAFT_KEY)
+  } catch {
+    // Navigation privée ou stockage bloqué : le formulaire fonctionne sans brouillon.
+  }
+}
+
+const noopSubscribe = () => () => {}
+
+/** SIRET affiché par groupes : 123 456 789 00012. */
+const formatSiret = (raw: string) => {
+  const d = raw.replace(/\D/g, '').slice(0, 14)
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9), d.slice(9)].filter(Boolean).join(' ')
+}
 
 export default function BecomeChefPage() {
-  const [step, setStep] = useState<StepId>('account')
-  const [submitted, setSubmitted] = useState(false)
+  // Vrai dans le navigateur, faux au rendu serveur : le brouillon n'existe que côté client.
+  const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false)
+  return isClient ? <ApplicationForm draft={readDraft()} /> : <Shell />
+}
 
-  // Identité
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [regions, setRegions] = useState<string[]>([])
+function ApplicationForm({ draft }: { draft: Draft | null }) {
+  const [values, setValues] = useState<ApplicationValues>(draft?.values ?? DEFAULT_VALUES)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [docs, setDocs] = useState<Record<string, UploadedDoc>>({})
+  const [step, setStep] = useState<StepId>(draft?.step ?? 'identity')
+  const [furthest, setFurthest] = useState(draft?.furthest ?? 0)
+  const [attempted, setAttempted] = useState<Set<StepId>>(() => new Set())
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [done, setDone] = useState<{ applicationId: string; email: string } | null>(null)
 
-  // Parcours
-  const [right, setRight] = useState('a')
-  const [companyForm, setCompanyForm] = useState('micro')
-  const [sapPath, setSapPath] = useState<SapPath>('type-b')
-  const [acceptsCesu, setAcceptsCesu] = useState(true)
-  const [uploaded, setUploaded] = useState<string[]>([])
-  const [consent, setConsent] = useState(false)
-
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const firstRender = useRef(true)
   const index = STEPS.findIndex((s) => s.id === step)
-  const notRegistered = companyForm === 'pending'
 
-  const docs = applicableDocuments(DOC_DEFINITIONS, {
-    sapPath,
-    acceptsCesu,
-    vulnerablePublics: false,
-  }).filter((d) => d.family === 'blocking' || d.family === 'conditional')
+  // Le focus suit l'étape : les lecteurs d'écran annoncent le nouveau titre.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    headingRef.current?.focus({ preventScroll: true })
+  }, [step])
 
-  const toggleRegion = (id: string) =>
-    setRegions((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]))
+  // Libère les aperçus locaux quand on quitte la page.
+  const docsRef = useRef(docs)
+  useEffect(() => {
+    docsRef.current = docs
+  }, [docs])
+  useEffect(() => () => Object.values(docsRef.current).forEach((d) => URL.revokeObjectURL(d.url)), [])
 
-  const go = (dir: 1 | -1) => {
-    const next = STEPS[index + dir]
-    if (next) setStep(next.id)
+  const requirements = requiredDocuments(values)
+  const activeDocs = Object.fromEntries(
+    Object.entries(docs).filter(([type]) => requirements.some((r) => r.id === type)),
+  )
+
+  // ── Saisie ───────────────────────────────────────────────────────────────
+  function set<K extends keyof ApplicationValues>(key: K, v: ApplicationValues[K]) {
+    const next = { ...values, [key]: v }
+    setValues(next)
+    writeDraft({ values: next, step, furthest })
+    // Une étape déjà tentée se revalide à chaque frappe ; sinon on efface
+    // seulement l'erreur du champ modifié.
+    if (attempted.has(step)) setErrors(validateStep(step, next))
+    else if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
-  // ── Écran de confirmation après envoi ──────────────────────────────────
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-cream flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center px-5 py-12">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-lg bg-paper rounded-3xl border border-[rgba(31,42,55,0.06)] p-8 text-center"
-          >
-            <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-navy text-amber">
-              <Mail className="h-7 w-7" />
-            </span>
-            <h1 className="font-display text-2xl font-bold text-navy mb-3">
-              Votre candidature est envoyée
-            </h1>
-            <p className="text-sm text-ink-mid leading-relaxed mb-6">
-              Consultez votre boîte mail : nous venons d&apos;envoyer à{' '}
-              <strong className="text-navy">{email || 'votre adresse'}</strong> vos
-              identifiants de connexion. Ils vous donnent accès à votre espace chef pour
-              suivre votre dossier et compléter vos pièces.
-            </p>
+  const setDoc = (type: string, file: File | null) =>
+    setDocs((prev) => {
+      const next = { ...prev }
+      if (prev[type]) URL.revokeObjectURL(prev[type].url)
+      if (file) next[type] = { file, url: URL.createObjectURL(file) }
+      else delete next[type]
+      return next
+    })
 
-            <div className="rounded-2xl bg-cream-soft p-4 text-left mb-6">
-              <p className="text-xs font-semibold text-navy mb-2">La suite</p>
-              <ol className="space-y-1.5 text-xs text-ink-mid list-decimal list-inside">
-                <li>Connectez-vous avec le mot de passe reçu par email.</li>
-                <li>Complétez les pièces manquantes depuis « Mon dossier ».</li>
-                <li>Notre équipe vérifie votre dossier sous 48 h ouvrées.</li>
-                <li>Une fois validé, votre vitrine devient visible et réservable.</li>
-              </ol>
-            </div>
+  // ── Navigation ───────────────────────────────────────────────────────────
+  // Après le rendu des erreurs (le commit d'un clic est synchrone).
+  const focusFirstError = () =>
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+      el?.focus()
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 0)
 
-            <p className="text-[11px] text-ink-soft mb-5">
-              Pas d&apos;email reçu ? Pensez à vérifier vos spams.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/auth/login" className="btn btn-primary">
-                Me connecter <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link href="/" className="btn btn-outline">
-                Retour au site
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    )
+  const goTo = (i: number) => {
+    const target = STEPS[i]
+    if (!target) return
+    const reached = Math.max(furthest, i)
+    setStep(target.id)
+    setFurthest(reached)
+    writeDraft({ values, step: target.id, furthest: reached })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const next = () => {
+    const stepErrors = validateStep(step, values)
+    setAttempted((a) => new Set(a).add(step))
+    setErrors(stepErrors)
+    if (Object.keys(stepErrors).length) {
+      focusFirstError()
+      return
+    }
+    goTo(index + 1)
+  }
+
+  const submit = async () => {
+    // Revalide tout : une modification a pu invalider une étape déjà passée.
+    for (const [i, s] of STEPS.entries()) {
+      const stepErrors = validateStep(s.id, values)
+      if (Object.keys(stepErrors).length) {
+        setAttempted((a) => new Set(a).add(s.id))
+        setErrors(stepErrors)
+        if (s.id !== step) goTo(i)
+        focusFirstError()
+        return
+      }
+    }
+
+    setSending(true)
+    setSendError(null)
+    try {
+      const payload = buildPayload(values, activeDocs, new Date().toISOString())
+      const res = await submitApplication(toFormData(payload, activeDocs))
+      Object.values(docs).forEach((d) => URL.revokeObjectURL(d.url))
+      writeDraft(null)
+      setDone({ applicationId: res.applicationId, email: payload.identity.email })
+      window.scrollTo({ top: 0 })
+    } catch {
+      setSendError('L’envoi n’a pas abouti. Vérifiez votre connexion puis réessayez : vos réponses sont conservées.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (done) return <Confirmation email={done.email} reference={done.applicationId} />
+
+  const uploadedRequired = requirements.filter((r) => r.required && activeDocs[r.id]).length
+  const totalRequired = requirements.filter((r) => r.required).length
 
   return (
     <div className="min-h-screen bg-cream">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-5 py-8 lg:py-12">
-        {/* Fil d'étapes */}
-        <ol className="flex items-center gap-1.5 mb-8 overflow-x-auto pb-2">
-          {STEPS.map((s, i) => {
-            const done = i < index
-            const current = i === index
-            return (
-              <li key={s.id} className="flex items-center gap-1.5 shrink-0">
-                <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    current
-                      ? 'bg-navy text-white'
-                      : done
-                        ? 'bg-mint text-mint-ink'
-                        : 'bg-paper text-ink-soft border border-[rgba(31,42,55,0.08)]'
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)] lg:gap-14 lg:py-14">
+        {/* ── Étapes ─────────────────────────────────────────────────────── */}
+        <aside className="lg:sticky lg:top-10 lg:self-start">
+          <h1 className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:text-[32px]">
+            Rejoindre Lab’s Food
+          </h1>
+          <p className="mt-2 hidden text-sm leading-relaxed text-ink-mid lg:block">
+            Une dizaine de minutes pour candidater. Notre équipe étudie chaque dossier sous 48 h ouvrées.
+          </p>
+
+          {/* Mobile : progression compacte */}
+          <div className="mt-4 lg:hidden">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-semibold text-navy">{STEPS[index].label}</span>
+              <span className="tabular-nums text-ink-soft">
+                {index + 1} / {STEPS.length}
+              </span>
+            </div>
+            <div className="mt-2 grid grid-cols-6 gap-1" aria-hidden>
+              {STEPS.map((s, i) => (
+                <span
+                  key={s.id}
+                  className={`h-1 rounded-full transition-colors duration-300 ${
+                    i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
                   }`}
-                >
-                  {done ? <Check className="w-3.5 h-3.5" /> : <s.Icon className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{s.label}</span>
-                </div>
-                {i < STEPS.length - 1 && <span className="w-4 h-px bg-[rgba(31,42,55,0.12)]" />}
-              </li>
-            )
-          })}
-        </ol>
+                />
+              ))}
+            </div>
+          </div>
 
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-paper rounded-3xl border border-[rgba(31,42,55,0.06)] p-6 lg:p-8"
-        >
-          {step === 'account' && (
-            <Section
-              title="Devenir batch cooker"
-              lead="Quelques minutes suffisent pour démarrer. Vous pourrez compléter votre dossier à votre rythme."
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Prénom" placeholder="Marie" value={firstName} onChange={setFirstName} />
-                <Input label="Nom" placeholder="Dupont" value={lastName} onChange={setLastName} />
-                <Input label="Email" placeholder="marie@exemple.fr" type="email" value={email} onChange={setEmail} />
-                <Input label="Téléphone" placeholder="06 12 34 56 78" value={phone} onChange={setPhone} />
-              </div>
-
-              {/* Régions d'intervention — multi-sélection */}
-              <div className="mt-6">
-                <label className="label-muted block mb-1">
-                  Régions d&apos;intervention <span className="text-terra">*</span>
-                </label>
-                <p className="text-[11px] text-ink-soft mb-3">
-                  Sélectionnez toutes les régions où vous acceptez de vous déplacer.
-                </p>
-
-                {regions.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {regions.map((id) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => toggleRegion(id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber text-navy text-xs font-semibold"
+          {/* Desktop : fil vertical */}
+          <nav aria-label="Étapes de la candidature" className="mt-10 hidden lg:block">
+            <ol>
+              {STEPS.map((s, i) => {
+                const current = i === index
+                const isDone = (i < furthest || i < index) && !current
+                const reachable = i <= furthest
+                return (
+                  <li key={s.id} className="relative pb-6 pl-11 last:pb-0">
+                    {i < STEPS.length - 1 && (
+                      <span
+                        aria-hidden
+                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-300 ${
+                          i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
+                        }`}
+                      />
+                    )}
+                    <span
+                      aria-hidden
+                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-300 ${
+                        current
+                          ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
+                          : isDone
+                            ? 'bg-navy text-white'
+                            : 'border-[1.5px] border-[rgba(31,42,55,0.18)] bg-paper text-ink-soft'
+                      }`}
+                    >
+                      {isDone && !current ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => reachable && goTo(i)}
+                      disabled={!reachable || current}
+                      aria-current={current ? 'step' : undefined}
+                      className="block rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:ring-offset-4 disabled:cursor-default"
+                    >
+                      <span
+                        className={`block text-sm font-semibold leading-7 transition-colors ${
+                          current ? 'text-navy' : reachable ? 'text-navy/80 hover:text-navy' : 'text-ink-soft'
+                        }`}
                       >
-                        {regionLabel(id)}
-                        <X className="w-3 h-3 opacity-70" />
-                      </button>
+                        {s.label}
+                      </span>
+                      <span className="block text-xs leading-snug text-ink-soft">{s.detail}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
+        </aside>
+
+        {/* ── Formulaire ─────────────────────────────────────────────────── */}
+        <section className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {step === 'identity' && (
+              <Step
+                headingRef={headingRef}
+                title="Vos coordonnées"
+                lead="Elles nous servent à étudier votre candidature et à créer votre espace batch cooker."
+              >
+                <Group legend="Vous">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <TextField
+                      label="Prénom"
+                      autoComplete="given-name"
+                      value={values.firstName}
+                      onChange={(e) => set('firstName', e.target.value)}
+                      error={errors.firstName}
+                    />
+                    <TextField
+                      label="Nom"
+                      autoComplete="family-name"
+                      value={values.lastName}
+                      onChange={(e) => set('lastName', e.target.value)}
+                      error={errors.lastName}
+                    />
+                    <TextField
+                      label="Email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      placeholder="prenom@exemple.fr"
+                      hint="Vos identifiants de connexion y seront envoyés."
+                      value={values.email}
+                      onChange={(e) => set('email', e.target.value)}
+                      error={errors.email}
+                    />
+                    <TextField
+                      label="Téléphone"
+                      type="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      placeholder="06 12 34 56 78"
+                      value={values.phone}
+                      onChange={(e) => set('phone', e.target.value)}
+                      error={errors.phone}
+                    />
+                  </div>
+                </Group>
+
+                <Group legend="Votre adresse" hint="Adresse de votre domicile ou de votre entreprise, en France métropolitaine.">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-[160px_minmax(0,1fr)]">
+                    <TextField
+                      className="sm:col-span-2"
+                      label="Adresse"
+                      autoComplete="address-line1"
+                      placeholder="12 rue des Lilas"
+                      value={values.street}
+                      onChange={(e) => set('street', e.target.value)}
+                      error={errors.street}
+                    />
+                    <TextField
+                      className="sm:col-span-2"
+                      label="Complément d’adresse"
+                      optional
+                      autoComplete="address-line2"
+                      placeholder="Bâtiment, étage, digicode"
+                      value={values.addressLine2 ?? ''}
+                      onChange={(e) => set('addressLine2', e.target.value)}
+                    />
+                    <TextField
+                      label="Code postal"
+                      autoComplete="postal-code"
+                      inputMode="numeric"
+                      maxLength={5}
+                      placeholder="75011"
+                      value={values.postcode}
+                      onChange={(e) => set('postcode', e.target.value.replace(/\D/g, ''))}
+                      error={errors.postcode}
+                    />
+                    <TextField
+                      label="Ville"
+                      autoComplete="address-level2"
+                      value={values.city}
+                      onChange={(e) => set('city', e.target.value)}
+                      error={errors.city}
+                    />
+                  </div>
+                </Group>
+              </Step>
+            )}
+
+            {step === 'zones' && (
+              <Step
+                headingRef={headingRef}
+                title="Où intervenez-vous ?"
+                lead="Cochez une région entière, ou dépliez-la pour choisir des villes précises. La recherche couvre toutes les communes de France métropolitaine."
+              >
+                <ZonePicker
+                  value={values.zones}
+                  onChange={(z) => set('zones', z)}
+                  invalid={!!errors.zones}
+                  describedBy={errors.zones ? 'zones-error' : undefined}
+                />
+                <FieldError id="zones-error" message={errors.zones} />
+              </Step>
+            )}
+
+            {step === 'status' && (
+              <Step
+                headingRef={headingRef}
+                title="Votre situation en France"
+                lead="Elle nous indique le justificatif à vous demander pour vérifier votre autorisation de travail."
+              >
+                <fieldset>
+                  <legend className="sr-only">Votre situation</legend>
+                  <div
+                    className="grid grid-cols-1 gap-2.5"
+                    aria-invalid={errors.workStatus ? true : undefined}
+                    tabIndex={errors.workStatus ? -1 : undefined}
+                  >
+                    {WORK_STATUSES.map((o) => (
+                      <RadioCard
+                        key={o.id}
+                        name="workStatus"
+                        value={o.id}
+                        checked={values.workStatus === o.id}
+                        onChange={(v) => set('workStatus', v as WorkStatus)}
+                        title={o.label}
+                      />
                     ))}
+                  </div>
+                  <FieldError id="workStatus-error" message={errors.workStatus} />
+                </fieldset>
+
+                {values.workStatus === 'other' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-5">
+                      <label htmlFor="workStatusOther" className="mb-1.5 block text-sm font-semibold text-navy">
+                        Précisez votre situation
+                      </label>
+                      <textarea
+                        id="workStatusOther"
+                        rows={4}
+                        maxLength={500}
+                        placeholder="Par exemple : étudiant étranger autorisé à travailler à temps partiel, demande d’asile en cours…"
+                        value={values.workStatusOther ?? ''}
+                        onChange={(e) => set('workStatusOther', e.target.value)}
+                        aria-invalid={errors.workStatusOther ? true : undefined}
+                        aria-describedby={errors.workStatusOther ? 'workStatusOther-error' : 'workStatusOther-count'}
+                        className={`input-base resize-y leading-relaxed ${errors.workStatusOther ? '!border-red-600' : ''}`}
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <FieldError id="workStatusOther-error" message={errors.workStatusOther} />
+                        <p id="workStatusOther-count" className="ml-auto mt-1.5 text-xs tabular-nums text-ink-soft">
+                          {(values.workStatusOther ?? '').length} / 500
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </Step>
+            )}
+
+            {step === 'company' && (
+              <Step
+                headingRef={headingRef}
+                title="Votre activité"
+                lead="Vous pouvez candidater même si vous n’êtes pas encore immatriculé."
+              >
+                <Group legend="Statut de votre entreprise">
+                  <div
+                    className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                    aria-invalid={errors.legalForm ? true : undefined}
+                    tabIndex={errors.legalForm ? -1 : undefined}
+                  >
+                    {LEGAL_FORMS.map((f) => (
+                      <RadioCard
+                        key={f.id}
+                        name="legalForm"
+                        value={f.id}
+                        checked={values.legalForm === f.id}
+                        onChange={(v) => set('legalForm', v as LegalForm)}
+                        title={f.label}
+                        description={f.hint}
+                      />
+                    ))}
+                  </div>
+                  <FieldError id="legalForm-error" message={errors.legalForm} />
+
+                  {values.legalForm && values.legalForm !== 'not-registered' && (
+                    <TextField
+                      className="mt-5 sm:max-w-xs"
+                      label="Numéro SIRET"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="123 456 789 00012"
+                      hint="14 chiffres, sur votre avis de situation SIRENE."
+                      value={formatSiret(values.siret ?? '')}
+                      onChange={(e) => set('siret', e.target.value.replace(/\D/g, '').slice(0, 14))}
+                      error={errors.siret}
+                    />
+                  )}
+                  {values.legalForm === 'not-registered' && (
+                    <div className="mt-5">
+                      <Note tone="amber" icon={<Info className="h-4 w-4" />}>
+                        Votre dossier sera placé <strong>en attente d’immatriculation</strong>. Préparez le reste dès
+                        maintenant : vous ajouterez votre SIRET depuis votre espace dès que vous l’aurez.
+                      </Note>
+                    </div>
+                  )}
+                </Group>
+
+                <Group legend="Services à la personne">
+                  <label
+                    className={`flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber has-[:focus-visible]:ring-offset-2 ${
+                      values.sapTypeA ? 'border-navy bg-cream-soft' : 'border-[rgba(31,42,55,0.1)] hover:border-[rgba(31,42,55,0.24)]'
+                    }`}
+                  >
+                    <CheckBox
+                      className="mt-0.5"
+                      label="J’ai déjà ma propre déclaration de services à la personne"
+                      checked={values.sapTypeA}
+                      onChange={(v) => set('sapTypeA', v)}
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-navy">
+                        J’ai déjà ma propre déclaration de services à la personne
+                      </span>
+                      <span className="mt-0.5 block text-[13px] leading-snug text-ink-mid">
+                        Déclaration NOVA à votre nom (Type A). Sinon, rien à faire : la coopérative porte la
+                        déclaration pour vous.
+                      </span>
+                    </span>
+                  </label>
+
+                  {values.sapTypeA && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-4 pt-5">
+                        <TextField
+                          className="sm:max-w-xs"
+                          label="Numéro de déclaration SAP"
+                          autoComplete="off"
+                          placeholder="SAP123456789"
+                          value={values.sapNumber ?? ''}
+                          onChange={(e) => set('sapNumber', e.target.value.toUpperCase().replace(/\s/g, '').slice(0, 12))}
+                          error={errors.sapNumber}
+                        />
+                        <Note icon={<FileText className="h-4 w-4" />}>
+                          Le récépissé de déclaration vous sera demandé à l’étape suivante.
+                        </Note>
+                      </div>
+                    </motion.div>
+                  )}
+                </Group>
+              </Step>
+            )}
+
+            {step === 'documents' && (
+              <Step
+                headingRef={headingRef}
+                title="Vos justificatifs"
+                lead="Déposez ce que vous avez sous la main. Rien n’est bloquant ici : les pièces manquantes vous attendront dans votre espace."
+              >
+                <Group
+                  legend="À fournir"
+                  aside={
+                    <span className="text-xs tabular-nums text-ink-soft">
+                      {uploadedRequired} / {totalRequired} déposée{uploadedRequired > 1 ? 's' : ''}
+                    </span>
+                  }
+                >
+                  <ul className="space-y-2.5">
+                    {requirements
+                      .filter((r) => r.required)
+                      .map((r) => (
+                        <DocumentSlot key={r.id} doc={r} value={activeDocs[r.id]} onChange={(f) => setDoc(r.id, f)} />
+                      ))}
+                  </ul>
+                </Group>
+                <Group
+                  legend="Facultatif"
+                  hint="Les pièces liées à votre situation et les attestations qui renforcent votre profil. À compléter depuis votre espace si vous ne les avez pas sous la main."
+                >
+                  <ul className="space-y-2.5">
+                    {requirements
+                      .filter((r) => !r.required)
+                      .map((r) => (
+                        <DocumentSlot key={r.id} doc={r} value={activeDocs[r.id]} onChange={(f) => setDoc(r.id, f)} />
+                      ))}
+                  </ul>
+                </Group>
+              </Step>
+            )}
+
+            {step === 'review' && (
+              <Step headingRef={headingRef} title="Relisez avant d’envoyer" lead="Un détail à corriger ? Chaque bloc se modifie en un clic.">
+                <div className="divide-y divide-[rgba(31,42,55,0.08)] rounded-xl border border-[rgba(31,42,55,0.08)]">
+                  <Review title="Coordonnées" onEdit={() => goTo(0)}>
+                    <Row label="Nom" value={`${values.firstName} ${values.lastName}`} />
+                    <Row label="Email" value={values.email} />
+                    <Row label="Téléphone" value={values.phone} />
+                    <Row
+                      label="Adresse"
+                      value={[values.street, values.addressLine2, `${values.postcode} ${values.city}`]
+                        .filter(Boolean)
+                        .join(', ')}
+                    />
+                  </Review>
+
+                  <Review title="Zones d’intervention" onEdit={() => goTo(1)}>
+                    <ul className="flex flex-wrap gap-1.5 pt-1">
+                      {values.zones.map((z) => (
+                        <li
+                          key={z.regionCode}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-xs text-navy"
+                        >
+                          <MapPin className="h-3 w-3 text-amber-deep" aria-hidden />
+                          <span className="font-semibold">{regionLabel(z.regionCode)}</span>
+                          <span className="text-ink-mid">
+                            {z.wholeRegion ? 'toute la région' : z.cities.map((c) => c.name).join(', ')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Review>
+
+                  <Review title="Situation et activité" onEdit={() => goTo(2)}>
+                    <Row label="Situation" value={labelOf(WORK_STATUSES, values.workStatus)} />
+                    {values.workStatus === 'other' && <Row label="Précision" value={values.workStatusOther ?? ''} />}
+                    <Row label="Statut" value={labelOf(LEGAL_FORMS, values.legalForm)} />
+                    {values.legalForm !== 'not-registered' && <Row label="SIRET" value={formatSiret(values.siret ?? '')} />}
+                    <Row
+                      label="Services à la personne"
+                      value={values.sapTypeA ? `Déclaration propre · ${values.sapNumber}` : 'Portés par la coopérative'}
+                    />
+                  </Review>
+
+                  <Review title="Justificatifs" onEdit={() => goTo(4)}>
+                    <ul className="space-y-1.5 pt-1">
+                      {requirements
+                        .filter((r) => r.required || activeDocs[r.id])
+                        .map((r) => (
+                          <li key={r.id} className="flex items-start gap-2.5 text-[13px]">
+                            {activeDocs[r.id] ? (
+                              <CheckCircle2 className="mt-px h-4 w-4 shrink-0 text-mint-ink" aria-label="Déposé" />
+                            ) : (
+                              <Clock className="mt-px h-4 w-4 shrink-0 text-ink-soft" aria-label="À compléter" />
+                            )}
+                            <span className="min-w-0">
+                              <span className="text-navy">{r.label}</span>
+                              <span className="block truncate text-xs text-ink-soft">
+                                {activeDocs[r.id]?.file.name ?? 'À compléter depuis votre espace'}
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </Review>
+                </div>
+
+                <div className="mt-6">
+                  <label
+                    className={`flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber has-[:focus-visible]:ring-offset-2 ${
+                      errors.consent ? 'border-red-600' : values.consent ? 'border-navy bg-cream-soft' : 'border-[rgba(31,42,55,0.1)]'
+                    }`}
+                    aria-invalid={errors.consent ? true : undefined}
+                    tabIndex={errors.consent ? -1 : undefined}
+                  >
+                    <CheckBox
+                      className="mt-0.5"
+                      label="J’accepte le traitement de mes données pour l’étude de ma candidature"
+                      checked={values.consent}
+                      onChange={(v) => set('consent', v)}
+                    />
+                    <span className="text-[13px] leading-relaxed text-ink-mid">
+                      J’accepte que Lab’s Food traite mes données pour étudier ma candidature, et j’ai lu la{' '}
+                      <Link href="/confidentialite" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
+                        politique de confidentialité
+                      </Link>{' '}
+                      et les{' '}
+                      <Link href="/cgv" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
+                        conditions générales
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <FieldError id="consent-error" message={errors.consent} />
+                </div>
+
+                {sendError && (
+                  <div role="alert" className="mt-5 flex items-start gap-2.5 rounded-xl bg-red-50 px-4 py-3 text-[13px] text-red-800">
+                    <AlertCircle className="mt-px h-4 w-4 shrink-0" aria-hidden />
+                    {sendError}
                   </div>
                 )}
 
-                {(['Métropole', 'Outre-mer'] as const).map((group) => (
-                  <div key={group} className="mb-3">
-                    <p className="text-[10px] uppercase tracking-[0.18em] font-mono text-ink-soft mb-2">
-                      {group}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {REGIONS.filter((r) => r.group === group).map((r) => {
-                        const on = regions.includes(r.id)
-                        return (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => toggleRegion(r.id)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                              on
-                                ? 'bg-navy text-white'
-                                : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
-                            }`}
-                          >
-                            {r.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
+                {SHOW_PAYLOAD && (
+                  <details className="group mt-6 rounded-xl bg-navy-deep text-white/85">
+                    <summary className="cursor-pointer list-none px-4 py-3 text-xs font-semibold text-white/90 marker:hidden">
+                      Payload envoyé à l’API <span className="font-normal text-white/50">· visible en développement</span>
+                    </summary>
+                    <pre className="max-h-80 overflow-auto px-4 pb-4 font-mono text-[11px] leading-relaxed">
+                      {`POST /chefs/applications  (multipart/form-data)\n\napplication = ${JSON.stringify(
+                        buildPayload(values, activeDocs, '<horodaté à l’envoi>'),
+                        null,
+                        2,
+                      )}${Object.entries(activeDocs)
+                        .map(([t, d]) => `\ndocuments[${t}] = <fichier ${d.file.name}>`)
+                        .join('')}`}
+                    </pre>
+                  </details>
+                )}
+              </Step>
+            )}
+          </motion.div>
 
-          {step === 'right' && (
-            <Section
-              title="Votre droit d'exercer"
-              lead="Cette réponse détermine la pièce justificative qui vous sera demandée."
-            >
-              <ul className="space-y-2.5">
-                {RIGHT_OPTIONS.map((o) => (
-                  <li key={o.id}>
-                    <button
-                      onClick={() => setRight(o.id)}
-                      className={`w-full text-left rounded-2xl border p-4 transition-colors ${
-                        right === o.id
-                          ? 'border-amber bg-amber-soft/30'
-                          : 'border-[rgba(31,42,55,0.08)] hover:bg-cream-soft'
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-navy">{o.label}</p>
-                      <p className="text-xs text-ink-soft mt-0.5">Pièce attendue : {o.doc}</p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {step === 'company' && (
-            <Section
-              title="Votre statut d'entreprise"
-              lead="Vous pouvez candidater même sans être encore immatriculé."
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {COMPANY_FORMS.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setCompanyForm(f.id)}
-                    className={`text-left rounded-2xl border p-4 transition-colors ${
-                      companyForm === f.id
-                        ? 'border-amber bg-amber-soft/30'
-                        : 'border-[rgba(31,42,55,0.08)] hover:bg-cream-soft'
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-navy">{f.label}</p>
-                  </button>
-                ))}
-              </div>
-
-              {notRegistered && (
-                <div className="mt-4 rounded-2xl border border-amber/30 bg-amber-soft/40 px-4 py-3 flex items-start gap-3">
-                  <Info className="w-4 h-4 text-amber-deep mt-0.5 shrink-0" />
-                  <p className="text-xs text-ink-mid leading-relaxed">
-                    Votre dossier passera en{' '}
-                    <strong>« En attente d&apos;immatriculation »</strong>. Vous pourrez
-                    tout préparer et ajouter votre SIRET dès que vous l&apos;aurez : les
-                    autres pièces restent valables.
-                  </p>
-                </div>
-              )}
-            </Section>
-          )}
-
-          {step === 'sap' && (
-            <Section
-              title="Votre voie services à la personne"
-              lead="Elle détermine qui facture le client et quelles pièces sont demandées."
-            >
-              <div className="space-y-3">
-                {(['type-b', 'type-a'] as SapPath[]).map((p) => {
-                  const active = sapPath === p
-                  const available = p === 'type-b'
-                  return (
-                    <button
-                      key={p}
-                      disabled={!available}
-                      onClick={() => setSapPath(p)}
-                      className={`w-full text-left rounded-2xl border p-4 transition-colors ${
-                        active
-                          ? 'border-amber bg-amber-soft/30'
-                          : available
-                            ? 'border-[rgba(31,42,55,0.08)] hover:bg-cream-soft'
-                            : 'border-[rgba(31,42,55,0.06)] opacity-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-navy">{SAP_PATH_LABEL[p]}</p>
-                        {!available && <StatusBadge tone="neutral">Bientôt</StatusBadge>}
-                      </div>
-                      <p className="text-xs text-ink-soft mt-1 leading-relaxed">
-                        {p === 'type-b'
-                          ? "La coopérative porte la déclaration SAP et émet la facture au client. Vous n'avez pas de déclaration NOVA à gérer."
-                          : 'Vous portez votre propre déclaration NOVA et facturez directement.'}
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <label className="flex items-start gap-3 mt-5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptsCesu}
-                  onChange={(e) => setAcceptsCesu(e.target.checked)}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-navy">J&apos;accepte le CESU préfinancé</p>
-                  <p className="text-xs text-ink-soft mt-0.5">
-                    Une affiliation CRCESU vous sera demandée.
-                  </p>
-                </div>
-              </label>
-            </Section>
-          )}
-
-          {step === 'docs' && (
-            <Section
-              title="Vos pièces justificatives"
-              lead="Déposez ce que vous avez sous la main — vous pourrez compléter plus tard."
-            >
-              <ul className="space-y-2.5">
-                {docs.map((d) => {
-                  const done = uploaded.includes(d.id)
-                  return (
-                    <li
-                      key={d.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-navy">{d.label}</p>
-                          <StatusBadge tone={d.family === 'blocking' ? 'danger' : 'warning'}>
-                            {d.family === 'blocking' ? 'Bloquant' : 'Conditionnel'}
-                          </StatusBadge>
-                        </div>
-                        {d.hint && <p className="text-xs text-ink-soft mt-0.5">{d.hint}</p>}
-                      </div>
-                      {done ? (
-                        <StatusBadge tone="success">
-                          <Check className="w-3 h-3" /> Déposé
-                        </StatusBadge>
-                      ) : (
-                        <button
-                          onClick={() => setUploaded((p) => [...p, d.id])}
-                          className="btn btn-outline text-xs px-3.5 py-2 shrink-0"
-                        >
-                          <Upload className="w-3.5 h-3.5" /> Déposer
-                        </button>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-
-              <div className="mt-5 rounded-2xl border border-mint-deep/40 bg-mint/40 px-4 py-3 flex items-start gap-3">
-                <Info className="w-4 h-4 text-mint-ink mt-0.5 shrink-0" />
-                <p className="text-xs text-mint-ink leading-relaxed">
-                  Vous n&apos;êtes pas obligé de tout fournir maintenant :{' '}
-                  {uploaded.length}/{docs.length} déposées. Les pièces manquantes vous
-                  attendront dans <strong>Mon dossier</strong>.
-                </p>
-              </div>
-            </Section>
-          )}
-
-          {/* ── Récapitulatif ─────────────────────────────────────────── */}
-          {step === 'recap' && (
-            <Section
-              title="Vérifiez votre dossier"
-              lead="Relisez ces informations avant de nous les envoyer."
-            >
-              <div className="space-y-4">
-                <RecapBlock title="Identité" onEdit={() => setStep('account')}>
-                  <RecapRow label="Nom" value={`${firstName} ${lastName}`.trim() || '—'} />
-                  <RecapRow label="Email" value={email || '—'} />
-                  <RecapRow label="Téléphone" value={phone || '—'} />
-                </RecapBlock>
-
-                <RecapBlock title="Régions d'intervention" onEdit={() => setStep('account')}>
-                  {regions.length === 0 ? (
-                    <p className="text-xs text-red-700">Aucune région sélectionnée.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {regions.map((id) => (
-                        <span
-                          key={id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-cream-soft text-navy text-[11px] font-medium"
-                        >
-                          <MapPin className="w-3 h-3 text-terra" /> {regionLabel(id)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </RecapBlock>
-
-                <RecapBlock title="Situation" onEdit={() => setStep('right')}>
-                  <RecapRow
-                    label="Droit d'exercer"
-                    value={RIGHT_OPTIONS.find((o) => o.id === right)?.label ?? '—'}
-                  />
-                  <RecapRow
-                    label="Statut d'entreprise"
-                    value={COMPANY_FORMS.find((f) => f.id === companyForm)?.label ?? '—'}
-                  />
-                  <RecapRow label="Voie SAP" value={SAP_PATH_LABEL[sapPath]} />
-                  <RecapRow label="CESU préfinancé" value={acceptsCesu ? 'Accepté' : 'Non accepté'} />
-                </RecapBlock>
-
-                <RecapBlock title="Pièces déposées" onEdit={() => setStep('docs')}>
-                  <RecapRow label="Déposées" value={`${uploaded.length} sur ${docs.length}`} />
-                  {uploaded.length < docs.length && (
-                    <p className="text-[11px] text-ink-soft mt-1.5">
-                      Les pièces manquantes pourront être ajoutées depuis votre espace.
-                    </p>
-                  )}
-                </RecapBlock>
-
-                {/* Consentement */}
-                <label className="flex items-start gap-3 rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
-                    className="mt-1"
-                  />
-                  <span className="text-xs text-ink-mid leading-relaxed">
-                    J&apos;accepte que Lab&apos;s Food traite mes données pour instruire ma
-                    candidature, et j&apos;ai pris connaissance de la{' '}
-                    <Link href="/confidentialite" className="text-terra font-semibold hover:underline">
-                      politique de confidentialité
-                    </Link>{' '}
-                    et des{' '}
-                    <Link href="/cgv" className="text-terra font-semibold hover:underline">
-                      conditions générales
-                    </Link>
-                    . <span className="text-terra">*</span>
-                  </span>
-                </label>
-              </div>
-            </Section>
-          )}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between gap-3 mt-8 pt-6 border-t border-[rgba(31,42,55,0.08)]">
-            <button
-              onClick={() => go(-1)}
-              disabled={index === 0}
-              className="btn btn-outline text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ArrowLeft className="w-4 h-4" /> Précédent
-            </button>
-            <p className="text-xs text-ink-soft hidden sm:block">
-              Étape {index + 1} sur {STEPS.length} — progression enregistrée
-            </p>
-            {step === 'recap' ? (
+          {/* ── Navigation ─────────────────────────────────────────────── */}
+          <div className="mt-10 flex flex-col-reverse gap-3 border-t border-[rgba(31,42,55,0.08)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+            {index > 0 ? (
               <button
-                onClick={() => setSubmitted(true)}
-                disabled={!consent || regions.length === 0}
-                className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => goTo(index - 1)}
+                className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
               >
-                Envoyer ma candidature <ArrowRight className="w-4 h-4" />
+                <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
               </button>
             ) : (
+              <span className="hidden sm:block" />
+            )}
+
+            {step === 'review' ? (
               <button
-                onClick={() => go(1)}
-                disabled={step === 'account' && regions.length === 0}
-                className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={submit}
+                disabled={sending}
+                aria-busy={sending || undefined}
+                className="btn btn-primary disabled:cursor-wait disabled:opacity-80"
               >
-                Continuer <ArrowRight className="w-4 h-4" />
+                {sending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Envoi en cours
+                  </>
+                ) : (
+                  <>
+                    Envoyer ma candidature <ArrowRight className="h-4 w-4" aria-hidden />
+                  </>
+                )}
+              </button>
+            ) : (
+              <button type="button" onClick={next} className="btn btn-primary">
+                {step === 'documents' && uploadedRequired < totalRequired ? 'Continuer sans tout déposer' : 'Continuer'}
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </button>
             )}
           </div>
-
-          {step === 'recap' && !consent && (
-            <p className="text-[11px] text-ink-soft text-right mt-2">
-              Cochez la case de consentement pour envoyer votre dossier.
-            </p>
-          )}
-          {step === 'account' && regions.length === 0 && (
-            <p className="text-[11px] text-ink-soft text-right mt-2">
-              Sélectionnez au moins une région d&apos;intervention.
-            </p>
-          )}
-        </motion.div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }
 
+/** Rendu serveur et premier affichage : la mise en page, sans le formulaire. */
+function Shell() {
+  return (
+    <div className="min-h-screen bg-cream">
+      <Header />
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)] lg:gap-14 lg:py-14">
+        <aside>
+          <h1 className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:text-[32px]">
+            Rejoindre Lab’s Food
+          </h1>
+        </aside>
+        <section
+          aria-busy
+          className="min-h-[520px] rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11"
+        >
+          <div className="h-8 w-56 animate-pulse rounded-lg bg-cream-soft" />
+          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded bg-cream-soft" />
+        </section>
+      </main>
+    </div>
+  )
+}
+
+// ── Écran de confirmation ────────────────────────────────────────────────────
+
+function Confirmation({ email, reference }: { email: string; reference: string }) {
+  return (
+    <div className="flex min-h-screen flex-col bg-cream">
+      <Header />
+      <main className="flex flex-1 items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-lg rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-7 sm:p-10"
+        >
+          <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-amber">
+            <Mail className="h-6 w-6" aria-hidden />
+          </span>
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-navy">
+            Candidature envoyée
+          </h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-mid">
+            Consultez votre boîte mail : vos identifiants de connexion arrivent à{' '}
+            <strong className="font-semibold text-navy">{email}</strong>. Ils ouvrent votre espace batch cooker, où
+            vous suivrez l’étude de votre dossier.
+          </p>
+
+          <ol className="mt-7 space-y-3.5">
+            {[
+              'Connectez-vous avec le mot de passe reçu par email.',
+              'Complétez les justificatifs manquants depuis votre espace.',
+              'Notre équipe étudie votre dossier sous 48 h ouvrées.',
+              'Une fois validé, votre vitrine devient visible et réservable.',
+            ].map((t, i) => (
+              <li key={t} className="flex gap-3 text-sm text-ink-mid">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cream-soft text-xs font-bold tabular-nums text-navy">
+                  {i + 1}
+                </span>
+                <span className="pt-0.5">{t}</span>
+              </li>
+            ))}
+          </ol>
+
+          <p className="mt-7 text-xs text-ink-soft">
+            Référence <span className="font-mono tabular-nums text-ink-mid">{reference}</span> · Pas d’email ? Vérifiez vos
+            courriers indésirables.
+          </p>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link href="/auth/login" className="btn btn-primary">
+              Me connecter <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+            <Link href="/" className="btn btn-outline">
+              Retour au site
+            </Link>
+          </div>
+        </motion.div>
+      </main>
+    </div>
+  )
+}
+
+// ── Mise en page ────────────────────────────────────────────────────────────
+
 function Header() {
   return (
     <header className="border-b border-[rgba(31,42,55,0.06)] bg-paper">
-      <div className="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Logo size="sm" />
-        <Link href="/" className="text-xs text-ink-mid hover:text-navy inline-flex items-center gap-1.5">
-          <ArrowLeft className="w-3.5 h-3.5" /> Retour au site
+        <Link href="/" className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-ink-mid hover:text-navy">
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Retour au site
         </Link>
       </div>
     </header>
   )
 }
 
-function Section({
+function Step({
   title,
   lead,
+  headingRef,
   children,
 }: {
   title: string
   lead: string
-  children: React.ReactNode
+  headingRef: React.RefObject<HTMLHeadingElement | null>
+  children: ReactNode
 }) {
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-navy mb-1.5">{title}</h1>
-      <p className="text-sm text-ink-mid mb-6 leading-relaxed">{lead}</p>
-      {children}
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy outline-none sm:text-[30px]"
+      >
+        {title}
+      </h2>
+      <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-mid">{lead}</p>
+      <div className="mt-8 space-y-9">{children}</div>
     </div>
   )
 }
 
-function Input({
-  label,
-  placeholder,
-  type = 'text',
-  value,
-  onChange,
-}: {
-  label: string
-  placeholder: string
-  type?: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div>
-      <label className="label-muted block mb-2">{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input-base"
-      />
-    </div>
-  )
-}
-
-function RecapBlock({
-  title,
-  onEdit,
+function Group({
+  legend,
+  hint,
+  aside,
   children,
 }: {
-  title: string
-  onEdit: () => void
-  children: React.ReactNode
+  legend: string
+  hint?: string
+  aside?: ReactNode
+  children: ReactNode
 }) {
   return (
-    <div className="rounded-2xl bg-cream-soft p-4">
-      <div className="flex items-center justify-between gap-3 mb-2.5">
-        <p className="text-sm font-semibold text-navy">{title}</p>
-        <button onClick={onEdit} className="text-xs text-terra font-semibold hover:underline">
+    <fieldset>
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <legend className="text-base font-semibold text-navy">{legend}</legend>
+        {aside}
+      </div>
+      {hint && <p className="-mt-3 mb-4 text-[13px] text-ink-soft">{hint}</p>}
+      {children}
+    </fieldset>
+  )
+}
+
+function Review({ title, onEdit, children }: { title: string; onEdit: () => void; children: ReactNode }) {
+  return (
+    <section className="px-4 py-4 sm:px-5">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-navy">{title}</h3>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-full px-2.5 py-1 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+        >
           Modifier
         </button>
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 
-function RecapRow({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="text-xs text-ink-soft">{label}</span>
-      <span className="text-sm font-medium text-navy text-right">{value}</span>
+    <div className="grid grid-cols-1 gap-0.5 py-1 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-4">
+      <span className="text-[13px] text-ink-soft">{label}</span>
+      <span className="break-words text-[13px] font-medium text-navy">{value || '—'}</span>
     </div>
   )
 }

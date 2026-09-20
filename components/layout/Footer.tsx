@@ -18,6 +18,7 @@ const LINKS = {
     { label: 'Notre histoire', href: '/a-propos#histoire' },
     { label: 'Témoignages', href: '/#testimonials' },
     { label: 'FAQ', href: '/faq' },
+    { label: 'Contact', href: '/contact' },
   ],
   legal: [
     { label: 'Mentions légales', href: '/mentions-legales' },

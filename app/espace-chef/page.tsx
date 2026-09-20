@@ -106,7 +106,7 @@ export default function ChefHomePage() {
             </div>
             <div className="flex-1 min-w-[200px]">
               <div className="flex justify-between text-xs text-ink-mid mb-1.5">
-                <span>Complétude des pièces bloquantes</span>
+                <span>Complétude des pièces obligatoires</span>
                 <span className="font-semibold text-navy">{score} %</span>
               </div>
               <div className="h-2 rounded-full bg-cream-deep overflow-hidden">

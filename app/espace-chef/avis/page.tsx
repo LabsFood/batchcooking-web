@@ -9,7 +9,7 @@ const avg = (key: 'punctuality' | 'hygiene' | 'taste') =>
 
 export default function ChefReviewsPage() {
   return (
-    <ChefPage title="Avis & réputation" subtitle="Ce que vos clients retiennent de vos prestations.">
+    <ChefPage title="Avis" subtitle="Ce que vos clients retiennent de vos prestations.">
       <div className="space-y-5">
         <Card>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
