@@ -45,6 +45,14 @@ function RegisterInner() {
               Se connecter
             </Link>
           </p>
+
+          {/* Un batch cooker ne se crée pas de compte ici : il candidate. */}
+          <p className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4 text-center text-sm text-ink-mid">
+            Vous cuisinez ?{' '}
+            <Link href="/devenir-chef" className="font-semibold text-terra hover:underline">
+              Devenir batch cooker
+            </Link>
+          </p>
         </div>
       </div>
 
