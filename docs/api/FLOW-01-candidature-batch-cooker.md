@@ -430,6 +430,32 @@ Réponse `201` :
   L'API expose `hasPassword: false` sur `GET /me` pour que le front sache
   afficher cet écran.
 
+### `GET /me` : une seule page de connexion pour deux métiers
+
+Clients et batch cookers se connectent au même endroit. Le front ne sait donc
+pas, avant la réponse de `/me`, vers quel espace envoyer la personne : il
+affiche un écran d'attente (`/apres-connexion`) puis redirige vers
+`/espace-chef` ou `/espace-client` selon `role`.
+
+```json
+{
+  "id": "3f1c...",
+  "email": "marie.dupont@exemple.fr",
+  "role": "chef",
+  "hasPassword": false,
+  "chefProfile": { "id": "9a77...", "isVerified": true, "isActive": false }
+}
+```
+
+Deux exigences en découlent :
+
+- **`role` doit arriver vite** : tant qu'il manque, l'utilisateur regarde un
+  écran d'attente. Le front abandonne au bout de 6 secondes et retombe sur
+  l'espace client, ce qui donnerait un espace client à un batch cooker.
+- **`GET /me` répond aussi pour un chef non encore actif** (`isActive: false`) :
+  il doit pouvoir entrer dans son espace pour compléter son dossier, même si sa
+  vitrine n'est pas publiée.
+
 ### Refus d'une candidature
 
 `POST /admin/chef-applications/:id/reject`
@@ -494,6 +520,8 @@ Lab's Food veut recontacter les candidats refusés.
 3. Remplacer l'upload simulé (`submitApplication`) par le flux pré-signé § 3.
 4. Supprimer les référentiels en dur (`lib/chef/regions.ts`) au profit de
    `GET /referentials/regions`.
+5. Brancher `/apres-connexion` sur le `role` réel (aujourd'hui résolu via
+   `GET /me`, avec repli sur l'espace client au bout de 6 secondes).
 
 ## 10. Questions ouvertes
 
