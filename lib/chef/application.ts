@@ -21,11 +21,15 @@ export const WORK_STATUSES = [
 
 export type WorkStatus = (typeof WORK_STATUSES)[number]['id']
 
+/*
+ * Trois statuts seulement : le candidat n'a pas à qualifier sa forme juridique
+ * au détail près, l'extrait Kbis le dira. « not-registered » reste l'identifiant
+ * technique du cas sans entreprise : c'est lui qui rend le SIRET facultatif.
+ */
 export const LEGAL_FORMS = [
-  { id: 'micro', label: 'Micro-entreprise', hint: 'Auto-entrepreneur' },
-  { id: 'ei', label: 'Entreprise individuelle', hint: 'Au régime réel' },
-  { id: 'company', label: 'Société', hint: 'SASU, EURL, SAS…' },
-  { id: 'not-registered', label: 'Pas encore immatriculé', hint: 'Vous pouvez candidater dès maintenant' },
+  { id: 'micro', label: 'Micro ou auto-entrepreneur', hint: 'Le statut le plus courant chez les batch cookers' },
+  { id: 'other-company', label: 'Autre forme d’entreprise', hint: 'EI, EURL, SASU, SAS…' },
+  { id: 'not-registered', label: 'Je n’ai pas d’entreprise', hint: 'Vous pouvez candidater dès maintenant' },
 ] as const
 
 export type LegalForm = (typeof LEGAL_FORMS)[number]['id']
@@ -229,7 +233,7 @@ const statusSchema = z
 
 const companySchema = z
   .object({
-    legalForm: z.enum(['micro', 'ei', 'company', 'not-registered'], {
+    legalForm: z.enum(['micro', 'other-company', 'not-registered'], {
       errorMap: () => ({ message: 'Choisissez votre statut.' }),
     }),
     siret: z.string().optional(),
