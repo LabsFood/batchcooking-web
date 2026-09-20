@@ -353,7 +353,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                       autoComplete="email"
                       inputMode="email"
                       placeholder="prenom@exemple.fr"
-                      hint="Vos identifiants de connexion y seront envoyés."
+                      hint="Nous y envoyons le suivi de votre candidature."
                       value={values.email}
                       onChange={(e) => set('email', e.target.value)}
                       error={errors.email}
@@ -496,9 +496,9 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                 title="Votre activité"
                 lead="Vous pouvez candidater même si vous n’êtes pas encore immatriculé."
               >
-                <Group legend="Statut de votre entreprise">
+                <Group legend="Statut professionnel">
                   <div
-                    className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                    className="grid grid-cols-1 gap-2.5"
                     aria-invalid={errors.legalForm ? true : undefined}
                     tabIndex={errors.legalForm ? -1 : undefined}
                   >
@@ -593,7 +593,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
               <Step
                 headingRef={headingRef}
                 title="Vos justificatifs"
-                lead="Déposez ce que vous avez sous la main. Rien n’est bloquant ici : les pièces manquantes vous attendront dans votre espace."
+                lead="Déposez ce que vous avez sous la main. Rien n’est bloquant ici : vous compléterez les pièces manquantes depuis le lien reçu par email."
               >
                 <Group
                   legend="À fournir"
@@ -613,7 +613,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                 </Group>
                 <Group
                   legend="Facultatif"
-                  hint="Les pièces liées à votre situation et les attestations qui renforcent votre profil. À compléter depuis votre espace si vous ne les avez pas sous la main."
+                  hint="Les pièces liées à votre situation et les attestations qui renforcent votre profil. À compléter plus tard si vous ne les avez pas sous la main."
                 >
                   <ul className="space-y-2.5">
                     {requirements
@@ -683,7 +683,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                             <span className="min-w-0">
                               <span className="text-navy">{r.label}</span>
                               <span className="block truncate text-xs text-ink-soft">
-                                {activeDocs[r.id]?.file.name ?? 'À compléter depuis votre espace'}
+                                {activeDocs[r.id]?.file.name ?? 'À compléter après l’envoi'}
                               </span>
                             </span>
                           </li>
@@ -836,17 +836,17 @@ function Confirmation({ email, reference }: { email: string; reference: string }
             Candidature envoyée
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-mid">
-            Consultez votre boîte mail : vos identifiants de connexion arrivent à{' '}
-            <strong className="font-semibold text-navy">{email}</strong>. Ils ouvrent votre espace batch cooker, où
-            vous suivrez l’étude de votre dossier.
+            Consultez votre boîte mail : nous venons d’envoyer un accusé de réception à{' '}
+            <strong className="font-semibold text-navy">{email}</strong>, avec un lien pour compléter vos pièces
+            et suivre l’étude de votre dossier.
           </p>
 
           <ol className="mt-7 space-y-3.5">
             {[
-              'Connectez-vous avec le mot de passe reçu par email.',
-              'Complétez les justificatifs manquants depuis votre espace.',
+              'Complétez vos justificatifs depuis le lien reçu par email.',
               'Notre équipe étudie votre dossier sous 48 h ouvrées.',
-              'Une fois validé, votre vitrine devient visible et réservable.',
+              'Une fois le dossier validé, nous créons votre compte et vous envoyons un lien de connexion.',
+              'Votre vitrine devient alors visible et réservable.',
             ].map((t, i) => (
               <li key={t} className="flex gap-3 text-sm text-ink-mid">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cream-soft text-xs font-bold tabular-nums text-navy">
@@ -863,11 +863,11 @@ function Confirmation({ email, reference }: { email: string; reference: string }
           </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link href="/auth/login" className="btn btn-primary">
-              Me connecter <ArrowRight className="h-4 w-4" aria-hidden />
+            <Link href="/" className="btn btn-primary">
+              Retour au site <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
-            <Link href="/" className="btn btn-outline">
-              Retour au site
+            <Link href="/faq" className="btn btn-outline">
+              Questions fréquentes
             </Link>
           </div>
         </motion.div>
