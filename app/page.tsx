@@ -9,6 +9,7 @@ import FeaturedChefs from '@/components/home/FeaturedChefs'
 import ServiceArea from '@/components/home/ServiceArea'
 import Testimonials from '@/components/home/Testimonials'
 import FAQ from '@/components/home/FAQ'
+import JoinUs from '@/components/home/JoinUs'
 
 export default function HomePage() {
   return (
@@ -24,6 +25,7 @@ export default function HomePage() {
       <ServiceArea />
       <Testimonials />
       <FAQ />
+      <JoinUs />
     </div>
   )
 }

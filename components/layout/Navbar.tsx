@@ -15,9 +15,10 @@ const NAV_LINKS = [
   { label: 'Menu', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
   { label: 'FAQ', href: '/faq' },
+  // Entrée de recrutement : elle ne s'adresse pas aux clients, d'où le
+  // traitement visuel distinct (encadré discret) et sa place en fin de liste.
+  { label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const },
   { label: 'Contact', href: '/contact' },
-  // Entrée de recrutement : mène au parcours de candidature batch cooker.
-  { label: 'Nous rejoindre', href: '/devenir-chef' },
 ]
 
 export default function Navbar() {
@@ -78,10 +79,15 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'px-4 py-2 text-sm font-semibold rounded-full transition-colors duration-200',
-                    pathname === link.href
-                      ? 'text-terra'
-                      : 'text-ink-mid hover:text-terra'
+                    'rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200',
+                    link.kind === 'recruit'
+                      ? cn(
+                          'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
+                          pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-terra' : 'text-navy hover:text-terra',
+                        )
+                      : pathname === link.href
+                        ? 'text-terra'
+                        : 'text-ink-mid hover:text-terra',
                   )}
                 >
                   {link.label}
@@ -173,9 +179,17 @@ export default function Navbar() {
                 >
                   <Link
                     href={link.href}
-                    className="block py-4 font-display text-3xl font-bold text-white hover:text-terra transition-colors border-b border-white/10"
+                    className={cn(
+                      'block border-b border-white/10 py-4 font-display text-3xl font-bold transition-colors hover:text-terra',
+                      link.kind === 'recruit' ? 'text-terra' : 'text-white',
+                    )}
                   >
                     {link.label}
+                    {link.kind === 'recruit' && (
+                      <span className="mt-1 block font-sans text-xs font-medium tracking-wide text-white/50">
+                        Vous cuisinez ? Rejoignez les batch cookers.
+                      </span>
+                    )}
                   </Link>
                 </motion.div>
               ))}

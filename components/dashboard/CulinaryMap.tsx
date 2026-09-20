@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { motion } from 'framer-motion'
-import { Globe2 } from 'lucide-react'
+import { Globe2, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { geoNaturalEarth1, geoPath, geoGraticule10 } from 'd3-geo'
 import { feature } from 'topojson-client'
 import type { Topology } from 'topojson-specification'
@@ -15,179 +16,348 @@ import {
 } from '@/lib/client/mock'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Carte culinaire (CL-01) — pièce maîtresse de l'accueil client.
+   Carte culinaire (CL-01).
 
-   Les frontières viennent de `world-atlas` (TopoJSON 110m, ~108 Ko), projetées
-   avec d3-geo. Les pays sont identifiés par leur code ISO 3166-1 numérique,
-   renseigné sur chaque plat via le rattachement plat → pays (CL-06).
+   Sur l'accueil, elle tient dans une tuile : un compteur et un point qui
+   pulse. La carte elle-même s'ouvre en grand, là où elle a la place d'être
+   lue — survol, sélection, zoom et déplacement.
+
+   Frontières : `world-atlas` (TopoJSON 110m), projetées avec d3-geo. Les pays
+   sont identifiés par leur code ISO 3166-1 numérique, renseigné sur chaque
+   plat via le rattachement plat → pays (CL-06).
    ───────────────────────────────────────────────────────────────────────────── */
 
-const WIDTH = 820
-const HEIGHT = 420
+const WIDTH = 900
+const HEIGHT = 460
+const MIN_ZOOM = 1
+const MAX_ZOOM = 6
 
-export default function CulinaryMap() {
-  const [active, setActive] = useState<ExploredCountry | null>(null)
+type Geo = { id: string; name: string; d: string }
 
-  const exploredByIso = useMemo(
-    () => new Map(EXPLORED_COUNTRIES.map((c) => [c.iso, c])),
-    [],
-  )
-
-  // Projection + tracés calculés une seule fois : la topologie ne change pas.
-  const { countries, graticule, outline } = useMemo(() => {
+function useWorld() {
+  return useMemo(() => {
     const topo = worldAtlas as unknown as Topology
     const fc = feature(topo, topo.objects.countries) as unknown as {
       features: Feature<Geometry, { name: string }>[]
     }
-
     const projection = geoNaturalEarth1().fitExtent(
       [
-        [8, 8],
-        [WIDTH - 8, HEIGHT - 8],
+        [10, 10],
+        [WIDTH - 10, HEIGHT - 10],
       ],
       { type: 'Sphere' },
     )
     const path = geoPath(projection)
-
     return {
       countries: fc.features.map((f) => ({
         id: String(f.id),
         name: f.properties?.name ?? '',
         d: path(f) ?? '',
-      })),
+      })) as Geo[],
       graticule: path(geoGraticule10()) ?? '',
       outline: path({ type: 'Sphere' }) ?? '',
+      centroidOf: (id: string) => {
+        const f = fc.features.find((x) => String(x.id) === id)
+        return f ? path.centroid(f) : null
+      },
     }
   }, [])
+}
 
+// ── Tuile d'accueil ─────────────────────────────────────────────────────────
+
+export default function CulinaryMap() {
+  const [open, setOpen] = useState(false)
   const explored = EXPLORED_COUNTRIES.length
   const ratio = (explored / TOTAL_COUNTRIES) * 100
 
   return (
-    <div className="bg-navy text-white rounded-3xl p-5 lg:p-6 relative overflow-hidden">
-      {/* <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-amber/20 blur-3xl pointer-events-none" /> */}
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-3xl bg-navy p-5 text-left text-white transition-shadow hover:shadow-[0_24px_50px_-24px_rgba(31,42,55,0.7)]"
+      >
+        <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber/15 blur-3xl" />
 
-      <div className="relative">
-        {/* En-tête */}
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber mb-2">
-              Ma carte culinaire
-            </p>
-            <p className="font-display text-4xl font-bold leading-none">
-              {explored}
-              <span className="text-white/40 text-2xl"> / {TOTAL_COUNTRIES}</span>
-            </p>
-            <p className="text-xs text-white/60 mt-1">pays explorés</p>
-          </div>
-          <span className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
-            <Globe2 className="w-5 h-5 text-amber" />
+        {/* Le point qui pulse : c'est lui qui donne envie d'ouvrir. */}
+        <span className="relative flex h-12 w-12 shrink-0 items-center justify-center" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber/40 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber text-navy">
+            <Globe2 className="h-5 w-5" />
           </span>
-        </div>
+        </span>
 
-        {/* Carte */}
-        <div className="relative rounded-2xl bg-navy-deep/40 overflow-hidden mb-4">
-          <svg
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="w-full h-auto block"
-            role="img"
-            aria-label={`Carte du monde : ${explored} pays explorés sur ${TOTAL_COUNTRIES}`}
-          >
-            {/* Contour du globe et méridiens */}
-            <path d={outline} fill="rgba(255,255,255,0.03)" />
-            <path
-              d={graticule}
-              fill="none"
-              stroke="rgba(255,255,255,0.07)"
-              strokeWidth={0.5}
-            />
+        <span className="relative min-w-0 flex-1">
+          <span className="block text-xs font-semibold uppercase tracking-wide text-amber">Ma carte culinaire</span>
+          <span className="mt-0.5 block font-display text-2xl font-bold leading-none">
+            {explored}
+            <span className="text-lg text-white/40"> / {TOTAL_COUNTRIES}</span>
+            <span className="ml-2 text-xs font-normal text-white/60">pays explorés</span>
+          </span>
+          <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <span className="block h-full rounded-full bg-amber" style={{ width: `${Math.max(ratio, 2)}%` }} />
+          </span>
+        </span>
 
-            {countries.map((c) => {
-              const found = exploredByIso.get(c.id)
-              const isActive = active?.iso === c.id
-              return (
-                <path
-                  key={c.id}
-                  d={c.d}
-                  fill={
-                    found
-                      ? isActive
-                        ? '#FBBF4A'
-                        : '#F39C12'
-                      : 'rgba(255,255,255,0.09)'
-                  }
-                  stroke={found ? '#2C3E50' : 'rgba(255,255,255,0.14)'}
-                  strokeWidth={found ? 0.7 : 0.4}
-                  className={found ? 'cursor-pointer transition-[fill]' : ''}
-                  onClick={() => found && setActive(isActive ? null : found)}
-                >
-                  {found && <title>{`${found.name} — ${found.dishes.length} plat(s)`}</title>}
-                </path>
-              )
-            })}
-          </svg>
-        </div>
+        <span className="relative hidden shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-xs font-semibold transition-colors group-hover:bg-white/20 sm:inline-flex">
+          <Maximize2 className="h-3.5 w-3.5" aria-hidden /> Ouvrir la carte
+        </span>
+      </button>
 
-        {/* Progression */}
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-4">
-          <motion.div
-            className="h-full rounded-full bg-amber"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.max(ratio, 2)}%` }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          />
-        </div>
+      <MapDialog open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
 
-        {/* Pastilles pays */}
-        <div className="flex flex-wrap gap-2">
-          {EXPLORED_COUNTRIES.map((c, i) => (
-            <motion.button
-              key={c.code}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.04 * i, duration: 0.3 }}
-              onClick={() => setActive(active?.code === c.code ? null : c)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${active?.code === c.code
-                  ? 'bg-amber text-navy'
-                  : 'bg-white/10 text-white/80 hover:bg-white/15'
-                }`}
+// ── Carte plein écran ───────────────────────────────────────────────────────
+
+function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { countries, graticule, outline, centroidOf } = useWorld()
+  const [selected, setSelected] = useState<ExploredCountry | null>(null)
+  const [hover, setHover] = useState<{ name: string; explored?: ExploredCountry; x: number; y: number } | null>(null)
+  const [view, setView] = useState({ k: 1, x: 0, y: 0 })
+  // Le curseur dépend de l'état du glisser : il doit donc être un état, pas un ref.
+  const [isDragging, setIsDragging] = useState(false)
+  const dragging = useRef<{ x: number; y: number } | null>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+
+  const exploredByIso = useMemo(() => new Map(EXPLORED_COUNTRIES.map((c) => [c.iso, c])), [])
+  const explored = EXPLORED_COUNTRIES.length
+
+  const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k))
+  const reset = () => setView({ k: 1, x: 0, y: 0 })
+
+  /** Centre la vue sur un pays et l'agrandit : « aller voir » un pays exploré. */
+  const focus = (c: ExploredCountry) => {
+    setSelected(c)
+    const centroid = centroidOf(c.iso)
+    if (!centroid) return
+    const k = 2.6
+    setView({ k, x: WIDTH / 2 - centroid[0] * k, y: HEIGHT / 2 - centroid[1] * k })
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragging.current = { x: e.clientX - view.x, y: e.clientY - view.y }
+    setIsDragging(true)
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return
+    setView((v) => ({ ...v, x: e.clientX - dragging.current!.x, y: e.clientY - dragging.current!.y }))
+  }
+  const onPointerUp = () => {
+    dragging.current = null
+    setIsDragging(false)
+  }
+
+  const onWheel = (e: React.WheelEvent) => {
+    const k = clampZoom(view.k * (e.deltaY < 0 ? 1.15 : 0.87))
+    setView((v) => ({ ...v, k }))
+  }
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v)
+        if (!v) {
+          setSelected(null)
+          setHover(null)
+          reset()
+        }
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-3xl bg-navy text-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)] focus:outline-none sm:inset-6 lg:inset-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]">
+          <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
+            <div>
+              <Dialog.Title className="font-display text-xl font-bold leading-tight">Ma carte culinaire</Dialog.Title>
+              <Dialog.Description className="text-xs text-white/55">
+                {explored} pays sur {TOTAL_COUNTRIES} · survolez, cliquez, zoomez
+              </Dialog.Description>
+            </div>
+            <Dialog.Close
+              aria-label="Fermer la carte"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
-              <span className="text-sm leading-none">{c.flag}</span>
-              {c.name}
-            </motion.button>
-          ))}
-          <span className="px-3 py-1.5 rounded-xl bg-white/5 text-white/40 text-xs">
-            +{TOTAL_COUNTRIES - explored} à découvrir
-          </span>
-        </div>
+              <X className="h-4 w-4" />
+            </Dialog.Close>
+          </header>
 
-        {/* Détail du pays sélectionné */}
-        {active && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 rounded-2xl bg-white/[0.07] border border-white/10 p-4"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg leading-none">{active.flag}</span>
-              <p className="font-display text-base font-bold">{active.name}</p>
-            </div>
-            <p className="text-[11px] uppercase tracking-wide text-white/45 mb-1.5">
-              Plats découverts
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {active.dishes.map((d) => (
-                <span
-                  key={d}
-                  className="text-[11px] px-2.5 py-1 rounded-full bg-white/10 text-white/85"
+          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px]">
+            {/* Carte */}
+            <div
+              ref={frameRef}
+              className="relative min-h-0 overflow-hidden bg-[radial-gradient(120%_120%_at_50%_0%,#24384d_0%,#1F2D3D_60%,#16222e_100%)]"
+              onWheel={onWheel}
+            >
+              <svg
+                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                className="h-full w-full touch-none select-none"
+                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={() => {
+                  onPointerUp()
+                  setHover(null)
+                }}
+                role="img"
+                aria-label={`Carte du monde, ${explored} pays explorés sur ${TOTAL_COUNTRIES}`}
+              >
+                <defs>
+                  <linearGradient id="exploredFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FBBF4A" />
+                    <stop offset="100%" stopColor="#E08D0C" />
+                  </linearGradient>
+                </defs>
+
+                <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
+                  <path d={outline} fill="rgba(255,255,255,0.03)" />
+                  <path d={graticule} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={0.4 / view.k} />
+
+                  {countries.map((c) => {
+                    const found = exploredByIso.get(c.id)
+                    const isSelected = selected?.iso === c.id
+                    const isHovered = hover?.name === c.name
+                    return (
+                      <path
+                        key={c.id}
+                        d={c.d}
+                        fill={found ? 'url(#exploredFill)' : isHovered ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)'}
+                        stroke={isSelected ? '#FFFFFF' : found ? 'rgba(31,45,61,0.9)' : 'rgba(255,255,255,0.12)'}
+                        strokeWidth={(isSelected ? 1.4 : found ? 0.6 : 0.35) / view.k}
+                        className="transition-[fill] duration-150"
+                        style={{ cursor: found ? 'pointer' : 'default' }}
+                        onMouseMove={(e) => {
+                          const box = frameRef.current?.getBoundingClientRect()
+                          const x = e.clientX - (box?.left ?? 0)
+                          const y = e.clientY - (box?.top ?? 0)
+                          setHover({
+                            name: c.name,
+                            explored: found,
+                            x: Math.min(x + 14, (box?.width ?? 0) - 230),
+                            y: Math.max(y - 10, 8),
+                          })
+                        }}
+                        onClick={() => found && focus(found)}
+                      />
+                    )
+                  })}
+                </g>
+              </svg>
+
+              {/* Infobulle : elle suit le curseur, donc pas de clic pour savoir où on est. */}
+              {hover && (
+                <div
+                  className="pointer-events-none absolute z-10 max-w-[220px] rounded-xl bg-navy-deep/95 px-3 py-2 text-xs shadow-lg ring-1 ring-white/10"
+                  style={{ left: hover.x, top: hover.y }}
                 >
-                  {d}
-                </span>
-              ))}
+                  <p className="font-semibold text-white">{hover.explored?.name ?? hover.name}</p>
+                  {hover.explored ? (
+                    <p className="mt-0.5 text-amber">
+                      {hover.explored.dishes.length} plat{hover.explored.dishes.length > 1 ? 's' : ''} goûté
+                      {hover.explored.dishes.length > 1 ? 's' : ''}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-white/50">Pas encore exploré</p>
+                  )}
+                </div>
+              )}
+
+              {/* Commandes de vue */}
+              <div className="absolute bottom-4 right-4 flex flex-col gap-1.5">
+                <ZoomButton label="Zoomer" onClick={() => setView((v) => ({ ...v, k: clampZoom(v.k * 1.4) }))}>
+                  <Plus className="h-4 w-4" />
+                </ZoomButton>
+                <ZoomButton label="Dézoomer" onClick={() => setView((v) => ({ ...v, k: clampZoom(v.k / 1.4) }))}>
+                  <Minus className="h-4 w-4" />
+                </ZoomButton>
+                <ZoomButton label="Recadrer" onClick={reset}>
+                  <RotateCcw className="h-4 w-4" />
+                </ZoomButton>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </div>
-    </div>
+
+            {/* Pays explorés */}
+            <aside className="min-h-0 overflow-y-auto border-t border-white/10 p-4 lg:border-l lg:border-t-0 lg:p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                Pays explorés
+              </p>
+              <ul className="space-y-1.5">
+                {EXPLORED_COUNTRIES.map((c) => {
+                  const on = selected?.code === c.code
+                  return (
+                    <li key={c.code}>
+                      <button
+                        onClick={() => focus(c)}
+                        aria-pressed={on}
+                        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                          on ? 'bg-amber text-navy' : 'text-white/80 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-base leading-none">{c.flag}</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
+                        <span className={`text-xs ${on ? 'text-navy/70' : 'text-white/45'}`}>
+                          {c.dishes.length}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {selected && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10"
+                >
+                  <p className="flex items-center gap-2 font-display text-base font-bold">
+                    <span className="text-lg leading-none">{selected.flag}</span> {selected.name}
+                  </p>
+                  <p className="mt-2 text-[11px] uppercase tracking-wide text-white/45">Plats découverts</p>
+                  <ul className="mt-1.5 space-y-1">
+                    {selected.dishes.map((d) => (
+                      <li key={d} className="rounded-lg bg-white/5 px-2.5 py-1.5 text-[13px] text-white/85">
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
+
+              <p className="mt-4 text-[11px] leading-relaxed text-white/40">
+                Un pays se colore dès qu&apos;un de ses plats entre dans votre frigo. Il reste{' '}
+                {TOTAL_COUNTRIES - explored} pays à goûter.
+              </p>
+            </aside>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
+function ZoomButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+    >
+      {children}
+    </button>
   )
 }

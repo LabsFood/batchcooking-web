@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -11,6 +12,7 @@ import {
   ChefHat,
   ShoppingBasket,
   ArrowRight,
+  ChevronDown,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
@@ -19,8 +21,11 @@ import ReserveButton from '@/components/shared/ReserveButton'
 
 /**
  * Navigation client — 6 entrées principales, conformément à l'architecture
- * cible (§ 4.2 du brief). Les sous-entrées ne s'affichent que lorsque leur
- * section est active, pour garder la barre lisible.
+ * cible (§ 4.2 du brief).
+ *
+ * Les sections à sous-entrées portent un chevron : on voit qu'il y a quelque
+ * chose dessous sans avoir à cliquer. La section active s'ouvre d'elle-même,
+ * les autres se déplient à la demande, sans quitter la page courante.
  */
 const NAV: {
   href: string
@@ -77,6 +82,8 @@ export default function DashboardSidebar() {
   const pathname = usePathname()
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
+  // Dépliage manuel : ce que l'utilisateur ouvre prime sur la section active.
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
 
   const handleLogout = () => {
     signOut()
@@ -132,19 +139,23 @@ export default function DashboardSidebar() {
               {NAV.map((item) => {
                 const { href, label, Icon, badge, children } = item
                 const active = sectionActive(pathname, item)
+                const expanded = children ? (opened[href] ?? active) : false
+                const panelId = `nav-${href.replace(/\W+/g, '-')}`
                 return (
                   <li key={href}>
-                    <Link
-                      href={href}
+                    <div
                       className={cn(
-                        'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
+                        'group relative flex items-center rounded-xl text-sm transition-colors',
                         active
                           ? 'bg-amber text-navy font-semibold shadow-[0_10px_24px_-12px_rgba(243,156,18,0.6)]'
                           : 'text-white/75 hover:text-white hover:bg-white/5',
                       )}
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2.4 : 2} />
-                      <span className="flex-1">{label}</span>
+                      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3">
+                        <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2.4 : 2} />
+                        <span className="flex-1 truncate">{label}</span>
+                      </Link>
+
                       {badge && (
                         <span
                           className={cn(
@@ -155,11 +166,35 @@ export default function DashboardSidebar() {
                           {badge}
                         </span>
                       )}
-                    </Link>
 
-                    {/* Sous-entrées : visibles uniquement sur la section active */}
-                    {active && children && (
-                      <ul className="mt-1 mb-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
+                      {children ? (
+                        <button
+                          type="button"
+                          onClick={() => setOpened((prev) => ({ ...prev, [href]: !expanded }))}
+                          aria-expanded={expanded}
+                          aria-controls={panelId}
+                          aria-label={`${expanded ? 'Masquer' : 'Afficher'} les pages de ${label}`}
+                          className={cn(
+                            'mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                            active ? 'hover:bg-navy/10' : 'hover:bg-white/10',
+                          )}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              'h-3.5 w-3.5 transition-transform duration-200',
+                              expanded && 'rotate-180',
+                            )}
+                            aria-hidden
+                          />
+                        </button>
+                      ) : (
+                        <span className="w-3" />
+                      )}
+                    </div>
+
+                    {/* Sous-entrées : dépliées sur la section active, ou à la demande */}
+                    {expanded && children && (
+                      <ul id={panelId} className="mt-1 mb-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
                         {children.map((c) => {
                           const on = pathname === c.href
                           return (
