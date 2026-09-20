@@ -76,6 +76,22 @@ export default function MenuClient() {
     <div className="page-transition min-h-screen bg-cream pt-24">
       {/* ── En-tête ──────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-navy py-20 text-white lg:py-24">
+        {/* Image de fond : elle porte l'appétit, le voile porte la lisibilité. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1600&auto=format&fit=crop&q=80"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(105deg, rgba(31,45,61,0.96) 0%, rgba(44,62,80,0.9) 45%, rgba(44,62,80,0.62) 100%)',
+          }}
+        />
         <div className="container-xl relative">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-amber">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
@@ -428,7 +444,12 @@ function MenuDialog({ menu, onClose }: { menu: WeekMenu | null; onClose: () => v
                     </>
                   )}
                 </p>
-                <ReserveButton meals={selected.join(',')} className="text-xs" >
+                {/* La carte se referme : sinon le dialog Radix bloque la modale de connexion. */}
+                <ReserveButton
+                  meals={selected.join(',')}
+                  className="text-xs"
+                  onClick={onClose}
+                >
                   Réserver cette session
                   <ArrowRight className="icon-arrow h-3.5 w-3.5" />
                 </ReserveButton>
