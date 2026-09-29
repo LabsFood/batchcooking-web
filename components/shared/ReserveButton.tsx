@@ -12,12 +12,15 @@ type ReserveButtonProps = {
    * Optional explicit destination. By default the button routes through
    * the dashboard reservation flow:
    *  - logged out → opens login gate modal
-   *  - logged in, no meals       → /espace-client/menus?reserve=1
-   *  - logged in, meals provided → /espace-client/reservation?meals=…
+   *  - logged in, nothing chosen → /espace-client/reservation (chef list)
+   *  - logged in, a chef chosen  → /espace-client/reservation?chef=…
+   *  - logged in, dishes chosen  → /espace-client/reservation?meals=…&chef=…
    */
   href?: string
   /** Comma-separated list of meal ids already chosen (skips the menu step). */
   meals?: string
+  /** Chosen batch cooker: the reservation opens on his carte, not a blank list. */
+  chef?: string
   className?: string
   variant?: 'primary' | 'navy' | 'amber' | 'outline' | 'outline-light' | 'ghost'
   /** Render with no .btn class so a custom wrapper can style it. */
@@ -38,6 +41,7 @@ export default function ReserveButton({
   children,
   href,
   meals,
+  chef,
   className,
   variant = 'primary',
   asChild = false,
@@ -50,10 +54,14 @@ export default function ReserveButton({
   const resolveTarget = () => {
     if (href) return href
     if (meals && meals.length > 0) {
-      return `/espace-client/reservation?meals=${encodeURIComponent(meals)}`
+      const q = new URLSearchParams({ meals })
+      if (chef) q.set('chef', chef)
+      return `/espace-client/reservation?${q.toString()}`
     }
-    // No meals yet — direct user to menu selection first.
-    return '/espace-client/menus?reserve=1'
+    // A chef but no dish yet: his carte opens in the reservation flow.
+    if (chef) return `/espace-client/reservation?chef=${encodeURIComponent(chef)}`
+    // Nothing chosen — the reservation starts on the list of batch cookers.
+    return '/espace-client/reservation'
   }
 
   const handle = (e: React.MouseEvent) => {

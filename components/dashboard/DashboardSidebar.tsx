@@ -80,7 +80,7 @@ function sectionActive(pathname: string, item: (typeof NAV)[number]) {
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
-  const { user, roleLabel, signOut } = useAuth()
+  const { signOut } = useAuth()
   const router = useRouter()
   // Dépliage manuel : ce que l'utilisateur ouvre prime sur la section active.
   const [opened, setOpened] = useState<Record<string, boolean>>({})
@@ -90,47 +90,13 @@ export default function DashboardSidebar() {
     router.push('/')
   }
 
-  const initials = user?.name
-    ?.split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || 'GO'
-
   return (
     <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
-      <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.55)] relative">
-        {/* glow */}
-        {/* <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-amber/20 blur-3xl pointer-events-none" /> */}
-        {/* <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-mint/10 blur-3xl pointer-events-none" /> */}
-
-        <div className="relative flex flex-col h-full">
+      <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden">
+        <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="px-6 pt-6 pb-4">
+          <div className="px-6 pb-5 pt-6">
             <Logo variant="white" size="sm" />
-          </div>
-
-          {/* Profile card */}
-          <div className="mx-4 mb-4 rounded-2xl bg-white/[0.06] border border-white/10 p-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-full bg-amber text-navy font-bold text-sm flex items-center justify-center">
-                  {initials}
-                </div>
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-mint-deep border-2 border-navy" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate">{user?.name || 'Invité'}</p>
-                {roleLabel && (
-                  <span className="mt-0.5 inline-flex items-center rounded-full bg-amber/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-amber">
-                    {roleLabel}
-                  </span>
-                )}
-                <p className="text-[11px] text-white/55 truncate mt-0.5">
-                  {user?.email || (user?.username && `@${user.username}`) || 'Espace client'}
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Nav */}
@@ -147,8 +113,8 @@ export default function DashboardSidebar() {
                       className={cn(
                         'group relative flex items-center rounded-xl text-sm transition-colors',
                         active
-                          ? 'bg-amber text-navy font-semibold shadow-[0_10px_24px_-12px_rgba(243,156,18,0.6)]'
-                          : 'text-white/75 hover:text-white hover:bg-white/5',
+                          ? 'bg-amber font-semibold text-navy'
+                          : 'text-white/75 hover:bg-white/5 hover:text-white',
                       )}
                     >
                       <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3">
@@ -225,7 +191,7 @@ export default function DashboardSidebar() {
           <div className="p-4 space-y-2">
             <ReserveButton
               asChild
-              className="group flex items-center justify-between w-full bg-gradient-to-br from-amber to-amber-deep text-navy rounded-2xl px-4 py-3 font-semibold text-sm hover:shadow-[0_18px_36px_-12px_rgba(243,156,18,0.6)] transition-shadow"
+              className="group flex w-full items-center justify-between rounded-2xl bg-amber px-4 py-3 text-sm font-semibold text-navy transition-colors hover:bg-amber-deep"
             >
               <span className="flex items-center gap-2">
                 <ChefHat className="w-4 h-4" />

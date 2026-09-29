@@ -267,31 +267,103 @@ ses pièces et suivre son dossier.
 
 ### 5.1 File de revue
 
-`GET /admin/chef-applications?status=submitted&hasPendingDocuments=true&page=1`
+`GET /admin/chef-applications?page=1&limit=20`
+
+**Relévé en pré-production le 29/09/2026** — ce n'est plus une proposition, c'est
+ce que l'API renvoie :
 
 ```json
 {
-  "items": [
+  "data": [
     {
-      "id": "0b8c2f1e-9d64-4c1b-8a4e-2f0d3c5a7b11",
-      "reference": "APP-2026-0042",
-      "name": "Marie Dupont",
-      "city": "Lyon",
+      "id": "a5fa425d-be1a-4720-943b-926e09721c19",
+      "reference": "APP-2026-0001",
+      "name": "Thomas Moreau",
+      "city": "Paris",
       "status": "submitted",
-      "dossierStatus": "reviewing",
-      "pendingDocuments": 2,
-      "submittedAt": "2026-09-20T09:12:03.412Z",
-      "waitingSinceHours": 19
+      "reactivatedPendingReview": false,
+      "pendingDocuments": 0,
+      "submittedAt": "2026-09-29T12:34:10.306Z",
+      "waitingSinceHours": 0
     }
   ],
-  "page": 1, "perPage": 25, "total": 6
+  "meta": {
+    "page": 1, "limit": 20, "total": 1, "totalPages": 1,
+    "hasNextPage": false, "hasPreviousPage": false
+  }
 }
 ```
+
+L'enveloppe est `{ data, meta }`, comme les autres listes de l'admin — pas
+`{ items, page, perPage, total }`. `dossierStatus` n'est **pas** dans la ligne
+de liste : il n'apparaît que sur le détail.
+
+### 5.2 Détail d'un dossier
+
+`GET /admin/chef-applications/{id}`, relevé sur le même dossier :
+
+```json
+{
+  "id": "a5fa425d-be1a-4720-943b-926e09721c19",
+  "reference": "APP-2026-0001",
+  "status": "submitted",
+  "identity": { "firstName": "Thomas", "lastName": "Moreau", "email": "…", "phone": "…" },
+  "address": { "street": "…", "line2": "…", "postcode": "75011", "city": "Paris", "country": "FR" },
+  "interventionZones": [ { "regionCode": "11", "regionLabel": "Île-de-France", "scope": "region", "cities": […] } ],
+  "workAuthorization": { "status": "eu-citizen", "details": "" },
+  "company": { "legalForm": "micro", "siret": "73282932000074", "sap": { "path": "type-a", "declarationNumber": "SAP732829320" } },
+  "consent": { "privacyPolicy": true, "terms": true, "acceptedAt": "2026-09-29T10:00:00.000Z" },
+  "submittedAt": "2026-09-29T12:34:10.306Z",
+  "decidedAt": null,
+  "chefProfileId": "71d1e734-9099-47f9-9683-e1ba35b7014f",
+  "dossierStatus": "draft",
+  "canApprove": false,
+  "documents": [
+    {
+      "type": "identity",
+      "label": "Pièce d'identité",
+      "family": "blocking",
+      "required": true,
+      "status": "missing",
+      "version": 0,
+      "fileName": null, "sizeBytes": null,
+      "submittedAt": null, "expiresOn": null,
+      "reason": null, "reasonCode": null
+    }
+  ]
+}
+```
+
+Quatre choses à retenir, parce qu'elles changent le front :
+
+- **Le détail ne reprend pas les champs calculés de la liste.** Ni `name`, ni
+  `city`, ni `pendingDocuments`, ni `waitingSinceHours`. Le nom se recompose
+  depuis `identity`, la ville depuis `address`. Un écran qui lit `name` sur le
+  détail plante.
+- **`canApprove` est décidé par l'API.** Le front n'a pas à recalculer la règle
+  des pièces bloquantes pour savoir s'il peut proposer l'approbation.
+- **`documents[].label` et `documents[].family` sont fournis.** La famille vaut
+  `blocking`, `conditional` ou `recommended` : c'est le référentiel demandé par
+  le client (Obligatoire / Selon la situation / Facultatif). Le libellé vient de
+  l'API et fait foi sur toute table locale. `version: 0` = jamais déposée.
+- **`chefProfileId` existe dès la soumission.** Le profil batch cooker est créé
+  avec la candidature, avant toute validation — ce qui confirme par la donnée le
+  point d'arbitrage « le compte est créé à la soumission » (cf. REVIEW-01 § 2.1).
+
+Deux points à confirmer avec le backend :
+
+1. **`pendingDocuments` vaut 0** alors que les deux pièces bloquantes sont
+   `missing`. Il compte donc les pièces **en attente de décision**, pas les
+   pièces manquantes. Le filtre `hasPendingDocuments` ne permet donc pas de
+   retrouver les dossiers incomplets — c'est `dossierStatus` qui le dit.
+2. **La liste des valeurs de `dossierStatus`.** On a observé `draft`. Il nous
+   faut l'énumération complète et la règle de dérivation, sans quoi le front
+   affichera le code brut pour toute valeur non prévue.
 
 `waitingSinceHours` sert l'engagement « réponse sous 48 h ouvrées » affiché au
 candidat : c'est la donnée qui permet de trier la file par urgence.
 
-### 5.2 Décision sur une pièce
+### 5.3 Décision sur une pièce
 
 `PATCH /admin/chef-applications/:id/documents/:type` — `AdminGuard`.
 
@@ -337,7 +409,7 @@ décision peut faire basculer l'ensemble.
 Un refus déclenche un email au candidat : la pièce concernée, le motif, le lien
 pour redéposer. C'est le seul texte écrit par un humain qui traverse l'API.
 
-### 5.3 États
+### 5.4 États
 
 **Pièce** — `missing → submitted → reviewing → valid | rejected`, puis
 `valid → expiring` (J-60) `→ expired`. Une pièce refusée revient à `submitted`
@@ -359,7 +431,7 @@ Le front applique déjà cette dérivation (`lib/chef/states.ts`,
 `deriveDossierStatus`) : c'est la même règle, à porter côté serveur qui devient
 la source de vérité.
 
-### 5.4 Demander un complément sans refuser
+### 5.5 Demander un complément sans refuser
 
 `POST /admin/chef-applications/:id/request-changes`
 

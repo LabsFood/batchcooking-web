@@ -19,16 +19,25 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { WEEKLY_MEALS } from '@/lib/mock-data'
 import { useAuth } from '@/lib/auth-context'
+import {
+  MenuCard,
+  MenuDialog,
+  MenuFilterBar,
+  NoMenus,
+  useMenuFilters,
+} from '@/components/menu/ChefMenuBrowser'
+import { WEEK_MENUS, dishesOf, weekLabel, type WeekMenu } from '@/lib/week-menus'
 
 const STEPS = [
-  { id: 'plats',     label: 'Plats',     Icon: ChefHat },
+  { id: 'chef',      label: 'Chef',      Icon: ChefHat },
   { id: 'infos',     label: 'Infos',     Icon: CalendarRange },
   { id: 'paiement',  label: 'Paiement',  Icon: CreditCard },
   { id: 'succes',    label: 'Confirmé',  Icon: Check },
 ] as const
 type StepId = typeof STEPS[number]['id']
+
+const MIN_DISHES = 3
 
 const SLOTS = ['9h00 – 11h00', '10h30 – 12h30', '14h00 – 16h00', '17h00 – 19h00']
 
@@ -39,8 +48,19 @@ function ReservationFlow() {
   const params = useSearchParams()
   const { user } = useAuth()
 
+  // La page publique et la carte d'un chef arrivent ici avec leur choix deja
+  // fait : on reprend au bon endroit plutot que de le redemander.
   const initialMeals = (params.get('meals') || '').split(',').filter(Boolean)
-  const [step, setStep] = useState<StepId>(initialMeals.length ? 'infos' : 'plats')
+  const initialChef = WEEK_MENUS.find((m) => m.chefId === params.get('chef')) ?? null
+
+  const [chef, setChef] = useState<WeekMenu | null>(initialChef)
+  const [step, setStep] = useState<StepId>(
+    initialChef && initialMeals.length ? 'infos' : 'chef',
+  )
+
+  const filters = useMenuFilters()
+  const [openMenu, setOpenMenu] = useState<WeekMenu | null>(null)
+  const [today] = useState(() => new Date())
 
   // Step state
   const [selectedMeals, setSelectedMeals] = useState<string[]>(initialMeals)
@@ -59,25 +79,43 @@ function ReservationFlow() {
   const stepIndex = STEPS.findIndex((s) => s.id === step)
 
   const meals = useMemo(
-    () => WEEKLY_MEALS.filter((m) => selectedMeals.includes(m.id)),
-    [selectedMeals],
+    () => (chef ? dishesOf(chef).filter((m) => selectedMeals.includes(m.id)) : []),
+    [chef, selectedMeals],
   )
+
+  // Le forfait est celui du chef : afficher un tarif de plateforme quand c'est
+  // lui qui fixe son prix serait un mensonge sur le recapitulatif.
+  const basePrice = chef?.sessionFrom ?? BASE_PRICE
+  const shoppingFee = chef?.shoppingFee ?? 25
+  const shoppingOffered = chef?.shoppingIncluded ?? true
   const extraPersons = Math.max(0, persons - 3)
-  const total = BASE_PRICE + extraMeals * 8 + extraPersons * 15 + (withShopping ? 25 : 0)
+  const total =
+    basePrice + extraMeals * 8 + extraPersons * 15 + (withShopping ? shoppingFee : 0)
   const afterTax = Math.round(total / 2)
 
-  const toggleMeal = (id: string) =>
-    setSelectedMeals((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : p.length < 7 ? [...p, id] : p,
-    )
+  /** Ouvrir une carte. Changer de chef repart de zéro : les plats cochés
+      appartiennent à la carte précédente, pas à celle-ci. */
+  const openCarte = (menu: WeekMenu) => {
+    if (chef && menu.chefId !== chef.chefId) setSelectedMeals([])
+    setOpenMenu(menu)
+  }
+
+  /** Retenir un chef depuis sa carte, avec les plats cochés dans la modale. */
+  const chooseChef = (menu: WeekMenu, dishes: string[]) => {
+    setChef(menu)
+    setSelectedMeals(dishes)
+    setWithShopping(menu.shoppingIncluded && menu.shoppingFee === 0)
+    setOpenMenu(null)
+    setStep('infos')
+  }
 
   const next = () => {
-    const order: StepId[] = ['plats', 'infos', 'paiement', 'succes']
+    const order: StepId[] = ['chef', 'infos', 'paiement', 'succes']
     const i = order.indexOf(step)
     if (i < order.length - 1) setStep(order[i + 1])
   }
   const prev = () => {
-    const order: StepId[] = ['plats', 'infos', 'paiement', 'succes']
+    const order: StepId[] = ['chef', 'infos', 'paiement', 'succes']
     const i = order.indexOf(step)
     if (i > 0) setStep(order[i - 1])
   }
@@ -139,69 +177,70 @@ function ReservationFlow() {
       </div>
 
       <AnimatePresence mode="wait">
-        {step === 'plats' && (
+        {step === 'chef' && (
           <StepCard
-            key="plats"
-            title="Choisis tes plats — entre 3 et 7"
-            subtitle="Le menu est renouvelé chaque semaine. Le minimum pour passer à la liste de courses est de 3 plats."
+            key="chef"
+            title="Avec quel batch cooker ?"
+            subtitle={`${weekLabel(today)} — chaque chef compose sa carte. Ouvrez celle qui vous parle, puis choisissez vos plats dedans.`}
           >
-            {selectedMeals.length < 3 && (
-              <div className="rounded-2xl border border-amber/40 bg-amber-soft/40 p-4 mb-4 text-sm text-navy">
-                Sélectionne au moins <strong>3 plats</strong> pour passer à la liste de
-                courses. Tu en as actuellement <strong>{selectedMeals.length}</strong>.
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {WEEKLY_MEALS.map((m) => {
-                const on = selectedMeals.includes(m.id)
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => toggleMeal(m.id)}
-                    className={`text-left rounded-2xl overflow-hidden border-2 transition-all ${
-                      on ? 'border-amber shadow-[0_18px_36px_-16px_rgba(243,156,18,0.5)]' : 'border-[rgba(31,42,55,0.06)] hover:border-amber/40'
-                    } bg-paper`}
-                  >
-                    <div className="relative aspect-[4/3]">
-                      <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
-                      <span
-                        className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center ${
-                          on ? 'bg-amber text-navy' : 'bg-paper/85 text-navy'
-                        }`}
-                      >
-                        {on ? <Check className="w-4 h-4" strokeWidth={3} /> : '+'}
-                      </span>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-sm font-semibold text-navy line-clamp-1">{m.name}</p>
-                      <p className="text-[11px] text-ink-soft mt-0.5 line-clamp-2">{m.description}</p>
-                    </div>
-                  </button>
-                )
-              })}
+            <MenuFilterBar filters={filters} />
+
+            <p className="mt-5 text-sm text-ink-mid" aria-live="polite">
+              {filters.menus.length === 0
+                ? 'Aucune carte ne correspond à votre recherche.'
+                : `${filters.menus.length} chef${filters.menus.length > 1 ? 's' : ''} disponible${filters.menus.length > 1 ? 's' : ''} cette semaine`}
+            </p>
+
+            <div className="mt-4">
+              {filters.menus.length === 0 ? (
+                <NoMenus onReset={filters.reset}>
+                  <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
+                    Faire une demande sur mesure
+                    <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+                  </Link>
+                </NoMenus>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                  {filters.menus.map((menu, i) => (
+                    <MenuCard
+                      key={menu.id}
+                      menu={menu}
+                      index={i}
+                      onOpen={() => openCarte(menu)}
+                      openLabel="Voir sa carte"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <Link href="/espace-client" className="text-sm text-ink-mid hover:text-navy inline-flex items-center gap-1.5">
-                <ArrowLeft className="w-4 h-4" /> Retour au dashboard
-              </Link>
-              <button
-                onClick={next}
-                disabled={selectedMeals.length < 3}
-                className="btn btn-primary disabled:opacity-50"
+              <Link
+                href="/espace-client"
+                className="inline-flex items-center gap-1.5 text-sm text-ink-mid hover:text-navy"
               >
-                {selectedMeals.length < 3
-                  ? `Encore ${3 - selectedMeals.length} plat${3 - selectedMeals.length > 1 ? 's' : ''} minimum`
-                  : `Continuer (${selectedMeals.length}/7)`}
-                <ArrowRight className="w-4 h-4 icon-arrow" />
-              </button>
+                <ArrowLeft className="h-4 w-4" /> Retour au dashboard
+              </Link>
+              {chef && (
+                <button onClick={() => setStep('infos')} className="btn btn-primary">
+                  Continuer avec {chef.chefName.split(' ')[0]}
+                  <ArrowRight className="h-4 w-4 icon-arrow" />
+                </button>
+              )}
             </div>
           </StepCard>
         )}
 
         {step === 'infos' && (
-          <StepCard key="infos" title="Quand & où on cuisine ?" subtitle="Date, créneau, adresse — ton chef gère le reste.">
+          <StepCard
+            key="infos"
+            title="Quand et où on cuisine ?"
+            subtitle={
+              chef
+                ? `Date, créneau, adresse — ${chef.chefName} s'occupe du reste.`
+                : 'Date, créneau, adresse — votre chef s\u2019occupe du reste.'
+            }
+          >
             <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -239,7 +278,8 @@ function ReservationFlow() {
 
                 <button
                   type="button"
-                  onClick={() => setWithShopping((v) => !v)}
+                  onClick={() => shoppingOffered && setWithShopping((v) => !v)}
+                  disabled={!shoppingOffered}
                   className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${
                     withShopping ? 'bg-amber-soft border border-amber/40' : 'bg-paper border border-[rgba(31,42,55,0.08)]'
                   }`}
@@ -251,8 +291,18 @@ function ReservationFlow() {
                       <ShoppingBasket className="w-4 h-4" />
                     </span>
                     <div>
-                      <p className="text-sm font-semibold text-navy">Lab&apos;s Food fait les courses</p>
-                      <p className="text-[11px] text-ink-soft">+25€ — On livre les ingrédients avant la session</p>
+                      <p className="text-sm font-semibold text-navy">
+                        {shoppingOffered
+                          ? `${chef ? chef.chefName.split(' ')[0] : 'Votre chef'} fait les courses`
+                          : 'Courses à votre charge'}
+                      </p>
+                      <p className="text-[11px] text-ink-soft">
+                        {shoppingOffered
+                          ? shoppingFee > 0
+                            ? `+${shoppingFee}€ — les ingrédients sont là avant la session`
+                            : 'Inclus dans son forfait'
+                          : 'Ce batch cooker ne propose pas les courses'}
+                      </p>
                     </div>
                   </div>
                   <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
@@ -274,27 +324,41 @@ function ReservationFlow() {
               </div>
 
               <SummaryCard
+                chef={chef}
                 meals={meals}
                 date={date}
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
                 withShopping={withShopping}
+                shoppingFee={shoppingFee}
+                basePrice={basePrice}
                 total={total}
                 afterTax={afterTax}
               />
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <button onClick={prev} className="text-sm text-ink-mid hover:text-navy inline-flex items-center gap-1.5">
+              <button
+                onClick={() => (chef ? openCarte(chef) : setStep('chef'))}
+                className="text-sm text-ink-mid hover:text-navy inline-flex items-center gap-1.5"
+              >
                 <ArrowLeft className="w-4 h-4" /> Modifier les plats
               </button>
               <button
                 onClick={next}
-                disabled={!date || !address}
+                disabled={!date || !address || selectedMeals.length < MIN_DISHES}
                 className="btn btn-primary disabled:opacity-50"
               >
-                Aller au paiement
+                {/* Un bouton gris sans raison est une impasse : il dit ce qui
+                    manque, et « Modifier les plats » rouvre la carte du chef. */}
+                {selectedMeals.length < MIN_DISHES
+                  ? `Encore ${MIN_DISHES - selectedMeals.length} plat${MIN_DISHES - selectedMeals.length > 1 ? 's' : ''} minimum`
+                  : !date
+                    ? 'Choisissez une date'
+                    : !address
+                      ? 'Indiquez une adresse'
+                      : 'Aller au paiement'}
                 <ArrowRight className="w-4 h-4 icon-arrow" />
               </button>
             </div>
@@ -339,12 +403,15 @@ function ReservationFlow() {
               </form>
 
               <SummaryCard
+                chef={chef}
                 meals={meals}
                 date={date}
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
                 withShopping={withShopping}
+                shoppingFee={shoppingFee}
+                basePrice={basePrice}
                 total={total}
                 afterTax={afterTax}
                 address={address}
@@ -385,6 +452,28 @@ function ReservationFlow() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* La carte d'un chef : meme composant que sur le site public. Ici elle
+          enchaine sur la suite de la reservation au lieu d'ouvrir la connexion. */}
+      <MenuDialog
+        menu={openMenu}
+        onClose={() => setOpenMenu(null)}
+        selected={selectedMeals}
+        onSelectedChange={setSelectedMeals}
+        renderAction={({ menu, selected }) => (
+          <button
+            type="button"
+            onClick={() => chooseChef(menu, selected)}
+            disabled={selected.length < MIN_DISHES}
+            className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            {selected.length < MIN_DISHES
+              ? `Encore ${MIN_DISHES - selected.length} plat${MIN_DISHES - selected.length > 1 ? 's' : ''} minimum`
+              : `Continuer avec ${menu.chefName.split(' ')[0]}`}
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+          </button>
+        )}
+      />
     </div>
   )
 }
@@ -470,22 +559,28 @@ function Stepper({
 }
 
 function SummaryCard({
+  chef,
   meals,
   date,
   slot,
   persons,
   extraMeals,
   withShopping,
+  shoppingFee,
+  basePrice,
   total,
   afterTax,
   address,
 }: {
+  chef: WeekMenu | null
   meals: { id: string; name: string }[]
   date: string
   slot: string
   persons: number
   extraMeals: number
   withShopping: boolean
+  shoppingFee: number
+  basePrice: number
   total: number
   afterTax: number
   address?: string
@@ -503,18 +598,23 @@ function SummaryCard({
         </p>
 
         <ul className="space-y-2 text-sm">
-          <Line Icon={ChefHat} label={`${meals.length} plat${meals.length > 1 ? 's' : ''}`} sub={meals.map((m) => m.name).join(', ') || '—'} />
+          {chef && <Line Icon={ChefHat} label={chef.chefName} sub={`${chef.title} · ${chef.city}`} />}
+          <Line Icon={Sparkles} label={`${meals.length} plat${meals.length > 1 ? 's' : ''}`} sub={meals.map((m) => m.name).join(', ') || '—'} />
           <Line Icon={CalendarRange} label={dateLabel} sub={slot} />
           <Line Icon={Users} label={`${persons} personne${persons > 1 ? 's' : ''}`} sub={extraMeals ? `+${extraMeals} plats supp.` : 'Forfait standard'} />
           {address && <Line Icon={MapPin} label="Adresse" sub={address} />}
-          <Line Icon={ShoppingBasket} label="Courses" sub={withShopping ? 'Gérées par Lab’s Food' : 'À votre charge'} />
+          <Line
+            Icon={ShoppingBasket}
+            label="Courses"
+            sub={withShopping ? `Faites par ${chef ? chef.chefName.split(' ')[0] : 'le chef'}` : 'À votre charge'}
+          />
         </ul>
 
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
-          <Row label="Forfait base" value="50€" />
+          <Row label="Forfait du chef" value={`${basePrice}€`} />
           {extraMeals > 0 && <Row label={`+ ${extraMeals} plats`} value={`${extraMeals * 8}€`} />}
           {persons > 3 && <Row label={`+ ${persons - 3} pers.`} value={`${(persons - 3) * 15}€`} />}
-          {withShopping && <Row label="Courses" value="25€" />}
+          {withShopping && shoppingFee > 0 && <Row label="Courses" value={`${shoppingFee}€`} />}
           <div className="pt-3 border-t border-white/10 flex items-baseline justify-between">
             <span className="text-[10px] uppercase tracking-[0.16em] text-white/55">Total TTC</span>
             <span className="font-display text-3xl font-bold">{total} €</span>
