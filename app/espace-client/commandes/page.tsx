@@ -3,15 +3,16 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, CalendarRange, Filter } from 'lucide-react'
+import { ArrowRight, BadgeEuro, CalendarRange, Filter, ShieldCheck } from 'lucide-react'
 import {
   DASHBOARD_ORDERS,
   ORDER_STATUS_LABEL,
   type OrderStatus,
 } from '@/lib/dashboard-mock'
 
-const FILTERS: { id: 'all' | OrderStatus; label: string }[] = [
+const FILTERS: { id: 'all' | 'to-settle' | OrderStatus; label: string }[] = [
   { id: 'all', label: 'Toutes' },
+  { id: 'to-settle', label: 'À régler' },
   { id: 'pending', label: 'En attente' },
   { id: 'confirmed', label: 'À venir' },
   { id: 'delivered', label: 'Livrées' },
@@ -35,9 +36,15 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 }
 
 export default function OrdersListPage() {
-  const [filter, setFilter] = useState<'all' | OrderStatus>('all')
+  const [filter, setFilter] = useState<'all' | 'to-settle' | OrderStatus>('all')
 
-  const orders = DASHBOARD_ORDERS.filter((o) => (filter === 'all' ? true : o.status === filter))
+  const orders = DASHBOARD_ORDERS.filter((o) => {
+    if (filter === 'all') return true
+    if (filter === 'to-settle') return o.payment.status === 'due' || o.payment.status === 'failed'
+    return o.status === filter
+  })
+
+  const toSettle = DASHBOARD_ORDERS.filter((o) => o.payment.status === 'due').length
 
   return (
     <div className="space-y-6">
@@ -55,6 +62,13 @@ export default function OrdersListPage() {
               }`}
             >
               {f.label}
+              {f.id === 'to-settle' && toSettle > 0 && (
+                <span
+                  className={`ml-1.5 tabular-nums ${filter === f.id ? 'text-amber' : 'text-terra'}`}
+                >
+                  {toSettle}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -82,11 +96,23 @@ export default function OrdersListPage() {
                   Formule {o.formula}
                 </p>
               </div>
-              <span
-                className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${STATUS_COLOR[o.status]}`}
-              >
-                {ORDER_STATUS_LABEL[o.status]}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <span
+                  className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${STATUS_COLOR[o.status]}`}
+                >
+                  {ORDER_STATUS_LABEL[o.status]}
+                </span>
+                {o.payment.status === 'due' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] font-semibold text-terra whitespace-nowrap">
+                    <BadgeEuro className="h-3 w-3" /> À régler
+                  </span>
+                )}
+                {o.payment.status === 'paid' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] font-semibold text-mint-ink whitespace-nowrap">
+                    <ShieldCheck className="h-3 w-3" /> Réglée
+                  </span>
+                )}
+              </div>
             </div>
 
             <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-4 text-xs text-ink-mid">
@@ -102,13 +128,28 @@ export default function OrdersListPage() {
                 <p className="font-display text-2xl font-bold text-navy">{o.amountTTC} €</p>
                 <p className="text-[11px] text-amber font-semibold">soit {o.amountAfterTax} € après crédit d&apos;impôt</p>
               </div>
-              <Link
-                href={`/espace-client/commandes/${o.id}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-navy text-amber font-semibold text-xs hover:bg-navy-deep transition-colors"
-              >
-                Détail
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/espace-client/commandes/${o.id}`}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-semibold text-xs transition-colors ${
+                    o.payment.status === 'due'
+                      ? 'border border-[rgba(31,42,55,0.14)] text-navy hover:border-navy'
+                      : 'bg-navy text-amber hover:bg-navy-deep'
+                  }`}
+                >
+                  Détail
+                  {o.payment.status !== 'due' && <ArrowRight className="w-3.5 h-3.5" />}
+                </Link>
+                {o.payment.status === 'due' && (
+                  <Link
+                    href={`/espace-client/commandes/${o.id}/paiement`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-navy text-amber font-semibold text-xs hover:bg-navy-deep transition-colors"
+                  >
+                    Régler
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
+              </div>
             </div>
           </motion.div>
         ))}

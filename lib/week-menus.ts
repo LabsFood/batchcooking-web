@@ -41,6 +41,25 @@ export interface WeekMenu {
   /** Créneaux encore libres cette semaine. */
   spotsLeft: number
   newcomer?: boolean
+
+  /* Fiche du chef — ce que le client veut savoir avant de confier sa cuisine. */
+
+  /** Année de la première session sur Lab's Food. */
+  since: number
+  /** Cuisines et façons de faire, trois au maximum pour rester lisible. */
+  specialties: string[]
+  /** Rayon d'intervention depuis sa ville, en kilomètres. */
+  radiusKm: number
+  /** Délai de réponse moyen à un message, en heures. */
+  responseHours: number
+  /** Moyens de paiement acceptés : décide de ce que le client pourra choisir. */
+  acceptedPayments: ('card' | 'urssaf' | 'cesu')[]
+  /** Frais de courses quand le chef les fait, en euros. 0 = inclus. */
+  shoppingFee: number
+  /** Ce que le chef dit de sa façon de travailler, à la première personne. */
+  signature: string
+  /** Un ou deux avis, tels qu'ils ont été écrits. */
+  reviews: { author: string; rating: number; text: string; monthsAgo: number }[]
 }
 
 export const WEEK_MENUS: WeekMenu[] = [
@@ -64,6 +83,28 @@ export const WEEK_MENUS: WeekMenu[] = [
     languages: ['Français', 'Anglais'],
     badges: ['Fondatrice', 'HACCP', 'Assurée'],
     spotsLeft: 2,
+    since: 2024,
+    specialties: ['Méditerranéen', 'Afrique de l’Ouest', 'Batch familial'],
+    radiusKm: 30,
+    responseHours: 2,
+    acceptedPayments: ['card', 'urssaf', 'cesu'],
+    shoppingFee: 25,
+    signature:
+      'Je cuisine ce que vous mangez déjà, en mieux. Dites-moi ce que vos enfants laissent dans l’assiette et j’arrête de le faire.',
+    reviews: [
+      {
+        author: 'Claire M.',
+        rating: 5,
+        text: 'Quatre semaines de suite, jamais deux fois le même plat, et ma cuisine plus propre qu’avant son arrivée.',
+        monthsAgo: 1,
+      },
+      {
+        author: 'Yann D.',
+        rating: 5,
+        text: 'Le tajine se réchauffe encore mieux le troisième jour. On a arrêté les livraisons du soir.',
+        monthsAgo: 3,
+      },
+    ],
   },
   {
     id: 'wm_naima',
@@ -84,6 +125,22 @@ export const WEEK_MENUS: WeekMenu[] = [
     languages: ['Français', 'Arabe', 'Anglais'],
     badges: ['HACCP', 'Assurée'],
     spotsLeft: 4,
+    since: 2025,
+    specialties: ['Végétarien', 'Méditerranéen', 'Sans épices fortes'],
+    radiusKm: 20,
+    responseHours: 4,
+    acceptedPayments: ['card', 'urssaf'],
+    shoppingFee: 0,
+    signature:
+      'Je fais mon marché à Forville le matin même. Si les artichauts ne sont pas beaux, je change le menu et je vous le dis.',
+    reviews: [
+      {
+        author: 'Sophie L.',
+        rating: 5,
+        text: 'Mes deux garçons mangent des légumes sans négocier. Je ne sais pas comment elle fait.',
+        monthsAgo: 2,
+      },
+    ],
   },
   {
     id: 'wm_thomas',
@@ -104,6 +161,22 @@ export const WEEK_MENUS: WeekMenu[] = [
     languages: ['Français'],
     badges: ['Assuré', 'Déclaré DDPP'],
     spotsLeft: 1,
+    since: 2025,
+    specialties: ['Bistrot français', 'Mijotés', 'Sauces'],
+    radiusKm: 15,
+    responseHours: 6,
+    acceptedPayments: ['card'],
+    shoppingFee: 0,
+    signature:
+      'Un bœuf bourguignon demande trois heures. Je les prends chez vous, et vous en avez pour quatre jours.',
+    reviews: [
+      {
+        author: 'Marc T.',
+        rating: 5,
+        text: 'Il est venu avec ses couteaux et son thermomètre. Du travail de cuisine, pas de la préparation de repas.',
+        monthsAgo: 2,
+      },
+    ],
   },
   {
     id: 'wm_elise',
@@ -125,6 +198,22 @@ export const WEEK_MENUS: WeekMenu[] = [
     badges: ['HACCP'],
     spotsLeft: 5,
     newcomer: true,
+    since: 2026,
+    specialties: ['Asie du Sud-Est', 'Sans gluten', 'Poissons'],
+    radiusKm: 25,
+    responseHours: 1,
+    acceptedPayments: ['card', 'cesu'],
+    shoppingFee: 18,
+    signature:
+      'Toute ma carte est sans gluten, pas seulement adaptée : je n’en fais pas entrer chez vous. Les bouillons infusent six heures.',
+    reviews: [
+      {
+        author: 'Hélène R.',
+        rating: 5,
+        text: 'Coeliaque depuis dix ans. Première fois que je laisse quelqu’un cuisiner chez moi sans surveiller.',
+        monthsAgo: 1,
+      },
+    ],
   },
 ]
 

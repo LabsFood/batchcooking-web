@@ -5,12 +5,16 @@ import { motion } from 'framer-motion'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   ArrowRight,
+  CalendarCheck,
   Check,
   ChefHat,
+  Clock,
+  CreditCard,
   Languages,
   MapPin,
   Plus,
   Search,
+  ShieldCheck,
   ShoppingBasket,
   Sparkles,
   Star,
@@ -357,6 +361,12 @@ function MenuCard({ menu, index, onOpen }: { menu: WeekMenu; index: number; onOp
   )
 }
 
+const PAYMENT_LABEL: Record<'card' | 'urssaf' | 'cesu', string> = {
+  card: 'Carte bancaire',
+  urssaf: 'Avance immédiate',
+  cesu: 'CESU préfinancé',
+}
+
 // ── Détail d'un menu ────────────────────────────────────────────────────────
 
 function MenuDialog({ menu, onClose }: { menu: WeekMenu | null; onClose: () => void }) {
@@ -411,26 +421,37 @@ function MenuDialog({ menu, onClose }: { menu: WeekMenu | null; onClose: () => v
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7">
-                <p className="mb-5 max-w-[62ch] text-sm leading-relaxed text-ink-mid">{menu.pitch}</p>
+                <div className="grid grid-cols-1 gap-7 lg:grid-cols-[19rem_1fr] lg:gap-9">
+                  <ChefPanel menu={menu} />
 
-                <p className="mb-3 text-sm font-semibold text-navy">
-                  Choisissez vos plats
-                  <span className="ml-2 font-normal text-ink-soft">
-                    {selected.length} / {MAX_DISHES} selon votre formule
-                  </span>
-                </p>
+                  <div>
+                    <p className="mb-1 font-display text-xl font-bold leading-tight text-navy">
+                      Sa carte de la semaine
+                    </p>
+                    <p className="mb-5 max-w-[62ch] text-sm leading-relaxed text-ink-mid">
+                      {menu.pitch}
+                    </p>
 
-                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {dishes.map((dish) => (
-                    <DishRow
-                      key={dish.id}
-                      dish={dish}
-                      selected={selected.includes(dish.id)}
-                      disabled={full && !selected.includes(dish.id)}
-                      onToggle={() => toggle(dish.id)}
-                    />
-                  ))}
-                </ul>
+                    <p className="mb-3 text-sm font-semibold text-navy">
+                      Choisissez vos plats
+                      <span className="ml-2 font-normal text-ink-soft">
+                        {selected.length} / {MAX_DISHES} selon votre formule
+                      </span>
+                    </p>
+
+                    <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                      {dishes.map((dish) => (
+                        <DishRow
+                          key={dish.id}
+                          dish={dish}
+                          selected={selected.includes(dish.id)}
+                          disabled={full && !selected.includes(dish.id)}
+                          onToggle={() => toggle(dish.id)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">
@@ -459,6 +480,115 @@ function MenuDialog({ menu, onClose }: { menu: WeekMenu | null; onClose: () => v
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  )
+}
+
+/**
+ * Fiche du batch cooker. Un seul panneau, séparé par des filets : imbriquer des
+ * cartes dans une carte rendrait la lecture plus lourde, pas plus riche.
+ */
+function ChefPanel({ menu }: { menu: WeekMenu }) {
+  const facts: { icon: typeof MapPin; label: string; value: string }[] = [
+    { icon: MapPin, label: 'Se déplace', value: `${menu.city} et ${menu.radiusKm} km autour` },
+    {
+      icon: ShoppingBasket,
+      label: 'Courses',
+      value: menu.shoppingIncluded
+        ? menu.shoppingFee > 0
+          ? `Faites pour vous · ${menu.shoppingFee} €`
+          : 'Incluses dans le tarif'
+        : 'À votre charge',
+    },
+    {
+      icon: CreditCard,
+      label: 'Paiement',
+      value: menu.acceptedPayments.map((m) => PAYMENT_LABEL[m]).join(' · '),
+    },
+    {
+      icon: Clock,
+      label: 'Répond en',
+      value: menu.responseHours <= 1 ? 'moins d’une heure' : `${menu.responseHours} h en moyenne`,
+    },
+    {
+      icon: CalendarCheck,
+      label: 'Cette semaine',
+      value: `${menu.spotsLeft} créneau${menu.spotsLeft > 1 ? 'x' : ''} libre${menu.spotsLeft > 1 ? 's' : ''}`,
+    },
+  ]
+
+  return (
+    <div className="rounded-3xl bg-paper p-5 lg:sticky lg:top-0">
+      <p className="font-display text-xl font-bold leading-tight text-navy">{menu.chefName}</p>
+      <p className="mt-1 text-[13px] text-ink-mid">
+        Batch cooker depuis {menu.since} · {menu.sessionsDone} sessions
+        {menu.newcomer && <span className="text-terra"> · nouveau sur Lab’s Food</span>}
+      </p>
+
+      <p className="mt-3 flex items-center gap-1.5 text-sm">
+        <Star className="h-4 w-4 fill-amber text-amber" aria-hidden />
+        <span className="font-semibold tabular-nums text-navy">{menu.rating}/5</span>
+        <span className="text-ink-soft">({menu.reviewCount} avis)</span>
+      </p>
+
+      <blockquote className="mt-4 font-display text-[15px] font-semibold leading-relaxed text-navy">
+        <span aria-hidden className="text-terra">
+          «{' '}
+        </span>
+        {menu.signature}
+        <span aria-hidden className="text-terra"> »</span>
+      </blockquote>
+
+      <dl className="mt-5 space-y-2.5 border-t border-[rgba(31,42,55,0.08)] pt-4 text-[13px]">
+        {facts.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex gap-2">
+            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+            <dt className="shrink-0 text-ink-soft">{label}&nbsp;:</dt>
+            <dd className="text-navy">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+          <ChefHat className="h-3.5 w-3.5 text-amber" aria-hidden /> Sa cuisine
+        </p>
+        <ul className="flex flex-wrap gap-1.5">
+          {menu.specialties.map((sp) => (
+            <li key={sp} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
+              {sp}
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
+          <Languages className="h-3.5 w-3.5 text-amber" aria-hidden />
+          {menu.languages.join(', ')}
+        </p>
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
+          <ShieldCheck className="h-3.5 w-3.5 text-amber" aria-hidden />
+          {menu.badges.join(', ')}
+        </p>
+      </div>
+
+      {menu.reviews.length > 0 && (
+        <div className="mt-4 space-y-3 border-t border-[rgba(31,42,55,0.08)] pt-4">
+          {menu.reviews.map((r) => (
+            <figure key={r.author}>
+              <blockquote className="text-[13px] leading-relaxed text-ink-mid">{r.text}</blockquote>
+              <figcaption className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-soft">
+                <span className="font-semibold text-navy">{r.author}</span>
+                <span aria-hidden className="inline-flex items-center gap-0.5">
+                  <Star className="h-3 w-3 fill-amber text-amber" />
+                  {r.rating}
+                </span>
+                <span className="sr-only">{r.rating} sur 5</span>
+                <span>· il y a {r.monthsAgo} mois</span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
