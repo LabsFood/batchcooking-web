@@ -1,7 +1,8 @@
 'use client'
 
-import { use } from 'react'
+import { Suspense, use } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -15,13 +16,19 @@ import {
   MessageCircle,
   Sparkles,
   Receipt,
+  BadgeEuro,
+  ShieldCheck,
+  XCircle,
+  ArrowRight,
 } from 'lucide-react'
 import {
   DASHBOARD_ORDERS,
   ORDER_STATUS_LABEL,
   ORDER_STATUS_FLOW,
+  type OrderPayment,
   type OrderStatus,
 } from '@/lib/dashboard-mock'
+import { PAYMENT_METHODS, formatEuros } from '@/lib/client/payments'
 
 const STEP_LABELS: Record<OrderStatus, string> = {
   pending: 'Reçue',
@@ -78,6 +85,10 @@ export default function OrderDetailPage({
         <ArrowLeft className="w-3.5 h-3.5" />
         Toutes mes commandes
       </Link>
+
+      <Suspense fallback={null}>
+        <CheckoutOutcome />
+      </Suspense>
 
       {/* Header card */}
       <motion.div
@@ -225,6 +236,13 @@ export default function OrderDetailPage({
 
         {/* Right column */}
         <aside className="space-y-4">
+          <Settlement
+            payment={order.payment}
+            delivered={order.status === 'delivered'}
+            dueAmount={order.amountAfterTax}
+            href={`/espace-client/commandes/${order.id}/paiement`}
+          />
+
           <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
             <h4 className="font-display text-base font-bold text-navy mb-3 flex items-center gap-2">
               <Receipt className="w-4 h-4 text-amber" /> Récapitulatif
@@ -256,6 +274,122 @@ export default function OrderDetailPage({
         </aside>
       </div>
     </div>
+  )
+}
+
+/**
+ * Retour de Stripe. Le paramètre est posé par `successUrl` / `cancelUrl` de la
+ * session : c'est la seule chose que le navigateur rapporte du paiement.
+ */
+function CheckoutOutcome() {
+  const outcome = useSearchParams().get('paiement')
+  if (outcome !== 'succes' && outcome !== 'annule') return null
+
+  const ok = outcome === 'succes'
+  return (
+    <div
+      role="status"
+      className={`flex items-start gap-3 rounded-3xl p-4 text-sm leading-relaxed ${
+        ok ? 'bg-mint/50 text-navy' : 'bg-amber-soft/70 text-navy'
+      }`}
+    >
+      <span aria-hidden className="mt-0.5 shrink-0">
+        {ok ? (
+          <ShieldCheck className="h-4 w-4 text-mint-ink" />
+        ) : (
+          <XCircle className="h-4 w-4 text-amber-deep" />
+        )}
+      </span>
+      <p>
+        {ok ? (
+          <>
+            <strong className="font-semibold">Paiement accepté.</strong> Votre chef est prévenu et
+            votre reçu est disponible ci-dessous.
+          </>
+        ) : (
+          <>
+            <strong className="font-semibold">Paiement abandonné.</strong> Rien n&apos;a été débité.
+            Vous pouvez reprendre le règlement quand vous voulez.
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
+/** État du règlement : à régler, réglé, ou pas encore exigible. */
+function Settlement({
+  payment,
+  delivered,
+  dueAmount,
+  href,
+}: {
+  payment: OrderPayment
+  delivered: boolean
+  dueAmount: number
+  href: string
+}) {
+  if (payment.status === 'paid') {
+    return (
+      <div className="rounded-3xl bg-mint/40 p-5">
+        <h4 className="font-display text-base font-bold text-navy flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-mint-ink" /> Prestation réglée
+        </h4>
+        <p className="mt-2 text-sm text-ink-mid">
+          {formatEuros(payment.amountPaid ?? dueAmount)}
+          {payment.method && <> · {PAYMENT_METHODS[payment.method].label}</>}
+          {payment.paidAt && (
+            <>
+              {' '}
+              le{' '}
+              {new Date(payment.paidAt).toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+              })}
+            </>
+          )}
+        </p>
+        {payment.receiptRef && (
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+            Reçu {payment.receiptRef}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  if (payment.status === 'due' || (delivered && payment.status === 'failed')) {
+    const failed = payment.status === 'failed'
+    return (
+      <div className="rounded-3xl bg-navy p-5 text-white">
+        <h4 className="font-display text-base font-bold flex items-center gap-2">
+          <BadgeEuro className="w-4 h-4 text-amber" />
+          {failed ? 'Paiement à reprendre' : 'Prestation à régler'}
+        </h4>
+        <p className="mt-2 text-sm leading-relaxed text-white/70">
+          {failed
+            ? (payment.failureMessage ??
+              'Votre banque a refusé le paiement. Reprenez avec un autre moyen.')
+            : 'Votre chef est passé. Choisissez votre moyen de paiement : le montant dû aujourd’hui en dépend.'}
+        </p>
+        {payment.dueAt && !failed && (
+          <p className="mt-2 text-xs text-white/50">
+            Attendu avant le{' '}
+            {new Date(payment.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+          </p>
+        )}
+        <Link href={href} className="btn btn-amber mt-4 w-full justify-center text-xs">
+          {failed ? 'Reprendre le paiement' : 'Régler la prestation'}
+          <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <p className="rounded-3xl bg-cream-soft p-5 text-sm leading-relaxed text-ink-mid">
+      Le règlement s’ouvre une fois la prestation réalisée. Rien ne vous est demandé avant.
+    </p>
   )
 }
 

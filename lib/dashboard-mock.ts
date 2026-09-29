@@ -14,12 +14,40 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 
 export const ORDER_STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'shopping', 'cooking', 'delivered']
 
+/**
+ * Règlement de la prestation. `due` n'apparaît qu'une fois la prestation
+ * réalisée : on ne demande pas au client de régler une session qui n'a pas eu
+ * lieu. En production le webhook Stripe fait foi ; ici c'est le mock.
+ */
+export type PaymentStatus = 'not-due' | 'due' | 'paid' | 'failed'
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  'not-due': 'Pas encore exigible',
+  due: 'À régler',
+  paid: 'Réglé',
+  failed: 'Paiement refusé',
+}
+
+export type OrderPayment = {
+  status: PaymentStatus
+  method?: 'card' | 'urssaf' | 'cesu'
+  paidAt?: string
+  amountPaid?: number
+  receiptRef?: string
+  /** Date limite indicative, affichée quand le règlement est attendu. */
+  dueAt?: string
+  /** Message d'échec, tel que Stripe le remonte. */
+  failureMessage?: string
+}
+
 export type DashboardOrder = {
   id: string
   reference: string
   date: string // ISO
   timeSlot: string
   chef: string
+  /** Identifiant du batch cooker : détermine les moyens de paiement offerts. */
+  chefId: string
   formula: 'Essentiel' | 'Confort' | 'Premium' | 'Sur-mesure'
   meals: { name: string; portions: number }[]
   persons: number
@@ -29,6 +57,7 @@ export type DashboardOrder = {
   shoppingByClient: boolean
   shoppingList?: { aisle: string; items: { name: string; qty: string }[] }[]
   notes?: string
+  payment: OrderPayment
 }
 
 export const DASHBOARD_ORDERS: DashboardOrder[] = [
@@ -38,6 +67,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     date: '2026-05-03T09:00:00.000Z',
     timeSlot: '9h00 – 11h00',
     chef: 'Ivy Siyaptze',
+    chefId: 'bc_001',
     formula: 'Confort',
     meals: [
       { name: 'Poulet rôti aux herbes', portions: 4 },
@@ -77,6 +107,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
       },
     ],
     notes: 'Pas trop salé pour le risotto svp.',
+    payment: { status: 'not-due' },
   },
   {
     id: 'ord_002',
@@ -84,6 +115,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     date: '2026-04-19T10:00:00.000Z',
     timeSlot: '10h00 – 12h00',
     chef: 'Ivy Siyaptze',
+    chefId: 'bc_001',
     formula: 'Essentiel',
     meals: [
       { name: 'Bœuf bourguignon', portions: 4 },
@@ -95,6 +127,13 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     amountAfterTax: 75,
     status: 'delivered',
     shoppingByClient: false,
+    payment: {
+      status: 'paid',
+      method: 'urssaf',
+      paidAt: '2026-04-19T13:20:00.000Z',
+      amountPaid: 75,
+      receiptRef: 'RC-2026-0119',
+    },
   },
   {
     id: 'ord_003',
@@ -102,6 +141,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     date: '2026-03-29T09:30:00.000Z',
     timeSlot: '9h30 – 11h30',
     chef: 'Ivy Siyaptze',
+    chefId: 'bc_001',
     formula: 'Sur-mesure',
     meals: [
       { name: 'Lasagnes maison', portions: 6 },
@@ -112,6 +152,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     amountAfterTax: 90,
     status: 'delivered',
     shoppingByClient: true,
+    payment: { status: 'due', dueAt: '2026-10-05T00:00:00.000Z' },
   },
   {
     id: 'ord_004',
@@ -119,6 +160,7 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     date: '2026-05-24T09:00:00.000Z',
     timeSlot: '9h00 – 11h30',
     chef: 'Ivy Siyaptze',
+    chefId: 'bc_001',
     formula: 'Confort',
     meals: [
       { name: 'Pâtes pesto rouge', portions: 3 },
@@ -129,6 +171,26 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
     amountAfterTax: 120,
     status: 'pending',
     shoppingByClient: false,
+    payment: { status: 'not-due' },
+  },
+  {
+    id: 'ord_005',
+    reference: 'LF-2026-0138',
+    date: '2026-09-19T14:00:00.000Z',
+    timeSlot: '14h00 – 16h30',
+    chef: 'Lina Bertrand',
+    chefId: 'bc_003',
+    formula: 'Essentiel',
+    meals: [
+      { name: 'Gratin de légumes', portions: 4 },
+      { name: 'Soupe miso légumes', portions: 4 },
+    ],
+    persons: 2,
+    amountTTC: 180,
+    amountAfterTax: 90,
+    status: 'delivered',
+    shoppingByClient: false,
+    payment: { status: 'due', dueAt: '2026-10-03T00:00:00.000Z' },
   },
 ]
 
