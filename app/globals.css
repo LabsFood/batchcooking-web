@@ -562,6 +562,28 @@
     box-shadow: 0 0 0 4px rgba(243, 156, 18, 0.12);
   }
 
+  /* Un <select> natif dessine sa fleche dans le padding droit : sans place
+     reservee, elle recouvre la fin de l'option choisie. On la remplace par la
+     notre pour que tous les champs se ressemblent. */
+  select.input-base {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238A94A0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.1rem center;
+  }
+
+  textarea.input-base {
+    line-height: 1.6;
+    resize: vertical;
+  }
+
+  .input-base:disabled {
+    background: var(--cream-soft);
+    color: var(--ink-soft);
+    cursor: not-allowed;
+  }
+
   .input-pill {
     width: 100%;
     padding: 0.95rem 1.5rem;

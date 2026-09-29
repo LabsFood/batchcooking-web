@@ -73,7 +73,7 @@ export default function ShoppingListPage() {
               <select
                 value={storeId}
                 onChange={(e) => setStoreId(e.target.value)}
-                className="input-base pl-9 pr-8 text-sm w-48"
+                className="input-base w-full pl-10 text-sm sm:w-60"
               >
                 {STORES.map((s) => (
                   <option key={s.id} value={s.id}>

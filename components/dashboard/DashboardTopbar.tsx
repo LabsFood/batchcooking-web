@@ -14,60 +14,76 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
-const TITLES: Record<string, { eyebrow: string; title: string; sub?: string }> = {
-  '/espace-client': {
-    eyebrow: 'Cuisine du jour',
-    title: 'Bonjour',
-    sub: 'Voici ce qui mijote pour toi cette semaine.',
-  },
+const TITLES: Record<string, { title: string; sub?: string }> = {
+  '/espace-client': { title: 'Accueil' },
   '/espace-client/commandes': {
-    eyebrow: 'Suivi',
-    title: 'Mes commandes',
-    sub: 'Toutes tes sessions, passées et à venir.',
+    title: 'Mes sessions',
+    sub: 'Vos prestations, à venir et passées.',
   },
   '/espace-client/menus': {
-    eyebrow: 'Cette semaine',
-    title: 'Les menus du moment',
-    sub: 'Inspiration & sélection pour ta prochaine session.',
+    title: 'Menus et plats',
+    sub: 'Les cartes de la semaine, chef par chef.',
+  },
+  '/espace-client/reservation': {
+    title: 'Composer ma session',
+    sub: 'Choisir un batch cooker, puis ses plats.',
+  },
+  '/espace-client/chefs': {
+    title: 'Trouver un batch cooker',
+    sub: 'Ceux qui interviennent chez vous.',
+  },
+  '/espace-client/courses': {
+    title: 'Ma liste de courses',
+    sub: 'Rangée par rayon, prête à emporter.',
   },
   '/espace-client/personnalisation': {
-    eyebrow: 'Sur-mesure',
-    title: 'Personnalisation',
-    sub: 'Des envies particulières ? Soumets ton brief, on te chiffre.',
+    title: 'Demande sur-mesure',
+    sub: 'Décrivez ce que vous voulez, un chef vous chiffre.',
   },
   '/espace-client/messages': {
-    eyebrow: 'Communication',
-    title: 'Messages',
-    sub: 'Ton fil direct avec Ivy & l’équipe Lab’s Food.',
+    title: 'Messagerie',
+    sub: 'Votre fil direct avec votre chef.',
   },
   '/espace-client/profil': {
-    eyebrow: 'Identité culinaire',
-    title: 'Mon profil',
-    sub: 'Préférences, allergies, foyer — pour qu’Ivy cuisine pour toi.',
+    title: 'Profil et goûts',
+    sub: 'Préférences, allergies, foyer.',
+  },
+  '/espace-client/compte': {
+    title: 'Mon compte',
+    sub: 'Adresses, moyens de paiement, rattachements.',
+  },
+  '/espace-client/conservation': {
+    title: 'Réchauffage et conservation',
+    sub: 'Combien de temps, à quelle température.',
   },
   '/espace-client/parametres': {
-    eyebrow: 'Réglages',
     title: 'Paramètres',
     sub: 'Notifications, sécurité, données personnelles.',
   },
   '/espace-client/statistiques': {
-    eyebrow: 'Bilan',
-    title: 'Statistiques',
-    sub: 'Tes plats, ton temps gagné, tes badges.',
+    title: 'Mes statistiques',
+    sub: 'Vos plats, votre temps gagné.',
   },
 }
 
 export default function DashboardTopbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, signOut } = useAuth()
+  const { user, roleLabel, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const isDetail = /^\/espace-client\/[^/]+\/[^/]+/.test(pathname)
   const baseSegment = '/' + pathname.split('/').slice(1, 3).join('/')
   const meta = TITLES[isDetail ? baseSegment : pathname] || TITLES['/espace-client']
 
-  const greetingName = user?.name?.split(' ')[0] || 'gourmand·e'
+  const firstName = user?.name?.split(' ')[0] || ''
+  const initials =
+    user?.name
+      ?.split(' ')
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'G'
 
   return (
     <header className="sticky top-0 z-30 bg-cream/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
@@ -81,18 +97,12 @@ export default function DashboardTopbar() {
           <Menu className="w-4 h-4" />
         </Link>
 
-        {/* Title block */}
+        {/* Titre de la page */}
         <div className="min-w-0 flex-1">
-          <p className="eyebrow mb-1 hidden sm:inline-flex">{meta.eyebrow}</p>
-          <h1 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-none truncate">
-            {meta.title}
-            {pathname === '/espace-client' && (
-              <span className="text-terra italic font-medium"> {greetingName} 👋</span>
-            )}
+          <h1 className="truncate font-display text-2xl font-bold leading-tight text-navy lg:text-[1.75rem]">
+            {pathname === '/espace-client' && firstName ? `Bonjour ${firstName}` : meta.title}
           </h1>
-          {meta.sub && (
-            <p className="text-xs text-ink-soft mt-1.5 hidden md:block">{meta.sub}</p>
-          )}
+          {meta.sub && <p className="mt-1 hidden text-sm text-ink-mid md:block">{meta.sub}</p>}
         </div>
 
         {/* Search (desktop) */}
@@ -116,19 +126,34 @@ export default function DashboardTopbar() {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
           >
-            <span className="w-8 h-8 rounded-full bg-navy text-amber font-bold text-xs flex items-center justify-center">
-              {user?.name?.[0]?.toUpperCase() || 'G'}
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-amber">
+              {initials}
             </span>
-            <span className="hidden md:inline text-xs font-semibold text-navy max-w-[120px] truncate">
-              {user?.name?.split(' ')[0] || 'Invité'}
+            <span className="hidden max-w-[140px] truncate text-xs font-semibold text-navy md:inline">
+              {user?.name || 'Invité'}
             </span>
             <ChevronDown className="w-3.5 h-3.5 text-ink-soft" />
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 mt-2 w-56 bg-paper rounded-2xl shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.08)] p-2 z-40"
+              className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-2 shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)]"
               onMouseLeave={() => setMenuOpen(false)}
             >
+              {/* Qui est connecté : la question que posait l'encart de la barre
+                  latérale, posée là où on va déjà pour se déconnecter. */}
+              <div className="border-b border-[rgba(31,42,55,0.08)] px-3 pb-3 pt-2">
+                <p className="truncate text-sm font-semibold text-navy">
+                  {user?.name || 'Invité'}
+                </p>
+                <p className="truncate text-xs text-ink-soft">
+                  {user?.email || (user?.username ? `@${user.username}` : 'Espace client')}
+                </p>
+                {roleLabel && (
+                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
+                    {roleLabel}
+                  </p>
+                )}
+              </div>
               <Link href="/espace-client/profil" className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg">
                 <Sparkles className="w-4 h-4 text-amber" /> Mon profil
               </Link>
