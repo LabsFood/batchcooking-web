@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
 import ZonePicker from '@/components/chef/application/ZonePicker'
-import DocumentSlot from '@/components/chef/application/DocumentSlot'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
 import { regionLabel } from '@/lib/chef/regions'
 import {
@@ -29,13 +28,15 @@ import {
   labelOf,
   requiredDocuments,
   submitApplication,
-  toFormData,
+  applicationErrorMessage,
+  applicationErrorStep,
+  type ApplicationCreated,
+  type ApplicationDocument,
   validateStep,
   type ApplicationValues,
   type FieldErrors,
   type LegalForm,
   type StepId,
-  type UploadedDoc,
   type WorkStatus,
 } from '@/lib/chef/application'
 
@@ -114,13 +115,12 @@ export default function BecomeChefPage() {
 function ApplicationForm({ draft }: { draft: Draft | null }) {
   const [values, setValues] = useState<ApplicationValues>(draft?.values ?? DEFAULT_VALUES)
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [docs, setDocs] = useState<Record<string, UploadedDoc>>({})
   const [step, setStep] = useState<StepId>(draft?.step ?? 'identity')
   const [furthest, setFurthest] = useState(draft?.furthest ?? 0)
   const [attempted, setAttempted] = useState<Set<StepId>>(() => new Set())
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-  const [done, setDone] = useState<{ applicationId: string; email: string } | null>(null)
+  const [done, setDone] = useState<ApplicationCreated & { email: string } | null>(null)
 
   const headingRef = useRef<HTMLHeadingElement>(null)
   const firstRender = useRef(true)
@@ -135,17 +135,9 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
     headingRef.current?.focus({ preventScroll: true })
   }, [step])
 
-  // Libère les aperçus locaux quand on quitte la page.
-  const docsRef = useRef(docs)
-  useEffect(() => {
-    docsRef.current = docs
-  }, [docs])
-  useEffect(() => () => Object.values(docsRef.current).forEach((d) => URL.revokeObjectURL(d.url)), [])
-
+  // Ce que l'API demandera. Elle recalcule la liste de son côté : celle-ci
+  // sert à l'annoncer avant l'envoi, pas à la décider.
   const requirements = requiredDocuments(values)
-  const activeDocs = Object.fromEntries(
-    Object.entries(docs).filter(([type]) => requirements.some((r) => r.id === type)),
-  )
 
   // ── Saisie ───────────────────────────────────────────────────────────────
   function set<K extends keyof ApplicationValues>(key: K, v: ApplicationValues[K]) {
@@ -157,15 +149,6 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
     if (attempted.has(step)) setErrors(validateStep(step, next))
     else if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }))
   }
-
-  const setDoc = (type: string, file: File | null) =>
-    setDocs((prev) => {
-      const next = { ...prev }
-      if (prev[type]) URL.revokeObjectURL(prev[type].url)
-      if (file) next[type] = { file, url: URL.createObjectURL(file) }
-      else delete next[type]
-      return next
-    })
 
   // ── Navigation ───────────────────────────────────────────────────────────
   // Après le rendu des erreurs (le commit d'un clic est synchrone).
@@ -213,23 +196,24 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
     setSending(true)
     setSendError(null)
     try {
-      const payload = buildPayload(values, activeDocs, new Date().toISOString())
-      const res = await submitApplication(toFormData(payload, activeDocs))
-      Object.values(docs).forEach((d) => URL.revokeObjectURL(d.url))
+      const payload = buildPayload(values, new Date().toISOString())
+      const res = await submitApplication(payload)
       writeDraft(null)
-      setDone({ applicationId: res.applicationId, email: payload.identity.email })
+      setDone({ ...res, email: payload.identity.email })
       window.scrollTo({ top: 0 })
-    } catch {
-      setSendError('L’envoi n’a pas abouti. Vérifiez votre connexion puis réessayez : vos réponses sont conservées.')
+    } catch (e) {
+      setSendError(applicationErrorMessage(e))
+      const back = applicationErrorStep(e)
+      if (back) {
+        const i = STEPS.findIndex((x) => x.id === back)
+        if (i >= 0) goTo(i)
+      }
     } finally {
       setSending(false)
     }
   }
 
-  if (done) return <Confirmation email={done.email} reference={done.applicationId} />
-
-  const uploadedRequired = requirements.filter((r) => r.required && activeDocs[r.id]).length
-  const totalRequired = requirements.filter((r) => r.required).length
+  if (done) return <Confirmation email={done.email} reference={done.reference} documents={done.documents} />
 
   return (
     <div className="min-h-screen bg-cream">
@@ -592,34 +576,27 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
             {step === 'documents' && (
               <Step
                 headingRef={headingRef}
-                title="Vos justificatifs"
-                lead="Déposez ce que vous avez sous la main. Rien n’est bloquant ici : vous compléterez les pièces manquantes depuis le lien reçu par email."
+                title="Les pièces qui vous seront demandées"
+                lead="Rien à déposer maintenant. Vous recevrez un lien par email juste après l’envoi : vos pièces se déposent depuis votre espace, quand vous les avez sous la main."
               >
-                <Group
-                  legend="À fournir"
-                  aside={
-                    <span className="text-xs tabular-nums text-ink-soft">
-                      {uploadedRequired} / {totalRequired} déposée{uploadedRequired > 1 ? 's' : ''}
-                    </span>
-                  }
-                >
+                <Group legend="Obligatoires" hint="Votre dossier ne peut pas être validé sans elles.">
                   <ul className="space-y-2.5">
                     {requirements
                       .filter((r) => r.required)
                       .map((r) => (
-                        <DocumentSlot key={r.id} doc={r} value={activeDocs[r.id]} onChange={(f) => setDoc(r.id, f)} />
+                        <DocumentPreview key={r.id} doc={r} />
                       ))}
                   </ul>
                 </Group>
                 <Group
-                  legend="Facultatif"
-                  hint="Les pièces liées à votre situation et les attestations qui renforcent votre profil. À compléter plus tard si vous ne les avez pas sous la main."
+                  legend="Selon votre situation"
+                  hint="Déduites de vos réponses. Elles renforcent le dossier sans le bloquer."
                 >
                   <ul className="space-y-2.5">
                     {requirements
                       .filter((r) => !r.required)
                       .map((r) => (
-                        <DocumentSlot key={r.id} doc={r} value={activeDocs[r.id]} onChange={(f) => setDoc(r.id, f)} />
+                        <DocumentPreview key={r.id} doc={r} />
                       ))}
                   </ul>
                 </Group>
@@ -672,18 +649,14 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                   <Review title="Justificatifs" onEdit={() => goTo(4)}>
                     <ul className="space-y-1.5 pt-1">
                       {requirements
-                        .filter((r) => r.required || activeDocs[r.id])
+                        .filter((r) => r.required)
                         .map((r) => (
                           <li key={r.id} className="flex items-start gap-2.5 text-[13px]">
-                            {activeDocs[r.id] ? (
-                              <CheckCircle2 className="mt-px h-4 w-4 shrink-0 text-mint-ink" aria-label="Déposé" />
-                            ) : (
-                              <Clock className="mt-px h-4 w-4 shrink-0 text-ink-soft" aria-label="À compléter" />
-                            )}
+                            <Clock className="mt-px h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
                             <span className="min-w-0">
                               <span className="text-navy">{r.label}</span>
-                              <span className="block truncate text-xs text-ink-soft">
-                                {activeDocs[r.id]?.file.name ?? 'À compléter après l’envoi'}
+                              <span className="block text-xs text-ink-soft">
+                                À déposer depuis votre espace
                               </span>
                             </span>
                           </li>
@@ -734,13 +707,11 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                       Payload envoyé à l’API <span className="font-normal text-white/50">· visible en développement</span>
                     </summary>
                     <pre className="max-h-80 overflow-auto px-4 pb-4 font-mono text-[11px] leading-relaxed">
-                      {`POST /chefs/applications  (multipart/form-data)\n\napplication = ${JSON.stringify(
-                        buildPayload(values, activeDocs, '<horodaté à l’envoi>'),
+                      {`POST /chef-applications\n\n${JSON.stringify(
+                        buildPayload(values, '<horodaté à l’envoi>'),
                         null,
                         2,
-                      )}${Object.entries(activeDocs)
-                        .map(([t, d]) => `\ndocuments[${t}] = <fichier ${d.file.name}>`)
-                        .join('')}`}
+                      )}`}
                     </pre>
                   </details>
                 )}
@@ -782,7 +753,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
               </button>
             ) : (
               <button type="button" onClick={next} className="btn btn-primary">
-                {step === 'documents' && uploadedRequired < totalRequired ? 'Continuer sans tout déposer' : 'Continuer'}
+                Continuer
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </button>
             )}
@@ -818,7 +789,28 @@ function Shell() {
 
 // ── Écran de confirmation ────────────────────────────────────────────────────
 
-function Confirmation({ email, reference }: { email: string; reference: string }) {
+/** Une pièce annoncée, pas encore demandée. */
+function DocumentPreview({ doc }: { doc: { label: string; hint: string } }) {
+  return (
+    <li className="flex items-start gap-3 rounded-xl border border-[rgba(31,42,55,0.08)] bg-paper p-3.5">
+      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-navy">{doc.label}</span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-ink-mid">{doc.hint}</span>
+      </span>
+    </li>
+  )
+}
+
+function Confirmation({
+  email,
+  reference,
+  documents,
+}: {
+  email: string
+  reference: string
+  documents: ApplicationDocument[]
+}) {
   return (
     <div className="flex min-h-screen flex-col bg-cream">
       <Header />
@@ -836,17 +828,38 @@ function Confirmation({ email, reference }: { email: string; reference: string }
             Candidature envoyée
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-mid">
-            Consultez votre boîte mail : nous venons d’envoyer un accusé de réception à{' '}
-            <strong className="font-semibold text-navy">{email}</strong>, avec un lien pour compléter vos pièces
-            et suivre l’étude de votre dossier.
+            Votre espace est ouvert. Nous venons d’envoyer à{' '}
+            <strong className="font-semibold text-navy">{email}</strong> un lien de connexion,
+            valable 7 jours et utilisable une fois : c’est par là que vous déposerez vos
+            pièces et suivrez l’étude de votre dossier.
           </p>
+
+          {documents.length > 0 && (
+            <div className="mt-6 rounded-xl bg-cream-soft p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                Ce qui vous sera demandé
+              </p>
+              <ul className="mt-2 space-y-1">
+                {documents.map((d) => (
+                  <li key={d.type} className="flex items-baseline gap-2 text-[13px] text-navy">
+                    <span className="min-w-0 flex-1">{d.label}</span>
+                    {d.required && (
+                      <span className="shrink-0 text-[11px] font-semibold text-terra">
+                        obligatoire
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <ol className="mt-7 space-y-3.5">
             {[
-              'Complétez vos justificatifs depuis le lien reçu par email.',
+              'Ouvrez le lien reçu par email : il vous connecte à votre espace.',
+              'Déposez vos pièces depuis « Mes documents », à votre rythme.',
               'Notre équipe étudie votre dossier sous 48 h ouvrées.',
-              'Une fois le dossier validé, nous créons votre compte et vous envoyons un lien de connexion.',
-              'Votre vitrine devient alors visible et réservable.',
+              'Une fois le dossier validé, votre vitrine devient visible et réservable.',
             ].map((t, i) => (
               <li key={t} className="flex gap-3 text-sm text-ink-mid">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cream-soft text-xs font-bold tabular-nums text-navy">

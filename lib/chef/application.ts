@@ -4,10 +4,14 @@ import { regionLabel, type City } from './regions'
 /* ─────────────────────────────────────────────────────────────────────────────
    Candidature batch cooker — schéma, référentiels et payload.
 
-   Le formulaire valide étape par étape (un schéma zod par étape). L'envoi est
-   simulé : `submitApplication` construit le multipart exact que recevra
-   `POST /chefs/applications` et répond après un délai. Brancher l'API revient
-   à remplacer le corps de cette fonction par un `fetch`.
+   Le formulaire valide étape par étape (un schéma zod par étape), puis part
+   sur `POST /chef-applications`.
+
+   L'API n'accepte que les réponses écrites : **aucune pièce ne s'envoie ici**,
+   et un champ inconnu dans le corps fait échouer la requête. C'est elle qui
+   calcule la liste des pièces à fournir, d'après les réponses, et qui la
+   renvoie. Le candidat les déposera dans son espace, via le lien reçu par
+   email — cf. docs/api/FLOW-01.
    ───────────────────────────────────────────────────────────────────────────── */
 
 // ── Référentiels ────────────────────────────────────────────────────────────
@@ -344,7 +348,6 @@ export interface ApplicationPayload {
     siret: string | null
     sap: { path: 'type-a' | 'type-b'; declarationNumber: string | null }
   }
-  documents: { type: string; fileName: string; mimeType: string; size: number }[]
   consent: { privacyPolicy: true; terms: true; acceptedAt: string }
 }
 
@@ -353,11 +356,7 @@ const e164 = (phone: string) => {
   return digits.startsWith('+') ? digits : `+33${digits.slice(1)}`
 }
 
-export function buildPayload(
-  v: ApplicationValues,
-  docs: Record<string, UploadedDoc>,
-  acceptedAt: string,
-): ApplicationPayload {
+export function buildPayload(v: ApplicationValues, acceptedAt: string): ApplicationPayload {
   const registered = v.legalForm !== 'not-registered'
   return {
     identity: {
@@ -391,32 +390,151 @@ export function buildPayload(
         declarationNumber: v.sapTypeA ? (v.sapNumber ?? '').replace(/\s/g, '').toUpperCase() : null,
       },
     },
-    documents: Object.entries(docs).map(([type, d]) => ({
-      type,
-      fileName: d.file.name,
-      mimeType: d.file.type,
-      size: d.file.size,
-    })),
     consent: { privacyPolicy: true, terms: true, acceptedAt },
   }
 }
 
 /** Multipart envoyé à l'API : le JSON + un fichier par pièce (`documents[<type>]`). */
-export function toFormData(payload: ApplicationPayload, docs: Record<string, UploadedDoc>): FormData {
-  const fd = new FormData()
-  fd.append('application', JSON.stringify(payload))
-  for (const [type, d] of Object.entries(docs)) fd.append(`documents[${type}]`, d.file, d.file.name)
-  return fd
+/** Pièce telle que l'API la décrit dans sa réponse. */
+export interface ApplicationDocument {
+  type: string
+  label: string
+  family: 'blocking' | 'conditional' | 'recommended'
+  required: boolean
+  status: string
+}
+
+/** Réponse de `POST /chef-applications`. */
+export interface ApplicationCreated {
+  id: string
+  reference: string
+  status: string
+  submittedAt: string
+  documents: ApplicationDocument[]
 }
 
 /**
- * Envoi simulé. À brancher :
- *   const res = await fetch(`${API_URL}/chefs/applications`, { method: 'POST', body: formData })
+ * Erreur d'envoi, avec le code de l'API quand il y en a un. Le formulaire s'en
+ * sert pour dire ce qui cloche au lieu d'un « échec » générique.
  */
-export async function submitApplication(formData: FormData): Promise<{ applicationId: string }> {
-  await new Promise((r) => setTimeout(r, 1200))
-  if (process.env.NODE_ENV !== 'production') {
-    console.info('[candidature] POST /chefs/applications (simulé)', Object.fromEntries(formData.entries()))
+export class ApplicationError extends Error {
+  code: string
+  status: number
+  constructor(code: string, status: number, message: string) {
+    super(message)
+    this.name = 'ApplicationError'
+    this.code = code
+    this.status = status
   }
-  return { applicationId: `APP-${Date.now().toString(36).toUpperCase()}` }
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
+
+/*
+ * L'API renvoie ses refus en anglais, préfixés du champ : « address.postcode
+ * must be a metropolitan French postcode ». Le candidat n'a pas à lire ça.
+ * On traduit ce qu'on connaît et on renvoie à l'étape concernée ; pour le
+ * reste on garde le message brut, qui vaut mieux qu'un « échec » muet.
+ */
+const FIELD_MESSAGE: Record<string, string> = {
+  'address.postcode': 'Nous intervenons en France métropolitaine uniquement : ce code postal n’est pas couvert.',
+  'identity.email': 'Cet email ne semble pas valide.',
+  'identity.phone': 'Ce numéro de téléphone ne semble pas valide.',
+  'company.siret': 'Ce SIRET n’est pas valide. Il compte 14 chiffres : vérifiez la saisie.',
+  'company.sap.declarationNumber': 'Le numéro de déclaration SAP ne correspond pas au format attendu.',
+  'workAuthorization.details': 'Précisez votre situation en quelques mots.',
+  interventionZones: 'Choisissez au moins une région ou une ville.',
+}
+
+/** Étape à rouvrir pour corriger, d'après le champ nommé par l'API. */
+const FIELD_STEP: Record<string, StepId> = {
+  identity: 'identity',
+  address: 'identity',
+  interventionZones: 'zones',
+  workAuthorization: 'status',
+  company: 'company',
+  consent: 'review',
+}
+
+const fieldOf = (message: string): string => (message.trim().split(/\s+/)[0] ?? '').replace(/[:,]$/, '')
+
+function validationMessage(message: string): string {
+  const field = fieldOf(message)
+  const known = FIELD_MESSAGE[field] ?? FIELD_MESSAGE[field.split('.')[0]]
+  if (known) return known
+  return message
+    ? `Une réponse ne convient pas : ${message}`
+    : 'Une réponse ne convient pas. Reprenez les étapes précédentes.'
+}
+
+/** Étape à rouvrir après un refus, ou null si l'API ne nomme aucun champ. */
+export function applicationErrorStep(e: unknown): StepId | null {
+  if (!(e instanceof ApplicationError) || e.code !== 'VALIDATION_FAILED') return null
+  const root = fieldOf(e.message).split('.')[0]
+  return FIELD_STEP[root] ?? null
+}
+
+/** `POST /chef-applications` — public, sans jeton. Crée aussi le compte. */
+export async function submitApplication(
+  payload: ApplicationPayload,
+): Promise<ApplicationCreated> {
+  if (!API_URL) {
+    throw new ApplicationError('NO_API_URL', 0, "L'API n'est pas configurée.")
+  }
+
+  let res: Response
+  try {
+    res = await fetch(`${API_URL}/chef-applications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new ApplicationError('NETWORK', 0, "L'API n'a pas pu être jointe.")
+  }
+
+  const text = await res.text()
+  let body: unknown = null
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    body = text
+  }
+
+  if (!res.ok) {
+    const b = body as { code?: string; message?: string | string[] } | null
+    const message = Array.isArray(b?.message) ? b.message.join(' ') : (b?.message ?? '')
+    throw new ApplicationError(b?.code ?? `HTTP_${res.status}`, res.status, message)
+  }
+
+  return body as ApplicationCreated
+}
+
+/**
+ * Message adressé au candidat. On nomme ce qui cloche : une candidature
+ * refusée sans raison lisible, c'est un dossier perdu.
+ */
+export function applicationErrorMessage(e: unknown): string {
+  if (!(e instanceof ApplicationError)) {
+    return 'L’envoi n’a pas abouti. Réessayez dans un instant : vos réponses sont conservées.'
+  }
+  switch (e.code) {
+    case 'EMAIL_ALREADY_USED':
+      return 'Cette adresse a déjà un compte Lab’s Food. Connectez-vous pour reprendre votre dossier, ou candidatez avec une autre adresse.'
+    case 'VALIDATION_FAILED':
+      return validationMessage(e.message)
+    case 'NETWORK':
+      return 'L’envoi n’a pas abouti. Vérifiez votre connexion puis réessayez : vos réponses sont conservées.'
+    case 'NO_API_URL':
+      return 'Le service de candidature n’est pas joignable pour le moment.'
+    default:
+      break
+  }
+  if (e.status === 429) {
+    return 'Trop de candidatures envoyées depuis cette connexion. Réessayez dans une heure.'
+  }
+  if (e.status === 503) {
+    return 'Le service de création de comptes est momentanément indisponible. Réessayez dans quelques minutes.'
+  }
+  return e.message || 'L’envoi n’a pas abouti. Réessayez dans un instant.'
 }
