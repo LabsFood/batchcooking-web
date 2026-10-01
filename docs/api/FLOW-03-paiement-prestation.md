@@ -57,9 +57,15 @@ Tout ce dont l'écran a besoin, en un appel.
   `paid`, `failed`.
 - **`dueNowCents` est calculé par l'API, pas par le front.** C'est le montant
   qui décide du choix du client, il ne peut pas dépendre d'une règle dupliquée
-  côté navigateur. Rappel des règles appliquées aujourd'hui dans le mock :
-  avance immédiate → total − crédit d'impôt ; carte → total ; CESU → total −
-  titres déclarés.
+  côté navigateur. Règles appliquées : carte → total ; CESU → total − titres
+  déclarés ; **avance immédiate → 0**.
+- **L'avance immédiate n'encaisse rien sur le site.** Le client confirme que la
+  prestation a eu lieu, et c'est tout : l'URSSAF déduit le crédit d'impôt,
+  prélève le reste sur le compte du rattachement et règle le chef directement.
+  La réponse porte donc un `debitedLaterCents` à côté du `dueNowCents` à zéro —
+  ce n'est pas un paiement que le client fait ici, c'est ce qui partira de son
+  compte ensuite. Afficher « vous réglez 90 € » lui ferait croire qu'il doit
+  sortir sa carte.
 - `reasonCode` attendus pour l'avance immédiate : `URSSAF_LINK_NONE`,
   `URSSAF_LINK_PENDING`, `URSSAF_LINK_REFUSED`. Le front affiche `reason`
   verbatim et propose le rattachement quand le code est `NONE`.
@@ -68,6 +74,32 @@ Tout ce dont l'écran a besoin, en un appel.
   refuse).
 
 ---
+
+## 2 bis. `POST /bookings/:id/settle` — avance immédiate
+
+Pas de session Stripe : le client confirme, l'API transmet à l'URSSAF.
+
+```json
+{ "method": "urssaf" }
+```
+
+La réponse ne doit **pas** dire « payé » : rien ne l'est encore. Elle dit que la
+demande est transmise, et la prestation passe en `processing`. Le passage à
+`paid` vient de l'URSSAF, par webhook ou par relecture.
+
+```json
+{ "status": "processing", "debitedCents": 9000, "transmittedAt": "2026-10-01T09:12:00.000Z" }
+```
+
+Trois points à cadrer avec le backend :
+
+1. **Que se passe-t-il si l'URSSAF refuse le prélèvement ?** Le dossier
+   retombe-t-il en `due` avec les autres moyens proposés, ou reste-t-il en
+   litige ?
+2. **Le chef doit-il confirmer de son côté** que la prestation a eu lieu, ou la
+   confirmation du client suffit-elle à déclencher le versement ?
+3. **Délai indicatif** du prélèvement : le client voit « prélèvement en cours »
+   et voudra savoir pendant combien de temps.
 
 ## 3. `POST /payments/checkout-session`
 

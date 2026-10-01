@@ -329,6 +329,21 @@ function Settlement({
   dueAmount: number
   href: string
 }) {
+  if (payment.status === 'processing') {
+    return (
+      <div className="rounded-3xl bg-cream-soft p-5">
+        <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
+          <BadgeEuro className="h-4 w-4 text-amber-deep" /> Prélèvement en cours
+        </h4>
+        <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+          Vous avez confirmé la prestation en avance immédiate. L’URSSAF prélève{' '}
+          {formatEuros(payment.amountPaid ?? dueAmount)} sur votre compte et règle votre
+          chef. Vous n’avez rien d’autre à faire.
+        </p>
+      </div>
+    )
+  }
+
   if (payment.status === 'paid') {
     return (
       <div className="rounded-3xl bg-mint/40 p-5">
