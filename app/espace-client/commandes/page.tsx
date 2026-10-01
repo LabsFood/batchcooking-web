@@ -107,6 +107,11 @@ export default function OrdersListPage() {
                     <BadgeEuro className="h-3 w-3" /> À régler
                   </span>
                 )}
+                {o.payment.status === 'processing' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-deep whitespace-nowrap">
+                    <BadgeEuro className="h-3 w-3" /> Prélèvement en cours
+                  </span>
+                )}
                 {o.payment.status === 'paid' && (
                   <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] font-semibold text-mint-ink whitespace-nowrap">
                     <ShieldCheck className="h-3 w-3" /> Réglée

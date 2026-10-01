@@ -19,11 +19,13 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'shoppi
  * réalisée : on ne demande pas au client de régler une session qui n'a pas eu
  * lieu. En production le webhook Stripe fait foi ; ici c'est le mock.
  */
-export type PaymentStatus = 'not-due' | 'due' | 'paid' | 'failed'
+export type PaymentStatus = 'not-due' | 'due' | 'processing' | 'paid' | 'failed'
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   'not-due': 'Pas encore exigible',
   due: 'À régler',
+  // Avance immédiate : confirmée côté client, prélèvement URSSAF en cours.
+  processing: 'Prélèvement en cours',
   paid: 'Réglé',
   failed: 'Paiement refusé',
 }

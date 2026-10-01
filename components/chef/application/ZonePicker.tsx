@@ -2,10 +2,12 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useRegions } from '@/lib/api/referentials'
 import { ChevronDown, Loader2, MapPin, Plus, Search, X } from 'lucide-react'
 import {
   METRO_REGION_CODES,
   REGIONS,
+  type Region,
   cityKey,
   normalize,
   regionLabel,
@@ -59,6 +61,24 @@ export default function ZonePicker({
     debounce.current = setTimeout(() => setRemoteQuery(q.trim()), 280)
   }
 
+  // Codes et libellés viennent de `GET /referentials/regions` : ce sont eux
+  // que l'API attend en retour. Les villes de référence restent locales, elle
+  // n'en fournit pas. Si le référentiel est injoignable, la liste en dur prend
+  // le relais plutôt que de bloquer la candidature.
+  const localCities = useMemo(() => new Map(REGIONS.map((r) => [r.code, r.cities])), [])
+  const { regions: refRegions } = useRegions(
+    useMemo(() => REGIONS.map((r) => ({ code: r.code, label: r.label })), []),
+  )
+  const catalogue: Region[] = useMemo(
+    () =>
+      refRegions.map((r) => ({
+        code: r.code,
+        label: r.label,
+        cities: localCities.get(r.code) ?? [],
+      })),
+    [refRegions, localCities],
+  )
+
   const zoneOf = (code: string) => value.find((z) => z.regionCode === code)
 
   // ── Mises à jour de la sélection ──────────────────────────────────────────
@@ -66,7 +86,7 @@ export default function ZonePicker({
     const rest = value.filter((z) => z.regionCode !== code)
     const merged = next ? [...rest, next] : rest
     // Ordre stable : celui du référentiel.
-    const order = REGIONS.map((r) => r.code)
+    const order = catalogue.map((r) => r.code)
     onChange(merged.sort((a, b) => order.indexOf(a.regionCode) - order.indexOf(b.regionCode)))
   }
 
@@ -95,7 +115,7 @@ export default function ZonePicker({
   // ── Filtrage local ────────────────────────────────────────────────────────
   const q = normalize(query)
   const filtered = useMemo(() => {
-    return REGIONS.map((r) => {
+    return catalogue.map((r) => {
       // Les communes ajoutées par la recherche s'affichent avec les villes de référence.
       const extra = (value.find((z) => z.regionCode === r.code)?.cities ?? []).filter(
         (c) => !r.cities.some((rc) => cityKey(rc) === cityKey(c)),
@@ -106,7 +126,7 @@ export default function ZonePicker({
       const cities = regionHit ? all : all.filter((c) => normalize(c.name).includes(q))
       return { region: r, cities, match: regionHit || cities.length > 0 }
     }).filter((x) => x.match)
-  }, [q, value])
+  }, [q, value, catalogue])
 
   // ── Recherche distante (toutes les communes) ──────────────────────────────
   const remote = useQuery({

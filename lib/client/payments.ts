@@ -36,9 +36,9 @@ export const PAYMENT_METHODS: Record<PaymentMethodId, PaymentMethodSpec> = {
   urssaf: {
     id: 'urssaf',
     label: 'Avance immédiate',
-    tagline: 'Vous ne réglez que la moitié, tout de suite',
+    tagline: 'Rien à régler ici',
     detail:
-      'L’URSSAF déduit le crédit d’impôt au moment du paiement et verse sa part au chef. Vous ne faites pas l’avance et vous n’attendez pas l’année suivante.',
+      'Vous confirmez la prestation, c’est tout. L’URSSAF déduit le crédit d’impôt, prélève le reste sur le compte de votre rattachement et règle votre chef directement. Aucune carte, aucune avance, rien à attendre l’année prochaine.',
     circuit: 'direct',
   },
   card: {
@@ -121,10 +121,15 @@ export const firstAvailable = (methods: MethodAvailability[]): PaymentMethodId |
 export interface Settlement {
   /** Prix de la prestation, TTC. */
   total: number
-  /** Déduit tout de suite (avance immédiate) ou couvert par des titres CESU. */
+  /** Déduit tout de suite (crédit d'impôt) ou couvert par des titres CESU. */
   deducted: number
-  /** Ce qui part sur Stripe maintenant. */
+  /** Ce qui part sur Stripe maintenant. 0 en avance immédiate. */
   dueNow: number
+  /**
+   * Prélevé ensuite par l'URSSAF, hors du site. Ce n'est pas un paiement que
+   * le client fait ici : c'est ce qui partira de son compte après coup.
+   */
+  debitedLater: number
   /** Crédit d'impôt encore à venir sur la déclaration annuelle. */
   creditLater: number
   /** Libellé de la ligne de déduction, ou null s'il n'y en a pas. */
@@ -144,11 +149,14 @@ export function settlementFor(
   const total = order.amountTTC
   const credit = round2(total - order.amountAfterTax)
 
+  // Avance immédiate : rien ne part d'ici. L'URSSAF déduit le crédit d'impôt,
+  // prélève le reste et règle le chef.
   if (method === 'urssaf') {
     return {
       total,
       deducted: credit,
-      dueNow: order.amountAfterTax,
+      dueNow: 0,
+      debitedLater: order.amountAfterTax,
       creditLater: 0,
       deductionLabel: 'Crédit d’impôt déduit immédiatement',
     }
@@ -160,12 +168,20 @@ export function settlementFor(
       total,
       deducted: round2(titres),
       dueNow: round2(total - titres),
+      debitedLater: 0,
       creditLater: credit,
       deductionLabel: 'Titres CESU remis au chef',
     }
   }
 
-  return { total, deducted: 0, dueNow: total, creditLater: credit, deductionLabel: null }
+  return {
+    total,
+    deducted: 0,
+    dueNow: total,
+    debitedLater: 0,
+    creditLater: credit,
+    deductionLabel: null,
+  }
 }
 
 export const formatEuros = (n: number) =>
@@ -216,10 +232,22 @@ export interface CheckoutSession {
  * Ouvre la session de paiement. Tant que `POST /payments/checkout-session`
  * n'existe pas, on renvoie l'URL de succès après un délai : l'écran se comporte
  * comme en production (bouton verrouillé, redirection), sans encaissement.
+ *
+ * L'avance immédiate ne passe pas par ici : rien n'est encaissé sur le site.
  */
 export async function openCheckout(payload: CheckoutPayload): Promise<CheckoutSession> {
   await new Promise((r) => setTimeout(r, 900))
   return { url: payload.successUrl, sessionId: `cs_test_${Math.random().toString(36).slice(2, 12)}` }
+}
+
+/**
+ * Avance immédiate : le client confirme, et c'est l'URSSAF qui agit ensuite.
+ * À remplacer par `POST /bookings/:id/settle` avec `method: 'urssaf'` — la
+ * réponse dira seulement que la demande est transmise, pas qu'elle est payée.
+ */
+export async function confirmUrssaf(orderId: string): Promise<void> {
+  await new Promise((r) => setTimeout(r, 700))
+  void orderId
 }
 
 // ── Écriture du règlement (simulation) ──────────────────────────────────────
@@ -232,8 +260,10 @@ export async function openCheckout(payload: CheckoutPayload): Promise<CheckoutSe
 export function recordPayment(orderId: string, method: PaymentMethodId, amount: number): void {
   const order = DASHBOARD_ORDERS.find((o) => o.id === orderId)
   if (!order) return
+  // En avance immédiate, rien n'est encaissé au moment du clic : l'URSSAF
+  // prélève ensuite. Annoncer « réglé » serait faux tant que c'est en cours.
   order.payment = {
-    status: 'paid',
+    status: method === 'urssaf' ? 'processing' : 'paid',
     method,
     paidAt: new Date().toISOString(),
     amountPaid: amount,

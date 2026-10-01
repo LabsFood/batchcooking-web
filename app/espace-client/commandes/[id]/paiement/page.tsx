@@ -4,6 +4,7 @@ import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import * as Dialog from '@radix-ui/react-dialog'
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,11 +18,13 @@ import {
   Plus,
   ShieldCheck,
   Ticket,
+  X,
 } from 'lucide-react'
 import { DASHBOARD_ORDERS } from '@/lib/dashboard-mock'
 import { PAYMENT_CARDS } from '@/lib/client/mock'
 import {
   buildCheckoutPayload,
+  confirmUrssaf,
   firstAvailable,
   formatEuros,
   methodsFor,
@@ -65,6 +68,7 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
     PAYMENT_CARDS.find((c) => c.isDefault)?.id ?? null,
   )
   const [pending, setPending] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!order) return <NotFound />
@@ -90,6 +94,8 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
   const settlement = settlementFor(order, method ?? 'card', titres)
   const cesuTooHigh = method === 'cesu' && titres > order.amountTTC
   const needsCard = method !== null && settlement.dueNow > 0
+  // L'avance immédiate n'encaisse rien ici : elle se confirme, et l'URSSAF agit.
+  const isAdvance = method === 'urssaf'
   const blocked = method === null || cesuTooHigh || pending
 
   async function pay() {
@@ -110,6 +116,22 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
       setPending(false)
       setError(
         'La session de paiement n’a pas pu s’ouvrir. Votre prestation n’a pas été débitée — réessayez dans un instant.',
+      )
+    }
+  }
+
+  async function confirmAdvance() {
+    setPending(true)
+    setError(null)
+    try {
+      await confirmUrssaf(order!.id)
+      recordPayment(order!.id, 'urssaf', settlement.debitedLater)
+      setConfirming(false)
+      router.push(`/espace-client/commandes/${order!.id}?paiement=succes`)
+    } catch {
+      setPending(false)
+      setError(
+        'La confirmation n’est pas passée. Rien n’a été transmis à l’URSSAF — réessayez dans un instant.',
       )
     }
   }
@@ -193,14 +215,19 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
                           <span className="font-display text-base font-bold text-navy">
                             {spec.label}
                           </span>
-                          {available && (
-                            <span className="font-display text-lg font-bold tabular-nums text-navy">
-                              {formatEuros(due)}
-                              <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-soft">
-                                aujourd’hui
+                          {available &&
+                            (spec.id === 'urssaf' ? (
+                              <span className="font-display text-lg font-bold text-terra">
+                                Rien à payer
                               </span>
-                            </span>
-                          )}
+                            ) : (
+                              <span className="font-display text-lg font-bold tabular-nums text-navy">
+                                {formatEuros(due)}
+                                <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                                  aujourd’hui
+                                </span>
+                              </span>
+                            ))}
                         </span>
                         <span className="mt-0.5 block text-[13px] font-semibold text-terra">
                           {spec.tagline}
@@ -328,6 +355,11 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
               <p className="mt-1 font-display text-4xl font-bold tabular-nums text-amber">
                 {formatEuros(settlement.dueNow)}
               </p>
+              {isAdvance && (
+                <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+                  Vous ne sortez pas votre carte : l’URSSAF s’occupe de tout.
+                </p>
+              )}
 
               <dl className="mt-5 space-y-2 border-t border-white/12 pt-4 text-sm">
                 <Line label="Prestation" value={formatEuros(settlement.total)} />
@@ -336,6 +368,12 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
                     label={settlement.deductionLabel}
                     value={`− ${formatEuros(settlement.deducted)}`}
                     accent
+                  />
+                )}
+                {settlement.debitedLater > 0 && (
+                  <Line
+                    label="Prélevé ensuite par l’URSSAF"
+                    value={formatEuros(settlement.debitedLater)}
                   />
                 )}
                 {settlement.creditLater > 0 && (
@@ -349,14 +387,19 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
 
               <button
                 type="button"
-                onClick={pay}
+                onClick={() => (isAdvance ? setConfirming(true) : pay())}
                 disabled={blocked}
                 className="btn btn-amber mt-6 w-full justify-center text-xs disabled:cursor-not-allowed disabled:opacity-55"
               >
                 {pending ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    Ouverture du paiement sécurisé…
+                    {isAdvance ? 'Transmission à l’URSSAF…' : 'Ouverture du paiement sécurisé…'}
+                  </>
+                ) : isAdvance ? (
+                  <>
+                    Confirmer la prestation
+                    <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
                   </>
                 ) : (
                   <>
@@ -369,8 +412,12 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
 
               <p aria-live="polite" className="mt-3 text-xs leading-relaxed text-white/60">
                 {pending
-                  ? 'Ne fermez pas cette page, la redirection est en cours.'
-                  : 'Vous finalisez le paiement chez Stripe, puis revenez ici. Lab’s Food ne voit jamais vos coordonnées bancaires.'}
+                  ? isAdvance
+                    ? 'Ne fermez pas cette page.'
+                    : 'Ne fermez pas cette page, la redirection est en cours.'
+                  : isAdvance
+                    ? 'Votre chef est réglé par l’URSSAF. Vous n’avancez rien et vous n’attendez pas l’année prochaine.'
+                    : 'Vous finalisez le paiement chez Stripe, puis revenez ici. Lab’s Food ne voit jamais vos coordonnées bancaires.'}
               </p>
             </div>
 
@@ -396,6 +443,79 @@ export default function SettlementPage({ params }: { params: Promise<{ id: strin
           </div>
         </aside>
       </div>
+
+      {/* Rien n'est encaissé ici, mais un prélèvement part ensuite du compte du
+          client : il doit savoir ce qu'il déclenche avant de le déclencher. */}
+      <Dialog.Root open={confirming} onOpenChange={(v) => !pending && setConfirming(v)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-paper p-6 focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+            <div className="flex items-start justify-between gap-4">
+              <Dialog.Title className="font-display text-xl font-bold leading-tight text-navy">
+                Confirmer la prestation
+              </Dialog.Title>
+              <Dialog.Close
+                aria-label="Fermer"
+                disabled={pending}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              >
+                <X className="h-4 w-4" />
+              </Dialog.Close>
+            </div>
+
+            <Dialog.Description className="mt-2 text-sm leading-relaxed text-ink-mid">
+              Vous confirmez que {order.chef} est bien passé le {formatDate(order.date)} et
+              que la prestation est faite.
+            </Dialog.Description>
+
+            <ul className="mt-4 space-y-2.5 border-y border-[rgba(31,42,55,0.08)] py-4 text-sm">
+              <li className="flex items-baseline justify-between gap-4">
+                <span className="text-ink-mid">Vous réglez maintenant</span>
+                <span className="font-display text-lg font-bold text-navy">0 €</span>
+              </li>
+              <li className="flex items-baseline justify-between gap-4">
+                <span className="text-ink-mid">L’URSSAF prélève sur votre compte</span>
+                <span className="font-semibold tabular-nums text-navy">
+                  {formatEuros(settlement.debitedLater)}
+                </span>
+              </li>
+              <li className="flex items-baseline justify-between gap-4">
+                <span className="text-ink-mid">Crédit d’impôt déduit tout de suite</span>
+                <span className="font-semibold tabular-nums text-mint-ink">
+                  {formatEuros(settlement.deducted)}
+                </span>
+              </li>
+            </ul>
+
+            <p className="mt-4 text-[13px] leading-relaxed text-ink-mid">
+              L’URSSAF verse ensuite sa part à {order.chef.split(' ')[0]} : vous n’avez plus
+              rien à faire. Un problème sur la prestation ? Ouvrez un litige avant de
+              confirmer.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={confirmAdvance}
+                disabled={pending}
+                className="btn btn-primary flex-1 justify-center text-xs disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    Transmission…
+                  </>
+                ) : (
+                  <>Oui, la prestation est faite</>
+                )}
+              </button>
+              <Dialog.Close disabled={pending} className="btn btn-outline text-xs">
+                Annuler
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }
