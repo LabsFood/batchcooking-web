@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import Image from 'next/image'
 import {
   X,
   Banknote,
@@ -97,9 +98,20 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
             <p className="mt-3 text-white/70 text-sm leading-relaxed max-w-xl">
               Le batch cooking à domicile est éligible au crédit d&apos;impôt Service à la
               Personne. Grâce à l&apos;<strong>Avance immédiate</strong>, vous ne
-              payez plus que la moitié — et ce, dès la facturation.
+              payez plus que la moitié — et ce, dès la facturation. Le service Avance
+              immédiate est proposé par l&apos;Urssaf et la Direction générale des Finances
+              publiques.
             </p>
           </div>
+
+          {/* Logo Urssaf — sous le bouton fermer (sous le texte en mobile) */}
+          <Image
+            src="/images/urssaf-white.png"
+            alt="Urssaf"
+            width={1281}
+            height={242}
+            className="relative mt-6 w-32 h-auto md:absolute md:mt-0 md:top-[80px] md:right-4 md:w-40"
+          />
         </div>
 
         {/* Body */}
@@ -165,7 +177,17 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
                 <strong className="font-semibold">Plafond annuel :</strong> 12 000 € de
                 dépenses par foyer fiscal pour les services à la personne — soit jusqu&apos;à{' '}
                 <strong>6 000 € de réduction</strong>. Majoré de 1 500 € par enfant à charge
-                ou personne de plus de 65 ans (plafond max 15 000 €).
+                ou personne de plus de 65 ans (plafond max 15 000 €). Vous pouvez retrouver
+                ces informations sur cette page,{' '}
+                <a
+                  href="https://www.impots.gouv.fr/portail/particulier/emploi-domicile"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 break-all hover:text-navy"
+                >
+                  https://www.impots.gouv.fr/portail/particulier/emploi-domicile
+                </a>
+                .
               </p>
             </div>
           </div>
