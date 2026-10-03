@@ -163,10 +163,12 @@ export function isValidSiret(raw: string): boolean {
   return sum % 10 === 0
 }
 
+// L'API exige le code INSEE sur chaque commune : une zone qui en manque une
+// fait échouer toute la candidature.
 const citySchema = z.object({
   name: z.string(),
   dept: z.string(),
-  insee: z.string().optional(),
+  insee: z.string().min(1),
 })
 
 export const zoneSchema = z.object({

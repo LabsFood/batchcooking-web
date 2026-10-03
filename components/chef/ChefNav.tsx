@@ -61,8 +61,7 @@ export const CHEF_NAV = [
   {
     group: 'Mon dossier',
     items: [
-      { href: '/espace-chef/profil', label: 'Mon profil', Icon: UserCircle2 },
-      { href: '/espace-chef/dossier', label: 'Documents', Icon: ShieldCheck },
+      { href: '/espace-chef/dossier', label: 'Mon dossier', Icon: ShieldCheck },
       { href: '/espace-chef/parametres', label: 'Paramètres', Icon: Settings },
     ],
   },
@@ -97,31 +96,12 @@ export function ChefSidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
-      <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.55)]">
-        <div className="px-6 pt-6 pb-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-navy text-white">
+        <div className="px-6 pb-5 pt-6">
           <Logo variant="white" size="sm" />
           <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.22em] text-amber">
             Espace chef
           </p>
-        </div>
-
-        <div className="mx-4 mb-4 rounded-2xl bg-white/[0.06] border border-white/10 p-4">
-          <div className="flex items-center gap-3">
-            <span className="w-11 h-11 rounded-full bg-amber text-navy font-bold text-sm flex items-center justify-center">
-              {initials}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{user?.name || 'Batch cooker'}</p>
-              {roleLabel && (
-                <span className="mt-0.5 inline-flex items-center rounded-full bg-amber/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-amber">
-                  {roleLabel}
-                </span>
-              )}
-              <p className="text-[11px] text-white/55 truncate mt-0.5">
-                {user?.email || 'Espace chef'}
-              </p>
-            </div>
-          </div>
         </div>
 
         <nav className="px-3 flex-1 overflow-y-auto">
