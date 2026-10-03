@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { AlertTriangle, Loader2, Plus, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { AISLES, UNITS } from '@/lib/chef/recipes'
 import { COUNTRIES } from '@/lib/chef/countries'
 import { useAllergens, useDiets, useDishCategories } from '@/lib/api/referentials'
@@ -123,20 +123,19 @@ function toPayload(d: Draft): DishInput {
   }
 }
 
-export default function DishEditor({
+export default function DishForm({
   dish,
-  open,
-  onClose,
   onSave,
   saving,
   error,
+  backHref,
 }: {
+  /** Plat existant, ou null pour une création. */
   dish: Dish | null
-  open: boolean
-  onClose: () => void
   onSave: (input: DishInput) => void
   saving: boolean
   error: string | null
+  backHref: string
 }) {
   const [d, setD] = useState<Draft>(() => toDraft(dish))
   const [customDiet, setCustomDiet] = useState('')
@@ -156,31 +155,13 @@ export default function DishEditor({
   const ready = d.name.trim().length >= 2 && d.prepMinutes > 0
 
   return (
-    <Dialog.Root open={open} onOpenChange={(v) => !v && !saving && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[80] bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 top-8 z-[80] flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-6 sm:rounded-3xl lg:inset-x-[12%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4">
-          <header className="flex items-start gap-4 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">
-            <div className="min-w-0 flex-1">
-              <Dialog.Title className="font-display text-lg font-bold leading-tight text-navy">
-                {dish ? dish.name : 'Nouveau plat'}
-              </Dialog.Title>
-              <Dialog.Description className="text-xs text-ink-soft">
-                Le nom et le temps de préparation suffisent pour enregistrer. Le reste peut
-                attendre — mais il faudra tout avoir pour publier.
-              </Dialog.Description>
-            </div>
-            <Dialog.Close
-              aria-label="Fermer"
-              disabled={saving}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-            >
-              <X className="h-4 w-4" />
-            </Dialog.Close>
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7">
-            <div className="mx-auto max-w-2xl space-y-7">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (ready && !saving) onSave(toPayload(d))
+      }}
+    >
+      <div className="mx-auto max-w-2xl space-y-7 pb-28">
               {/* ── L'essentiel ─────────────────────────────────────────── */}
               <Group title="Le plat">
                 <Field label="Nom" required>
@@ -553,45 +534,45 @@ export default function DishEditor({
                   />
                 </Field>
               </Group>
-            </div>
-          </div>
+      </div>
 
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">
-            <p className="min-w-0 flex-1 text-sm text-ink-mid">
-              {error ? (
-                <span role="alert" className="flex items-start gap-2 text-red-700">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  {error}
-                </span>
-              ) : !ready ? (
-                'Le nom et le temps de préparation sont nécessaires.'
+      {/* La barre d'action suit : sur une page longue, un bouton tout en bas
+          se cherche. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(31,42,55,0.08)] bg-paper/95 backdrop-blur lg:left-72">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-0">
+          <p className="min-w-0 flex-1 text-[13px] text-ink-mid">
+            {error ? (
+              <span role="alert" className="flex items-start gap-2 text-red-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                {error}
+              </span>
+            ) : !ready ? (
+              'Le nom et le temps de préparation sont nécessaires.'
+            ) : (
+              'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.'
+            )}
+          </p>
+          <div className="flex gap-2">
+            <Link href={backHref} className="btn btn-outline text-xs">
+              Annuler
+            </Link>
+            <button
+              type="submit"
+              disabled={!ready || saving}
+              className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Enregistrement…
+                </>
               ) : (
-                'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.'
+                'Enregistrer'
               )}
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={onClose} disabled={saving} className="btn btn-outline text-xs">
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => onSave(toPayload(d))}
-                disabled={!ready || saving}
-                className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Enregistrement…
-                  </>
-                ) : (
-                  'Enregistrer'
-                )}
-              </button>
-            </div>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
   )
 }
 

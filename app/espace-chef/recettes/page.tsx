@@ -13,15 +13,15 @@ import {
   Trash2,
   UtensilsCrossed,
 } from 'lucide-react'
+import Link from 'next/link'
 import ChefPage from '@/components/chef/ChefPage'
-import DishEditor from '@/components/chef/recipes/DishEditor'
+import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
 import {
   DISH_STATUS_LABEL,
   checkPhoto,
   publishBlockers,
   useAdoptSuggestion,
-  useCreateDish,
   useCreateMenu,
   useDeleteDish,
   useDeleteMenu,
@@ -31,9 +31,7 @@ import {
   usePublishDish,
   usePublishMenu,
   useSuggestions,
-  useUpdateDish,
   type Dish,
-  type DishInput,
   type DishStatus,
   type Menu,
 } from '@/lib/api/chef-catalog'
@@ -63,24 +61,6 @@ export default function RecettesPage() {
   const [tab, setTab] = useState<Tab>('dishes')
   const dishes = useDishes()
   const menus = useMenus()
-
-  const [editing, setEditing] = useState<Dish | 'new' | null>(null)
-  const create = useCreateDish()
-  const update = useUpdateDish()
-
-  const saving = create.isPending || update.isPending
-  const saveError =
-    (create.error ?? update.error) instanceof Error
-      ? (create.error ?? update.error)!.message
-      : null
-
-  function save(input: DishInput) {
-    if (editing === 'new') {
-      create.mutate(input, { onSuccess: () => setEditing(null) })
-    } else if (editing) {
-      update.mutate({ id: editing.id, patch: input }, { onSuccess: () => setEditing(null) })
-    }
-  }
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'dishes', label: 'Mes plats', count: dishes.data?.length },
@@ -118,43 +98,17 @@ export default function RecettesPage() {
           })}
         </div>
 
-        {tab === 'dishes' && (
-          <DishesTab
-            query={dishes}
-            onNew={() => setEditing('new')}
-            onEdit={(d) => setEditing(d)}
-          />
-        )}
+        {tab === 'dishes' && <DishesTab query={dishes} />}
         {tab === 'menus' && <MenusTab query={menus} dishes={dishes.data ?? []} />}
         {tab === 'suggestions' && <SuggestionsTab />}
       </div>
-
-      {editing && (
-        <DishEditor
-          key={editing === 'new' ? 'new' : editing.id}
-          dish={editing === 'new' ? null : editing}
-          open
-          onClose={() => setEditing(null)}
-          onSave={save}
-          saving={saving}
-          error={saveError}
-        />
-      )}
     </ChefPage>
   )
 }
 
 // ── Plats ───────────────────────────────────────────────────────────────────
 
-function DishesTab({
-  query,
-  onNew,
-  onEdit,
-}: {
-  query: ReturnType<typeof useDishes>
-  onNew: () => void
-  onEdit: (d: Dish) => void
-}) {
+function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   if (query.isPending) return <Skeleton />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
 
@@ -170,9 +124,9 @@ function DishesTab({
                 dishes.filter((d) => d.status === 'published').length
               } publié${dishes.filter((d) => d.status === 'published').length > 1 ? 's' : ''}`}
         </p>
-        <button onClick={onNew} className="btn btn-primary text-xs">
+        <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
           <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
-        </button>
+        </Link>
       </div>
 
       {dishes.length === 0 ? (
@@ -181,15 +135,15 @@ function DishesTab({
           title="Commencez par un plat"
           text="Écrivez-en un : nom, temps de préparation, et c’est enregistré. Vous compléterez la recette quand vous voudrez — rien n’est public avant publication."
           action={
-            <button onClick={onNew} className="btn btn-primary text-xs">
+            <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
               <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
-            </button>
+            </Link>
           }
         />
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {dishes.map((dish) => (
-            <DishCard key={dish.id} dish={dish} onEdit={() => onEdit(dish)} />
+            <DishCard key={dish.id} dish={dish} />
           ))}
         </ul>
       )}
@@ -197,7 +151,8 @@ function DishesTab({
   )
 }
 
-function DishCard({ dish, onEdit }: { dish: Dish; onEdit: () => void }) {
+function DishCard({ dish }: { dish: Dish }) {
+  const toast = useToast()
   const publish = usePublishDish()
   const remove = useDeleteDish()
   const photo = useDishPhoto()
@@ -216,7 +171,14 @@ function DishCard({ dish, onEdit }: { dish: Dish; onEdit: () => void }) {
       setPhotoError(problem)
       return
     }
-    photo.mutate({ id: dish.id, file })
+    photo.mutate(
+      { id: dish.id, file },
+      {
+        onSuccess: () => toast.success('Photo mise \u00e0 jour'),
+        onError: () =>
+          toast.error('La photo n\u2019a pas \u00e9t\u00e9 envoy\u00e9e', 'Rien n\u2019a chang\u00e9 \u2014 r\u00e9essayez.'),
+      },
+    )
   }
 
   return (
@@ -312,13 +274,22 @@ function DishCard({ dish, onEdit }: { dish: Dish; onEdit: () => void }) {
       )}
 
       <footer className="flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.07)] px-4 py-3">
-        <button onClick={onEdit} className="btn btn-outline text-xs">
+        <Link href={`/espace-chef/recettes/${dish.id}`} className="btn btn-outline text-xs">
           Modifier
-        </button>
+        </Link>
 
         {dish.status === 'published' ? (
           <button
-            onClick={() => publish.mutate({ id: dish.id, publish: false })}
+            onClick={() =>
+              publish.mutate(
+                { id: dish.id, publish: false },
+                {
+                  onSuccess: () =>
+                    toast.info(`\u00ab\u00a0${dish.name}\u00a0\u00bb n\u2019est plus visible`, 'Il reste dans vos plats, en brouillon.'),
+                  onError: () => toast.error('La d\u00e9publication a \u00e9chou\u00e9'),
+                },
+              )
+            }
             disabled={busy}
             className="btn btn-outline text-xs"
           >
@@ -327,7 +298,19 @@ function DishCard({ dish, onEdit }: { dish: Dish; onEdit: () => void }) {
           </button>
         ) : (
           <button
-            onClick={() => publish.mutate({ id: dish.id, publish: true })}
+            onClick={() =>
+              publish.mutate(
+                { id: dish.id, publish: true },
+                {
+                  onSuccess: () => toast.success(`\u00ab\u00a0${dish.name}\u00a0\u00bb est publi\u00e9`),
+                  onError: (e) =>
+                    toast.error(
+                      'La publication a \u00e9t\u00e9 refus\u00e9e',
+                      e instanceof Error ? e.message : undefined,
+                    ),
+                },
+              )
+            }
             disabled={busy || blockers.length > 0}
             className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -344,7 +327,12 @@ function DishCard({ dish, onEdit }: { dish: Dish; onEdit: () => void }) {
           <span className="ml-auto flex items-center gap-2 text-xs">
             <span className="text-ink-mid">Supprimer ce plat ?</span>
             <button
-              onClick={() => remove.mutate(dish.id)}
+              onClick={() =>
+                remove.mutate(dish.id, {
+                  onSuccess: () => toast.success(`\u00ab\u00a0${dish.name}\u00a0\u00bb supprim\u00e9`),
+                  onError: () => toast.error('La suppression a \u00e9chou\u00e9'),
+                })
+              }
               disabled={busy}
               className="font-semibold text-red-700 hover:underline"
             >
@@ -377,6 +365,7 @@ function MenusTab({
   query: ReturnType<typeof useMenus>
   dishes: Dish[]
 }) {
+  const toast = useToast()
   const create = useCreateMenu()
   const [composing, setComposing] = useState(false)
   const [title, setTitle] = useState('')
@@ -452,11 +441,17 @@ function MenusTab({
                 create.mutate(
                   { title: title.trim(), dishIds: picked },
                   {
-                    onSuccess: () => {
+                    onSuccess: (menu) => {
                       setComposing(false)
                       setTitle('')
                       setPicked([])
+                      toast.success(`Carte « ${menu.title} » créée`, 'En brouillon : publiez-la quand elle vous convient.')
                     },
+                    onError: (e) =>
+                      toast.error(
+                        'La carte n’a pas été créée',
+                        e instanceof Error ? e.message : undefined,
+                      ),
                   },
                 )
               }
@@ -491,6 +486,7 @@ function MenusTab({
 }
 
 function MenuCard({ menu }: { menu: Menu }) {
+  const toast = useToast()
   const publish = usePublishMenu()
   const remove = useDeleteMenu()
   const [open, setOpen] = useState(false)
@@ -523,7 +519,15 @@ function MenuCard({ menu }: { menu: Menu }) {
         <div className="flex items-center gap-2">
           {menu.status === 'published' ? (
             <button
-              onClick={() => publish.mutate({ id: menu.id, publish: false })}
+              onClick={() =>
+                publish.mutate(
+                  { id: menu.id, publish: false },
+                  {
+                    onSuccess: () => toast.info(`« ${menu.title} » n’est plus visible`),
+                    onError: () => toast.error('La dépublication a échoué'),
+                  },
+                )
+              }
               disabled={publish.isPending}
               className="btn btn-outline text-xs"
             >
@@ -531,7 +535,20 @@ function MenuCard({ menu }: { menu: Menu }) {
             </button>
           ) : (
             <button
-              onClick={() => publish.mutate({ id: menu.id, publish: true })}
+              onClick={() =>
+                publish.mutate(
+                  { id: menu.id, publish: true },
+                  {
+                    onSuccess: () =>
+                      toast.success(`« ${menu.title} » est publiée`, 'Les plats de la carte le sont aussi.'),
+                    onError: (e) =>
+                      toast.error(
+                        'La publication a été refusée',
+                        e instanceof Error ? e.message : undefined,
+                      ),
+                  },
+                )
+              }
               disabled={publish.isPending || menu.dishes.length === 0}
               className="btn btn-primary text-xs disabled:opacity-50"
             >
@@ -544,7 +561,12 @@ function MenuCard({ menu }: { menu: Menu }) {
             </button>
           )}
           <button
-            onClick={() => remove.mutate(menu.id)}
+            onClick={() =>
+              remove.mutate(menu.id, {
+                onSuccess: () => toast.success(`« ${menu.title} » supprimée`),
+                onError: () => toast.error('La suppression a échoué'),
+              })
+            }
             aria-label={`Supprimer ${menu.title}`}
             className="text-ink-soft hover:text-red-700"
           >
@@ -589,6 +611,7 @@ function MenuCard({ menu }: { menu: Menu }) {
 // ── Propositions Lab's Food ─────────────────────────────────────────────────
 
 function SuggestionsTab() {
+  const toast = useToast()
   const query = useSuggestions()
   const adopt = useAdoptSuggestion()
 
@@ -634,7 +657,13 @@ function SuggestionsTab() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => adopt.mutate(d.id)}
+                    onClick={() =>
+                      adopt.mutate(d.id, {
+                        onSuccess: () =>
+                          toast.success(`« ${d.name} » ajouté à vos plats`, 'Une copie : modifiez-la comme vous voulez.'),
+                        onError: () => toast.error('L’adoption a échoué'),
+                      })
+                    }
                     disabled={adopt.isPending}
                     className="btn btn-outline text-xs"
                   >
@@ -664,7 +693,12 @@ function SuggestionsTab() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => adopt.mutate(m.id)}
+                    onClick={() =>
+                      adopt.mutate(m.id, {
+                        onSuccess: () => toast.success(`« ${m.title} » ajoutée à vos cartes`),
+                        onError: () => toast.error('L’adoption a échoué'),
+                      })
+                    }
                     disabled={adopt.isPending}
                     className="btn btn-outline text-xs"
                   >
