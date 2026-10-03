@@ -88,6 +88,33 @@ export interface ChefApplication {
   canApprove: boolean
   documents: ChefDocument[]
   refusal: { reason?: string; reasonCode?: string; allowReapplyAfter?: string | null } | null
+
+  /*
+   * Ce que la candidature a déclaré. L'API ne documente pas ces champs sur
+   * `/me/chef-application` (le détail admin les porte), donc tout est
+   * optionnel : l'écran rend ce qui arrive et tait le reste plutôt que
+   * d'afficher des cases vides.
+   */
+  identity?: { firstName?: string; lastName?: string; email?: string; phone?: string }
+  address?: {
+    street?: string
+    line2?: string | null
+    postcode?: string
+    city?: string
+    country?: string
+  }
+  interventionZones?: {
+    regionCode?: string
+    regionLabel?: string
+    scope?: 'region' | 'cities'
+    cities?: { name?: string; dept?: string; insee?: string }[]
+  }[]
+  workAuthorization?: { status?: string; details?: string | null }
+  company?: {
+    legalForm?: string
+    siret?: string | null
+    sap?: { path?: string; declarationNumber?: string | null }
+  }
 }
 
 interface UploadTicket {
@@ -259,4 +286,38 @@ export function checkFile(file: File): string | null {
   }
   if (file.size === 0) return 'Ce fichier est vide.'
   return null
+}
+
+// ── Aperçu d'une pièce déposée ──────────────────────────────────────────────
+
+/**
+ * `GET /me/chef-documents/{type}/download-url` — URL signée de courte durée.
+ *
+ * L'endpoint n'existe pas encore côté batch cooker (il existe côté admin) : on
+ * l'appelle quand même, et un 404 est traité comme « pas encore disponible »
+ * plutôt que comme une panne. Le jour où le backend l'expose, l'aperçu marche
+ * sans rien changer ici.
+ */
+export class PreviewUnavailable extends Error {
+  constructor() {
+    super('L’aperçu des pièces déposées n’est pas encore disponible.')
+    this.name = 'PreviewUnavailable'
+  }
+}
+
+export function useDocumentPreview() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: async (type: ChefDocumentType) => {
+      try {
+        return await apiFetch<{ url: string; expiresAt?: string }>(
+          `/me/chef-documents/${type}/download-url`,
+        )
+      } catch (e) {
+        const status = (e as { status?: number })?.status
+        if (status === 404) throw new PreviewUnavailable()
+        throw e
+      }
+    },
+  })
 }
