@@ -1,0 +1,13 @@
+﻿Date;Auteur;Tâche ou module;Commentaire
+2026-09-28;Amir;LF-0018;Demande : la réservation du client doit se passer comme sur le site public, chefs et menus avec filtres.
+2026-09-29;Amir;LF-0022;Demande : le choix du moyen de paiement doit dépendre de ce que le batch cooker accepte, puis rediriger vers Stripe.
+2026-09-30;Amir;LF-0016;Demande : sortir la grosse pastille de la sidebar et mettre le rôle sous le nom dans la navbar.
+2026-10-01;Amir;LF-0009;La soumission échouait en 400 sur les codes INSEE. Contourné : 138 communes de référence les portent.
+2026-10-01;Amir;LF-0099;Demande : fusionner candidatures et batch cookers, ce sont tous des batchcookeurs.
+2026-10-02;Amir;LF-0046;Demande : fusionner mon profil et mes documents en un seul écran, avec prévisualisation.
+2026-10-02;Amir;BLK-12;Un mot de passe admin est apparu en clair sur une copie d'écran. À changer.
+2026-10-03;Amir;LF-0054;Demande : l'écriture d'un plat doit se faire sur une page et non dans une modale, avec des toasts.
+2026-10-03;Amir;BLK-11;Le déploiement PR-38 a disparu en pleine intégration. Repointé sur lf-api-develop.
+2026-10-03;Amir;BUG-09;Le lien de connexion est bien arrivé. Le bug venait de l'ancien déploiement, pas du code.
+2026-10-03;Amir;LF-0111;Les écrans catalogue de la console lisaient des mocks. Branchés, et les mocks supprimés.
+2026-10-03;Amir;LF-0125;Nouvel écran de modération : relire, suspendre avec motif, remettre en ligne.

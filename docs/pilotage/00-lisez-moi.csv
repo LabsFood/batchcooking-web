@@ -1,0 +1,22 @@
+﻿Sujet;Explication
+À quoi sert ce classeur;Piloter le développement de Lab's Food : le site public, l'espace client, l'espace batch cooker et la console d'administration. Une ligne du Backlog = une action, pour un type de travail. « Lister les plats » donne donc deux lignes, le design et l'intégration, chacune avec son statut : c'est ce qui permet de voir qu'un écran est dessiné mais pas branché.
+Qui met à jour quoi;Amir tient les statuts Design, Intégration API et Logique front. Daniel et Duval tiennent les lignes Backend et les fiches BUG, DEM et BLK qui leur sont assignées. Ivy arbitre le périmètre MVP et les priorités. Emmanuel tient les deadlines et les sprints.
+Statut — À faire;Rien n'est commencé.
+Statut — En cours;Quelqu'un travaille dessus en ce moment.
+Statut — À tester;Le code est écrit et poussé, mais personne ne l'a vu fonctionner contre l'API réelle. Ce n'est pas terminé.
+Statut — Terminé;Vérifié en situation, avec de vraies données.
+Statut — Bloqué;Attend quelqu'un d'autre : un endpoint, un accès, une décision. La colonne Bug / blocage dit lequel.
+Colonne MVP;Oui = sans cette ligne, on ne peut pas ouvrir le service. Non = utile, mais la V1 vit sans. C'est Ivy qui tranche.
+Colonne Type;Design = l'écran. Intégration API = le branchement sur un endpoint. Logique front = une règle métier tenue côté navigateur. Backend = la ligne appartient à l'API. QA = vérification, accès, recette.
+Colonne Endpoint / écran;La route de l'API visée, ou le chemin de l'écran. « non exposé » veut dire que l'endpoint n'existe pas encore dans la documentation.
+Colonne Bug / blocage;Le code d'une fiche de l'onglet Bugs et blocages. Vide = rien ne bloque.
+Colonne Dernier commentaire;Le dernier mot utile sur la ligne. L'historique complet est dans l'onglet Commentaires.
+Codes BUG;Un défaut de l'API constaté et reproduit. Les neuf premiers viennent de docs/api/BUGS-BACKEND.md.
+Codes DEM;Une demande fonctionnelle adressée au backend : pas un défaut, un manque qui bloque un écran. Viennent de docs/api/DEMANDES-BACKEND.md.
+Codes BLK;Un blocage qui n'est ni l'un ni l'autre : un module absent, un accès manquant, une décision à prendre.
+Onglet Tableau de bord;Calculé depuis le Backlog. Ne rien y saisir à la main : les cases se recalculent toutes seules.
+Onglet Référentiels;Les listes qui alimentent les menus déroulants du Backlog. Ajouter une valeur ici l'ajoute partout.
+Source de vérité;Les fichiers CSV de docs/pilotage dans le dépôt labs-food. Ce classeur en est l'affichage.
+Comment rafraîchir;Fichier → Importer → choisir le CSV → Remplacer les données de la feuille sélectionnée, sans cocher la conversion du texte en nombres. L'URL, les partages et les commentaires du document sont conservés.
+Ce qui se perd à l'import;Rien du document : seules les cellules de la feuille choisie sont remplacées. Les commentaires Google attachés à une cellule suivent la cellule, pas la valeur : après un import, vérifiez qu'ils sont toujours en face du bon ID.
+Date de référence;03/10/2026. Les statuts Terminé reflètent ce qui a été vérifié à cette date.
