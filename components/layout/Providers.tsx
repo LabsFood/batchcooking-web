@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { makeQueryClient } from '@/lib/api/query-client'
 import { ReservationGateProvider } from '@/lib/reservation-gate-context'
 import LoginRequiredModal from '@/components/shared/LoginRequiredModal'
+import Toaster from '@/components/shared/Toaster'
 
 /**
  * Purge le cache react-query dès que l'identité Clerk change.
@@ -45,7 +46,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthCacheReset />
       <ReservationGateProvider>
-        {children}
+        <Toaster>{children}</Toaster>
         <LoginRequiredModal />
       </ReservationGateProvider>
       {/* Devtools React Query — exclus du bundle de production. */}
