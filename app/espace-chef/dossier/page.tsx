@@ -1,415 +1,367 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
-  BadgeCheck,
   CalendarClock,
   Check,
   CheckCircle2,
-  Circle,
-  Clock,
-  FileWarning,
+  FileText,
   Info,
+  Loader2,
+  RotateCw,
   Upload,
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
-import StatusBadge, { DocBadge, DossierBadge } from '@/components/chef/StatusBadge'
-import DocThumb from '@/components/chef/DocCard'
-import { CHEF_DOCS, CHEF_PROFILE, DOC_DEFINITIONS } from '@/lib/chef/mock'
+import StatusBadge, { type Tone } from '@/components/chef/StatusBadge'
 import {
-  DOSSIER_STATUS_LABEL,
-  DOC_FAMILY_LABEL,
-  SAP_PATH_LABEL,
-  applicableDocuments,
-  canAcceptMissions,
-  completionScore,
-  deriveDossierStatus,
-  type DocFamily,
-  type DocState,
+  DOC_STATUS_LABEL,
+  DOSSIER_LABEL,
+  EXPIRING_TYPES,
+  FAMILY_HINT,
+  FAMILY_LABEL,
+  MAX_FILE_MB,
+  UploadError,
+  checkFile,
+  useChefDocuments,
+  useUploadDocument,
+  type ChefDocument,
+  type DocumentFamily,
+  type DocumentStatus,
   type DossierStatus,
-} from '@/lib/chef/states'
+} from '@/lib/api/chef-documents'
 
-const FAMILY_ORDER: DocFamily[] = ['blocking', 'conditional', 'recommended']
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mes documents — `GET /me/chef-documents`.
 
-const FAMILY_HINT: Record<DocFamily, string> = {
-  blocking: 'Sans ces pièces, votre compte ne peut pas être activé.',
-  conditional: 'Demandées d’après la situation que vous avez déclarée à la candidature.',
-  recommended: 'Elles renforcent votre vitrine et rassurent les clients.',
+   C'est l'écran qui tient la promesse faite à la candidature : « vous
+   déposerez vos pièces depuis votre espace ». Il marche avant comme après
+   l'approbation, puisque les pièces expirent et se renouvellent.
+
+   La liste des pièces est décidée par l'API d'après les réponses du candidat :
+   on ne la calcule pas ici, on la rend.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const FAMILY_ORDER: DocumentFamily[] = ['blocking', 'conditional', 'recommended']
+
+const DOC_TONE: Record<DocumentStatus, Tone> = {
+  missing: 'neutral',
+  submitted: 'info',
+  reviewing: 'info',
+  valid: 'success',
+  rejected: 'danger',
+  expiring: 'warning',
+  expired: 'danger',
 }
 
-/** Étapes visibles de la machine à états (hors cas d'exception). */
-const PIPELINE: DossierStatus[] = ['draft', 'incomplete', 'reviewing', 'validated']
-
-const CERTIFICATE_IDS = ['haccp', 'rc-pro', 'sap-coop', 'crcesu', 'approval', 'ddpp']
-
-const TABS = ['pieces', 'progression', 'historique'] as const
-type Tab = (typeof TABS)[number]
-const TAB_LABEL: Record<Tab, string> = {
-  pieces: 'Mes pièces',
-  progression: 'Ma progression',
-  historique: 'Historique',
+const DOSSIER_TONE: Record<DossierStatus, Tone> = {
+  draft: 'neutral',
+  incomplete: 'warning',
+  reviewing: 'info',
+  'awaiting-registration': 'warning',
+  validated: 'success',
+  suspended: 'danger',
+  disabled: 'danger',
 }
 
-const daysUntil = (iso: string) =>
-  Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR')
+/** Ce que le batch cooker doit comprendre en une phrase, selon son dossier. */
+const DOSSIER_LEAD: Record<DossierStatus, string> = {
+  draft: 'Votre dossier est ouvert. Déposez vos pièces obligatoires pour que nous puissions l’instruire.',
+  incomplete: 'Il manque une pièce obligatoire, ou l’une d’elles a été refusée. Tant qu’elle n’est pas validée, votre compte ne peut pas être activé.',
+  reviewing: 'Tout est déposé. Notre équipe vérifie vos pièces — comptez 48 h ouvrées.',
+  'awaiting-registration': 'Vos pièces sont bonnes. Il ne manque que votre immatriculation : ajoutez votre SIRET dès que vous l’avez.',
+  validated: 'Votre dossier est complet et validé. Pensez à renouveler les pièces avant leur expiration.',
+  suspended: 'Une pièce obligatoire a expiré, votre vitrine est hors ligne. Déposez la nouvelle version : vous repassez en ligne immédiatement.',
+  disabled: 'Votre compte a été désactivé par notre équipe. Contactez-nous depuis la messagerie.',
+}
 
-export default function ChefDossierPage() {
-  const [docs, setDocs] = useState<DocState[]>(CHEF_DOCS)
-  const [tab, setTab] = useState<Tab>('pieces')
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  const definitions = useMemo(
-    () => applicableDocuments(DOC_DEFINITIONS, CHEF_PROFILE),
-    [],
-  )
+const formatSize = (b: number) =>
+  b < 1024 * 1024
+    ? `${Math.max(1, Math.round(b / 1024))} Ko`
+    : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
 
-  const status = deriveDossierStatus(docs, definitions, {
-    registered: CHEF_PROFILE.registered,
-  })
-  const score = completionScore(docs, definitions)
-  const active = canAcceptMissions(status)
+export default function DossierPage() {
+  const { data, isPending, isError, error, refetch } = useChefDocuments()
 
-  const submit = (definitionId: string) =>
-    setDocs((prev) => {
-      const next: DocState = {
-        definitionId,
-        status: 'submitted',
-        submittedAt: new Date().toISOString(),
-      }
-      return prev.some((d) => d.definitionId === definitionId)
-        ? prev.map((d) => (d.definitionId === definitionId ? next : d))
-        : [...prev, next]
-    })
-
-  const stateOf = (id: string): DocState =>
-    docs.find((d) => d.definitionId === id) ?? { definitionId: id, status: 'missing' }
-
-  // Compteurs pour l'onglet Pièces
-  const counts = {
-    todo: definitions.filter((d) =>
-      ['missing', 'rejected', 'expired'].includes(stateOf(d.id).status),
-    ).length,
-    waiting: definitions.filter((d) =>
-      ['submitted', 'reviewing'].includes(stateOf(d.id).status),
-    ).length,
+  if (isPending) {
+    return (
+      <ChefPage title="Mes documents">
+        <div className="space-y-4">
+          <div className="h-28 animate-pulse rounded-3xl bg-paper" />
+          <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+        </div>
+      </ChefPage>
+    )
   }
 
-  const history = [...docs]
-    .filter((d) => d.submittedAt)
-    .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
+  if (isError || !data) {
+    return (
+      <ChefPage title="Mes documents">
+        <Card>
+          <p className="font-display text-lg font-bold text-navy">Dossier indisponible</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+            {error instanceof Error
+              ? error.message
+              : 'Votre dossier n’a pas pu être chargé.'}
+          </p>
+          <button onClick={() => refetch()} className="btn btn-primary mt-5 text-xs">
+            <RotateCw className="h-3.5 w-3.5" /> Réessayer
+          </button>
+        </Card>
+      </ChefPage>
+    )
+  }
+
+  const { dossierStatus, documents } = data
+  const blocking = documents.filter((d) => d.family === 'blocking')
+  const done = blocking.filter((d) => d.status === 'valid').length
 
   return (
     <ChefPage
       title="Mes documents"
-      subtitle="Déposez vos pièces à votre rythme — l'état se met à jour automatiquement."
+      subtitle="Vos justificatifs, leur état, et ce qu’il reste à fournir."
     >
       <div className="space-y-5">
-        {/* En-tête */}
-        <Card>
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                État du dossier
-              </p>
-              <DossierBadge status={status} />
-              <p className="text-xs text-ink-mid mt-2 max-w-sm leading-relaxed">
-                {active
-                  ? 'Votre dossier est complet : vous apparaissez dans la recherche et pouvez accepter des prestations.'
-                  : "Vous pouvez préparer votre offre dès maintenant. L'acceptation de prestations sera débloquée une fois vos pièces obligatoires validées."}
+        {/* ── Où en est le dossier ─────────────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-3xl bg-navy p-6 text-white lg:p-7"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-xl">
+              <p className="text-sm text-amber">Dossier {DOSSIER_LABEL[dossierStatus]}</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/80">
+                {DOSSIER_LEAD[dossierStatus]}
               </p>
             </div>
-            <div className="flex-1 min-w-[220px]">
-              <div className="flex justify-between text-xs text-ink-mid mb-1.5">
-                <span>Pièces obligatoires validées</span>
-                <span className="font-semibold text-navy">{score} %</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-cream-deep overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-amber"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${score}%` }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <StatusBadge tone="neutral">{SAP_PATH_LABEL[CHEF_PROFILE.sapPath]}</StatusBadge>
-                {CHEF_PROFILE.acceptsCesu && <StatusBadge tone="neutral">CESU accepté</StatusBadge>}
-                {counts.todo > 0 && (
-                  <StatusBadge tone="warning">{counts.todo} à traiter</StatusBadge>
-                )}
-                {counts.waiting > 0 && (
-                  <StatusBadge tone="info">{counts.waiting} en vérification</StatusBadge>
-                )}
-              </div>
+            <div className="text-right">
+              <p className="font-display text-3xl font-bold tabular-nums text-amber">
+                {done}/{blocking.length}
+              </p>
+              <p className="text-xs text-white/55">pièces obligatoires validées</p>
             </div>
           </div>
-        </Card>
+        </motion.section>
 
-        {/* Onglets */}
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                tab === t
-                  ? 'bg-navy text-white'
-                  : 'bg-paper text-ink-mid border border-[rgba(31,42,55,0.1)]'
-              }`}
-            >
-              {TAB_LABEL[t]}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Onglet : pièces ─────────────────────────────────────────── */}
-        {tab === 'pieces' && (
-          <>
-            <div className="rounded-2xl border border-mint-deep/40 bg-mint/40 px-4 py-3 flex items-start gap-3">
-              <Info className="w-4 h-4 text-mint-ink mt-0.5 shrink-0" />
-              <p className="text-xs text-mint-ink leading-relaxed">
-                Chaque pièce suit son propre parcours (à fournir → déposée → en
-                vérification → validée). Envoyez-les dans l&apos;ordre que vous voulez,
-                sur plusieurs jours : l&apos;état global se recalcule seul.
-              </p>
-            </div>
-
-            {FAMILY_ORDER.map((family) => {
-              const items = definitions.filter((d) => d.family === family)
-              if (items.length === 0) return null
-              return (
-                <Card key={family}>
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-display text-lg font-bold text-navy">
-                        {family === 'blocking'
-                          ? 'Pièces obligatoires'
-                          : family === 'conditional'
-                            ? 'Selon votre situation'
-                            : 'Pièces facultatives'}
-                      </h2>
-                      <StatusBadge
-                        tone={
-                          family === 'blocking'
-                            ? 'danger'
-                            : family === 'conditional'
-                              ? 'warning'
-                              : 'neutral'
-                        }
-                      >
-                        {DOC_FAMILY_LABEL[family]}
-                      </StatusBadge>
-                    </div>
-                    <p className="text-xs text-ink-soft mt-1">{FAMILY_HINT[family]}</p>
-                  </div>
-
-                  <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {items.map((def) => {
-                      const st = stateOf(def.id)
-                      const expiry = st.expiresAt ? daysUntil(st.expiresAt) : null
-                      const missing = st.status === 'missing'
-                      return (
-                        <li
-                          key={def.id}
-                          className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
-                        >
-                          <div className="flex gap-4">
-                            <div className="w-16 shrink-0">
-                              <DocThumb
-                                label={def.label}
-                                chefName={CHEF_PROFILE.name}
-                                certificate={CERTIFICATE_IDS.includes(def.id)}
-                                empty={missing}
-                              />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-navy">{def.label}</p>
-                                <DocBadge status={st.status} />
-                                {def.badge && st.status === 'valid' && (
-                                  <StatusBadge tone="success">
-                                    <BadgeCheck className="w-3 h-3" /> {def.badge}
-                                  </StatusBadge>
-                                )}
-                              </div>
-                              {def.hint && (
-                                <p className="text-xs text-ink-soft mt-1">{def.hint}</p>
-                              )}
-
-                              {st.status === 'rejected' && st.rejectionReason && (
-                                <div className="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2 flex items-start gap-2">
-                                  <FileWarning className="w-3.5 h-3.5 text-red-700 mt-0.5 shrink-0" />
-                                  <p className="text-xs text-red-700 leading-relaxed">
-                                    <span className="font-semibold">Motif : </span>
-                                    {st.rejectionReason}
-                                  </p>
-                                </div>
-                              )}
-
-                              {expiry !== null && !missing && (
-                                <p
-                                  className={`text-xs mt-2 inline-flex items-center gap-1.5 ${
-                                    expiry <= 7
-                                      ? 'text-red-700'
-                                      : expiry <= 60
-                                        ? 'text-amber-deep'
-                                        : 'text-ink-soft'
-                                  }`}
-                                >
-                                  <CalendarClock className="w-3.5 h-3.5" />
-                                  {expiry > 0
-                                    ? `Expire dans ${expiry} j`
-                                    : `Expirée depuis ${Math.abs(expiry)} j`}
-                                </p>
-                              )}
-
-                              {st.status === 'reviewing' && (
-                                <p className="text-xs text-ink-soft mt-2 inline-flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5" /> Vérification en cours
-                                </p>
-                              )}
-
-                              <div className="mt-3">
-                                {st.status === 'valid' ? (
-                                  <span className="inline-flex items-center gap-1.5 text-xs text-mint-ink font-semibold">
-                                    <CheckCircle2 className="w-4 h-4" /> Validée
-                                  </span>
-                                ) : st.status === 'submitted' || st.status === 'reviewing' ? (
-                                  <span className="text-xs text-ink-soft">En attente</span>
-                                ) : (
-                                  <button
-                                    onClick={() => submit(def.id)}
-                                    className="btn btn-primary text-xs px-3.5 py-2"
-                                  >
-                                    <Upload className="w-3.5 h-3.5" />
-                                    {st.status === 'rejected' ? 'Renvoyer' : 'Déposer'}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </Card>
-              )
-            })}
-          </>
-        )}
-
-        {/* ── Onglet : progression ────────────────────────────────────── */}
-        {tab === 'progression' && (
-          <Card title="Où en est mon dossier ?">
-            <ol className="space-y-1">
-              {PIPELINE.map((s, i) => {
-                const current = s === status
-                const reached = PIPELINE.indexOf(status) >= i
-                return (
-                  <li key={s} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                          reached ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-soft'
-                        }`}
-                      >
-                        {reached ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3 h-3" />}
-                      </span>
-                      {i < PIPELINE.length - 1 && (
-                        <span
-                          className={`w-px flex-1 min-h-[28px] ${reached ? 'bg-amber/50' : 'bg-cream-deep'}`}
-                        />
-                      )}
-                    </div>
-                    <div className="pb-5">
-                      <p
-                        className={`text-sm font-semibold ${current ? 'text-navy' : reached ? 'text-ink-mid' : 'text-ink-soft'}`}
-                      >
-                        {DOSSIER_STATUS_LABEL[s]}
-                        {current && (
-                          <StatusBadge tone="warning" className="ml-2">
-                            Étape en cours
-                          </StatusBadge>
-                        )}
-                      </p>
-                      <p className="text-xs text-ink-soft mt-0.5 max-w-md leading-relaxed">
-                        {s === 'draft' && 'Votre candidature est enregistrée.'}
-                        {s === 'incomplete' &&
-                          'Il reste des pièces obligatoires à fournir ou à corriger.'}
-                        {s === 'reviewing' &&
-                          "Toutes vos pièces obligatoires sont déposées : l'équipe les vérifie sous 48 h ouvrées."}
-                        {s === 'validated' &&
-                          'Votre vitrine est visible et vous pouvez accepter des prestations.'}
-                      </p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
-
-            {(status === 'awaiting-registration' || status === 'suspended') && (
-              <div
-                className={`mt-2 rounded-2xl px-4 py-3 flex items-start gap-3 border ${
-                  status === 'suspended'
-                    ? 'border-red-200 bg-red-50'
-                    : 'border-amber/30 bg-amber-soft/40'
-                }`}
-              >
-                <AlertTriangle
-                  className={`w-4 h-4 mt-0.5 shrink-0 ${status === 'suspended' ? 'text-red-700' : 'text-amber-deep'}`}
-                />
-                <p
-                  className={`text-xs leading-relaxed ${status === 'suspended' ? 'text-red-700' : 'text-ink-mid'}`}
-                >
-                  {status === 'suspended'
-                    ? 'Votre compte est suspendu : une pièce obligatoire a expiré. Renouvelez-la pour réactiver automatiquement votre visibilité.'
-                    : "Votre dossier est complet, sauf l'immatriculation. Ajoutez votre SIRET dès que vous l'avez : les autres pièces restent valables."}
-                </p>
+        {/* ── Les pièces, par famille ──────────────────────────────────── */}
+        {FAMILY_ORDER.map((family) => {
+          const docs = documents.filter((d) => d.family === family)
+          if (docs.length === 0) return null
+          return (
+            <Card key={family}>
+              <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-lg font-bold text-navy">
+                  {FAMILY_LABEL[family]}
+                </h2>
+                <p className="text-xs text-ink-soft">{FAMILY_HINT[family]}</p>
               </div>
-            )}
-          </Card>
-        )}
-
-        {/* ── Onglet : historique ─────────────────────────────────────── */}
-        {tab === 'historique' && (
-          <Card title="Historique des dépôts">
-            {history.length === 0 ? (
-              <p className="py-8 text-center text-sm text-ink-soft">
-                Aucun dépôt enregistré pour le moment.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[rgba(31,42,55,0.06)]">
-                {history.map((d) => {
-                  const def = definitions.find((x) => x.id === d.definitionId)
-                  return (
-                    <li key={d.definitionId} className="py-3 flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
-                        <Upload className="w-4 h-4 text-terra" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-navy truncate">
-                          {def?.label ?? d.definitionId}
-                        </p>
-                        <p className="text-xs text-ink-soft">
-                          Déposée le {shortDate(d.submittedAt!)}
-                        </p>
-                      </div>
-                      <DocBadge status={d.status} />
-                    </li>
-                  )
-                })}
+              <ul className="divide-y divide-[rgba(31,42,55,0.08)]">
+                {docs.map((doc) => (
+                  <DocumentRow key={doc.type} doc={doc} />
+                ))}
               </ul>
-            )}
-            <p className="text-[11px] text-ink-soft mt-4 leading-relaxed">
-              Chaque dépôt et chaque décision sont horodatés et conservés dans le journal
-              d&apos;audit de la plateforme.
-            </p>
-          </Card>
-        )}
+            </Card>
+          )
+        })}
+
+        <p className="flex items-start gap-2.5 rounded-2xl bg-cream-soft px-4 py-3 text-xs leading-relaxed text-ink-mid">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+          <span>
+            PDF, JPG, PNG ou WebP, {MAX_FILE_MB} Mo au maximum. Vos fichiers partent chiffrés
+            vers un stockage privé : ils ne transitent pas par le site, et seule notre équipe de
+            vérification peut les ouvrir.
+          </span>
+        </p>
       </div>
     </ChefPage>
+  )
+}
+
+function DocumentRow({ doc }: { doc: ChefDocument }) {
+  const upload = useUploadDocument()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [expiresOn, setExpiresOn] = useState('')
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+
+  const needsDate = EXPIRING_TYPES.has(doc.type)
+  const deposited = doc.version > 0
+
+  function pick(file: File | null) {
+    setLocalError(null)
+    if (!file) return
+    const problem = checkFile(file)
+    if (problem) {
+      setLocalError(problem)
+      return
+    }
+    // Une pièce qui expire ne part pas sans sa date : l'API la refuserait.
+    if (needsDate) setPendingFile(file)
+    else send(file)
+  }
+
+  function send(file: File, date?: string) {
+    upload.mutate(
+      { type: doc.type, file, expiresOn: date },
+      {
+        onSuccess: () => {
+          setPendingFile(null)
+          setExpiresOn('')
+          if (inputRef.current) inputRef.current.value = ''
+        },
+      },
+    )
+  }
+
+  const busy = upload.isPending
+  const failure = upload.error instanceof UploadError ? upload.error : null
+
+  return (
+    <li className="py-4">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-navy">
+            {doc.label}
+            {doc.required && <span className="ml-2 text-[11px] font-normal text-terra">requise</span>}
+          </p>
+
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {deposited
+              ? [
+                  doc.fileName,
+                  doc.sizeBytes ? formatSize(doc.sizeBytes) : null,
+                  doc.submittedAt ? `déposée le ${formatDate(doc.submittedAt)}` : null,
+                  doc.version > 1 ? `version ${doc.version}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : 'Aucun dépôt'}
+          </p>
+
+          {doc.expiresOn && (
+            <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-ink-mid">
+              <CalendarClock className="h-3.5 w-3.5 text-amber" aria-hidden />
+              Expire le {formatDate(doc.expiresOn)}
+            </p>
+          )}
+
+          {/* Le motif de refus est écrit par l'équipe : on le montre tel quel. */}
+          {doc.status === 'rejected' && doc.reason && (
+            <p className="mt-2 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-[13px] leading-relaxed text-red-800">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {doc.reason}
+            </p>
+          )}
+
+          {localError && (
+            <p role="alert" className="mt-2 text-[13px] text-red-700">
+              {localError}
+            </p>
+          )}
+
+          {failure && (
+            <p role="alert" className="mt-2 text-[13px] leading-relaxed text-red-700">
+              {failure.step === 'transfer'
+                ? 'Le transfert du fichier s’est interrompu. Rien n’a été enregistré — réessayez.'
+                : failure.message}
+            </p>
+          )}
+
+          {upload.isSuccess && !busy && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-mint-ink">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              Déposée. Notre équipe la vérifie.
+            </p>
+          )}
+
+          {/* Date d'expiration : demandée avant l'envoi, pas après un refus. */}
+          {pendingFile && (
+            <div className="mt-3 rounded-2xl bg-cream-soft p-3.5">
+              <label
+                htmlFor={`exp-${doc.type}`}
+                className="block text-[13px] font-semibold text-navy"
+              >
+                Date d’expiration de ce document
+              </label>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                Elle figure sur la pièce. Nous vous préviendrons avant l’échéance.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  id={`exp-${doc.type}`}
+                  type="date"
+                  value={expiresOn}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setExpiresOn(e.target.value)}
+                  className="input-base w-auto py-2"
+                />
+                <button
+                  type="button"
+                  disabled={!expiresOn || busy}
+                  onClick={() => send(pendingFile, expiresOn)}
+                  className="btn btn-primary text-xs disabled:opacity-50"
+                >
+                  {busy ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Envoi…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" aria-hidden /> Envoyer
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingFile(null)
+                    setExpiresOn('')
+                  }}
+                  className="text-xs text-ink-soft hover:text-navy"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <StatusBadge tone={DOC_TONE[doc.status]}>{DOC_STATUS_LABEL[doc.status]}</StatusBadge>
+
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            className="sr-only"
+            id={`file-${doc.type}`}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+          <label
+            htmlFor={`file-${doc.type}`}
+            className={`btn btn-outline cursor-pointer text-xs ${busy ? 'pointer-events-none opacity-50' : ''}`}
+          >
+            {busy ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Envoi…
+              </>
+            ) : (
+              <>
+                <Upload className="h-3.5 w-3.5" aria-hidden />
+                {deposited ? 'Remplacer' : 'Déposer'}
+              </>
+            )}
+          </label>
+        </div>
+      </div>
+    </li>
   )
 }
