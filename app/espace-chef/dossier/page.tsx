@@ -16,6 +16,7 @@ import {
   Upload,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
+import { useToast } from '@/components/shared/Toaster'
 import DocumentPreviewDialog, {
   type PreviewSource,
 } from '@/components/chef/DocumentPreviewDialog'
@@ -374,6 +375,7 @@ function DocumentRow({
   onPreviewDeposited: () => void
   previewPending: boolean
 }) {
+  const toast = useToast()
   const upload = useUploadDocument()
   const inputRef = useRef<HTMLInputElement>(null)
   const [localError, setLocalError] = useState<string | null>(null)
@@ -404,11 +406,26 @@ function DocumentRow({
     upload.mutate(
       { type: doc.type, file: staged, expiresOn: needsDate ? expiresOn : undefined },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           setStaged(null)
           setExpiresOn('')
           if (inputRef.current) inputRef.current.value = ''
+          toast.success(
+            `${doc.label} déposée`,
+            saved.reactivated
+              ? 'Votre vitrine repasse en ligne immédiatement.'
+              : 'Notre équipe la vérifie sous 48 h ouvrées.',
+          )
         },
+        onError: (e) =>
+          toast.error(
+            `${doc.label} n’a pas été déposée`,
+            e instanceof UploadError && e.step === 'transfer'
+              ? 'Le transfert s’est interrompu. Rien n’a été enregistré.'
+              : e instanceof Error
+                ? e.message
+                : undefined,
+          ),
       },
     )
   }

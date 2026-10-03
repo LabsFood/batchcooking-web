@@ -1,0 +1,6 @@
+﻿Personne;Rôle;Périmètre;Ce qu'on attend dans ce classeur
+Amir;Frontend;Site public, espace client, espace batch cooker, console admin;Met à jour les statuts Design et Intégration API, signale les blocages.
+Daniel;Backend;Plateforme API, candidatures, documents, CORS, documentation;Prend les lignes BUG et DEM, dit une date, prévient quand c'est livré.
+Duval;Backend;Bookings, paiements, messagerie, versements, devis;Prend les lignes BLK de modules manquants, dit ce qui entre au MVP.
+Ivy;Responsable projet;Périmètre, priorités, recette;Arbitre le MVP, fournit les accès de test, valide la recette.
+Emmanuel;Project manager;Planning, environnements, coordination;Tient les deadlines et les sprints, arbitre les conflits de priorité.

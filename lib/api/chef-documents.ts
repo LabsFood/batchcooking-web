@@ -70,6 +70,11 @@ export interface ChefDocument {
   /** Motif de refus, écrit par l'admin et lu tel quel. */
   reason: string | null
   reasonCode: string | null
+  /**
+   * Renvoyé par `confirm` : remplacer une pièce bloquante expirée remet le
+   * batch cooker en ligne tout de suite, avant même qu'un admin la regarde.
+   */
+  reactivated?: boolean
 }
 
 export interface ChefDossier {
