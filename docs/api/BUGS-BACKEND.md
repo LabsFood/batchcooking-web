@@ -369,3 +369,43 @@ parce qu'ils changent les textes du site :
 - `PATCH /me/chef-profile` répond `403 CHEF_NOT_VERIFIED` avant approbation.
   Confirmé voulu ? Si oui on passe l'espace chef en mode « dossier en cours »,
   où seuls les documents et le profil de base sont modifiables.
+
+---
+
+## BUG-09 · P1 — Le lien de connexion n'arrive pas, et le recours est hors d'atteinte
+
+**Ce qui se passe.** La candidature `APP-2026-0002` a bien été créée (`201`,
+`status: submitted`) le 03/10/2026, mais **aucun email n'est arrivé** à
+l'adresse soumise.
+
+Votre propre documentation nomme ce cas sur
+`POST /admin/chef-users/{id}/resend-invitation` :
+
+> `delivered: false` means the email did not leave (email service down or not
+> configured)
+
+C'est l'hypothèse la plus probable sur la pré-production : le service d'envoi
+n'est pas configuré. **À confirmer de votre côté** — personne d'autre ne peut
+le voir, puisque rien dans la réponse de `POST /chef-applications` n'indique si
+l'email est parti.
+
+→ **Demande** : que `POST /chef-applications` renvoie l'état de l'envoi, comme
+le fait `resend-invitation` (`delivered: true | false`). Sans ça, un candidat
+qui ne reçoit rien est invisible : ni lui ni l'admin ne savent que son compte
+existe et l'attend.
+
+**Et le recours ne marche pas non plus.** `resend-invitation` attend le
+`user.id` — « *The account id (`user.id` in the approval answer, or `GET /me`)*
+». Or **aucun endpoint admin ne renvoie cet identifiant** avant l'approbation :
+
+- `GET /admin/chef-applications` : ni `userId`, ni `chefProfileId`
+- `GET /admin/chef-applications/{id}` : `chefProfileId` seulement
+
+Un admin qui voit un dossier bloqué parce que le candidat n'a jamais reçu son
+lien n'a donc **aucun moyen de le relancer**, alors que l'endpoint existe. Le
+seul chemin passe par l'approbation, qui est justement impossible tant que le
+candidat n'a pas déposé ses pièces — et il ne peut pas les déposer sans le
+lien. La boucle est fermée.
+
+→ **Demande** : exposer `userId` sur la candidature (liste et détail). Un champ,
+et le bouton « renvoyer l'invitation » devient implémentable.
