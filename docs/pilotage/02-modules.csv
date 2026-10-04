@@ -17,7 +17,7 @@ Batch cooker;Mon dossier;Oui;Amir;Terminé;Terminé;Dépôt, relecture et correc
 Batch cooker;Mes plats;Oui;Amir;Terminé;Terminé;Bout en bout branché;2026-10-03;Essayer la photo avec un vrai fichier
 Batch cooker;Mes menus;Oui;Amir;Terminé;À tester;Branché, non vérifié;2026-10-10;Une vérification en session réelle
 Batch cooker;Propositions;Oui;Amir;Terminé;À tester;Branché, aucune proposition en base;2026-10-10;Des données pour essayer
-Batch cooker;Vitrine par semaine;Oui;Amir;À faire;À faire;Hooks écrits, écran à faire;2026-10-17;L'écran
+Batch cooker;Vitrine et page publique;Oui;Amir;Terminé;À tester;"Page publique branchée ; programmation par semaine à faire";2026-10-17;L'écran de programmation par semaine, et le champ des moyens de paiement
 Batch cooker;Offres;Non;Amir;À faire;À faire;Hooks écrits, écran à faire;2026-10-24;L'écran
 Batch cooker;Prestations et agenda;Oui;Amir;Terminé;Bloqué;Écrans livrés;2026-10-17;Module bookings
 Batch cooker;Tarifs et paramètres;Oui;Amir;Terminé;À faire;Écrans livrés;2026-10-17;PATCH /me/chef-profile dans l'écran

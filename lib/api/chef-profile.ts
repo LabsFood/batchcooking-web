@@ -6,15 +6,15 @@ import { useMeKey } from './keys'
 import type { ChefProfile, ChefProfilePatch } from './types'
 
 /**
- * `PATCH /me/chef-profile` — crée ou met à jour le profil prestataire.
+ * `PATCH /me/chef-profile` — ce que les clients voient de ce batch cooker.
  *
- * Effets de bord côté serveur, à connaître :
- *  - promeut `users.role` de `client` à `chef` (un `admin`/`chef` garde le sien) ;
- *  - remet `isActive` et `isVerified` à `false` : le chef n'est réservable
- *    qu'après vérification par un admin (`PATCH /admin/chefs/:id/verification`).
+ * Réservé à un compte **approuvé** : `403 CHEF_NOT_VERIFIED` pendant
+ * l'instruction, `404` si le compte n'est pas batch cooker du tout. On ne
+ * devient pas batch cooker par cet appel — ça passe par
+ * `POST /chef-applications`.
  *
- * On invalide toute la racine du compte (`['me', userId]`) car le rôle et le
- * profil changent : ça couvre `/me` et `/me/profile` d'un seul coup.
+ * On invalide toute la racine du compte (`['me', userId]`) : le nom et le
+ * téléphone vivent sur `users`, donc `/me` et `/me/profile` changent ensemble.
  */
 export function useUpdateChefProfile() {
   const apiFetch = useApiFetch()
@@ -28,4 +28,19 @@ export function useUpdateChefProfile() {
       qc.invalidateQueries({ queryKey: meKey })
     },
   })
+}
+
+/** Le refus de l'API, dit à la personne qui vient de cliquer. */
+export function chefProfileMessage(error: unknown): string {
+  const e = error as { status?: number; message?: string } | null
+  if (e?.status === 403) {
+    return 'Votre page publique s’ouvre à l’approbation de votre candidature. En attendant, votre espace est en lecture seule.'
+  }
+  if (e?.status === 404) {
+    return 'Ce compte n’est pas un compte batch cooker.'
+  }
+  if (e?.status === 422) {
+    return e.message || 'Une valeur est refusée : vérifiez les champs.'
+  }
+  return e?.message || 'La modification n’a pas été enregistrée.'
 }

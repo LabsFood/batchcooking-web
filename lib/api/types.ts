@@ -48,19 +48,24 @@ export interface MeProfile {
 }
 
 /**
- * Corps de `PATCH /me/chef-profile` (onboarding chef, formulaire 2).
+ * Corps de `PATCH /me/chef-profile` — la page publique du batch cooker.
  *
- * ⚠️ Cet appel **promeut `users.role` de `client` à `chef`** et remet toujours
- * `isActive` / `isVerified` à `false` : seul un admin peut activer un chef via
- * `PATCH /admin/chefs/:id/verification`.
+ * On devient batch cooker par `POST /chef-applications`, pas par cet appel :
+ * il répond `404` sur un compte qui n'en est pas un, et `403
+ * CHEF_NOT_VERIFIED` tant que la candidature n'est pas approuvée.
+ *
+ * Les drapeaux de visibilité, la route SAP et les zones sont fixés à
+ * l'approbation et ne s'envoient pas ici. Seuls les champs modifiés partent.
  */
 export interface ChefProfilePatch {
-  /** Requis par l'API. */
-  displayName: string
+  /** Nom public affiché aux clients. */
+  displayName?: string
+  /** Présentation publique. */
   bio?: string
   city?: string
-  /** Entre 1 et 200 km. */
+  /** Distance que le chef accepte de parcourir, en kilomètres. */
   serviceRadiusKm?: number
+  /** Avec `lastName`, compose `users.full_name` et se synchronise vers Clerk. */
   firstName?: string
   lastName?: string
   phone?: string

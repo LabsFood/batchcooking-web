@@ -17,3 +17,5 @@
 2026-10-04;Amir;BLK-01;Mon erreur : les endpoints de synthèse existaient depuis le début. Quatre routes, que j’avais déclarées absentes.
 2026-10-04;Amir;BLK-14;La doc de GET /bookings dit que tout compte connecté peut l’appeler. À fermer avant toute mise en ligne.
 2026-10-04;Amir;LF-0163;Demande : la barre de recherche ne sert à rien et les notifications doivent ouvrir un tiroir, sur les trois dashboards.
+2026-10-04;Amir;LF-0068;Le patch du profil chef n'était pas fait : le hook existait, aucun écran ne l'appelait. Ma vitrine est maintenant branchée.
+2026-10-04;Amir;BLK-16;En la branchant, découvert que les moyens de paiement acceptés n'ont pas de champ. Le paiement client en dépend.
