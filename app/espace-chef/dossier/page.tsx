@@ -21,6 +21,8 @@ import DocumentPreviewDialog, {
   type PreviewSource,
 } from '@/components/chef/DocumentPreviewDialog'
 import { cn } from '@/lib/utils'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ChefProfile } from '@/lib/api/types'
 import {
   DOC_STATUS_LABEL,
   DOSSIER_LABEL,
@@ -112,6 +114,7 @@ type Onglet = 'pieces' | 'infos'
 export default function DossierPage() {
   const { data, isPending, isError, error, refetch } = useChefDocuments()
   const application = useChefApplication()
+  const profil = useMeProfile()
   const [onglet, setOnglet] = useState<Onglet>('pieces')
   const [preview, setPreview] = useState<PreviewSource | null>(null)
   const remote = useDocumentPreview()
@@ -150,6 +153,23 @@ export default function DossierPage() {
 
   const { dossierStatus, documents } = data
   const app = application.data
+
+  /*
+   * `disabled` recouvre deux situations très différentes, et l'API ne les
+   * distingue pas : un compte mis hors ligne par sanction, et un compte
+   * fraîchement approuvé qui attend sa mise en ligne — approuver vérifie le
+   * batch cooker sans le rendre réservable, c'est un second geste côté admin.
+   *
+   * Le profil tranche : vérifié mais pas actif, c'est une attente, pas une
+   * sanction. Dire « votre compte a été désactivé » à quelqu'un qui vient
+   * d'être accepté serait à la fois faux et inquiétant.
+   */
+  const moi =
+    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
+  const attendMiseEnLigne =
+    dossierStatus === 'disabled' &&
+    (moi?.isVerified === true || app?.status === 'approved') &&
+    moi?.isActive !== true
   const blocking = documents.filter((d) => d.family === 'blocking')
   const valides = blocking.filter((d) => d.status === 'valid').length
 
@@ -176,10 +196,19 @@ export default function DossierPage() {
     const bientot = documents.find((d) => d.status === 'expiring')
     if (bientot) return `anticiper le renouvellement de « ${bientot.label} ».`
     if (dossierStatus === 'reviewing') return 'rien — la balle est dans notre camp.'
+    if (attendMiseEnLigne) return 'rien — votre vitrine est relue avant d’être publiée.'
     return null
   })()
 
-  const tone = DOSSIER_TONE[dossierStatus]
+  const tone = attendMiseEnLigne
+    ? { rule: 'bg-amber', dot: 'bg-amber' }
+    : DOSSIER_TONE[dossierStatus]
+  const titre = attendMiseEnLigne
+    ? 'En attente de mise en ligne'
+    : DOSSIER_LABEL[dossierStatus]
+  const chapeau = attendMiseEnLigne
+    ? 'Votre candidature est approuvée et vos pièces sont validées. Notre équipe relit votre vitrine avant de la rendre visible aux clients — vous n’avez rien à faire.'
+    : DOSSIER_LEAD[dossierStatus]
 
   function openDeposited(doc: ChefDocument) {
     setPreview({ label: doc.label, fileName: doc.fileName ?? undefined })
@@ -217,12 +246,10 @@ export default function DossierPage() {
               <p className="flex items-center gap-2">
                 <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', tone.dot)} />
                 <span className="font-display text-xl font-bold leading-tight text-navy">
-                  {DOSSIER_LABEL[dossierStatus]}
+                  {titre}
                 </span>
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-ink-mid">
-                {DOSSIER_LEAD[dossierStatus]}
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-mid">{chapeau}</p>
 
               {prochaineChose && (
                 <p className="mt-3.5 rounded-xl bg-cream-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-navy">

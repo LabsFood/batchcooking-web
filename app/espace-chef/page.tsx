@@ -16,9 +16,12 @@ import ChefPage, { Card } from '@/components/chef/ChefPage'
 import {
   DOC_STATUS_LABEL as API_DOC_STATUS_LABEL,
   DOSSIER_LABEL,
+  useChefApplication,
   useChefDocuments,
   type DossierStatus,
 } from '@/lib/api/chef-documents'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ChefProfile } from '@/lib/api/types'
 import { DossierBadge, MissionBadge } from '@/components/chef/StatusBadge'
 import {
   CHEF_DOCS,
@@ -57,6 +60,22 @@ const DOSSIER_URGENT = new Set<DossierStatus>(['incomplete', 'suspended', 'disab
 
 export default function ChefHomePage() {
   const dossier = useChefDocuments()
+  const application = useChefApplication()
+  const profil = useMeProfile()
+
+  /*
+   * `disabled` veut dire deux choses que l'API ne distingue pas : mis hors
+   * ligne par sanction, ou tout juste approuvé et pas encore publié —
+   * approuver vérifie le batch cooker sans le rendre réservable. Le profil
+   * tranche, et évite d'annoncer une sanction à quelqu'un qu'on vient
+   * d'accepter.
+   */
+  const moi =
+    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
+  const attendMiseEnLigne =
+    dossier.data?.dossierStatus === 'disabled' &&
+    (moi?.isVerified === true || application.data?.status === 'approved') &&
+    moi?.isActive !== true
   const definitions = applicableDocuments(DOC_DEFINITIONS, CHEF_PROFILE)
   const score = completionScore(CHEF_DOCS, definitions)
 
@@ -84,6 +103,7 @@ export default function ChefHomePage() {
           status={dossier.data?.dossierStatus}
           documents={dossier.data?.documents ?? []}
           loading={dossier.isPending}
+          attendMiseEnLigne={attendMiseEnLigne}
         />
 
         {/* Indicateurs du mois */}
@@ -223,10 +243,13 @@ function DossierCard({
   status,
   documents,
   loading,
+  attendMiseEnLigne,
 }: {
   status?: DossierStatus
   documents: { label: string; family: string; status: string; reason: string | null }[]
   loading: boolean
+  /** `disabled` après approbation : une attente, pas une sanction. */
+  attendMiseEnLigne?: boolean
 }) {
   if (loading) {
     return <div className="h-28 animate-pulse rounded-2xl bg-paper" />
@@ -235,7 +258,7 @@ function DossierCard({
 
   const blocking = documents.filter((d) => d.family === 'blocking')
   const valid = blocking.filter((d) => d.status === 'valid').length
-  const urgent = DOSSIER_URGENT.has(status)
+  const urgent = DOSSIER_URGENT.has(status) && !attendMiseEnLigne
 
   // La pièce qui coince, s'il y en a une : c'est elle qu'on va traiter.
   const stuck = documents.find(
@@ -256,10 +279,14 @@ function DossierCard({
               urgent ? 'text-white' : 'text-navy'
             }`}
           >
-            Dossier {DOSSIER_LABEL[status].toLowerCase()}
+            {attendMiseEnLigne
+              ? 'Dossier approuvé, vitrine pas encore en ligne'
+              : `Dossier ${DOSSIER_LABEL[status].toLowerCase()}`}
           </p>
           <p className={`mt-1 text-sm leading-relaxed ${urgent ? 'text-white/75' : 'text-ink-mid'}`}>
-            {DOSSIER_LEAD[status]}
+            {attendMiseEnLigne
+              ? 'Vos pièces sont validées. Notre équipe relit votre vitrine avant de la rendre visible aux clients — vous n’avez rien à faire.'
+              : DOSSIER_LEAD[status]}
           </p>
           {stuck?.reason && (
             <p className={`mt-2 text-[13px] leading-relaxed ${urgent ? 'text-amber' : 'text-red-700'}`}>
