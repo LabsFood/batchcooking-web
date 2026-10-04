@@ -94,12 +94,14 @@ export interface ChefApplication {
   documents: ChefDocument[]
   refusal: { reason?: string; reasonCode?: string; allowReapplyAfter?: string | null } | null
 
-  /*
-   * Ce que la candidature a déclaré. L'API ne documente pas ces champs sur
-   * `/me/chef-application` (le détail admin les porte), donc tout est
-   * optionnel : l'écran rend ce qui arrive et tait le reste plutôt que
-   * d'afficher des cases vides.
+  /**
+   * Ce que la candidature a déclaré. L'API dit de préremplir le formulaire
+   * depuis `answers` ; les versions précédentes posaient les sections à la
+   * racine. `applicationAnswers()` lit les deux, pour ne dépendre ni de l'une
+   * ni de l'autre.
    */
+  answers?: ApplicationAnswers
+
   identity?: { firstName?: string; lastName?: string; email?: string; phone?: string }
   address?: {
     street?: string
@@ -119,6 +121,28 @@ export interface ChefApplication {
     legalForm?: string
     siret?: string | null
     sap?: { path?: string; declarationNumber?: string | null }
+  }
+}
+
+/** Les cinq sections modifiables, telles que l'API les rend et les attend. */
+export interface ApplicationAnswers {
+  identity?: ChefApplication['identity']
+  address?: ChefApplication['address']
+  interventionZones?: ChefApplication['interventionZones']
+  workAuthorization?: ChefApplication['workAuthorization']
+  company?: ChefApplication['company']
+}
+
+/** Les réponses déclarées, qu'elles arrivent sous `answers` ou à la racine. */
+export function applicationAnswers(app?: ChefApplication | null): ApplicationAnswers {
+  if (!app) return {}
+  const a = app.answers ?? {}
+  return {
+    identity: a.identity ?? app.identity,
+    address: a.address ?? app.address,
+    interventionZones: a.interventionZones ?? app.interventionZones,
+    workAuthorization: a.workAuthorization ?? app.workAuthorization,
+    company: a.company ?? app.company,
   }
 }
 
@@ -293,36 +317,114 @@ export function checkFile(file: File): string | null {
   return null
 }
 
-// ── Aperçu d'une pièce déposée ──────────────────────────────────────────────
+/* ── Aperçu d'une pièce déposée ────────────────────────────────── */
 
 /**
- * `GET /me/chef-documents/{type}/download-url` — URL signée de courte durée.
+ * `GET /me/chef-documents/{type}/preview-url` — lien signé, cinq minutes.
  *
- * L'endpoint n'existe pas encore côté batch cooker (il existe côté admin) : on
- * l'appelle quand même, et un 404 est traité comme « pas encore disponible »
- * plutôt que comme une panne. Le jour où le backend l'expose, l'aperçu marche
- * sans rien changer ici.
+ * Servi « inline » : le navigateur affiche le PDF ou l'image au lieu de la
+ * télécharger, et `mimeType` dit lequel. Chaque lien remis est journalisé,
+ * comme pour un admin : on ne le demande donc qu'au moment du clic.
+ *
+ * `404` signifie « rien n'a été déposé pour ce type », pas une panne. Les
+ * déploiements plus anciens n'ont que `download-url` : on y retombe, pour que
+ * l'écran marche sur les deux.
  */
 export class PreviewUnavailable extends Error {
-  constructor() {
-    super('L’aperçu des pièces déposées n’est pas encore disponible.')
+  constructor(message = 'Aucune pièce déposée pour ce type.') {
+    super(message)
     this.name = 'PreviewUnavailable'
   }
+}
+
+export interface DocumentPreview {
+  url: string
+  fileName?: string
+  mimeType?: string
+  expiresAt?: string
 }
 
 export function useDocumentPreview() {
   const apiFetch = useApiFetch()
   return useMutation({
     mutationFn: async (type: ChefDocumentType) => {
+      const statut = (e: unknown) => (e as { status?: number })?.status
       try {
-        return await apiFetch<{ url: string; expiresAt?: string }>(
-          `/me/chef-documents/${type}/download-url`,
-        )
+        return await apiFetch<DocumentPreview>(`/me/chef-documents/${type}/preview-url`)
       } catch (e) {
-        const status = (e as { status?: number })?.status
-        if (status === 404) throw new PreviewUnavailable()
+        if (statut(e) === 404) {
+          // Soit la pièce n'existe pas, soit l'API est antérieure à
+          // `preview-url` : la seconde hypothèse se vérifie en un appel.
+          try {
+            return await apiFetch<DocumentPreview>(
+              `/me/chef-documents/${type}/download-url`,
+            )
+          } catch (e2) {
+            if (statut(e2) === 404) throw new PreviewUnavailable()
+            throw e2
+          }
+        }
         throw e
       }
     },
   })
+}
+
+/* ── Corriger ce qu'on a déclaré ───────────────────────────────────────────── */
+
+/**
+ * `PATCH /me/chef-application`
+ *
+ * Ouvert pendant que la candidature est `submitted` ou `changes-requested`.
+ * Chaque section part **entière** : elle remplace celle qui est stockée, et
+ * repasse les règles d'une soumission. `email` et le consentement ne se
+ * changent pas, l'API les refuse.
+ *
+ * La réponse est la même vue que `GET` : une réponse modifiée peut changer la
+ * liste des pièces demandées, d'où l'invalidation des deux clés.
+ */
+export type ApplicationPatch = Pick<
+  ApplicationAnswers,
+  'identity' | 'address' | 'interventionZones' | 'workAuthorization' | 'company'
+>
+
+export function useUpdateApplication() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: ApplicationPatch) =>
+      apiFetch<ChefApplication>('/me/chef-application', {
+        method: 'PATCH',
+        body: patch,
+      }),
+    onSuccess: (app) => {
+      qc.setQueryData(APPLICATION_KEY, app)
+      qc.invalidateQueries({ queryKey: APPLICATION_KEY })
+      qc.invalidateQueries({ queryKey: DOCUMENTS_KEY })
+    },
+  })
+}
+
+/** Le refus de l'API, dit à la personne qui vient de cliquer. */
+export function applicationPatchMessage(error: unknown): string {
+  const e = error as { status?: number; message?: string; body?: unknown } | null
+  const corps = (e?.body ?? {}) as { code?: string; message?: string }
+  const code = corps.code ?? ''
+
+  if (e?.status === 409) {
+    if (code === 'APPLICATION_DECIDED' || /DECIDED/.test(e?.message ?? '')) {
+      return 'La candidature a déjà été tranchée : elle ne se modifie plus.'
+    }
+    if (code === 'ANSWER_LOCKED' || /LOCKED/.test(e?.message ?? '')) {
+      return 'Cette réponse est verrouillée : une pièce validée s’appuie dessus. Demandez à Lab’s Food de la rouvrir.'
+    }
+    return e?.message || 'Cette modification n’est plus possible.'
+  }
+  if (e?.status === 422) {
+    return corps.message || e?.message || 'Une réponse est refusée : vérifiez les champs.'
+  }
+  if (e?.status === 404) {
+    return 'Ce compte n’a pas de candidature.'
+  }
+  return e?.message || 'La modification n’a pas été enregistrée.'
 }

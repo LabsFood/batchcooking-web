@@ -22,23 +22,32 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
-  Search,
   ChevronDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
+import { AlertBell } from '@/components/shared/AlertDrawer'
+import { useChefAlerts } from './ChefSignals'
+import { useChefDocuments } from '@/lib/api/chef-documents'
+import { useOffers } from '@/lib/api/chef-catalog'
 
-/** Navigation en 5 groupes (cf. architecture cible § 4.1 du brief). */
+/**
+ * Navigation en 5 groupes (cf. architecture cible § 4.1 du brief).
+ *
+ * Aucune pastille n'est écrite ici : un compteur en dur dit « 2 » quand il n'y
+ * a rien, et le chef apprend à ne plus le croire. Celles qui s'affichent sont
+ * comptées à partir de l'API, dans `useNavCounts()`.
+ */
 export const CHEF_NAV = [
   {
     group: 'Pilotage',
     items: [
       { href: '/espace-chef', label: 'Accueil', Icon: LayoutDashboard },
-      { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox, badge: '2' },
-      { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText, badge: '2' },
+      { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox },
+      { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText },
       { href: '/espace-chef/prestations', label: 'Prestations', Icon: CalendarRange },
       { href: '/espace-chef/agenda', label: 'Agenda', Icon: CalendarDays },
     ],
@@ -68,7 +77,7 @@ export const CHEF_NAV = [
   {
     group: 'Relation',
     items: [
-      { href: '/espace-chef/messagerie', label: 'Messagerie', Icon: MessageCircle, badge: '1' },
+      { href: '/espace-chef/messagerie', label: 'Messagerie', Icon: MessageCircle },
       { href: '/espace-chef/avis', label: 'Avis', Icon: Star },
       { href: '/espace-chef/litiges', label: 'Litiges & support', Icon: LifeBuoy },
     ],
@@ -79,12 +88,40 @@ function isActive(pathname: string, href: string) {
   return href === '/espace-chef' ? pathname === href : pathname.startsWith(href)
 }
 
+/**
+ * Ce qui attend vraiment, par entrée de menu. Seules deux entrées ont de quoi
+ * compter aujourd'hui : les propositions de Lab's Food, et les pièces du
+ * dossier qui demandent une action. Les autres n'auront leur pastille que le
+ * jour où elles auront leur endpoint.
+ */
+function useNavCounts(): Record<string, number> {
+  const offers = useOffers()
+  const docs = useChefDocuments()
+
+  const nOffres =
+    (offers.data?.dishes.length ?? 0) + (offers.data?.menus.length ?? 0)
+
+  const nPieces = (docs.data?.documents ?? []).filter(
+    (d) =>
+      d.status === 'rejected' ||
+      d.status === 'expired' ||
+      d.status === 'expiring' ||
+      (d.status === 'missing' && d.required),
+  ).length
+
+  return {
+    '/espace-chef/offres': nOffres,
+    '/espace-chef/dossier': nPieces,
+  }
+}
+
 /* ── Sidebar desktop ──────────────────────────────────────────────────────── */
 
 export function ChefSidebar() {
   const pathname = usePathname()
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
+  const counts = useNavCounts()
 
   const initials =
     user?.name
@@ -111,8 +148,9 @@ export function ChefSidebar() {
                 {group}
               </p>
               <ul className="space-y-0.5">
-                {items.map(({ href, label, Icon, ...rest }) => {
-                  const badge = 'badge' in rest ? (rest.badge as string) : null
+                {items.map(({ href, label, Icon }) => {
+                  const n = counts[href] ?? 0
+                  const badge = n > 0 ? String(n) : null
                   const active = isActive(pathname, href)
                   return (
                     <li key={href}>
@@ -208,6 +246,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
   const pathname = usePathname()
   const router = useRouter()
   const { user, roleLabel, signOut } = useAuth()
+  const { alerts, loading } = useChefAlerts()
 
   const initial = user?.name?.[0]?.toUpperCase() ?? 'C'
   const firstName = user?.name?.split(' ')[0] ?? 'Chef'
@@ -234,23 +273,19 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
             )}
           </div>
 
-          {/* Recherche (desktop) */}
-          <div className="hidden xl:block relative shrink-0">
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" />
-            <input
-              placeholder="Rechercher une demande, un client…"
-              className="w-64 pl-10 pr-4 py-2.5 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] text-sm focus:border-amber outline-none transition-colors"
-            />
-          </div>
+          {/* Recherche : un plat, un menu, une pièce, une page. ⌘K ou « / ». */}
+          <PaletteTrigger
+            label="Un plat, un menu, une pièce…"
+            className="hidden w-64 shrink-0 xl:flex"
+          />
+          <PaletteIconTrigger className="xl:hidden" />
 
-          {/* Notifications */}
-          <button
-            className="relative w-10 h-10 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] flex items-center justify-center text-navy hover:border-amber transition-colors shrink-0"
-            aria-label="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-amber" />
-          </button>
+          {/* Ce qui demande une action, recalculé à chaque ouverture. */}
+          <AlertBell alerts={alerts} loading={loading}>
+            Ces points sont déduits de votre dossier, de vos plats et de vos
+            propositions. Le journal des notifications — qui a fait quoi, et
+            quand — attend son endpoint côté API.
+          </AlertBell>
 
           {/* Menu utilisateur */}
           <div className="relative shrink-0">

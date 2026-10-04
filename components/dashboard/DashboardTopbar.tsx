@@ -3,16 +3,11 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import {
-  Bell,
-  Search,
-  ChevronDown,
-  LogOut,
-  Sparkles,
-  ArrowLeft,
-  Menu,
-} from 'lucide-react'
+import { ChevronDown, LogOut, Sparkles, Menu } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
+import { AlertBell } from '@/components/shared/AlertDrawer'
+import { useClientAlerts } from './ClientSignals'
 
 const TITLES: Record<string, { title: string; sub?: string }> = {
   '/espace-client': { title: 'Accueil' },
@@ -71,6 +66,7 @@ export default function DashboardTopbar() {
   const router = useRouter()
   const { user, roleLabel, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { alerts, loading } = useClientAlerts()
 
   const isDetail = /^\/espace-client\/[^/]+\/[^/]+/.test(pathname)
   const baseSegment = '/' + pathname.split('/').slice(1, 3).join('/')
@@ -105,20 +101,16 @@ export default function DashboardTopbar() {
           {meta.sub && <p className="mt-1 hidden text-sm text-ink-mid md:block">{meta.sub}</p>}
         </div>
 
-        {/* Search (desktop) */}
-        <div className="hidden lg:block relative">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            placeholder="Rechercher une commande, un plat…"
-            className="w-72 pl-10 pr-4 py-2.5 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] text-sm focus:border-amber outline-none transition-colors"
-          />
-        </div>
+        {/* Recherche : les pages de l'espace. ⌘K, ou « / ». */}
+        <PaletteTrigger label="Aller à une page…" className="hidden w-64 lg:flex" />
+        <PaletteIconTrigger className="lg:hidden" />
 
-        {/* Notifications */}
-        <button className="relative w-10 h-10 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] flex items-center justify-center text-navy hover:border-amber transition-colors">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-amber" />
-        </button>
+        {/* Ce qui demande une action, recalculé à chaque ouverture. */}
+        <AlertBell alerts={alerts} loading={loading}>
+          Ces points sont déduits de vos sessions, de vos devis et de votre
+          profil de goûts. Le journal des notifications attend son endpoint
+          côté API.
+        </AlertBell>
 
         {/* User menu */}
         <div className="relative">
