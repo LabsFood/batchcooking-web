@@ -188,6 +188,9 @@ export default function DossierPage() {
         setPreview({
           label: doc.label,
           url: r.url,
+          // Sans le type, la modale ne reconnaissait pas le PDF et proposait
+          // de le télécharger au lieu de l'afficher.
+          mimeType: r.mimeType,
           fileName: r.fileName ?? doc.fileName ?? undefined,
         }),
       onError: () => setPreview(null),
@@ -338,13 +341,13 @@ export default function DossierPage() {
                 if (docs.length === 0) return null
                 return (
                   <div key={family}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                      <h2 className="font-display text-base font-bold text-navy">
-                        {FAMILY_LABEL[family]}
-                      </h2>
-                      <p className="text-[13px] text-ink-soft">{FAMILY_HINT[family]}</p>
-                    </div>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <h2 className="font-display text-base font-bold text-navy">
+                      {FAMILY_LABEL[family]}
+                    </h2>
+                    <p className="mt-0.5 max-w-prose text-[13px] leading-relaxed text-ink-soft">
+                      {FAMILY_HINT[family]}
+                    </p>
+                    <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
                       {docs.map((doc) => (
                         <DocumentCard
                           key={doc.type}
@@ -381,6 +384,69 @@ export default function DossierPage() {
   )
 }
 
+/* ── Les actions d'une carte ───────────────────────────────────────────────── */
+
+/**
+ * Une action secondaire tient dans une icône : le mot n'ajoute rien à côté
+ * d'un dossier déjà dense. L'intitulé reste accessible, en `aria-label` et en
+ * infobulle — sans lui, un bouton rond ne dit rien à personne.
+ */
+function IconAction({
+  Icon,
+  label,
+  onClick,
+  disabled,
+  busy,
+}: {
+  Icon: typeof Eye
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  busy?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      title={label}
+      aria-label={label}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+    >
+      {busy ? (
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      ) : (
+        <Icon className="h-4 w-4" aria-hidden />
+      )}
+    </button>
+  )
+}
+
+/** La même chose pour le dépôt, qui passe par un `<label>` et non un bouton. */
+function IconUpload({
+  htmlFor,
+  label,
+  disabled,
+}: {
+  htmlFor: string
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy',
+        disabled && 'pointer-events-none opacity-40',
+      )}
+    >
+      <Upload className="h-4 w-4" aria-hidden />
+    </label>
+  )
+}
+
 /* ── Une pièce ─────────────────────────────────────────────────────────────── */
 
 function DocumentCard({
@@ -408,8 +474,17 @@ function DocumentCard({
   const busy = upload.isPending
   const failure = upload.error instanceof UploadError ? upload.error : null
   const style = DOC_STYLE[doc.status]
-  const alerte =
-    doc.status === 'rejected' || doc.status === 'expired' || doc.status === 'expiring'
+
+  /*
+   * Quatre états, quatre allures. Une pièce à déposer est un emplacement vide,
+   * en pointillés : on voit le trou avant de lire le mot. Une pièce qui pose
+   * problème est cerclée de rouge. Une pièce validée se tait — elle est faite,
+   * elle n'a plus à attirer l'œil. Et une pièce en vérification attend.
+   */
+  const aDeposer = doc.status === 'missing'
+  const probleme = doc.status === 'rejected' || doc.status === 'expired'
+  const bientot = doc.status === 'expiring'
+  const validee = doc.status === 'valid'
 
   function pick(file: File | null) {
     setLocalError(null)
@@ -462,12 +537,32 @@ function DocumentCard({
   return (
     <article
       className={cn(
-        'flex flex-col rounded-2xl bg-paper p-4 lg:p-5',
-        alerte && 'ring-1 ring-red-200',
+        'relative flex flex-col overflow-hidden rounded-2xl p-4 lg:p-5',
+        aDeposer
+          ? 'border-2 border-dashed border-[rgba(31,42,55,0.16)] bg-transparent'
+          : 'bg-paper',
+        probleme && 'ring-1 ring-red-300',
+        bientot && 'ring-1 ring-terra/30',
       )}
     >
-      <header className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 text-[15px] font-semibold leading-snug text-navy">
+      {/* Un filet vertical porte l'état sur les pièces déposées. */}
+      {!aDeposer && (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute inset-y-0 left-0 w-[3px]',
+            validee ? 'bg-mint-deep' : style.dot,
+          )}
+        />
+      )}
+
+      <header className={cn('flex items-start justify-between gap-3', !aDeposer && 'pl-2.5')}>
+        <h3
+          className={cn(
+            'min-w-0 text-[15px] font-semibold leading-snug',
+            aDeposer ? 'text-ink-mid' : 'text-navy',
+          )}
+        >
           {doc.label}
           {doc.required && (
             <span className="ml-1.5 align-middle text-xs font-normal text-ink-soft">
@@ -486,13 +581,23 @@ function DocumentCard({
         </span>
       </header>
 
-      <p className="mt-1.5 truncate text-[13px] text-ink-soft">
-        {meta.length > 0 ? meta.join(' · ') : 'Aucun dépôt'}
-      </p>
-
-      {doc.submittedAt && (
-        <p className="text-[13px] text-ink-soft">déposée le {formatDate(doc.submittedAt)}</p>
-      )}
+      <div className={cn(!aDeposer && 'pl-2.5')}>
+        {aDeposer ? (
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">
+            Rien de déposé pour l’instant.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1.5 truncate text-[13px] text-ink-soft">
+              {meta.join(' · ')}
+            </p>
+            {doc.submittedAt && (
+              <p className="text-[13px] text-ink-soft">
+                déposée le {formatDate(doc.submittedAt)}
+              </p>
+            )}
+          </>
+        )}
 
       {doc.expiresOn && (
         <p
@@ -612,8 +717,14 @@ function DocumentCard({
         </div>
       )}
 
-      {/* Les actions restent en bas : alignées d'une carte à l'autre. */}
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+      </div>
+
+      {/*
+       * Les actions restent en bas, alignées d'une carte à l'autre. Seule
+       * celle qui demande un geste porte un mot : déposer ce qui manque,
+       * remplacer ce qui pose problème. Le reste tient dans une icône.
+       */}
+      <div className={cn('mt-auto flex flex-wrap items-center gap-2 pt-4', !aDeposer && 'pl-2.5')}>
         <input
           ref={inputRef}
           type="file"
@@ -622,32 +733,33 @@ function DocumentCard({
           id={`file-${doc.type}`}
           onChange={(e) => pick(e.target.files?.[0] ?? null)}
         />
-        <label
-          htmlFor={`file-${doc.type}`}
-          className={cn(
-            'btn cursor-pointer text-xs',
-            deposited ? 'btn-outline' : 'btn-primary',
-            busy && 'pointer-events-none opacity-50',
-          )}
-        >
-          <Upload className="h-3.5 w-3.5" aria-hidden />
-          {deposited ? 'Remplacer' : 'Déposer'}
-        </label>
+
+        {aDeposer || probleme ? (
+          <label
+            htmlFor={`file-${doc.type}`}
+            className={cn(
+              'btn btn-primary cursor-pointer text-xs',
+              busy && 'pointer-events-none opacity-50',
+            )}
+          >
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+            {aDeposer ? 'Déposer' : 'Remplacer'}
+          </label>
+        ) : (
+          <IconUpload
+            htmlFor={`file-${doc.type}`}
+            label={bientot ? 'Déposer la nouvelle version' : 'Remplacer cette pièce'}
+            disabled={busy}
+          />
+        )}
 
         {deposited && !staged && (
-          <button
-            type="button"
+          <IconAction
+            Icon={Eye}
+            label="Relire ma pièce"
             onClick={onPreviewDeposited}
-            disabled={previewPending}
-            className="btn btn-ghost text-xs"
-          >
-            {previewPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Eye className="h-3.5 w-3.5" aria-hidden />
-            )}
-            Relire ma pièce
-          </button>
+            busy={previewPending}
+          />
         )}
       </div>
     </article>
