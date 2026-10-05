@@ -10,6 +10,8 @@ export interface Me {
   fullName: string | null
   phone: string | null
   role: Role
+  /** Photo de profil, depuis `POST /me/avatar/*`. `null` quand il n'y en a pas. */
+  avatarUrl?: string | null
 }
 
 /** Ligne `client_profiles` (profil de goûts). */

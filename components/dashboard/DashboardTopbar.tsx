@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/auth-context'
 import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
 import { AlertBell } from '@/components/shared/AlertDrawer'
 import { useClientAlerts } from './ClientSignals'
+import { useMe } from '@/lib/api/me'
+import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 
 const TITLES: Record<string, { title: string; sub?: string }> = {
   '/espace-client': { title: 'Accueil' },
@@ -67,6 +69,7 @@ export default function DashboardTopbar() {
   const { user, roleLabel, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const { alerts, loading } = useClientAlerts()
+  const me = useMe()
 
   const isDetail = /^\/espace-client\/[^/]+\/[^/]+/.test(pathname)
   const baseSegment = '/' + pathname.split('/').slice(1, 3).join('/')
@@ -118,9 +121,11 @@ export default function DashboardTopbar() {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-amber">
-              {initials}
-            </span>
+            <Avatar
+              url={me.data?.avatarUrl}
+              name={me.data?.fullName ?? user?.name}
+              className="h-8 w-8 text-xs"
+            />
             <span className="hidden max-w-[140px] truncate text-xs font-semibold text-navy md:inline">
               {user?.name || 'Invité'}
             </span>
@@ -128,20 +133,15 @@ export default function DashboardTopbar() {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-2 shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)]"
+              className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-2 shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)]"
               onMouseLeave={() => setMenuOpen(false)}
             >
-              {/* Qui est connecté : la question que posait l'encart de la barre
-                  latérale, posée là où on va déjà pour se déconnecter. */}
-              <div className="border-b border-[rgba(31,42,55,0.08)] px-3 pb-3 pt-2">
-                <p className="truncate text-sm font-semibold text-navy">
-                  {user?.name || 'Invité'}
-                </p>
-                <p className="truncate text-xs text-ink-soft">
-                  {user?.email || (user?.username ? `@${user.username}` : 'Espace client')}
-                </p>
+              {/* Qui est connecté, et sa photo : la question que posait
+                  l'encart de la barre latérale, posée là où on va déjà. */}
+              <div className="border-b border-[rgba(31,42,55,0.08)] pb-2">
+                <AvatarEditor />
                 {roleLabel && (
-                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
                     {roleLabel}
                   </p>
                 )}

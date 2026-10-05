@@ -32,6 +32,8 @@ import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandP
 import { AlertBell } from '@/components/shared/AlertDrawer'
 import { useChefAlerts } from './ChefSignals'
 import { useChefDocuments } from '@/lib/api/chef-documents'
+import { useMe } from '@/lib/api/me'
+import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 import { useOffers } from '@/lib/api/chef-catalog'
 
 /**
@@ -247,6 +249,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
   const router = useRouter()
   const { user, roleLabel, signOut } = useAuth()
   const { alerts, loading } = useChefAlerts()
+  const me = useMe()
 
   const initial = user?.name?.[0]?.toUpperCase() ?? 'C'
   const firstName = user?.name?.split(' ')[0] ?? 'Chef'
@@ -293,9 +296,11 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
             >
-              <span className="w-8 h-8 rounded-full bg-navy text-amber font-bold text-xs flex items-center justify-center">
-                {initial}
-              </span>
+              <Avatar
+                url={me.data?.avatarUrl}
+                name={me.data?.fullName ?? user?.name ?? firstName}
+                className="w-8 h-8 text-xs"
+              />
               <span className="hidden md:flex flex-col leading-none items-start">
                 <span className="text-xs font-semibold text-navy max-w-[110px] truncate">
                   {firstName}
@@ -311,9 +316,13 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
 
             {menuOpen && (
               <div
-                className="absolute right-0 mt-2 w-56 bg-paper rounded-2xl shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.08)] p-2 z-40"
+                className="absolute right-0 mt-2 w-72 bg-paper rounded-2xl shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.08)] p-2 z-40"
                 onMouseLeave={() => setMenuOpen(false)}
               >
+                {/* La photo se change là où l'on va déjà, pas dans un réglage
+                    qu'il faudrait chercher. */}
+                <AvatarEditor publicHint />
+                <hr className="my-1 border-[rgba(31,42,55,0.08)]" />
                 <Link
                   href="/espace-chef/profil"
                   onClick={() => setMenuOpen(false)}
