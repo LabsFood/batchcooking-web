@@ -36,7 +36,7 @@ comme ça qu'on voit qu'un écran est dessiné mais pas branché.
 | `Bloqué` | attend quelqu'un d'autre — la colonne `Bug / blocage` dit lequel |
 
 `À tester` n'est pas `Terminé`. La distinction porte tout le classeur : au
-03/10/2026, 36 tâches sont écrites et poussées sans qu'aucune session admin
+04/10/2026, 36 tâches sont écrites et poussées sans qu'aucune session admin
 réelle ait pu les exercer (voir `BLK-08`).
 
 ## Fabriquer le classeur

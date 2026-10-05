@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Download, FileText, Loader2, X } from 'lucide-react'
+import { Download, ExternalLink, FileText, Loader2, X } from 'lucide-react'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Aperçu d'une pièce.
@@ -48,8 +48,17 @@ export default function DocumentPreviewDialog({
   const href = source?.url ?? objectUrl
   const mime = source?.mimeType ?? source?.file?.type ?? ''
   const name = source?.fileName ?? source?.file?.name ?? 'document'
-  const isImage = mime.startsWith('image/')
-  const isPdf = mime === 'application/pdf' || (!mime && (href ?? '').includes('.pdf'))
+
+  /*
+   * Le type se lit d'abord sur le MIME, puis sur l'extension du **nom de
+   * fichier**. Surtout pas sur l'URL : une URL signée finit par sa signature,
+   * pas par « .pdf », et tout document y passait pour un format illisible.
+   */
+  const ext = name.toLowerCase().split('.').pop() ?? ''
+  const isPdf = mime === 'application/pdf' || (!mime && ext === 'pdf')
+  const isImage =
+    mime.startsWith('image/') ||
+    (!mime && ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(ext))
 
   return (
     <Dialog.Root open={Boolean(source)} onOpenChange={(v) => !v && onClose()}>
@@ -67,16 +76,29 @@ export default function DocumentPreviewDialog({
               </Dialog.Description>
             </div>
             {href && (
-              <a
-                href={href}
-                download={name}
-                target="_blank"
-                rel="noreferrer"
-                className="btn btn-outline text-xs"
-              >
-                <Download className="h-3.5 w-3.5" aria-hidden />
-                Télécharger
-              </a>
+              <>
+                {/* Un cadre peut rester vide si le stockage refuse d'être
+                    encadré : il faut toujours une porte de sortie. */}
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Ouvrir dans un nouvel onglet"
+                  aria-label="Ouvrir dans un nouvel onglet"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                <a
+                  href={href}
+                  download={name}
+                  title="Télécharger"
+                  aria-label="Télécharger"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+              </>
             )}
             <Dialog.Close
               aria-label="Fermer l’aperçu"
@@ -97,7 +119,28 @@ export default function DocumentPreviewDialog({
                 Rien à afficher.
               </p>
             ) : isPdf ? (
-              <iframe src={href} title={source?.label ?? 'Document'} className="h-full w-full rounded-2xl bg-paper" />
+              /*
+               * `<object>` et non `<iframe>` : si le stockage refuse d'être
+               * encadré, ou si le navigateur ne sait pas rendre un PDF, c'est
+               * l'enfant qui s'affiche. Un cadre blanc sans explication est
+               * pire qu'un message.
+               */
+              <object
+                data={href}
+                type="application/pdf"
+                aria-label={source?.label ?? 'Document'}
+                className="h-full w-full rounded-2xl bg-paper"
+              >
+                <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                  <FileText className="h-8 w-8 text-ink-soft" aria-hidden />
+                  <p className="max-w-sm text-sm leading-relaxed text-ink-mid">
+                    Votre navigateur n’affiche pas ce PDF directement ici.
+                  </p>
+                  <a href={href} target="_blank" rel="noreferrer" className="btn btn-outline text-xs">
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Ouvrir dans un onglet
+                  </a>
+                </div>
+              </object>
             ) : isImage ? (
               <div className="flex h-full items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -108,13 +151,16 @@ export default function DocumentPreviewDialog({
                 />
               </div>
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
                 <FileText className="h-8 w-8 text-ink-soft" aria-hidden />
-                <p className="text-sm text-ink-mid">
-                  Ce format ne s’affiche pas dans le navigateur.
-                  <br />
-                  Téléchargez-le pour l’ouvrir.
+                <p className="max-w-sm text-sm leading-relaxed text-ink-mid">
+                  Ce format ne s’affiche pas dans le navigateur
+                  {ext ? ` (.${ext})` : ''}. Ouvrez-le dans un onglet ou
+                  téléchargez-le.
                 </p>
+                <a href={href} target="_blank" rel="noreferrer" className="btn btn-outline text-xs">
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Ouvrir dans un onglet
+                </a>
               </div>
             )}
           </div>
