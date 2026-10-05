@@ -2,6 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
+import { removePhoto, uploadPhoto } from './photos'
+
+// Le trio d'envoi d'une photo vit dans `photos.ts` : plats et menus du batch
+// cooker, plats et menus de la maison, photo de profil, c'est le même.
+export {
+  PHOTO_MIME,
+  PHOTO_MAX_MB,
+  PhotoError,
+  checkPhoto,
+  photoMessage,
+  type PhotoTicket,
+  type PhotoStep,
+} from './photos'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Les plats et les menus du batch cooker.
@@ -79,6 +92,8 @@ export interface Menu {
   period: string
   status: MenuStatus
   shoppingIncluded: boolean
+  /** Photo de couverture, depuis `POST /me/menus/{id}/photo/*`. */
+  imageUrl?: string | null
   publishedAt: string | null
   createdAt: string
   updatedAt: string
@@ -159,27 +174,7 @@ export const usePublishDish = () =>
     [DISHES, MENUS],
   )
 
-export interface PhotoTicket {
-  uploadId: string
-  method: string
-  url: string
-  headers: Record<string, string>
-  expiresAt: string
-}
 
-export const PHOTO_MIME = ['image/jpeg', 'image/png', 'image/webp']
-export const PHOTO_MAX_MB = 5
-
-export function checkPhoto(file: File): string | null {
-  if (!PHOTO_MIME.includes(file.type)) {
-    return 'Format non accepté. Choisissez un JPG, un PNG ou un WebP.'
-  }
-  if (file.size > PHOTO_MAX_MB * 1024 * 1024) {
-    return `Image trop lourde. La limite est de ${PHOTO_MAX_MB} Mo.`
-  }
-  if (file.size === 0) return 'Ce fichier est vide.'
-  return null
-}
 
 /**
  * Photo d'un plat, en trois temps. Le stockage exige que le corps du `PUT`
@@ -191,23 +186,32 @@ export function useDishPhoto() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const ticket = await apiFetch<PhotoTicket>(`/me/dishes/${id}/photo/upload-url`, {
-        method: 'POST',
-        body: { mimeType: file.type, sizeBytes: file.size, fileName: file.name },
-      })
-      const res = await fetch(ticket.url, {
-        method: ticket.method || 'PUT',
-        headers: ticket.headers ?? { 'Content-Type': file.type },
-        body: file,
-      })
-      if (!res.ok) throw new Error(`Le transfert de l’image a échoué (${res.status}).`)
-      return apiFetch<Dish>(`/me/dishes/${id}/photo/confirm`, {
-        method: 'POST',
-        body: { uploadId: ticket.uploadId },
-      })
-    },
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      uploadPhoto<Dish>(apiFetch, `/me/dishes/${id}`, file),
     onSuccess: () => qc.invalidateQueries({ queryKey: DISHES }),
+  })
+}
+
+/** `POST /me/menus/{id}/photo/*` — la photo de couverture d'un menu. */
+export function useMenuPhoto() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      uploadPhoto<Menu>(apiFetch, `/me/menus/${id}`, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MENUS }),
+  })
+}
+
+/** `DELETE /me/menus/{id}/photo` */
+export function useDeleteMenuPhoto() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => removePhoto<Menu>(apiFetch, `/me/menus/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MENUS }),
   })
 }
 
