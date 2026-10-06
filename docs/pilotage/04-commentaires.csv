@@ -19,3 +19,6 @@
 2026-10-04;Amir;LF-0163;Demande : la barre de recherche ne sert à rien et les notifications doivent ouvrir un tiroir, sur les trois dashboards.
 2026-10-04;Amir;LF-0068;Le patch du profil chef n'était pas fait : le hook existait, aucun écran ne l'appelait. Ma vitrine est maintenant branchée.
 2026-10-04;Amir;BLK-16;En la branchant, découvert que les moyens de paiement acceptés n'ont pas de champ. Le paiement client en dépend.
+2026-10-06;Amir;BLK-11;Tout est mergé sur develop : 100 chemins, les deux routes de PR-37 comprises. Vérifié un par un, CORS complet sur les deux origines.
+2026-10-06;Amir;LF-0158;Les deux .env repointés sur develop. On ne dépend plus d'un déploiement de PR, qui peut disparaître — c'est déjà arrivé le 03/10.
+2026-10-06;Amir;BLK-13;Les photos de plats et de menus sont livrées. Le dernier manque du catalogue tombe.
