@@ -22,3 +22,5 @@
 2026-10-06;Amir;BLK-11;Tout est mergé sur develop : 100 chemins, les deux routes de PR-37 comprises. Vérifié un par un, CORS complet sur les deux origines.
 2026-10-06;Amir;LF-0158;Les deux .env repointés sur develop. On ne dépend plus d'un déploiement de PR, qui peut disparaître — c'est déjà arrivé le 03/10.
 2026-10-06;Amir;BLK-13;Les photos de plats et de menus sont livrées. Le dernier manque du catalogue tombe.
+2026-10-06;Amir;LF-0178;Demande : laisser saisir un numéro étranger. Vérifié par sonde — l'API accepte +34, +1 et +237, c'était ma regex qui bloquait.
+2026-10-06;Amir;BLK-17;Les langues ne sont pas dans le patch de candidature : elles n'existent nulle part dans l'API.

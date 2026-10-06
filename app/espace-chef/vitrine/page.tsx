@@ -15,7 +15,8 @@ import {
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import { useToast } from '@/components/shared/Toaster'
 import { TextField } from '@/components/chef/application/fields'
-import { PHONE_FR, e164 } from '@/lib/chef/application'
+import PhoneField from '@/components/shared/PhoneField'
+import { isValidE164 } from '@/lib/phone'
 import { PAYMENT_METHOD_LABEL } from '@/lib/chef/states'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { chefProfileMessage, useUpdateChefProfile } from '@/lib/api/chef-profile'
@@ -117,8 +118,8 @@ export default function ChefShowcasePage() {
       setErreur(`Votre présentation contient ${issues.join(', ')}. Retirez-le avant d’enregistrer.`)
       return
     }
-    if (tel.trim() && !PHONE_FR.test(tel.trim())) {
-      setErreur('Numéro français attendu, par exemple 06 12 34 56 78.')
+    if (tel.trim() && !isValidE164(tel.trim())) {
+      setErreur('Ce numéro ne semble pas complet.')
       return
     }
     if (rayon < 1 || rayon > 200) {
@@ -134,7 +135,7 @@ export default function ChefShowcasePage() {
         serviceRadiusKm: rayon,
         firstName: prenom.trim() || undefined,
         lastName: nom.trim() || undefined,
-        phone: tel.trim() ? e164(tel.trim()) : undefined,
+        phone: tel.trim() || undefined,
       },
       {
         onSuccess: () =>
@@ -339,13 +340,9 @@ export default function ChefShowcasePage() {
               />
               <TextField label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} />
             </div>
-            <TextField
-              label="Téléphone"
-              className="mt-4"
-              value={tel}
-              inputMode="tel"
-              onChange={(e) => setTel(e.target.value)}
-            />
+            <div className="mt-4">
+              <PhoneField label="Téléphone" value={tel} onChange={setTel} />
+            </div>
           </Card>
 
           {erreur && (
