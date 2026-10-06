@@ -13,7 +13,7 @@ Client;Mes menus, courses, conservation;Non;Amir;Terminé;À faire;Écrans livr�
 Client;Messages;Non;Amir;Terminé;Bloqué;Écran livré;2026-10-31;Module messagerie
 Client;Statistiques;Non;Amir;Terminé;À faire;Écran livré;2026-11-07;Endpoints
 Batch cooker;Accueil;Oui;Amir;Terminé;Terminé;État du dossier réel;2026-10-02;Les chiffres secondaires
-Batch cooker;Mon dossier;Oui;Amir;Terminé;Terminé;Dépôt, relecture et correction branchés;2026-10-04;Rien : le backend a livré les deux routes qui manquaient
+Batch cooker;Mon dossier;Oui;Amir;Terminé;Terminé;Dépôt, relecture et correction branchés;2026-10-04;Rien : tout est livré et branché sur develop
 Batch cooker;Mes plats;Oui;Amir;Terminé;Terminé;Bout en bout branché;2026-10-03;Essayer la photo avec un vrai fichier
 Batch cooker;Mes menus;Oui;Amir;Terminé;À tester;Branché, non vérifié;2026-10-10;Une vérification en session réelle
 Batch cooker;Propositions;Oui;Amir;Terminé;À tester;Branché, aucune proposition en base;2026-10-10;Des données pour essayer
@@ -33,6 +33,6 @@ Admin;Réservations et demandes;Oui;Amir;Terminé;Bloqué;Écrans livrés;2026-1
 Admin;Transactions;Non;Amir;Terminé;Bloqué;Écran livré;2026-10-31;Module versements
 Admin;Kossam, contact, avis, équipe, formules;Non;Amir;Terminé;À faire;Écrans livrés;2026-11-07;Endpoints
 Transverse;Plateforme API;Oui;Daniel;;À tester;CORS réglé, doc toujours sans schémas;2026-10-14;Schémas de réponse, erreurs par champ, et fermer GET /bookings
-Transverse;Environnements et accès;Oui;Emmanuel;;En cours;URL repointée sur develop;2026-10-07;Une URL stable, un compte admin de test
+Transverse;Environnements et accès;Oui;Emmanuel;;En cours;URL stable sur develop, qui porte tout;2026-10-06;Un compte admin de test (BLK-08)
 Transverse;Pilotage;Oui;Emmanuel;;En cours;Ce classeur;2026-10-10;Le tenir à jour
 Transverse;Barres du haut;Non;Amir;Terminé;Terminé;Recherche et tiroir d’alertes sur les trois espaces;2026-10-04;Rien : les sources suivront les écrans

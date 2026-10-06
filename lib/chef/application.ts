@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidE164 } from '@/lib/phone'
 import { regionLabel, type City } from './regions'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +144,6 @@ export function requiredDocuments(v: {
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
-export const PHONE_FR = /^(?:(?:\+|00)33\s?|0)[1-9](?:[\s.-]?\d{2}){4}$/
 /** Code postal métropolitain : 01000 à 95999 (Corse incluse via 20xxx). */
 const POSTCODE_METRO = /^(?:0[1-9]|[1-8]\d|9[0-5])\d{3}$/
 
@@ -191,11 +191,17 @@ const identitySchema = z.object({
   firstName: z.string().trim().min(2, 'Indiquez votre prénom.'),
   lastName: z.string().trim().min(2, 'Indiquez votre nom.'),
   email: z.string().trim().min(1, 'Indiquez votre email.').email('Cet email ne semble pas valide.'),
+  /*
+   * Le champ porte déjà le E.164 : c'est `PhoneField` qui compose l'indicatif
+   * et le numéro. L'API n'impose aucun pays — vérifié le 06/10, une
+   * candidature avec +34, +1 ou +237 ne se fait reprocher que son code postal.
+   * Seule l'adresse doit être en France métropolitaine.
+   */
   phone: z
     .string()
     .trim()
     .min(1, 'Indiquez votre téléphone.')
-    .regex(PHONE_FR, 'Numéro français attendu, par exemple 06 12 34 56 78.'),
+    .refine(isValidE164, 'Ce numéro ne semble pas complet.'),
   street: z.string().trim().min(4, 'Indiquez votre adresse.'),
   addressLine2: z.string().trim().optional(),
   postcode: z
@@ -353,11 +359,6 @@ export interface ApplicationPayload {
   consent: { privacyPolicy: true; terms: true; acceptedAt: string }
 }
 
-/** « 06 12 34 56 78 » → « +33612345678 ». L'API revalide derrière. */
-export const e164 = (phone: string) => {
-  const digits = phone.replace(/[^\d+]/g, '').replace(/^00/, '+')
-  return digits.startsWith('+') ? digits : `+33${digits.slice(1)}`
-}
 
 export function buildPayload(v: ApplicationValues, acceptedAt: string): ApplicationPayload {
   const registered = v.legalForm !== 'not-registered'
@@ -366,7 +367,7 @@ export function buildPayload(v: ApplicationValues, acceptedAt: string): Applicat
       firstName: v.firstName.trim(),
       lastName: v.lastName.trim(),
       email: v.email.trim().toLowerCase(),
-      phone: e164(v.phone),
+      phone: v.phone.trim(),
     },
     address: {
       street: v.street.trim(),

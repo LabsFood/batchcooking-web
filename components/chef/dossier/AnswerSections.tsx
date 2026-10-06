@@ -14,7 +14,9 @@ import {
 import { useToast } from '@/components/shared/Toaster'
 import { RadioCard, TextField } from '@/components/chef/application/fields'
 import ZonePicker from '@/components/chef/application/ZonePicker'
-import { PHONE_FR, e164, isValidSiret, type Zone } from '@/lib/chef/application'
+import { isValidSiret, type Zone } from '@/lib/chef/application'
+import PhoneField from '@/components/shared/PhoneField'
+import { formatE164, isValidE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
 import {
   applicationAnswers,
@@ -296,8 +298,8 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
             setErreur('Indiquez votre prénom et votre nom.')
             return
           }
-          if (!PHONE_FR.test(tel.trim())) {
-            setErreur('Numéro français attendu, par exemple 06 12 34 56 78.')
+          if (!isValidE164(tel.trim())) {
+            setErreur('Ce numéro ne semble pas complet.')
             return
           }
           envoyer(
@@ -305,7 +307,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
               identity: {
                 firstName: prenom.trim(),
                 lastName: nom.trim(),
-                phone: e164(tel.trim()),
+                phone: tel.trim(),
               },
             },
             'Votre identité',
@@ -316,7 +318,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
             <Row label="Prénom" value={a.identity?.firstName} />
             <Row label="Nom" value={a.identity?.lastName} />
             <Row label="Email" value={a.identity?.email} mono />
-            <Row label="Téléphone" value={a.identity?.phone} mono />
+            <Row label="Téléphone" value={formatE164(a.identity?.phone)} mono />
           </dl>
         }
       >
@@ -324,12 +326,11 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
           <TextField label="Prénom" value={prenom} onChange={(e) => setPrenom(e.target.value)} />
           <TextField label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} />
         </div>
-        <TextField
+        <PhoneField
           label="Téléphone"
           value={tel}
-          inputMode="tel"
-          hint="Celui sur lequel un client peut vous joindre."
-          onChange={(e) => setTel(e.target.value)}
+          onChange={setTel}
+          hint="Celui sur lequel un client peut vous joindre. Un numéro étranger convient."
         />
       </Section>
 

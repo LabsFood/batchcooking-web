@@ -19,6 +19,8 @@ import {
 import Logo from '@/components/shared/Logo'
 import ZonePicker from '@/components/chef/application/ZonePicker'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
+import PhoneField from '@/components/shared/PhoneField'
+import { formatE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
 import {
   DEFAULT_VALUES,
@@ -342,15 +344,13 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                       onChange={(e) => set('email', e.target.value)}
                       error={errors.email}
                     />
-                    <TextField
+                    <PhoneField
                       label="Téléphone"
-                      type="tel"
-                      autoComplete="tel"
-                      inputMode="tel"
-                      placeholder="06 12 34 56 78"
+                      required
                       value={values.phone}
-                      onChange={(e) => set('phone', e.target.value)}
+                      onChange={(e164) => set('phone', e164)}
                       error={errors.phone}
+                      hint="Un numéro étranger convient : seule votre adresse doit être en France."
                     />
                   </div>
                 </Group>
@@ -609,7 +609,7 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
                   <Review title="Coordonnées" onEdit={() => goTo(0)}>
                     <Row label="Nom" value={`${values.firstName} ${values.lastName}`} />
                     <Row label="Email" value={values.email} />
-                    <Row label="Téléphone" value={values.phone} />
+                    <Row label="Téléphone" value={formatE164(values.phone)} />
                     <Row
                       label="Adresse"
                       value={[values.street, values.addressLine2, `${values.postcode} ${values.city}`]
