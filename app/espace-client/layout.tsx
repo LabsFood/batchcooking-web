@@ -11,6 +11,7 @@ import DashboardSidebar from '@/components/dashboard/DashboardSidebar'
 import DashboardTopbar from '@/components/dashboard/DashboardTopbar'
 import DashboardMobileNav from '@/components/dashboard/DashboardMobileNav'
 import LabsLoader from '@/components/shared/LabsLoader'
+import MessagingRealtime from '@/components/messaging/MessagingRealtime'
 
 export default function EspaceClientLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isReady, signOut } = useAuth()
@@ -83,6 +84,7 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
   // role === 'client' (ou tout autre rôle applicatif client) → dashboard.
   return (
     <div className="min-h-screen bg-cream flex">
+      <MessagingRealtime />
       <DashboardSidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <DashboardTopbar />

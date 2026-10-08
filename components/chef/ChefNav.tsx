@@ -30,6 +30,7 @@ import { useState } from 'react'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { useUnreadCount } from '@/lib/api/messaging'
 
 /** Navigation en 5 groupes (cf. architecture cible § 4.1 du brief). */
 export const CHEF_NAV = [
@@ -69,7 +70,7 @@ export const CHEF_NAV = [
   {
     group: 'Relation',
     items: [
-      { href: '/espace-chef/messagerie', label: 'Messagerie', Icon: MessageCircle, badge: '1' },
+      { href: '/espace-chef/messagerie', label: 'Messagerie', Icon: MessageCircle },
       { href: '/espace-chef/avis', label: 'Avis', Icon: Star },
       { href: '/espace-chef/litiges', label: 'Litiges & support', Icon: LifeBuoy },
     ],
@@ -82,8 +83,11 @@ function isActive(pathname: string, href: string) {
 
 /* ── Sidebar desktop ──────────────────────────────────────────────────────── */
 
+const MESSAGING_HREF = '/espace-chef/messagerie'
+
 export function ChefSidebar() {
   const pathname = usePathname()
+  const unread = useUnreadCount().data ?? 0
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
 
@@ -132,7 +136,14 @@ export function ChefSidebar() {
               </p>
               <ul className="space-y-0.5">
                 {items.map(({ href, label, Icon, ...rest }) => {
-                  const badge = 'badge' in rest ? (rest.badge as string) : null
+                  const badge =
+                    href === MESSAGING_HREF
+                      ? unread > 0
+                        ? String(unread)
+                        : null
+                      : 'badge' in rest
+                        ? (rest.badge as string)
+                        : null
                   const active = isActive(pathname, href)
                   return (
                     <li key={href}>
@@ -195,6 +206,7 @@ const MOBILE_ITEMS = [
 
 export function ChefMobileNav() {
   const pathname = usePathname()
+  const unread = useUnreadCount().data ?? 0
   return (
     <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 bg-navy text-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(31,42,55,0.5)] px-2 py-2">
       <ul className="grid grid-cols-5">
@@ -209,7 +221,12 @@ export function ChefMobileNav() {
                   active ? 'text-amber' : 'text-white/55 hover:text-white',
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <span className="relative">
+                  <Icon className="w-4 h-4" />
+                  {href === MESSAGING_HREF && unread > 0 && (
+                    <span className="absolute -right-1.5 -top-1 h-2 w-2 rounded-full bg-amber" />
+                  )}
+                </span>
                 {label}
               </Link>
             </li>

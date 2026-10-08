@@ -243,51 +243,6 @@ export const CUSTOM_REQUESTS: CustomRequest[] = [
 
 // ─── Chat with admin ─────────────────────────────────────────────────────────
 
-export type ChatMessage = {
-  id: string
-  from: 'me' | 'admin'
-  author: string
-  avatar?: string
-  text: string
-  at: string // ISO
-  read?: boolean
-}
-
-export const CHAT_MESSAGES: ChatMessage[] = [
-  {
-    id: 'm_001',
-    from: 'admin',
-    author: 'Ivy · Lab’s Food',
-    text: 'Bonjour Sophie ! Pour samedi, je préfère arriver à 9h pétantes — ça vous va ?',
-    at: '2026-04-25T14:02:00.000Z',
-    read: true,
-  },
-  {
-    id: 'm_002',
-    from: 'me',
-    author: 'Vous',
-    text: 'Parfait pour 9h. Vous voulez la liste mise à jour avant ou après ?',
-    at: '2026-04-25T14:08:00.000Z',
-    read: true,
-  },
-  {
-    id: 'm_003',
-    from: 'admin',
-    author: 'Ivy · Lab’s Food',
-    text: 'Avant, idéalement vendredi soir — je passe commande chez le poissonnier le matin.',
-    at: '2026-04-25T14:11:00.000Z',
-    read: true,
-  },
-  {
-    id: 'm_004',
-    from: 'admin',
-    author: 'Ivy · Lab’s Food',
-    text: 'Et petite proposition : j’ajouterais un dahl coco-curcuma pour Lina, c’est doux et sans gluten. OK ?',
-    at: '2026-04-26T08:32:00.000Z',
-    read: false,
-  },
-]
-
 // ─── Profile preferences ────────────────────────────────────────────────────
 
 export type ProfilePrefs = {

@@ -17,12 +17,13 @@ import {
 import {
   DASHBOARD_ORDERS,
   DASHBOARD_STATS,
-  CHAT_MESSAGES,
   CUSTOM_REQUESTS,
   ORDER_STATUS_FLOW,
   ORDER_STATUS_LABEL,
   type OrderStatus,
 } from '@/lib/dashboard-mock'
+import { useConversations } from '@/lib/api/messaging'
+import { previewOf } from '@/components/messaging/format'
 import CulinaryMap from '@/components/dashboard/CulinaryMap'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -63,7 +64,8 @@ function formatDate(iso: string) {
 export default function DashboardOverviewPage() {
   const upcoming = DASHBOARD_ORDERS.find((o) => ['pending', 'confirmed'].includes(o.status))
   const toSettle = DASHBOARD_ORDERS.find((o) => o.payment.status === 'due')
-  const lastMessage = CHAT_MESSAGES[CHAT_MESSAGES.length - 1]
+  // La conversation la plus récemment active : la liste arrive déjà triée.
+  const lastThread = useConversations().data?.find((c) => c.lastMessage)
   const pendingCustom = CUSTOM_REQUESTS[0]
   const currentStep = upcoming ? ORDER_STATUS_FLOW.indexOf(upcoming.status) : -1
 
@@ -260,15 +262,31 @@ export default function DashboardOverviewPage() {
           <section>
             <h3 className="mb-3 font-display text-lg font-bold text-navy">Dernier message</h3>
             <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
-              <p className="text-sm font-semibold text-navy">{lastMessage.author}</p>
-              <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-ink-mid">
-                {lastMessage.text}
-              </p>
+              {lastThread?.lastMessage ? (
+                <>
+                  <p className="text-sm font-semibold text-navy">
+                    {lastThread.lastMessage.senderRole === lastThread.viewerRole
+                      ? `Vous, à ${lastThread.counterpart.name}`
+                      : lastThread.counterpart.name}
+                  </p>
+                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-ink-mid">
+                    {previewOf(lastThread.lastMessage)}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm leading-relaxed text-ink-mid">
+                  Aucun message pour le moment.
+                </p>
+              )}
               <Link
-                href="/espace-client/messages"
+                href={
+                  lastThread
+                    ? `/espace-client/messages?c=${lastThread.id}`
+                    : '/espace-client/messages'
+                }
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-terra underline-offset-4 hover:underline"
               >
-                Répondre
+                {lastThread ? 'Répondre' : 'Ouvrir la messagerie'}
                 <ArrowRight className="h-3 w-3" aria-hidden />
               </Link>
             </div>

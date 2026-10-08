@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
 import { ChefSidebar, ChefMobileNav } from '@/components/chef/ChefNav'
 import LabsLoader from '@/components/shared/LabsLoader'
+import MessagingRealtime from '@/components/messaging/MessagingRealtime'
 
 /**
  * Garde de rôle, symétrique de celle de /espace-client (qui renvoie déjà les
@@ -47,6 +48,7 @@ export default function EspaceChefLayout({ children }: { children: ReactNode }) 
 
   return (
     <div className="min-h-screen bg-cream flex">
+      <MessagingRealtime />
       <ChefSidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         {children}
