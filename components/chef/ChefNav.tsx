@@ -119,8 +119,11 @@ function useNavCounts(): Record<string, number> {
 
 /* ── Sidebar desktop ──────────────────────────────────────────────────────── */
 
+const MESSAGING_HREF = '/espace-chef/messagerie'
+
 export function ChefSidebar() {
   const pathname = usePathname()
+  const unread = useUnreadCount().data ?? 0
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
   const counts = useNavCounts()
@@ -215,6 +218,7 @@ const MOBILE_ITEMS = [
 
 export function ChefMobileNav() {
   const pathname = usePathname()
+  const unread = useUnreadCount().data ?? 0
   return (
     <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 bg-navy text-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(31,42,55,0.5)] px-2 py-2">
       <ul className="grid grid-cols-5">
@@ -229,7 +233,12 @@ export function ChefMobileNav() {
                   active ? 'text-amber' : 'text-white/55 hover:text-white',
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <span className="relative">
+                  <Icon className="w-4 h-4" />
+                  {href === MESSAGING_HREF && unread > 0 && (
+                    <span className="absolute -right-1.5 -top-1 h-2 w-2 rounded-full bg-amber" />
+                  )}
+                </span>
                 {label}
               </Link>
             </li>

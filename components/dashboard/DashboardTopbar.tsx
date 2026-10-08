@@ -39,7 +39,7 @@ const TITLES: Record<string, { title: string; sub?: string }> = {
   },
   '/espace-client/messages': {
     title: 'Messagerie',
-    sub: 'Votre fil direct avec votre chef.',
+    sub: 'Vos échanges avec vos chefs et avec le support.',
   },
   '/espace-client/profil': {
     title: 'Profil et goûts',

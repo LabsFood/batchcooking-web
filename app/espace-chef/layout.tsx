@@ -7,6 +7,7 @@ import { useMe } from '@/lib/api/me'
 import { ChefSidebar, ChefMobileNav } from '@/components/chef/ChefNav'
 import ChefSignals from '@/components/chef/ChefSignals'
 import LabsLoader from '@/components/shared/LabsLoader'
+import MessagingRealtime from '@/components/messaging/MessagingRealtime'
 
 /**
  * Garde de rôle, symétrique de celle de /espace-client (qui renvoie déjà les
