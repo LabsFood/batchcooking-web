@@ -22,24 +22,34 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
-  Search,
   ChevronDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { useUnreadCount } from '@/lib/api/messaging'
+import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
+import { AlertBell } from '@/components/shared/AlertDrawer'
+import { useChefAlerts } from './ChefSignals'
+import { useChefDocuments } from '@/lib/api/chef-documents'
+import { useMe } from '@/lib/api/me'
+import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
+import { useOffers } from '@/lib/api/chef-catalog'
 
-/** Navigation en 5 groupes (cf. architecture cible § 4.1 du brief). */
+/**
+ * Navigation en 5 groupes (cf. architecture cible § 4.1 du brief).
+ *
+ * Aucune pastille n'est écrite ici : un compteur en dur dit « 2 » quand il n'y
+ * a rien, et le chef apprend à ne plus le croire. Celles qui s'affichent sont
+ * comptées à partir de l'API, dans `useNavCounts()`.
+ */
 export const CHEF_NAV = [
   {
     group: 'Pilotage',
     items: [
       { href: '/espace-chef', label: 'Accueil', Icon: LayoutDashboard },
-      { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox, badge: '2' },
-      { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText, badge: '2' },
+      { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox },
+      { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText },
       { href: '/espace-chef/prestations', label: 'Prestations', Icon: CalendarRange },
       { href: '/espace-chef/agenda', label: 'Agenda', Icon: CalendarDays },
     ],
@@ -62,8 +72,7 @@ export const CHEF_NAV = [
   {
     group: 'Mon dossier',
     items: [
-      { href: '/espace-chef/profil', label: 'Mon profil', Icon: UserCircle2 },
-      { href: '/espace-chef/dossier', label: 'Documents', Icon: ShieldCheck },
+      { href: '/espace-chef/dossier', label: 'Mon dossier', Icon: ShieldCheck },
       { href: '/espace-chef/parametres', label: 'Paramètres', Icon: Settings },
     ],
   },
@@ -81,6 +90,33 @@ function isActive(pathname: string, href: string) {
   return href === '/espace-chef' ? pathname === href : pathname.startsWith(href)
 }
 
+/**
+ * Ce qui attend vraiment, par entrée de menu. Seules deux entrées ont de quoi
+ * compter aujourd'hui : les propositions de Lab's Food, et les pièces du
+ * dossier qui demandent une action. Les autres n'auront leur pastille que le
+ * jour où elles auront leur endpoint.
+ */
+function useNavCounts(): Record<string, number> {
+  const offers = useOffers()
+  const docs = useChefDocuments()
+
+  const nOffres =
+    (offers.data?.dishes.length ?? 0) + (offers.data?.menus.length ?? 0)
+
+  const nPieces = (docs.data?.documents ?? []).filter(
+    (d) =>
+      d.status === 'rejected' ||
+      d.status === 'expired' ||
+      d.status === 'expiring' ||
+      (d.status === 'missing' && d.required),
+  ).length
+
+  return {
+    '/espace-chef/offres': nOffres,
+    '/espace-chef/dossier': nPieces,
+  }
+}
+
 /* ── Sidebar desktop ──────────────────────────────────────────────────────── */
 
 const MESSAGING_HREF = '/espace-chef/messagerie'
@@ -90,6 +126,7 @@ export function ChefSidebar() {
   const unread = useUnreadCount().data ?? 0
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
+  const counts = useNavCounts()
 
   const initials =
     user?.name
@@ -101,31 +138,12 @@ export function ChefSidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
-      <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.55)]">
-        <div className="px-6 pt-6 pb-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-navy text-white">
+        <div className="px-6 pb-5 pt-6">
           <Logo variant="white" size="sm" />
           <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.22em] text-amber">
             Espace chef
           </p>
-        </div>
-
-        <div className="mx-4 mb-4 rounded-2xl bg-white/[0.06] border border-white/10 p-4">
-          <div className="flex items-center gap-3">
-            <span className="w-11 h-11 rounded-full bg-amber text-navy font-bold text-sm flex items-center justify-center">
-              {initials}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{user?.name || 'Batch cooker'}</p>
-              {roleLabel && (
-                <span className="mt-0.5 inline-flex items-center rounded-full bg-amber/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-amber">
-                  {roleLabel}
-                </span>
-              )}
-              <p className="text-[11px] text-white/55 truncate mt-0.5">
-                {user?.email || 'Espace chef'}
-              </p>
-            </div>
-          </div>
         </div>
 
         <nav className="px-3 flex-1 overflow-y-auto">
@@ -135,15 +153,9 @@ export function ChefSidebar() {
                 {group}
               </p>
               <ul className="space-y-0.5">
-                {items.map(({ href, label, Icon, ...rest }) => {
-                  const badge =
-                    href === MESSAGING_HREF
-                      ? unread > 0
-                        ? String(unread)
-                        : null
-                      : 'badge' in rest
-                        ? (rest.badge as string)
-                        : null
+                {items.map(({ href, label, Icon }) => {
+                  const n = counts[href] ?? 0
+                  const badge = n > 0 ? String(n) : null
                   const active = isActive(pathname, href)
                   return (
                     <li key={href}>
@@ -245,6 +257,8 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
   const pathname = usePathname()
   const router = useRouter()
   const { user, roleLabel, signOut } = useAuth()
+  const { alerts, loading } = useChefAlerts()
+  const me = useMe()
 
   const initial = user?.name?.[0]?.toUpperCase() ?? 'C'
   const firstName = user?.name?.split(' ')[0] ?? 'Chef'
@@ -271,23 +285,19 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
             )}
           </div>
 
-          {/* Recherche (desktop) */}
-          <div className="hidden xl:block relative shrink-0">
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" />
-            <input
-              placeholder="Rechercher une demande, un client…"
-              className="w-64 pl-10 pr-4 py-2.5 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] text-sm focus:border-amber outline-none transition-colors"
-            />
-          </div>
+          {/* Recherche : un plat, un menu, une pièce, une page. ⌘K ou « / ». */}
+          <PaletteTrigger
+            label="Un plat, un menu, une pièce…"
+            className="hidden w-64 shrink-0 xl:flex"
+          />
+          <PaletteIconTrigger className="xl:hidden" />
 
-          {/* Notifications */}
-          <button
-            className="relative w-10 h-10 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] flex items-center justify-center text-navy hover:border-amber transition-colors shrink-0"
-            aria-label="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-amber" />
-          </button>
+          {/* Ce qui demande une action, recalculé à chaque ouverture. */}
+          <AlertBell alerts={alerts} loading={loading}>
+            Ces points sont déduits de votre dossier, de vos plats et de vos
+            propositions. Le journal des notifications — qui a fait quoi, et
+            quand — attend son endpoint côté API.
+          </AlertBell>
 
           {/* Menu utilisateur */}
           <div className="relative shrink-0">
@@ -295,9 +305,11 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
             >
-              <span className="w-8 h-8 rounded-full bg-navy text-amber font-bold text-xs flex items-center justify-center">
-                {initial}
-              </span>
+              <Avatar
+                url={me.data?.avatarUrl}
+                name={me.data?.fullName ?? user?.name ?? firstName}
+                className="w-8 h-8 text-xs"
+              />
               <span className="hidden md:flex flex-col leading-none items-start">
                 <span className="text-xs font-semibold text-navy max-w-[110px] truncate">
                   {firstName}
@@ -313,9 +325,13 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
 
             {menuOpen && (
               <div
-                className="absolute right-0 mt-2 w-56 bg-paper rounded-2xl shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.08)] p-2 z-40"
+                className="absolute right-0 mt-2 w-72 bg-paper rounded-2xl shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)] border border-[rgba(31,42,55,0.08)] p-2 z-40"
                 onMouseLeave={() => setMenuOpen(false)}
               >
+                {/* La photo se change là où l'on va déjà, pas dans un réglage
+                    qu'il faudrait chercher. */}
+                <AvatarEditor publicHint />
+                <hr className="my-1 border-[rgba(31,42,55,0.08)]" />
                 <Link
                   href="/espace-chef/profil"
                   onClick={() => setMenuOpen(false)}

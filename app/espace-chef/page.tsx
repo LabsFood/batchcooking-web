@@ -13,6 +13,15 @@ import {
   Wallet,
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
+import {
+  DOC_STATUS_LABEL as API_DOC_STATUS_LABEL,
+  DOSSIER_LABEL,
+  useChefApplication,
+  useChefDocuments,
+  type DossierStatus,
+} from '@/lib/api/chef-documents'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ChefProfile } from '@/lib/api/types'
 import { DossierBadge, MissionBadge } from '@/components/chef/StatusBadge'
 import {
   CHEF_DOCS,
@@ -35,11 +44,39 @@ const euros = (n: number) => `${n.toLocaleString('fr-FR')} €`
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
+/** Ce que le batch cooker doit retenir de son dossier, en une phrase. */
+const DOSSIER_LEAD: Record<DossierStatus, string> = {
+  draft: 'Vos pièces obligatoires n’ont pas encore été déposées.',
+  incomplete: 'Une pièce obligatoire manque ou a été refusée.',
+  reviewing: 'Tout est déposé, notre équipe vérifie — 48 h ouvrées.',
+  'awaiting-registration': 'Il ne manque que votre immatriculation.',
+  validated: 'Dossier complet. Pensez aux échéances de vos pièces.',
+  suspended: 'Une pièce a expiré : votre vitrine est hors ligne.',
+  disabled: 'Votre compte a été désactivé par notre équipe.',
+}
+
+/** Un dossier qui bloque se voit ; un dossier qui avance se lit. */
+const DOSSIER_URGENT = new Set<DossierStatus>(['incomplete', 'suspended', 'disabled'])
+
 export default function ChefHomePage() {
+  const dossier = useChefDocuments()
+  const application = useChefApplication()
+  const profil = useMeProfile()
+
+  /*
+   * `disabled` veut dire deux choses que l'API ne distingue pas : mis hors
+   * ligne par sanction, ou tout juste approuvé et pas encore publié —
+   * approuver vérifie le batch cooker sans le rendre réservable. Le profil
+   * tranche, et évite d'annoncer une sanction à quelqu'un qu'on vient
+   * d'accepter.
+   */
+  const moi =
+    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
+  const attendMiseEnLigne =
+    dossier.data?.dossierStatus === 'disabled' &&
+    (moi?.isVerified === true || application.data?.status === 'approved') &&
+    moi?.isActive !== true
   const definitions = applicableDocuments(DOC_DEFINITIONS, CHEF_PROFILE)
-  const dossierStatus = deriveDossierStatus(CHEF_DOCS, definitions, {
-    registered: CHEF_PROFILE.registered,
-  })
   const score = completionScore(CHEF_DOCS, definitions)
 
   // Document le plus urgent : refusé/expiré d'abord, puis expirant, puis manquant.
@@ -61,63 +98,13 @@ export default function ChefHomePage() {
   return (
     <ChefPage title="Accueil" subtitle="Votre activité en un coup d'œil.">
       <div className="space-y-5">
-        {/* Bandeau du document le plus urgent — ambre = à traiter, rouge = bloquant */}
-        {urgent && urgentDef && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`rounded-2xl border px-4 py-3.5 flex items-start gap-3 ${
-              blocking
-                ? 'border-red-200 bg-red-50'
-                : 'border-amber/30 bg-amber-soft/40'
-            }`}
-          >
-            <AlertTriangle
-              className={`w-4 h-4 mt-0.5 shrink-0 ${blocking ? 'text-red-700' : 'text-amber-deep'}`}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-navy">
-                {urgentDef.label} — {DOC_STATUS_LABEL[urgent.status]}
-              </p>
-              <p className="text-xs text-ink-mid mt-0.5">
-                {urgent.rejectionReason ??
-                  (urgent.status === 'expiring'
-                    ? 'Cette pièce arrive à échéance. Renouvelez-la pour éviter une suspension.'
-                    : 'Cette pièce est nécessaire pour compléter votre dossier.')}
-              </p>
-            </div>
-            <Link href="/espace-chef/dossier" className="btn btn-primary text-xs px-4 py-2 shrink-0">
-              Traiter
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Statut du dossier + complétude */}
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-2xl bg-navy text-amber flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5" />
-              </span>
-              <div>
-                <p className="eyebrow mb-1">Mon dossier</p>
-                <DossierBadge status={dossierStatus} />
-              </div>
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex justify-between text-xs text-ink-mid mb-1.5">
-                <span>Complétude des pièces obligatoires</span>
-                <span className="font-semibold text-navy">{score} %</span>
-              </div>
-              <div className="h-2 rounded-full bg-cream-deep overflow-hidden">
-                <div className="h-full rounded-full bg-amber" style={{ width: `${score}%` }} />
-              </div>
-            </div>
-            <Link href="/espace-chef/dossier" className="btn btn-outline text-xs">
-              Voir le dossier <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </Card>
+        {/* État du dossier — la seule chose qui puisse bloquer une prestation */}
+        <DossierCard
+          status={dossier.data?.dossierStatus}
+          documents={dossier.data?.documents ?? []}
+          loading={dossier.isPending}
+          attendMiseEnLigne={attendMiseEnLigne}
+        />
 
         {/* Indicateurs du mois */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
@@ -246,6 +233,94 @@ export default function ChefHomePage() {
 
 function rank(status: string) {
   return { rejected: 0, expired: 1, expiring: 2, missing: 3 }[status] ?? 9
+}
+
+/**
+ * État du dossier. Le libellé porte l'information, pas une pastille collée à
+ * un surtitre : on lit l'état, puis ce qu'il implique, puis ce qu'il reste.
+ */
+function DossierCard({
+  status,
+  documents,
+  loading,
+  attendMiseEnLigne,
+}: {
+  status?: DossierStatus
+  documents: { label: string; family: string; status: string; reason: string | null }[]
+  loading: boolean
+  /** `disabled` après approbation : une attente, pas une sanction. */
+  attendMiseEnLigne?: boolean
+}) {
+  if (loading) {
+    return <div className="h-28 animate-pulse rounded-2xl bg-paper" />
+  }
+  if (!status) return null
+
+  const blocking = documents.filter((d) => d.family === 'blocking')
+  const valid = blocking.filter((d) => d.status === 'valid').length
+  const urgent = DOSSIER_URGENT.has(status) && !attendMiseEnLigne
+
+  // La pièce qui coince, s'il y en a une : c'est elle qu'on va traiter.
+  const stuck = documents.find(
+    (d) => d.family === 'blocking' && (d.status === 'rejected' || d.status === 'expired'),
+  )
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className={`rounded-2xl p-5 lg:p-6 ${urgent ? 'bg-navy text-white' : 'bg-paper'}`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 max-w-prose">
+          <p
+            className={`font-display text-lg font-bold leading-tight ${
+              urgent ? 'text-white' : 'text-navy'
+            }`}
+          >
+            {attendMiseEnLigne
+              ? 'Dossier approuvé, vitrine pas encore en ligne'
+              : `Dossier ${DOSSIER_LABEL[status].toLowerCase()}`}
+          </p>
+          <p className={`mt-1 text-sm leading-relaxed ${urgent ? 'text-white/75' : 'text-ink-mid'}`}>
+            {attendMiseEnLigne
+              ? 'Vos pièces sont validées. Notre équipe relit votre vitrine avant de la rendre visible aux clients — vous n’avez rien à faire.'
+              : DOSSIER_LEAD[status]}
+          </p>
+          {stuck?.reason && (
+            <p className={`mt-2 text-[13px] leading-relaxed ${urgent ? 'text-amber' : 'text-red-700'}`}>
+              {stuck.label} — {API_DOC_STATUS_LABEL[stuck.status as keyof typeof API_DOC_STATUS_LABEL] ?? stuck.status} : {stuck.reason}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-5">
+          {blocking.length > 0 && (
+            <div className="min-w-[8rem]">
+              <p
+                className={`font-display text-2xl font-bold tabular-nums ${
+                  urgent ? 'text-amber' : 'text-navy'
+                }`}
+              >
+                {valid}/{blocking.length}
+              </p>
+              <p className={`text-xs ${urgent ? 'text-white/55' : 'text-ink-soft'}`}>
+                pièces obligatoires validées
+              </p>
+            </div>
+          )}
+          <Link
+            href="/espace-chef/dossier"
+            className={`btn text-xs ${urgent ? 'btn-amber' : 'btn-outline'}`}
+          >
+            {status === 'validated' ? 'Voir mon dossier' : 'Compléter'}
+            <ArrowRight className="h-3.5 w-3.5 icon-arrow" />
+          </Link>
+        </div>
+      </div>
+    </motion.section>
+  )
 }
 
 function Stat({

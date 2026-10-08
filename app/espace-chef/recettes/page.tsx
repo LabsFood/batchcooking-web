@@ -1,535 +1,762 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
-  ArrowLeft,
-  Clock,
-  Eye,
-  FileText,
-  FileWarning,
-  Globe2,
-  Lock,
-  Pencil,
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Image as ImageIcon,
+  Loader2,
   Plus,
-  Send,
-  ShieldCheck,
+  RotateCw,
   Sparkles,
-  Users,
-  X,
+  Trash2,
+  UtensilsCrossed,
 } from 'lucide-react'
-import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
-import StatusBadge, { type Tone } from '@/components/chef/StatusBadge'
-import DishForm from '@/components/chef/recipes/DishForm'
-import ShowcaseMonth from '@/components/chef/recipes/ShowcaseMonth'
-import DocDialog from '@/components/chef/documents/DocDialog'
-import RecipeSheet from '@/components/chef/documents/RecipeSheet'
+import Link from 'next/link'
+import ChefPage from '@/components/chef/ChefPage'
+import { useToast } from '@/components/shared/Toaster'
+import { countryLabel } from '@/lib/chef/countries'
 import {
-  CHEF_DISHES,
-  CHEF_MENUS,
-  CHEF_PROFILE,
-  CONTENT_STATUS_LABEL,
-  LF_SUGGESTIONS,
-  type ChefDish,
-  type ChefMenu,
-  type ContentStatus,
-  type LfSuggestion,
-} from '@/lib/chef/mock'
-import { EMPTY_RECIPE } from '@/lib/chef/recipes'
-import { cn } from '@/lib/utils'
+  DISH_STATUS_LABEL,
+  checkPhoto,
+  publishBlockers,
+  useAdoptSuggestion,
+  useCreateMenu,
+  useDeleteDish,
+  useDeleteMenu,
+  useDishPhoto,
+  useDishes,
+  useMenus,
+  usePublishDish,
+  usePublishMenu,
+  useSuggestions,
+  type Dish,
+  type DishStatus,
+  type Menu,
+} from '@/lib/api/chef-catalog'
 
-const STATUS_TONE: Record<ContentStatus, Tone> = {
-  draft: 'neutral',
-  pending: 'warning',
-  published: 'success',
-  rejected: 'danger',
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mes plats et mes menus.
+
+   Un plat naît en brouillon et ne devient public qu'à la publication : rien
+   n'échappe au chef. Un menu se compose de ses propres plats, et le publier
+   publie ce qu'il contient.
+
+   L'écran dit toujours **ce qui manque pour publier** plutôt que de griser un
+   bouton sans raison : c'est la seule question qu'on se pose devant un
+   brouillon.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+type Tab = 'dishes' | 'menus' | 'suggestions'
+
+const STATUS_STYLE: Record<DishStatus, { dot: string; text: string }> = {
+  draft: { dot: 'bg-ink-soft/50', text: 'text-ink-soft' },
+  published: { dot: 'bg-mint-deep', text: 'text-mint-ink' },
+  suspended: { dot: 'bg-red-500', text: 'text-red-700' },
+  archived: { dot: 'bg-ink-soft/40', text: 'text-ink-soft' },
 }
 
-type Tab = 'dishes' | 'menus' | 'showcase' | 'suggestions'
-
-export default function ChefRecipesPage() {
+export default function RecettesPage() {
   const [tab, setTab] = useState<Tab>('dishes')
-  const [dishes, setDishes] = useState<ChefDish[]>(CHEF_DISHES)
-  const [menus, setMenus] = useState<ChefMenu[]>(CHEF_MENUS)
-  const [suggestions, setSuggestions] = useState<LfSuggestion[]>(LF_SUGGESTIONS)
+  const dishes = useDishes()
+  const menus = useMenus()
 
-  const [editingDish, setEditingDish] = useState<ChefDish | 'new' | null>(null)
-  const [editingMenu, setEditingMenu] = useState<ChefMenu | 'new' | null>(null)
-  const [sheetDish, setSheetDish] = useState<ChefDish | null>(null)
-
-  const saveDish = (d: ChefDish) =>
-    setDishes((prev) => (prev.some((x) => x.id === d.id) ? prev.map((x) => (x.id === d.id ? d : x)) : [d, ...prev]))
-
-  const saveMenu = (m: ChefMenu) =>
-    setMenus((prev) => (prev.some((x) => x.id === m.id) ? prev.map((x) => (x.id === m.id ? m : x)) : [m, ...prev]))
-
-  // ── Formulaires plein écran ────────────────────────────────────────────
-  if (editingDish) {
-    return (
-      <ChefPage title={editingDish === 'new' ? 'Nouveau plat' : 'Modifier le plat'}>
-        <DishForm
-          dish={editingDish === 'new' ? null : editingDish}
-          onCancel={() => setEditingDish(null)}
-          onSave={(d) => {
-            saveDish(d)
-            setEditingDish(null)
-          }}
-        />
-      </ChefPage>
-    )
-  }
-
-  if (editingMenu) {
-    return (
-      <ChefPage title={editingMenu === 'new' ? 'Nouveau menu' : 'Modifier le menu'}>
-        <MenuForm
-          menu={editingMenu === 'new' ? null : editingMenu}
-          dishes={dishes}
-          onCancel={() => setEditingMenu(null)}
-          onSave={(m) => {
-            saveMenu(m)
-            setEditingMenu(null)
-          }}
-        />
-      </ChefPage>
-    )
-  }
-
-  const TABS: { id: Tab; label: string; n?: number }[] = [
-    { id: 'dishes', label: 'Mes plats', n: dishes.length },
-    { id: 'menus', label: 'Mes menus', n: menus.length },
-    { id: 'showcase', label: 'Vitrine du mois' },
-    { id: 'suggestions', label: 'Menus proposés par Lab’s Food', n: suggestions.length },
+  const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'dishes', label: 'Mes plats', count: dishes.data?.length },
+    { id: 'menus', label: 'Mes menus', count: menus.data?.length },
+    { id: 'suggestions', label: 'Propositions Lab’s Food' },
   ]
 
   return (
-    <ChefPage title="Menus & recettes" subtitle="Vos plats, vos menus et votre vitrine du mois.">
-      <div className="space-y-5">
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              aria-pressed={tab === t.id}
-              className={cn(
-                'rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-                tab === t.id ? 'bg-navy text-white' : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy',
-              )}
-            >
-              {t.label}
-              {t.n !== undefined && <span className="tabular-nums opacity-70"> ({t.n})</span>}
-            </button>
-          ))}
+    <ChefPage
+      title="Menus et recettes"
+      subtitle="Vos plats, vos cartes, et ce que Lab’s Food vous propose."
+    >
+      <div className="space-y-6">
+        <div role="tablist" aria-label="Catalogue" className="flex flex-wrap items-center gap-1">
+          {TABS.map((t) => {
+            const on = tab === t.id
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setTab(t.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  on ? 'bg-navy text-white' : 'text-ink-mid hover:bg-paper hover:text-navy'
+                }`}
+              >
+                {t.label}
+                {typeof t.count === 'number' && (
+                  <span className={`ml-2 tabular-nums ${on ? 'text-amber' : 'text-ink-soft'}`}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
-        {/* ── Mes plats ───────────────────────────────────────────────── */}
-        {tab === 'dishes' && (
-          <Card
-            title={`Mes plats (${dishes.length})`}
-            action={
-              <button onClick={() => setEditingDish('new')} className="btn btn-primary px-4 py-2 text-xs">
-                <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
-              </button>
-            }
-          >
-            {dishes.length === 0 ? (
-              <Empty text="Créez votre premier plat pour composer un menu." />
-            ) : (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {dishes.map((d) => (
-                  <li key={d.id} className="flex flex-col rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <p className="font-display text-base font-bold leading-tight text-navy">{d.name}</p>
-                      <StatusBadge tone={STATUS_TONE[d.status]}>{CONTENT_STATUS_LABEL[d.status]}</StatusBadge>
-                    </div>
-
-                    <p className="mb-2 line-clamp-2 text-xs text-ink-mid">{d.description}</p>
-
-                    <p className="inline-flex items-center gap-1.5 text-xs text-ink-soft">
-                      <Globe2 className="h-3.5 w-3.5" aria-hidden /> {d.country} · {d.category}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                      <Chip Icon={Users}>{d.portions} portions</Chip>
-                      <Chip Icon={Clock}>{d.prepMin + d.cookMin} min</Chip>
-                      {d.recipe.ingredients.length > 0 && (
-                        <Chip Icon={FileText}>{d.recipe.ingredients.length} ingrédients</Chip>
-                      )}
-                    </div>
-
-                    {d.allergens.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {d.allergens.map((a) => (
-                          <span key={a} className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] text-red-700">
-                            {a}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {d.status === 'rejected' && d.rejectionReason && (
-                      <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-                        <FileWarning className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-700" aria-hidden />
-                        <p className="text-[11px] leading-relaxed text-red-700">{d.rejectionReason}</p>
-                      </div>
-                    )}
-
-                    <div className="mt-auto flex gap-2 pt-3">
-                      <button
-                        onClick={() => setEditingDish(d)}
-                        className="btn btn-outline flex-1 justify-center px-3 py-1.5 text-xs"
-                      >
-                        <Pencil className="h-3 w-3" aria-hidden /> Modifier
-                      </button>
-                      <button
-                        onClick={() => setSheetDish(d)}
-                        aria-label={`Aperçu de la fiche ${d.name}`}
-                        title="Aperçu de la fiche"
-                        className="btn btn-outline px-3 py-1.5 text-xs"
-                      >
-                        <Eye className="h-3 w-3" aria-hidden />
-                      </button>
-                      {d.status === 'draft' && (
-                        <button
-                          onClick={() => saveDish({ ...d, status: 'pending' })}
-                          className="btn btn-primary flex-1 justify-center px-3 py-1.5 text-xs"
-                        >
-                          <Send className="h-3 w-3" aria-hidden /> Publier
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        )}
-
-        {/* ── Mes menus ───────────────────────────────────────────────── */}
-        {tab === 'menus' && (
-          <Card
-            title={`Mes menus (${menus.length})`}
-            action={
-              <button onClick={() => setEditingMenu('new')} className="btn btn-primary px-4 py-2 text-xs">
-                <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau menu
-              </button>
-            }
-          >
-            {menus.length === 0 ? (
-              <Empty text="Composez un menu à partir de vos plats." />
-            ) : (
-              <ul className="space-y-3">
-                {menus.map((m) => (
-                  <li key={m.id} className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-display text-base font-bold text-navy">{m.title}</p>
-                        <p className="text-xs capitalize text-ink-soft">
-                          {m.period} · {m.dishIds.length} plats
-                        </p>
-                      </div>
-                      <StatusBadge tone={STATUS_TONE[m.status]}>{CONTENT_STATUS_LABEL[m.status]}</StatusBadge>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {m.dishIds.map((id) => {
-                        const d = dishes.find((x) => x.id === id)
-                        return (
-                          <span key={id} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
-                            {d?.name ?? 'Plat supprimé'}
-                          </span>
-                        )
-                      })}
-                    </div>
-
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => setEditingMenu(m)} className="btn btn-outline px-3 py-1.5 text-xs">
-                        <Pencil className="h-3 w-3" aria-hidden /> Modifier
-                      </button>
-                      {m.status === 'draft' && (
-                        <button
-                          onClick={() => saveMenu({ ...m, status: 'pending' })}
-                          className="btn btn-primary px-3 py-1.5 text-xs"
-                        >
-                          <Send className="h-3 w-3" aria-hidden /> Publier
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        )}
-
-        {/* ── Vitrine du mois ─────────────────────────────────────────── */}
-        {tab === 'showcase' && <ShowcaseMonth menus={menus} dishes={dishes} />}
-
-        {/* ── Menus proposés par Lab's Food ───────────────────────────── */}
-        {tab === 'suggestions' && (
-          <>
-            <div className="flex items-start gap-3 rounded-2xl border border-amber/30 bg-amber-soft/40 px-4 py-3.5">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
-              <p className="text-xs leading-relaxed text-ink-mid">
-                <span className="font-semibold text-navy">Aucun menu ne vous est imposé.</span> Ce sont des
-                propositions : vous n&apos;en voyez que l&apos;aperçu tant que vous ne les ajoutez pas vous-même à
-                votre vitrine. Votre choix est enregistré pour garantir votre indépendance.
-              </p>
-            </div>
-
-            <Card title={`Propositions (${suggestions.length})`}>
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {suggestions.map((r) => (
-                  <SuggestionCard
-                    key={r.id}
-                    suggestion={r}
-                    onAdopt={() => {
-                      setSuggestions((prev) => prev.map((x) => (x.id === r.id ? { ...x, unlocked: true } : x)))
-                      saveDish({
-                        id: `dish_${Date.now()}`,
-                        name: r.name,
-                        description: 'Menu proposé par Lab’s Food, à adapter à votre façon de cuisiner.',
-                        country: r.country,
-                        category: r.category,
-                        portions: r.portions,
-                        prepMin: r.prepMin,
-                        cookMin: r.cookMin,
-                        difficulty: 'moyen',
-                        diets: [],
-                        allergens: r.allergens,
-                        status: 'draft',
-                        origin: 'labs-food',
-                        recipe: EMPTY_RECIPE,
-                      })
-                    }}
-                  />
-                ))}
-              </ul>
-            </Card>
-          </>
-        )}
+        {tab === 'dishes' && <DishesTab query={dishes} />}
+        {tab === 'menus' && <MenusTab query={menus} dishes={dishes.data ?? []} />}
+        {tab === 'suggestions' && <SuggestionsTab />}
       </div>
-
-      <DocDialog
-        open={Boolean(sheetDish)}
-        onOpenChange={(v) => !v && setSheetDish(null)}
-        title="Fiche recette Lab's Food"
-        description={sheetDish?.name}
-      >
-        {sheetDish && <RecipeSheet dish={sheetDish} chefName={CHEF_PROFILE.name} />}
-      </DocDialog>
     </ChefPage>
   )
 }
 
-/* ── Formulaire menu (composition de plats) ─────────────────────────────── */
+// ── Plats ───────────────────────────────────────────────────────────────────
 
-function MenuForm({
-  menu,
-  dishes,
-  onCancel,
-  onSave,
-}: {
-  menu: ChefMenu | null
-  dishes: ChefDish[]
-  onCancel: () => void
-  onSave: (m: ChefMenu) => void
-}) {
-  const [title, setTitle] = useState(menu?.title ?? '')
-  const [period, setPeriod] = useState<'semaine' | 'mois'>(menu?.period ?? 'semaine')
-  const [dishIds, setDishIds] = useState<string[]>(menu?.dishIds ?? [])
+function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
+  if (query.isPending) return <Skeleton />
+  if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
 
-  const toggleDish = (id: string) =>
-    setDishIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-
-  const canSave = title.trim().length > 0 && dishIds.length > 0
-
-  const submit = (status: ContentStatus) =>
-    onSave({ id: menu?.id ?? `menu_${Date.now()}`, title: title.trim(), period, dishIds, status })
+  const dishes = query.data ?? []
 
   return (
-    <div className="max-w-3xl space-y-5">
-      <button
-        onClick={onCancel}
-        className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-ink-mid hover:text-navy"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Menus &amp; recettes
-      </button>
-
-      <Card title="Informations">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_200px]">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-navy">
-              Titre du menu <span className="text-terra">*</span>
-            </label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex. Semaine méditerranéenne"
-              className="input-base"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-navy">Période</label>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as 'semaine' | 'mois')}
-              className="input-base"
-            >
-              <option value="semaine">Semaine</option>
-              <option value="mois">Mois</option>
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      <Card title={`Composition (${dishIds.length} plat${dishIds.length > 1 ? 's' : ''})`}>
-        {dishes.length === 0 ? (
-          <Empty text="Créez d’abord des plats pour composer un menu." />
-        ) : (
-          <ul className="space-y-2">
-            {dishes.map((d) => {
-              const on = dishIds.includes(d.id)
-              return (
-                <li key={d.id}>
-                  <button
-                    onClick={() => toggleDish(d.id)}
-                    aria-pressed={on}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors',
-                      on ? 'border-amber bg-amber-soft/30' : 'border-[rgba(31,42,55,0.08)] hover:bg-cream-soft',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2',
-                        on ? 'border-amber bg-amber' : 'border-[rgba(31,42,55,0.2)]',
-                      )}
-                      aria-hidden
-                    >
-                      {on && <span className="h-2 w-2 rounded-sm bg-navy" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-navy">{d.name}</p>
-                      <p className="text-xs text-ink-soft">
-                        {d.country} · {d.category} · {d.portions} portions
-                      </p>
-                    </div>
-                    <StatusBadge tone={STATUS_TONE[d.status]}>{CONTENT_STATUS_LABEL[d.status]}</StatusBadge>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        <button onClick={onCancel} className="btn btn-outline text-sm">
-          <X className="h-4 w-4" aria-hidden /> Annuler
-        </button>
-        <button
-          onClick={() => submit('draft')}
-          disabled={!canSave}
-          className="btn btn-outline text-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Enregistrer en brouillon
-        </button>
-        <button
-          onClick={() => submit('pending')}
-          disabled={!canSave}
-          className="btn btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Send className="h-4 w-4" aria-hidden /> Soumettre à validation
-        </button>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-mid">
+          {dishes.length === 0
+            ? 'Aucun plat pour l’instant.'
+            : `${dishes.length} plat${dishes.length > 1 ? 's' : ''}, dont ${
+                dishes.filter((d) => d.status === 'published').length
+              } publié${dishes.filter((d) => d.status === 'published').length > 1 ? 's' : ''}`}
+        </p>
+        <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
+          <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
+        </Link>
       </div>
-      {!canSave && <p className="text-[11px] text-ink-soft">Un titre et au moins un plat sont nécessaires.</p>}
-    </div>
+
+      {dishes.length === 0 ? (
+        <Empty
+          icon={UtensilsCrossed}
+          title="Commencez par un plat"
+          text="Écrivez-en un : nom, temps de préparation, et c’est enregistré. Vous compléterez la recette quand vous voudrez — rien n’est public avant publication."
+          action={
+            <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
+              <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
+            </Link>
+          }
+        />
+      ) : (
+        <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {dishes.map((dish) => (
+            <DishCard key={dish.id} dish={dish} />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
-/* ── Proposition Lab's Food (verrou de consentement) ────────────────────── */
+function DishCard({ dish }: { dish: Dish }) {
+  const toast = useToast()
+  const publish = usePublishDish()
+  const remove = useDeleteDish()
+  const photo = useDishPhoto()
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
-function SuggestionCard({ suggestion: r, onAdopt }: { suggestion: LfSuggestion; onAdopt: () => void }) {
-  const [consent, setConsent] = useState(false)
-  const [open, setOpen] = useState(false)
+  const blockers = publishBlockers(dish)
+  const style = STATUS_STYLE[dish.status]
+  const busy = publish.isPending || remove.isPending || photo.isPending
 
-  if (r.unlocked) {
-    return (
-      <li className="rounded-2xl border border-mint-deep/50 bg-mint/20 p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="font-display text-base font-bold leading-tight text-navy">{r.name}</p>
-          <StatusBadge tone="success">
-            <Sparkles className="h-3 w-3" aria-hidden /> Ajoutée
-          </StatusBadge>
-        </div>
-        <p className="inline-flex items-center gap-1.5 text-xs text-ink-soft">
-          <Globe2 className="h-3.5 w-3.5" aria-hidden /> {r.country}
-        </p>
-        <p className="mt-3 text-[11px] text-mint-ink">
-          Choix enregistré — le menu a rejoint vos plats en brouillon.
-        </p>
-      </li>
+  function pickPhoto(file: File | null) {
+    setPhotoError(null)
+    if (!file) return
+    const problem = checkPhoto(file)
+    if (problem) {
+      setPhotoError(problem)
+      return
+    }
+    photo.mutate(
+      { id: dish.id, file },
+      {
+        onSuccess: () => toast.success('Photo mise \u00e0 jour'),
+        onError: () =>
+          toast.error('La photo n\u2019a pas \u00e9t\u00e9 envoy\u00e9e', 'Rien n\u2019a chang\u00e9 \u2014 r\u00e9essayez.'),
+      },
     )
   }
 
   return (
-    <li className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <p className="font-display text-base font-bold leading-tight text-navy">{r.name}</p>
-        <StatusBadge tone="warning">
-          <Lock className="h-3 w-3" aria-hidden /> Aperçu
-        </StatusBadge>
-      </div>
-      <p className="inline-flex items-center gap-1.5 text-xs text-ink-soft">
-        <Globe2 className="h-3.5 w-3.5" aria-hidden /> {r.country}
-      </p>
+    <li className="overflow-hidden rounded-2xl bg-paper">
+      <div className="flex gap-4 p-4">
+        <label
+          htmlFor={`photo-${dish.id}`}
+          className="group relative flex h-24 w-24 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-cream-soft"
+        >
+          {dish.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={dish.imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <ImageIcon className="h-5 w-5 text-ink-soft" aria-hidden />
+          )}
+          <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+            {photo.isPending ? '…' : dish.imageUrl ? 'Changer' : 'Ajouter'}
+          </span>
+          <input
+            id={`photo-${dish.id}`}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
+          />
+        </label>
 
-      <div className="relative mt-3">
-        <div className="pointer-events-none select-none space-y-1.5 blur-[3px]" aria-hidden>
-          <p className="text-xs text-ink-mid">Ingrédients : 8 éléments structurés…</p>
-          <p className="text-xs text-ink-mid">Étapes : 6 étapes ordonnées…</p>
-          <p className="text-xs text-ink-mid">Réchauffage et conservation renseignés…</p>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Eye className="h-4 w-4 text-ink-soft" aria-hidden />
-        </div>
-      </div>
-
-      {!open ? (
-        <button onClick={() => setOpen(true)} className="btn btn-primary mt-4 w-full justify-center py-2.5 text-xs">
-          Ajouter à ma vitrine
-        </button>
-      ) : (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
-          <label className="mb-3 flex cursor-pointer items-start gap-2.5">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span className="text-[11px] leading-relaxed text-ink-mid">
-              J&apos;ajoute ce menu à ma vitrine de ma propre initiative et je reste libre de le retirer à tout moment.
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="font-display text-base font-bold leading-tight text-navy">
+              {dish.name}
             </span>
-          </label>
+            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${style.text}`}>
+              <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+              {DISH_STATUS_LABEL[dish.status]}
+            </span>
+          </p>
+
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {[
+              countryLabel(dish.country) || null,
+              `${dish.portions} portions`,
+              `${dish.prepMinutes} min`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+
+          {dish.description && (
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-ink-mid">
+              {dish.description}
+            </p>
+          )}
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {dish.diets.map((d) => (
+              <span key={d} className="rounded-full bg-mint/50 px-2 py-0.5 text-[11px] text-mint-ink">
+                {d}
+              </span>
+            ))}
+            {dish.allergensNone ? (
+              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[11px] text-navy">
+                Sans allergène
+              </span>
+            ) : (
+              dish.allergens.slice(0, 3).map((a) => (
+                <span key={a} className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+                  {a}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {photoError && (
+        <p role="alert" className="px-4 pb-2 text-[13px] text-red-700">
+          {photoError}
+        </p>
+      )}
+      {photo.isError && (
+        <p role="alert" className="px-4 pb-2 text-[13px] text-red-700">
+          L’image n’a pas pu être envoyée. Rien n’a changé — réessayez.
+        </p>
+      )}
+
+      {/* Ce qui manque pour publier, dit avant d'être refusé. */}
+      {dish.status === 'draft' && blockers.length > 0 && (
+        <p className="flex items-start gap-2 bg-cream-soft px-4 py-2.5 text-[13px] leading-relaxed text-ink-mid">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-deep" aria-hidden />
+          Pour publier, il manque {blockers.join(', ')}.
+        </p>
+      )}
+
+      <footer className="flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.07)] px-4 py-3">
+        <Link href={`/espace-chef/recettes/${dish.id}`} className="btn btn-outline text-xs">
+          Modifier
+        </Link>
+
+        {dish.status === 'published' ? (
           <button
-            disabled={!consent}
-            onClick={onAdopt}
-            className="btn btn-primary w-full justify-center py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() =>
+              publish.mutate(
+                { id: dish.id, publish: false },
+                {
+                  onSuccess: () =>
+                    toast.info(`\u00ab\u00a0${dish.name}\u00a0\u00bb n\u2019est plus visible`, 'Il reste dans vos plats, en brouillon.'),
+                  onError: () => toast.error('La d\u00e9publication a \u00e9chou\u00e9'),
+                },
+              )
+            }
+            disabled={busy}
+            className="btn btn-outline text-xs"
           >
-            Confirmer et déverrouiller
+            {publish.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            Dépublier
           </button>
-        </motion.div>
+        ) : (
+          <button
+            onClick={() =>
+              publish.mutate(
+                { id: dish.id, publish: true },
+                {
+                  onSuccess: () => toast.success(`\u00ab\u00a0${dish.name}\u00a0\u00bb est publi\u00e9`),
+                  onError: (e) =>
+                    toast.error(
+                      'La publication a \u00e9t\u00e9 refus\u00e9e',
+                      e instanceof Error ? e.message : undefined,
+                    ),
+                },
+              )
+            }
+            disabled={busy || blockers.length > 0}
+            className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {publish.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            Publier
+          </button>
+        )}
+
+        {confirmDelete ? (
+          <span className="ml-auto flex items-center gap-2 text-xs">
+            <span className="text-ink-mid">Supprimer ce plat ?</span>
+            <button
+              onClick={() =>
+                remove.mutate(dish.id, {
+                  onSuccess: () => toast.success(`\u00ab\u00a0${dish.name}\u00a0\u00bb supprim\u00e9`),
+                  onError: () => toast.error('La suppression a \u00e9chou\u00e9'),
+                })
+              }
+              disabled={busy}
+              className="font-semibold text-red-700 hover:underline"
+            >
+              Oui
+            </button>
+            <button onClick={() => setConfirmDelete(false)} className="text-ink-soft hover:text-navy">
+              Non
+            </button>
+          </span>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            aria-label={`Supprimer ${dish.name}`}
+            className="ml-auto text-ink-soft hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </footer>
+    </li>
+  )
+}
+
+// ── Menus ───────────────────────────────────────────────────────────────────
+
+function MenusTab({
+  query,
+  dishes,
+}: {
+  query: ReturnType<typeof useMenus>
+  dishes: Dish[]
+}) {
+  const toast = useToast()
+  const create = useCreateMenu()
+  const [composing, setComposing] = useState(false)
+  const [title, setTitle] = useState('')
+  const [picked, setPicked] = useState<string[]>([])
+
+  if (query.isPending) return <Skeleton />
+  if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos menus" />
+
+  const menus = query.data ?? []
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-mid">
+          {menus.length === 0
+            ? 'Aucun menu pour l’instant.'
+            : `${menus.length} menu${menus.length > 1 ? 's' : ''}`}
+        </p>
+        <button onClick={() => setComposing((v) => !v)} className="btn btn-primary text-xs">
+          <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau menu
+        </button>
+      </div>
+
+      {composing && (
+        <div className="mt-4 rounded-2xl bg-paper p-5">
+          <label className="block">
+            <span className="mb-1.5 block text-[13px] font-semibold text-navy">
+              Titre de la carte
+            </span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Tour du monde en sept plats"
+              className="input-base"
+            />
+          </label>
+
+          <p className="mb-2 mt-4 text-[13px] font-semibold text-navy">
+            Les plats de cette carte
+            <span className="ml-2 font-normal text-ink-soft">{picked.length} choisi{picked.length > 1 ? 's' : ''}</span>
+          </p>
+          {dishes.length === 0 ? (
+            <p className="text-sm text-ink-soft">
+              Écrivez d’abord un plat : une carte se compose des vôtres.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-1.5">
+              {dishes.map((d) => {
+                const on = picked.includes(d.id)
+                return (
+                  <li key={d.id}>
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setPicked((p) => (on ? p.filter((x) => x !== d.id) : [...p, d.id]))
+                      }
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
+                      }`}
+                    >
+                      {d.name}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() =>
+                create.mutate(
+                  { title: title.trim(), dishIds: picked },
+                  {
+                    onSuccess: (menu) => {
+                      setComposing(false)
+                      setTitle('')
+                      setPicked([])
+                      toast.success(`Carte « ${menu.title} » créée`, 'En brouillon : publiez-la quand elle vous convient.')
+                    },
+                    onError: (e) =>
+                      toast.error(
+                        'La carte n’a pas été créée',
+                        e instanceof Error ? e.message : undefined,
+                      ),
+                  },
+                )
+              }
+              disabled={title.trim().length < 3 || picked.length === 0 || create.isPending}
+              className="btn btn-primary text-xs disabled:opacity-50"
+            >
+              {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Créer la carte
+            </button>
+            <button onClick={() => setComposing(false)} className="btn btn-outline text-xs">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {menus.length === 0 && !composing ? (
+        <Empty
+          icon={UtensilsCrossed}
+          title="Composez votre première carte"
+          text="Une carte rassemble vos plats pour une semaine. C’est elle que le client voit sur la page des menus."
+        />
+      ) : (
+        <ul className="mt-4 space-y-4">
+          {menus.map((m) => (
+            <MenuCard key={m.id} menu={m} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function MenuCard({ menu }: { menu: Menu }) {
+  const toast = useToast()
+  const publish = usePublishMenu()
+  const remove = useDeleteMenu()
+  const [open, setOpen] = useState(false)
+  const style = STATUS_STYLE[menu.status]
+
+  return (
+    <li className="rounded-2xl bg-paper p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="font-display text-lg font-bold leading-tight text-navy">
+              {menu.title}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${style.text}`}>
+              <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+              {DISH_STATUS_LABEL[menu.status]}
+            </span>
+          </p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {menu.dishes.length} plat{menu.dishes.length > 1 ? 's' : ''}
+            {menu.shoppingIncluded && ' · courses incluses'}
+          </p>
+          {menu.pitch && (
+            <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-mid">
+              {menu.pitch}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {menu.status === 'published' ? (
+            <button
+              onClick={() =>
+                publish.mutate(
+                  { id: menu.id, publish: false },
+                  {
+                    onSuccess: () => toast.info(`« ${menu.title} » n’est plus visible`),
+                    onError: () => toast.error('La dépublication a échoué'),
+                  },
+                )
+              }
+              disabled={publish.isPending}
+              className="btn btn-outline text-xs"
+            >
+              Dépublier
+            </button>
+          ) : (
+            <button
+              onClick={() =>
+                publish.mutate(
+                  { id: menu.id, publish: true },
+                  {
+                    onSuccess: () =>
+                      toast.success(`« ${menu.title} » est publiée`, 'Les plats de la carte le sont aussi.'),
+                    onError: (e) =>
+                      toast.error(
+                        'La publication a été refusée',
+                        e instanceof Error ? e.message : undefined,
+                      ),
+                  },
+                )
+              }
+              disabled={publish.isPending || menu.dishes.length === 0}
+              className="btn btn-primary text-xs disabled:opacity-50"
+            >
+              {publish.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Publier
+            </button>
+          )}
+          <button
+            onClick={() =>
+              remove.mutate(menu.id, {
+                onSuccess: () => toast.success(`« ${menu.title} » supprimée`),
+                onError: () => toast.error('La suppression a échoué'),
+              })
+            }
+            aria-label={`Supprimer ${menu.title}`}
+            className="text-ink-soft hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {menu.dishes.length > 0 && (
+        <div className="mt-3 border-t border-[rgba(31,42,55,0.07)] pt-3">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-mid hover:text-navy"
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+            {open ? 'Masquer les plats' : 'Voir les plats'}
+          </button>
+          {open && (
+            <ul className="mt-2 space-y-1.5">
+              {menu.dishes.map((d) => (
+                <li key={d.id} className="flex items-center gap-2 text-[13px]">
+                  <span
+                    aria-hidden
+                    className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLE[d.status].dot}`}
+                  />
+                  <span className="text-navy">{d.name}</span>
+                  <span className="text-ink-soft">{countryLabel(d.country)}</span>
+                  {!d.recipeComplete && (
+                    <span className="text-[11px] text-amber-deep">recette incomplète</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </li>
   )
 }
 
-function Chip({ Icon, children }: { Icon: typeof Users; children: React.ReactNode }) {
+// ── Propositions Lab's Food ─────────────────────────────────────────────────
+
+function SuggestionsTab() {
+  const toast = useToast()
+  const query = useSuggestions()
+  const adopt = useAdoptSuggestion()
+
+  if (query.isPending) return <Skeleton />
+  if (query.isError) return <Failure onRetry={() => query.refetch()} what="les propositions" />
+
+  const { dishes = [], menus = [] } = query.data ?? {}
+
+  if (dishes.length === 0 && menus.length === 0) {
+    return (
+      <Empty
+        icon={Sparkles}
+        title="Rien à vous proposer aujourd’hui"
+        text="Lab’s Food publie des plats et des cartes prêts à adopter. Quand il y en aura, ils apparaîtront ici."
+      />
+    )
+  }
+
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-navy">
-      <Icon className="h-3 w-3" aria-hidden /> {children}
-    </span>
+    <section className="space-y-6">
+      <p className="max-w-prose text-sm text-ink-mid">
+        Adopter crée <strong className="font-semibold text-navy">une copie chez vous</strong> :
+        vous la modifiez comme n’importe quel plat, et l’original reste à Lab’s Food.
+      </p>
+
+      {dishes.length > 0 && (
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {dishes.map((d) => (
+            <li key={d.id} className="rounded-2xl bg-paper p-4">
+              <p className="font-display text-base font-bold text-navy">{d.name}</p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {[countryLabel(d.country), `${d.portions} portions`].filter(Boolean).join(' · ')}
+              </p>
+              {d.description && (
+                <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-ink-mid">
+                  {d.description}
+                </p>
+              )}
+              <div className="mt-3">
+                {d.adoptedCopyId ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-mint-ink">
+                    <Check className="h-3.5 w-3.5" aria-hidden /> Déjà dans vos plats
+                  </span>
+                ) : (
+                  <button
+                    onClick={() =>
+                      adopt.mutate(d.id, {
+                        onSuccess: () =>
+                          toast.success(`« ${d.name} » ajouté à vos plats`, 'Une copie : modifiez-la comme vous voulez.'),
+                        onError: () => toast.error('L’adoption a échoué'),
+                      })
+                    }
+                    disabled={adopt.isPending}
+                    className="btn btn-outline text-xs"
+                  >
+                    {adopt.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    Adopter
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {menus.length > 0 && (
+        <ul className="space-y-4">
+          {menus.map((m) => (
+            <li key={m.id} className="rounded-2xl bg-paper p-5">
+              <p className="font-display text-lg font-bold text-navy">{m.title}</p>
+              {m.pitch && <p className="mt-1 text-[13px] text-ink-mid">{m.pitch}</p>}
+              <p className="mt-1 text-xs text-ink-soft">
+                {m.dishes.map((d) => d.name).join(' · ')}
+              </p>
+              <div className="mt-3">
+                {m.adoptedCopyId ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-mint-ink">
+                    <Check className="h-3.5 w-3.5" aria-hidden /> Déjà dans vos cartes
+                  </span>
+                ) : (
+                  <button
+                    onClick={() =>
+                      adopt.mutate(m.id, {
+                        onSuccess: () => toast.success(`« ${m.title} » ajoutée à vos cartes`),
+                        onError: () => toast.error('L’adoption a échoué'),
+                      })
+                    }
+                    disabled={adopt.isPending}
+                    className="btn btn-outline text-xs"
+                  >
+                    Adopter cette carte
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ── États partagés ──────────────────────────────────────────────────────────
+
+function Skeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="h-36 animate-pulse rounded-2xl bg-paper" />
+      ))}
+    </div>
+  )
+}
+
+function Failure({ onRetry, what }: { onRetry: () => void; what: string }) {
+  return (
+    <div className="rounded-2xl bg-paper p-6">
+      <p className="font-display text-lg font-bold text-navy">Chargement impossible</p>
+      <p className="mt-1.5 max-w-prose text-sm text-ink-mid">
+        Nous n’avons pas pu récupérer {what}. Rien n’est perdu.
+      </p>
+      <button onClick={onRetry} className="btn btn-primary mt-4 text-xs">
+        <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+      </button>
+    </div>
+  )
+}
+
+function Empty({
+  icon: Icon,
+  title,
+  text,
+  action,
+}: {
+  icon: typeof UtensilsCrossed
+  title: string
+  text: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="mt-4 rounded-2xl bg-paper px-6 py-12 text-center">
+      <Icon className="mx-auto h-7 w-7 text-ink-soft" aria-hidden />
+      <p className="mt-3 font-display text-lg font-bold text-navy">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-mid">{text}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
   )
 }

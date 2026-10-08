@@ -1,0 +1,42 @@
+﻿Espace;Type;Statut;Priorité;MVP;Sprint;Action;Gravité;Origine
+Public;Design;À faire;P1;Oui;S40;Lister;P1;API
+Client;Intégration API;En cours;P2;Non;S41;Consulter;P2;Front
+Batch cooker;Logique front;À tester;P3;;S42;Créer;P3;Produit
+Admin;Backend;Terminé;;;S43;Modifier;;Projet
+Transverse;QA;Bloqué;;;S44;Supprimer;;Sécurité
+;;;;;Après MVP;Publier;;
+;;;;;;Approuver;;
+;;;;;;Refuser;;
+;;;;;;Suspendre;;
+;;;;;;Remettre en ligne;;
+;;;;;;Payer;;
+;;;;;;Choisir;;
+;;;;;;Confirmer;;
+;;;;;;Envoyer;;
+;;;;;;Déposer une pièce;;
+;;;;;;Prévisualiser une pièce;;
+;;;;;;Décider d'une pièce;;
+;;;;;;Demander des compléments;;
+;;;;;;Adopter;;
+;;;;;;Programmer;;
+;;;;;;Répondre;;
+;;;;;;Marquer relu;;
+;;;;;;Proposer à un chef;;
+;;;;;;Vérifier;;
+;;;;;;Corriger;;
+;;;;;;Documenter;;
+;;;;;;Clarifier;;
+;;;;;;Contourner;;
+;;;;;;Stabiliser;;
+;;;;;;Donner un accès;;
+;;;;;;Se connecter;;
+;;;;;;Rediriger;;
+;;;;;;Soumettre;;
+;;;;;;Échanger;;
+;;;;;;Déclarer;;
+;;;;;;Relancer l'invitation;;
+;;;;;;Changer la photo;;
+;;;;;;Modérer;;
+;;;;;;Tenir à jour;;
+;;;;;;Consulter;;
+;;;;;;Lever;;

@@ -3,16 +3,13 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import {
-  Bell,
-  Search,
-  ChevronDown,
-  LogOut,
-  Sparkles,
-  ArrowLeft,
-  Menu,
-} from 'lucide-react'
+import { ChevronDown, LogOut, Sparkles, Menu } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
+import { AlertBell } from '@/components/shared/AlertDrawer'
+import { useClientAlerts } from './ClientSignals'
+import { useMe } from '@/lib/api/me'
+import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 
 const TITLES: Record<string, { title: string; sub?: string }> = {
   '/espace-client': { title: 'Accueil' },
@@ -71,6 +68,8 @@ export default function DashboardTopbar() {
   const router = useRouter()
   const { user, roleLabel, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { alerts, loading } = useClientAlerts()
+  const me = useMe()
 
   const isDetail = /^\/espace-client\/[^/]+\/[^/]+/.test(pathname)
   const baseSegment = '/' + pathname.split('/').slice(1, 3).join('/')
@@ -105,20 +104,16 @@ export default function DashboardTopbar() {
           {meta.sub && <p className="mt-1 hidden text-sm text-ink-mid md:block">{meta.sub}</p>}
         </div>
 
-        {/* Search (desktop) */}
-        <div className="hidden lg:block relative">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            placeholder="Rechercher une commande, un plat…"
-            className="w-72 pl-10 pr-4 py-2.5 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] text-sm focus:border-amber outline-none transition-colors"
-          />
-        </div>
+        {/* Recherche : les pages de l'espace. ⌘K, ou « / ». */}
+        <PaletteTrigger label="Aller à une page…" className="hidden w-64 lg:flex" />
+        <PaletteIconTrigger className="lg:hidden" />
 
-        {/* Notifications */}
-        <button className="relative w-10 h-10 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] flex items-center justify-center text-navy hover:border-amber transition-colors">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-amber" />
-        </button>
+        {/* Ce qui demande une action, recalculé à chaque ouverture. */}
+        <AlertBell alerts={alerts} loading={loading}>
+          Ces points sont déduits de vos sessions, de vos devis et de votre
+          profil de goûts. Le journal des notifications attend son endpoint
+          côté API.
+        </AlertBell>
 
         {/* User menu */}
         <div className="relative">
@@ -126,9 +121,11 @@ export default function DashboardTopbar() {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-amber">
-              {initials}
-            </span>
+            <Avatar
+              url={me.data?.avatarUrl}
+              name={me.data?.fullName ?? user?.name}
+              className="h-8 w-8 text-xs"
+            />
             <span className="hidden max-w-[140px] truncate text-xs font-semibold text-navy md:inline">
               {user?.name || 'Invité'}
             </span>
@@ -136,20 +133,15 @@ export default function DashboardTopbar() {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-2 shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)]"
+              className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-2 shadow-[0_20px_60px_-20px_rgba(31,42,55,0.25)]"
               onMouseLeave={() => setMenuOpen(false)}
             >
-              {/* Qui est connecté : la question que posait l'encart de la barre
-                  latérale, posée là où on va déjà pour se déconnecter. */}
-              <div className="border-b border-[rgba(31,42,55,0.08)] px-3 pb-3 pt-2">
-                <p className="truncate text-sm font-semibold text-navy">
-                  {user?.name || 'Invité'}
-                </p>
-                <p className="truncate text-xs text-ink-soft">
-                  {user?.email || (user?.username ? `@${user.username}` : 'Espace client')}
-                </p>
+              {/* Qui est connecté, et sa photo : la question que posait
+                  l'encart de la barre latérale, posée là où on va déjà. */}
+              <div className="border-b border-[rgba(31,42,55,0.08)] pb-2">
+                <AvatarEditor />
                 {roleLabel && (
-                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
                     {roleLabel}
                   </p>
                 )}

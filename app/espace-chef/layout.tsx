@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
 import { ChefSidebar, ChefMobileNav } from '@/components/chef/ChefNav'
+import ChefSignals from '@/components/chef/ChefSignals'
 import LabsLoader from '@/components/shared/LabsLoader'
 import MessagingRealtime from '@/components/messaging/MessagingRealtime'
 
@@ -46,14 +47,17 @@ export default function EspaceChefLayout({ children }: { children: ReactNode }) 
     return <LabsLoader fullscreen label="On allume les fourneaux…" />
   }
 
+  // La palette est montée ici : la barre du haut est rendue par chaque écran
+  // (via ChefPage), elle doit trouver le fournisseur au-dessus d'elle.
   return (
-    <div className="min-h-screen bg-cream flex">
-      <MessagingRealtime />
-      <ChefSidebar />
-      <div className="flex-1 min-w-0 flex flex-col">
-        {children}
+    <ChefSignals>
+      <div className="min-h-screen bg-cream flex">
+        <ChefSidebar />
+        <div className="flex-1 min-w-0 flex flex-col">
+          {children}
+        </div>
+        <ChefMobileNav />
       </div>
-      <ChefMobileNav />
-    </div>
+    </ChefSignals>
   )
 }

@@ -1,415 +1,794 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
-  BadgeCheck,
   CalendarClock,
   Check,
   CheckCircle2,
-  Circle,
-  Clock,
-  FileWarning,
-  Info,
+  Eye,
+  FileText,
+  IdCard,
+  Loader2,
+  RotateCw,
   Upload,
 } from 'lucide-react'
-import ChefPage, { Card } from '@/components/chef/ChefPage'
-import StatusBadge, { DocBadge, DossierBadge } from '@/components/chef/StatusBadge'
-import DocThumb from '@/components/chef/DocCard'
-import { CHEF_DOCS, CHEF_PROFILE, DOC_DEFINITIONS } from '@/lib/chef/mock'
+import ChefPage from '@/components/chef/ChefPage'
+import AnswerSections from '@/components/chef/dossier/AnswerSections'
+import { useToast } from '@/components/shared/Toaster'
+import DocumentPreviewDialog, {
+  type PreviewSource,
+} from '@/components/chef/DocumentPreviewDialog'
+import { cn } from '@/lib/utils'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ChefProfile } from '@/lib/api/types'
 import {
-  DOSSIER_STATUS_LABEL,
-  DOC_FAMILY_LABEL,
-  SAP_PATH_LABEL,
-  applicableDocuments,
-  canAcceptMissions,
-  completionScore,
-  deriveDossierStatus,
-  type DocFamily,
-  type DocState,
+  DOC_STATUS_LABEL,
+  DOSSIER_LABEL,
+  EXPIRING_TYPES,
+  FAMILY_HINT,
+  FAMILY_LABEL,
+  MAX_FILE_MB,
+  PreviewUnavailable,
+  UploadError,
+  checkFile,
+  useChefApplication,
+  useChefDocuments,
+  useDocumentPreview,
+  useUploadDocument,
+  type ChefDocument,
+  type DocumentFamily,
+  type DocumentStatus,
   type DossierStatus,
-} from '@/lib/chef/states'
+} from '@/lib/api/chef-documents'
 
-const FAMILY_ORDER: DocFamily[] = ['blocking', 'conditional', 'recommended']
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mon dossier — les pièces et les réponses déclarées, au même endroit.
 
-const FAMILY_HINT: Record<DocFamily, string> = {
-  blocking: 'Sans ces pièces, votre compte ne peut pas être activé.',
-  conditional: 'Demandées d’après la situation que vous avez déclarée à la candidature.',
-  recommended: 'Elles renforcent votre vitrine et rassurent les clients.',
+   Les deux étaient séparés, et c'était faux : ce sont les réponses qui
+   décident des pièces demandées. Quelqu'un à qui l'on réclame un justificatif
+   d'immatriculation doit pouvoir, au même endroit, voir qu'il s'est déclaré
+   sans entreprise — et le corriger.
+
+   L'écran répond à une seule question, en haut et sans défilement : **qu'est-ce
+   que je dois faire maintenant ?** Le détail vient après, en deux onglets,
+   parce que déposer une pièce et corriger une réponse sont deux gestes
+   différents.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const FAMILY_ORDER: DocumentFamily[] = ['blocking', 'conditional', 'recommended']
+
+/** Un statut se lit : le point porte la couleur, le fond reste du papier. */
+const DOC_STYLE: Record<DocumentStatus, { dot: string; text: string }> = {
+  missing: { dot: 'bg-ink-soft/40', text: 'text-ink-soft' },
+  submitted: { dot: 'bg-amber', text: 'text-amber-deep' },
+  reviewing: { dot: 'bg-amber', text: 'text-amber-deep' },
+  valid: { dot: 'bg-mint-deep', text: 'text-mint-ink' },
+  rejected: { dot: 'bg-red-500', text: 'text-red-700' },
+  expiring: { dot: 'bg-terra', text: 'text-terra' },
+  expired: { dot: 'bg-red-500', text: 'text-red-700' },
 }
 
-/** Étapes visibles de la machine à états (hors cas d'exception). */
-const PIPELINE: DossierStatus[] = ['draft', 'incomplete', 'reviewing', 'validated']
-
-const CERTIFICATE_IDS = ['haccp', 'rc-pro', 'sap-coop', 'crcesu', 'approval', 'ddpp']
-
-const TABS = ['pieces', 'progression', 'historique'] as const
-type Tab = (typeof TABS)[number]
-const TAB_LABEL: Record<Tab, string> = {
-  pieces: 'Mes pièces',
-  progression: 'Ma progression',
-  historique: 'Historique',
+const DOSSIER_LEAD: Record<DossierStatus, string> = {
+  draft:
+    'Déposez vos pièces obligatoires pour que nous puissions instruire votre dossier.',
+  incomplete:
+    'Une pièce obligatoire manque ou a été refusée. Tant qu’elle n’est pas validée, votre compte ne peut pas être activé.',
+  reviewing: 'Tout est déposé. Notre équipe vérifie vos pièces — comptez 48 h ouvrées.',
+  'awaiting-registration':
+    'Vos pièces sont bonnes. Il ne manque que votre immatriculation : ajoutez votre SIRET dès que vous l’avez.',
+  validated:
+    'Votre dossier est complet et validé. Pensez à renouveler vos pièces avant leur échéance.',
+  suspended:
+    'Une pièce obligatoire a expiré et votre vitrine est hors ligne. Déposez la nouvelle version : vous repassez en ligne immédiatement.',
+  disabled:
+    'Votre compte a été désactivé par notre équipe. Écrivez-nous depuis la messagerie.',
 }
 
-const daysUntil = (iso: string) =>
-  Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR')
+/** La couleur du filet et du point. Le reste de la carte reste sobre. */
+const DOSSIER_TONE: Record<DossierStatus, { rule: string; dot: string }> = {
+  draft: { rule: 'bg-ink-soft/40', dot: 'bg-ink-soft' },
+  incomplete: { rule: 'bg-red-500', dot: 'bg-red-500' },
+  reviewing: { rule: 'bg-amber', dot: 'bg-amber' },
+  'awaiting-registration': { rule: 'bg-terra', dot: 'bg-terra' },
+  validated: { rule: 'bg-mint-deep', dot: 'bg-mint-deep' },
+  suspended: { rule: 'bg-red-500', dot: 'bg-red-500' },
+  disabled: { rule: 'bg-ink-soft/40', dot: 'bg-ink-soft' },
+}
 
-export default function ChefDossierPage() {
-  const [docs, setDocs] = useState<DocState[]>(CHEF_DOCS)
-  const [tab, setTab] = useState<Tab>('pieces')
-
-  const definitions = useMemo(
-    () => applicableDocuments(DOC_DEFINITIONS, CHEF_PROFILE),
-    [],
-  )
-
-  const status = deriveDossierStatus(docs, definitions, {
-    registered: CHEF_PROFILE.registered,
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   })
-  const score = completionScore(docs, definitions)
-  const active = canAcceptMissions(status)
 
-  const submit = (definitionId: string) =>
-    setDocs((prev) => {
-      const next: DocState = {
-        definitionId,
-        status: 'submitted',
-        submittedAt: new Date().toISOString(),
-      }
-      return prev.some((d) => d.definitionId === definitionId)
-        ? prev.map((d) => (d.definitionId === definitionId ? next : d))
-        : [...prev, next]
-    })
+const formatSize = (b: number) =>
+  b < 1024 * 1024
+    ? `${Math.max(1, Math.round(b / 1024))} Ko`
+    : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
 
-  const stateOf = (id: string): DocState =>
-    docs.find((d) => d.definitionId === id) ?? { definitionId: id, status: 'missing' }
+type Onglet = 'pieces' | 'infos'
 
-  // Compteurs pour l'onglet Pièces
-  const counts = {
-    todo: definitions.filter((d) =>
-      ['missing', 'rejected', 'expired'].includes(stateOf(d.id).status),
-    ).length,
-    waiting: definitions.filter((d) =>
-      ['submitted', 'reviewing'].includes(stateOf(d.id).status),
-    ).length,
+export default function DossierPage() {
+  const { data, isPending, isError, error, refetch } = useChefDocuments()
+  const application = useChefApplication()
+  const profil = useMeProfile()
+  const [onglet, setOnglet] = useState<Onglet>('pieces')
+  const [preview, setPreview] = useState<PreviewSource | null>(null)
+  const remote = useDocumentPreview()
+
+  if (isPending) {
+    return (
+      <ChefPage title="Mon dossier">
+        <div className="mx-auto max-w-5xl space-y-4">
+          <div className="h-32 animate-pulse rounded-2xl bg-paper" />
+          <div className="h-12 w-72 animate-pulse rounded-full bg-paper" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-44 animate-pulse rounded-2xl bg-paper" />
+            ))}
+          </div>
+        </div>
+      </ChefPage>
+    )
   }
 
-  const history = [...docs]
-    .filter((d) => d.submittedAt)
-    .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
+  if (isError || !data) {
+    return (
+      <ChefPage title="Mon dossier">
+        <div className="mx-auto max-w-lg rounded-2xl bg-paper p-6 text-center">
+          <p className="font-display text-lg font-bold text-navy">Dossier indisponible</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+            {error instanceof Error ? error.message : 'Votre dossier n’a pas pu être chargé.'}
+          </p>
+          <button onClick={() => refetch()} className="btn btn-primary mt-5 text-xs">
+            <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+          </button>
+        </div>
+      </ChefPage>
+    )
+  }
+
+  const { dossierStatus, documents } = data
+  const app = application.data
+
+  /*
+   * `disabled` recouvre deux situations très différentes, et l'API ne les
+   * distingue pas : un compte mis hors ligne par sanction, et un compte
+   * fraîchement approuvé qui attend sa mise en ligne — approuver vérifie le
+   * batch cooker sans le rendre réservable, c'est un second geste côté admin.
+   *
+   * Le profil tranche : vérifié mais pas actif, c'est une attente, pas une
+   * sanction. Dire « votre compte a été désactivé » à quelqu'un qui vient
+   * d'être accepté serait à la fois faux et inquiétant.
+   */
+  const moi =
+    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
+  const attendMiseEnLigne =
+    dossierStatus === 'disabled' &&
+    (moi?.isVerified === true || app?.status === 'approved') &&
+    moi?.isActive !== true
+  const blocking = documents.filter((d) => d.family === 'blocking')
+  const valides = blocking.filter((d) => d.status === 'valid').length
+
+  /** Ce qui attend une action de la part du chef, pour l'onglet. */
+  const aTraiter = documents.filter(
+    (d) =>
+      d.status === 'rejected' ||
+      d.status === 'expired' ||
+      d.status === 'expiring' ||
+      (d.status === 'missing' && d.required),
+  ).length
+
+  /** La phrase qui dit quoi faire maintenant, et rien d'autre. */
+  const prochaineChose = (() => {
+    const refusee = documents.find((d) => d.status === 'rejected')
+    if (refusee) return `redéposer « ${refusee.label} », qui a été refusée.`
+    const expiree = documents.find((d) => d.status === 'expired')
+    if (expiree) return `remplacer « ${expiree.label} », qui a expiré.`
+    const manquante = documents.find((d) => d.status === 'missing' && d.required)
+    if (manquante) return `déposer « ${manquante.label} ».`
+    if (dossierStatus === 'awaiting-registration') {
+      return 'renseigner votre immatriculation, dans l’onglet « Mes informations ».'
+    }
+    const bientot = documents.find((d) => d.status === 'expiring')
+    if (bientot) return `anticiper le renouvellement de « ${bientot.label} ».`
+    if (dossierStatus === 'reviewing') return 'rien — la balle est dans notre camp.'
+    if (attendMiseEnLigne) return 'rien — votre vitrine est relue avant d’être publiée.'
+    return null
+  })()
+
+  const tone = attendMiseEnLigne
+    ? { rule: 'bg-amber', dot: 'bg-amber' }
+    : DOSSIER_TONE[dossierStatus]
+  const titre = attendMiseEnLigne
+    ? 'En attente de mise en ligne'
+    : DOSSIER_LABEL[dossierStatus]
+  const chapeau = attendMiseEnLigne
+    ? 'Votre candidature est approuvée et vos pièces sont validées. Notre équipe relit votre vitrine avant de la rendre visible aux clients — vous n’avez rien à faire.'
+    : DOSSIER_LEAD[dossierStatus]
+
+  function openDeposited(doc: ChefDocument) {
+    setPreview({ label: doc.label, fileName: doc.fileName ?? undefined })
+    remote.mutate(doc.type, {
+      onSuccess: (r) =>
+        setPreview({
+          label: doc.label,
+          url: r.url,
+          // Sans le type, la modale ne reconnaissait pas le PDF et proposait
+          // de le télécharger au lieu de l'afficher.
+          mimeType: r.mimeType,
+          fileName: r.fileName ?? doc.fileName ?? undefined,
+        }),
+      onError: () => setPreview(null),
+    })
+  }
 
   return (
     <ChefPage
-      title="Mes documents"
-      subtitle="Déposez vos pièces à votre rythme — l'état se met à jour automatiquement."
+      title="Mon dossier"
+      subtitle="Vos pièces, vos informations, et ce qu’il reste à faire."
     >
-      <div className="space-y-5">
-        {/* En-tête */}
-        <Card>
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                État du dossier
-              </p>
-              <DossierBadge status={status} />
-              <p className="text-xs text-ink-mid mt-2 max-w-sm leading-relaxed">
-                {active
-                  ? 'Votre dossier est complet : vous apparaissez dans la recherche et pouvez accepter des prestations.'
-                  : "Vous pouvez préparer votre offre dès maintenant. L'acceptation de prestations sera débloquée une fois vos pièces obligatoires validées."}
-              </p>
-            </div>
-            <div className="flex-1 min-w-[220px]">
-              <div className="flex justify-between text-xs text-ink-mid mb-1.5">
-                <span>Pièces obligatoires validées</span>
-                <span className="font-semibold text-navy">{score} %</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-cream-deep overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-amber"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${score}%` }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <StatusBadge tone="neutral">{SAP_PATH_LABEL[CHEF_PROFILE.sapPath]}</StatusBadge>
-                {CHEF_PROFILE.acceptsCesu && <StatusBadge tone="neutral">CESU accepté</StatusBadge>}
-                {counts.todo > 0 && (
-                  <StatusBadge tone="warning">{counts.todo} à traiter</StatusBadge>
-                )}
-                {counts.waiting > 0 && (
-                  <StatusBadge tone="info">{counts.waiting} en vérification</StatusBadge>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* ── Où en est le dossier, sans faire défiler ─────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="relative overflow-hidden rounded-2xl bg-paper p-5 lg:p-6"
+        >
+          <span aria-hidden className={cn('absolute inset-y-0 left-0 w-[3px]', tone.rule)} />
 
-        {/* Onglets */}
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
+          <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4 pl-3">
+            <div className="min-w-0 max-w-prose">
+              <p className="flex items-center gap-2">
+                <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', tone.dot)} />
+                <span className="font-display text-xl font-bold leading-tight text-navy">
+                  {titre}
+                </span>
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-mid">{chapeau}</p>
+
+              {prochaineChose && (
+                <p className="mt-3.5 rounded-xl bg-cream-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-navy">
+                  <span className="font-semibold">La prochaine chose à faire&nbsp;:</span>{' '}
+                  {prochaineChose}
+                </p>
+              )}
+            </div>
+
+            {blocking.length > 0 && (
+              <div className="w-full max-w-[14rem] shrink-0">
+                <div className="flex items-baseline justify-between text-xs text-ink-mid">
+                  <span>Pièces obligatoires</span>
+                  <span className="font-semibold tabular-nums text-navy">
+                    {valides}/{blocking.length}
+                  </span>
+                </div>
+                {/* Un segment par pièce : on voit laquelle bloque, pas juste
+                    un pourcentage. */}
+                <div
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={blocking.length}
+                  aria-valuenow={valides}
+                  aria-label="Pièces obligatoires validées"
+                  className="mt-2 flex gap-1"
+                >
+                  {blocking.map((d) => (
+                    <span
+                      key={d.type}
+                      title={`${d.label} — ${DOC_STATUS_LABEL[d.status]}`}
+                      className={cn(
+                        'h-1.5 flex-1 rounded-full',
+                        d.status === 'valid'
+                          ? 'bg-mint-deep'
+                          : d.status === 'rejected' || d.status === 'expired'
+                            ? 'bg-red-400'
+                            : d.status === 'missing'
+                              ? 'bg-cream-deep'
+                              : 'bg-amber',
+                      )}
+                    />
+                  ))}
+                </div>
+                {app?.reference && (
+                  <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                    {app.reference}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.section>
+
+        {/* Un refus se lit avant tout le reste. */}
+        {app?.refusal?.reason && (
+          <section className="rounded-2xl bg-red-50 p-5">
+            <p className="flex items-center gap-2 text-sm font-semibold text-red-800">
+              <AlertTriangle className="h-4 w-4" aria-hidden />
+              Votre candidature a été refusée
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink">{app.refusal.reason}</p>
+            {app.refusal.allowReapplyAfter && (
+              <p className="mt-2 text-xs text-ink-mid">
+                Vous pourrez candidater à nouveau à partir du{' '}
+                {formatDate(app.refusal.allowReapplyAfter)}.
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* ── Deux gestes, deux onglets ─────────────────────────────────── */}
+        <div
+          role="tablist"
+          aria-label="Mon dossier"
+          className="inline-flex items-center gap-1 rounded-full border border-[rgba(31,42,55,0.08)] bg-paper p-1"
+        >
+          {(
+            [
+              { id: 'pieces', Icon: FileText, label: 'Mes pièces', n: aTraiter },
+              { id: 'infos', Icon: IdCard, label: 'Mes informations', n: 0 },
+            ] as const
+          ).map(({ id, Icon, label, n }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                tab === t
-                  ? 'bg-navy text-white'
-                  : 'bg-paper text-ink-mid border border-[rgba(31,42,55,0.1)]'
-              }`}
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={onglet === id}
+              onClick={() => setOnglet(id)}
+              className={cn(
+                'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
+                onglet === id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy',
+              )}
             >
-              {TAB_LABEL[t]}
+              <Icon className="h-4 w-4" aria-hidden />
+              {label}
+              {n > 0 && (
+                <span className="rounded-full bg-amber px-1.5 font-mono text-[10px] font-bold text-navy">
+                  {n}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* ── Onglet : pièces ─────────────────────────────────────────── */}
-        {tab === 'pieces' && (
-          <>
-            <div className="rounded-2xl border border-mint-deep/40 bg-mint/40 px-4 py-3 flex items-start gap-3">
-              <Info className="w-4 h-4 text-mint-ink mt-0.5 shrink-0" />
-              <p className="text-xs text-mint-ink leading-relaxed">
-                Chaque pièce suit son propre parcours (à fournir → déposée → en
-                vérification → validée). Envoyez-les dans l&apos;ordre que vous voulez,
-                sur plusieurs jours : l&apos;état global se recalcule seul.
-              </p>
+        {onglet === 'pieces' ? (
+          <section>
+            <p className="max-w-prose text-sm leading-relaxed text-ink-mid">
+              La liste est établie d’après vos réponses — ni plus, ni moins. PDF, JPG, PNG ou
+              WebP, {MAX_FILE_MB} Mo au maximum.
+            </p>
+
+            <div className="mt-5 space-y-7">
+              {FAMILY_ORDER.map((family) => {
+                const docs = documents.filter((d) => d.family === family)
+                if (docs.length === 0) return null
+                return (
+                  <div key={family}>
+                    <h2 className="font-display text-base font-bold text-navy">
+                      {FAMILY_LABEL[family]}
+                    </h2>
+                    <p className="mt-0.5 max-w-prose text-[13px] leading-relaxed text-ink-soft">
+                      {FAMILY_HINT[family]}
+                    </p>
+                    <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
+                      {docs.map((doc) => (
+                        <DocumentCard
+                          key={doc.type}
+                          doc={doc}
+                          onPreviewLocal={(file) => setPreview({ label: doc.label, file })}
+                          onPreviewDeposited={() => openDeposited(doc)}
+                          previewPending={remote.isPending}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
-            {FAMILY_ORDER.map((family) => {
-              const items = definitions.filter((d) => d.family === family)
-              if (items.length === 0) return null
-              return (
-                <Card key={family}>
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-display text-lg font-bold text-navy">
-                        {family === 'blocking'
-                          ? 'Pièces obligatoires'
-                          : family === 'conditional'
-                            ? 'Selon votre situation'
-                            : 'Pièces facultatives'}
-                      </h2>
-                      <StatusBadge
-                        tone={
-                          family === 'blocking'
-                            ? 'danger'
-                            : family === 'conditional'
-                              ? 'warning'
-                              : 'neutral'
-                        }
-                      >
-                        {DOC_FAMILY_LABEL[family]}
-                      </StatusBadge>
-                    </div>
-                    <p className="text-xs text-ink-soft mt-1">{FAMILY_HINT[family]}</p>
-                  </div>
+            {remote.error instanceof PreviewUnavailable && (
+              <p className="mt-5 flex items-start gap-2.5 rounded-xl bg-cream-soft px-4 py-3 text-[13px] leading-relaxed text-ink-mid">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+                Aucun fichier déposé pour cette pièce — il n’y a donc rien à relire.
+              </p>
+            )}
+          </section>
+        ) : (
+          <AnswerSections app={app} />
+        )}
+      </div>
 
-                  <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {items.map((def) => {
-                      const st = stateOf(def.id)
-                      const expiry = st.expiresAt ? daysUntil(st.expiresAt) : null
-                      const missing = st.status === 'missing'
-                      return (
-                        <li
-                          key={def.id}
-                          className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
-                        >
-                          <div className="flex gap-4">
-                            <div className="w-16 shrink-0">
-                              <DocThumb
-                                label={def.label}
-                                chefName={CHEF_PROFILE.name}
-                                certificate={CERTIFICATE_IDS.includes(def.id)}
-                                empty={missing}
-                              />
-                            </div>
+      <DocumentPreviewDialog
+        source={preview}
+        loading={remote.isPending}
+        onClose={() => setPreview(null)}
+      />
+    </ChefPage>
+  )
+}
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-navy">{def.label}</p>
-                                <DocBadge status={st.status} />
-                                {def.badge && st.status === 'valid' && (
-                                  <StatusBadge tone="success">
-                                    <BadgeCheck className="w-3 h-3" /> {def.badge}
-                                  </StatusBadge>
-                                )}
-                              </div>
-                              {def.hint && (
-                                <p className="text-xs text-ink-soft mt-1">{def.hint}</p>
-                              )}
+/* ── Les actions d'une carte ───────────────────────────────────────────────── */
 
-                              {st.status === 'rejected' && st.rejectionReason && (
-                                <div className="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2 flex items-start gap-2">
-                                  <FileWarning className="w-3.5 h-3.5 text-red-700 mt-0.5 shrink-0" />
-                                  <p className="text-xs text-red-700 leading-relaxed">
-                                    <span className="font-semibold">Motif : </span>
-                                    {st.rejectionReason}
-                                  </p>
-                                </div>
-                              )}
+/**
+ * Une action secondaire tient dans une icône : le mot n'ajoute rien à côté
+ * d'un dossier déjà dense. L'intitulé reste accessible, en `aria-label` et en
+ * infobulle — sans lui, un bouton rond ne dit rien à personne.
+ */
+function IconAction({
+  Icon,
+  label,
+  onClick,
+  disabled,
+  busy,
+}: {
+  Icon: typeof Eye
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  busy?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      title={label}
+      aria-label={label}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+    >
+      {busy ? (
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      ) : (
+        <Icon className="h-4 w-4" aria-hidden />
+      )}
+    </button>
+  )
+}
 
-                              {expiry !== null && !missing && (
-                                <p
-                                  className={`text-xs mt-2 inline-flex items-center gap-1.5 ${
-                                    expiry <= 7
-                                      ? 'text-red-700'
-                                      : expiry <= 60
-                                        ? 'text-amber-deep'
-                                        : 'text-ink-soft'
-                                  }`}
-                                >
-                                  <CalendarClock className="w-3.5 h-3.5" />
-                                  {expiry > 0
-                                    ? `Expire dans ${expiry} j`
-                                    : `Expirée depuis ${Math.abs(expiry)} j`}
-                                </p>
-                              )}
+/** La même chose pour le dépôt, qui passe par un `<label>` et non un bouton. */
+function IconUpload({
+  htmlFor,
+  label,
+  disabled,
+}: {
+  htmlFor: string
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy',
+        disabled && 'pointer-events-none opacity-40',
+      )}
+    >
+      <Upload className="h-4 w-4" aria-hidden />
+    </label>
+  )
+}
 
-                              {st.status === 'reviewing' && (
-                                <p className="text-xs text-ink-soft mt-2 inline-flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5" /> Vérification en cours
-                                </p>
-                              )}
+/* ── Une pièce ─────────────────────────────────────────────────────────────── */
 
-                              <div className="mt-3">
-                                {st.status === 'valid' ? (
-                                  <span className="inline-flex items-center gap-1.5 text-xs text-mint-ink font-semibold">
-                                    <CheckCircle2 className="w-4 h-4" /> Validée
-                                  </span>
-                                ) : st.status === 'submitted' || st.status === 'reviewing' ? (
-                                  <span className="text-xs text-ink-soft">En attente</span>
-                                ) : (
-                                  <button
-                                    onClick={() => submit(def.id)}
-                                    className="btn btn-primary text-xs px-3.5 py-2"
-                                  >
-                                    <Upload className="w-3.5 h-3.5" />
-                                    {st.status === 'rejected' ? 'Renvoyer' : 'Déposer'}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </Card>
-              )
-            })}
+function DocumentCard({
+  doc,
+  onPreviewLocal,
+  onPreviewDeposited,
+  previewPending,
+}: {
+  doc: ChefDocument
+  onPreviewLocal: (file: File) => void
+  onPreviewDeposited: () => void
+  previewPending: boolean
+}) {
+  const toast = useToast()
+  const upload = useUploadDocument()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [expiresOn, setExpiresOn] = useState('')
+  const [staged, setStaged] = useState<File | null>(null)
+
+  // Sept pièces sur dix portent une échéance : on ne demande la date que pour
+  // celles-là, et on dit pourquoi. Les autres n'en entendent jamais parler.
+  const needsDate = EXPIRING_TYPES.has(doc.type)
+  const deposited = doc.version > 0
+  const busy = upload.isPending
+  const failure = upload.error instanceof UploadError ? upload.error : null
+  const style = DOC_STYLE[doc.status]
+
+  /*
+   * Quatre états, quatre allures. Une pièce à déposer est un emplacement vide,
+   * en pointillés : on voit le trou avant de lire le mot. Une pièce qui pose
+   * problème est cerclée de rouge. Une pièce validée se tait — elle est faite,
+   * elle n'a plus à attirer l'œil. Et une pièce en vérification attend.
+   */
+  const aDeposer = doc.status === 'missing'
+  const probleme = doc.status === 'rejected' || doc.status === 'expired'
+  const bientot = doc.status === 'expiring'
+  const validee = doc.status === 'valid'
+
+  function pick(file: File | null) {
+    setLocalError(null)
+    if (!file) return
+    const problem = checkFile(file)
+    if (problem) {
+      setLocalError(problem)
+      return
+    }
+    // Le fichier est mis de côté : on le relit, on complète la date si la pièce
+    // expire. Rien ne part avant confirmation.
+    setStaged(file)
+  }
+
+  function send() {
+    if (!staged) return
+    upload.mutate(
+      { type: doc.type, file: staged, expiresOn: needsDate ? expiresOn : undefined },
+      {
+        onSuccess: (saved) => {
+          setStaged(null)
+          setExpiresOn('')
+          if (inputRef.current) inputRef.current.value = ''
+          toast.success(
+            `${doc.label} déposée`,
+            saved.reactivated
+              ? 'Votre vitrine repasse en ligne immédiatement.'
+              : 'Notre équipe la vérifie sous 48 h ouvrées.',
+          )
+        },
+        onError: (e) =>
+          toast.error(
+            `${doc.label} n’a pas été déposée`,
+            e instanceof UploadError && e.step === 'transfer'
+              ? 'Le transfert s’est interrompu. Rien n’a été enregistré.'
+              : e instanceof Error
+                ? e.message
+                : undefined,
+          ),
+      },
+    )
+  }
+
+  const meta = [
+    doc.fileName,
+    doc.sizeBytes ? formatSize(doc.sizeBytes) : null,
+    doc.version > 1 ? `version ${doc.version}` : null,
+  ].filter(Boolean)
+
+  return (
+    <article
+      className={cn(
+        'relative flex flex-col overflow-hidden rounded-2xl p-4 lg:p-5',
+        aDeposer
+          ? 'border-2 border-dashed border-[rgba(31,42,55,0.16)] bg-transparent'
+          : 'bg-paper',
+        probleme && 'ring-1 ring-red-300',
+        bientot && 'ring-1 ring-terra/30',
+      )}
+    >
+      {/* Un filet vertical porte l'état sur les pièces déposées. */}
+      {!aDeposer && (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute inset-y-0 left-0 w-[3px]',
+            validee ? 'bg-mint-deep' : style.dot,
+          )}
+        />
+      )}
+
+      <header className={cn('flex items-start justify-between gap-3', !aDeposer && 'pl-2.5')}>
+        <h3
+          className={cn(
+            'min-w-0 text-[15px] font-semibold leading-snug',
+            aDeposer ? 'text-ink-mid' : 'text-navy',
+          )}
+        >
+          {doc.label}
+          {doc.required && (
+            <span className="ml-1.5 align-middle text-xs font-normal text-ink-soft">
+              obligatoire
+            </span>
+          )}
+        </h3>
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold',
+            style.text,
+          )}
+        >
+          <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', style.dot)} />
+          {DOC_STATUS_LABEL[doc.status]}
+        </span>
+      </header>
+
+      <div className={cn(!aDeposer && 'pl-2.5')}>
+        {aDeposer ? (
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">
+            Rien de déposé pour l’instant.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1.5 truncate text-[13px] text-ink-soft">
+              {meta.join(' · ')}
+            </p>
+            {doc.submittedAt && (
+              <p className="text-[13px] text-ink-soft">
+                déposée le {formatDate(doc.submittedAt)}
+              </p>
+            )}
           </>
         )}
 
-        {/* ── Onglet : progression ────────────────────────────────────── */}
-        {tab === 'progression' && (
-          <Card title="Où en est mon dossier ?">
-            <ol className="space-y-1">
-              {PIPELINE.map((s, i) => {
-                const current = s === status
-                const reached = PIPELINE.indexOf(status) >= i
-                return (
-                  <li key={s} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                          reached ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-soft'
-                        }`}
-                      >
-                        {reached ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3 h-3" />}
-                      </span>
-                      {i < PIPELINE.length - 1 && (
-                        <span
-                          className={`w-px flex-1 min-h-[28px] ${reached ? 'bg-amber/50' : 'bg-cream-deep'}`}
-                        />
-                      )}
-                    </div>
-                    <div className="pb-5">
-                      <p
-                        className={`text-sm font-semibold ${current ? 'text-navy' : reached ? 'text-ink-mid' : 'text-ink-soft'}`}
-                      >
-                        {DOSSIER_STATUS_LABEL[s]}
-                        {current && (
-                          <StatusBadge tone="warning" className="ml-2">
-                            Étape en cours
-                          </StatusBadge>
-                        )}
-                      </p>
-                      <p className="text-xs text-ink-soft mt-0.5 max-w-md leading-relaxed">
-                        {s === 'draft' && 'Votre candidature est enregistrée.'}
-                        {s === 'incomplete' &&
-                          'Il reste des pièces obligatoires à fournir ou à corriger.'}
-                        {s === 'reviewing' &&
-                          "Toutes vos pièces obligatoires sont déposées : l'équipe les vérifie sous 48 h ouvrées."}
-                        {s === 'validated' &&
-                          'Votre vitrine est visible et vous pouvez accepter des prestations.'}
-                      </p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
-
-            {(status === 'awaiting-registration' || status === 'suspended') && (
-              <div
-                className={`mt-2 rounded-2xl px-4 py-3 flex items-start gap-3 border ${
-                  status === 'suspended'
-                    ? 'border-red-200 bg-red-50'
-                    : 'border-amber/30 bg-amber-soft/40'
-                }`}
-              >
-                <AlertTriangle
-                  className={`w-4 h-4 mt-0.5 shrink-0 ${status === 'suspended' ? 'text-red-700' : 'text-amber-deep'}`}
-                />
-                <p
-                  className={`text-xs leading-relaxed ${status === 'suspended' ? 'text-red-700' : 'text-ink-mid'}`}
-                >
-                  {status === 'suspended'
-                    ? 'Votre compte est suspendu : une pièce obligatoire a expiré. Renouvelez-la pour réactiver automatiquement votre visibilité.'
-                    : "Votre dossier est complet, sauf l'immatriculation. Ajoutez votre SIRET dès que vous l'avez : les autres pièces restent valables."}
-                </p>
-              </div>
+      {doc.expiresOn && (
+        <p
+          className={cn(
+            'mt-2 inline-flex items-center gap-1.5 text-[13px]',
+            doc.status === 'expired' ? 'text-red-700' : 'text-ink-mid',
+          )}
+        >
+          <CalendarClock
+            className={cn(
+              'h-3.5 w-3.5 shrink-0',
+              doc.status === 'expired' ? 'text-red-500' : 'text-amber',
             )}
-          </Card>
+            aria-hidden
+          />
+          {doc.status === 'expired' ? 'A expiré le' : 'Expire le'} {formatDate(doc.expiresOn)}
+        </p>
+      )}
+
+      {doc.status === 'rejected' && doc.reason && (
+        <p className="mt-2.5 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-[13px] leading-relaxed text-red-800">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          {doc.reason}
+        </p>
+      )}
+
+      {localError && (
+        <p role="alert" className="mt-2 text-[13px] text-red-700">
+          {localError}
+        </p>
+      )}
+
+      {failure && (
+        <p role="alert" className="mt-2 text-[13px] leading-relaxed text-red-700">
+          {failure.step === 'transfer'
+            ? 'Le transfert s’est interrompu. Rien n’a été enregistré — réessayez.'
+            : failure.message}
+        </p>
+      )}
+
+      {upload.isSuccess && !busy && !staged && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-mint-ink">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          Envoyée. Notre équipe la vérifie.
+        </p>
+      )}
+
+      {/* Le fichier choisi, relu avant départ. */}
+      {staged && (
+        <div className="mt-3 rounded-xl bg-cream-soft p-3.5">
+          <p className="text-[13px] font-semibold text-navy">
+            Prêt à envoyer
+            <span className="mt-0.5 block truncate font-normal text-ink-mid">
+              {staged.name} · {formatSize(staged.size)}
+            </span>
+          </p>
+
+          {needsDate && (
+            <div className="mt-3">
+              <label
+                htmlFor={`exp-${doc.type}`}
+                className="block text-[13px] font-semibold text-navy"
+              >
+                Date d’expiration
+              </label>
+              <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+                Cette pièce a une échéance : elle figure dessus. Nous vous préviendrons 60,
+                30 et 7 jours avant.
+              </p>
+              <input
+                id={`exp-${doc.type}`}
+                type="date"
+                value={expiresOn}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setExpiresOn(e.target.value)}
+                className="input-base mt-2 w-auto py-2"
+              />
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={send}
+              disabled={busy || (needsDate && !expiresOn)}
+              className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Envoi…
+                </>
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5" aria-hidden /> Envoyer
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => onPreviewLocal(staged)}
+              className="btn btn-outline text-xs"
+            >
+              <Eye className="h-3.5 w-3.5" aria-hidden /> Relire
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStaged(null)
+                setExpiresOn('')
+                if (inputRef.current) inputRef.current.value = ''
+              }}
+              className="text-xs text-ink-soft hover:text-navy"
+            >
+              Changer
+            </button>
+          </div>
+        </div>
+      )}
+
+      </div>
+
+      {/*
+       * Les actions restent en bas, alignées d'une carte à l'autre. Seule
+       * celle qui demande un geste porte un mot : déposer ce qui manque,
+       * remplacer ce qui pose problème. Le reste tient dans une icône.
+       */}
+      <div className={cn('mt-auto flex flex-wrap items-center gap-2 pt-4', !aDeposer && 'pl-2.5')}>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.webp"
+          className="sr-only"
+          id={`file-${doc.type}`}
+          onChange={(e) => pick(e.target.files?.[0] ?? null)}
+        />
+
+        {aDeposer || probleme ? (
+          <label
+            htmlFor={`file-${doc.type}`}
+            className={cn(
+              'btn btn-primary cursor-pointer text-xs',
+              busy && 'pointer-events-none opacity-50',
+            )}
+          >
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+            {aDeposer ? 'Déposer' : 'Remplacer'}
+          </label>
+        ) : (
+          <IconUpload
+            htmlFor={`file-${doc.type}`}
+            label={bientot ? 'Déposer la nouvelle version' : 'Remplacer cette pièce'}
+            disabled={busy}
+          />
         )}
 
-        {/* ── Onglet : historique ─────────────────────────────────────── */}
-        {tab === 'historique' && (
-          <Card title="Historique des dépôts">
-            {history.length === 0 ? (
-              <p className="py-8 text-center text-sm text-ink-soft">
-                Aucun dépôt enregistré pour le moment.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[rgba(31,42,55,0.06)]">
-                {history.map((d) => {
-                  const def = definitions.find((x) => x.id === d.definitionId)
-                  return (
-                    <li key={d.definitionId} className="py-3 flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
-                        <Upload className="w-4 h-4 text-terra" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-navy truncate">
-                          {def?.label ?? d.definitionId}
-                        </p>
-                        <p className="text-xs text-ink-soft">
-                          Déposée le {shortDate(d.submittedAt!)}
-                        </p>
-                      </div>
-                      <DocBadge status={d.status} />
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-            <p className="text-[11px] text-ink-soft mt-4 leading-relaxed">
-              Chaque dépôt et chaque décision sont horodatés et conservés dans le journal
-              d&apos;audit de la plateforme.
-            </p>
-          </Card>
+        {deposited && !staged && (
+          <IconAction
+            Icon={Eye}
+            label="Relire ma pièce"
+            onClick={onPreviewDeposited}
+            busy={previewPending}
+          />
         )}
       </div>
-    </ChefPage>
+    </article>
   )
 }

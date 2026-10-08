@@ -1,0 +1,26 @@
+﻿Date;Auteur;Tâche ou module;Commentaire
+2026-09-28;Amir;LF-0018;Demande : la réservation du client doit se passer comme sur le site public, chefs et menus avec filtres.
+2026-09-29;Amir;LF-0022;Demande : le choix du moyen de paiement doit dépendre de ce que le batch cooker accepte, puis rediriger vers Stripe.
+2026-09-30;Amir;LF-0016;Demande : sortir la grosse pastille de la sidebar et mettre le rôle sous le nom dans la navbar.
+2026-10-01;Amir;LF-0009;La soumission échouait en 400 sur les codes INSEE. Contourné : 138 communes de référence les portent.
+2026-10-01;Amir;LF-0099;Demande : fusionner candidatures et batch cookers, ce sont tous des batchcookeurs.
+2026-10-02;Amir;LF-0046;Demande : fusionner mon profil et mes documents en un seul écran, avec prévisualisation.
+2026-10-02;Amir;BLK-12;Un mot de passe admin est apparu en clair sur une copie d'écran. À changer.
+2026-10-03;Amir;LF-0054;Demande : l'écriture d'un plat doit se faire sur une page et non dans une modale, avec des toasts.
+2026-10-03;Amir;BLK-11;Le déploiement PR-38 a disparu en pleine intégration. Repointé sur lf-api-develop.
+2026-10-03;Amir;BUG-09;Le lien de connexion est bien arrivé. Le bug venait de l'ancien déploiement, pas du code.
+2026-10-03;Amir;LF-0111;Les écrans catalogue de la console lisaient des mocks. Branchés, et les mocks supprimés.
+2026-10-03;Amir;LF-0125;Nouvel écran de modération : relire, suspendre avec motif, remettre en ligne.
+2026-10-04;Amir;BUG-01;CORS vérifié : PATCH, PUT et DELETE passent sur les deux origines. Le backend a livré.
+2026-10-04;Amir;DEM-02;PATCH /me/chef-application livré sur PR-37. Les cinq sections de « Mon dossier » sont modifiables.
+2026-10-04;Amir;DEM-03;preview-url livré sur PR-37 : le batch cooker peut relire ses pièces, comme l’admin.
+2026-10-04;Amir;BLK-01;Mon erreur : les endpoints de synthèse existaient depuis le début. Quatre routes, que j’avais déclarées absentes.
+2026-10-04;Amir;BLK-14;La doc de GET /bookings dit que tout compte connecté peut l’appeler. À fermer avant toute mise en ligne.
+2026-10-04;Amir;LF-0163;Demande : la barre de recherche ne sert à rien et les notifications doivent ouvrir un tiroir, sur les trois dashboards.
+2026-10-04;Amir;LF-0068;Le patch du profil chef n'était pas fait : le hook existait, aucun écran ne l'appelait. Ma vitrine est maintenant branchée.
+2026-10-04;Amir;BLK-16;En la branchant, découvert que les moyens de paiement acceptés n'ont pas de champ. Le paiement client en dépend.
+2026-10-06;Amir;BLK-11;Tout est mergé sur develop : 100 chemins, les deux routes de PR-37 comprises. Vérifié un par un, CORS complet sur les deux origines.
+2026-10-06;Amir;LF-0158;Les deux .env repointés sur develop. On ne dépend plus d'un déploiement de PR, qui peut disparaître — c'est déjà arrivé le 03/10.
+2026-10-06;Amir;BLK-13;Les photos de plats et de menus sont livrées. Le dernier manque du catalogue tombe.
+2026-10-06;Amir;LF-0178;Demande : laisser saisir un numéro étranger. Vérifié par sonde — l'API accepte +34, +1 et +237, c'était ma regex qui bloquait.
+2026-10-06;Amir;BLK-17;Les langues ne sont pas dans le patch de candidature : elles n'existent nulle part dans l'API.

@@ -9,6 +9,7 @@ import { useMe } from '@/lib/api/me'
 import { ApiError } from '@/lib/api/client'
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar'
 import DashboardTopbar from '@/components/dashboard/DashboardTopbar'
+import ClientSignals from '@/components/dashboard/ClientSignals'
 import DashboardMobileNav from '@/components/dashboard/DashboardMobileNav'
 import LabsLoader from '@/components/shared/LabsLoader'
 import MessagingRealtime from '@/components/messaging/MessagingRealtime'
@@ -83,17 +84,18 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
 
   // role === 'client' (ou tout autre rôle applicatif client) → dashboard.
   return (
-    <div className="min-h-screen bg-cream flex">
-      <MessagingRealtime />
-      <DashboardSidebar />
-      <div className="flex-1 min-w-0 flex flex-col">
-        <DashboardTopbar />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-12">
-          {children}
-        </main>
+    <ClientSignals>
+      <div className="min-h-screen bg-cream flex">
+        <DashboardSidebar />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <DashboardTopbar />
+          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-12">
+            {children}
+          </main>
+        </div>
+        <DashboardMobileNav />
       </div>
-      <DashboardMobileNav />
-    </div>
+    </ClientSignals>
   )
 }
 
