@@ -119,6 +119,7 @@ export function useMessagingKeys() {
       unread: [...root, 'unread'] as const,
       conversation: (id: string) => [...root, 'conversation', id] as const,
       messages: (id: string) => [...root, 'messages', id] as const,
+      attachment: (id: string) => [...root, 'attachment', id] as const,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- la clé ne dépend que du compte
   }, [meKey[1]])
@@ -412,6 +413,30 @@ export function useUploadAttachment(conversationId: string | null) {
     }
     return { uploadId: signed.uploadId, fileName: file.name }
   }
+}
+
+/**
+ * Le lien de lecture d'une pièce jointe, pour l'afficher dans la page (vignette
+ * et aperçu d'une image).
+ *
+ * Le lien signé vit 5 minutes : on le redemande au bout de 4, pour qu'une
+ * conversation restée ouverte n'affiche jamais une image au lien périmé.
+ */
+export function useAttachmentUrl(conversationId: string, attachmentId: string) {
+  const apiFetch = useApiFetch()
+  const keys = useMessagingKeys()
+  return useQuery({
+    queryKey: keys.attachment(attachmentId),
+    queryFn: () =>
+      apiFetch<{ url: string }>(
+        `/me/conversations/${conversationId}/attachments/${attachmentId}/download-url`,
+      ),
+    select: (data) => data.url,
+    staleTime: 4 * 60 * 1000,
+    refetchInterval: 4 * 60 * 1000,
+    // Revenir sur l'onglet après une longue absence : le lien est sans doute périmé.
+    refetchOnWindowFocus: true,
+  })
 }
 
 /** Ouvre une pièce jointe dans un nouvel onglet, via un lien valable 5 minutes. */
