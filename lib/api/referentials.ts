@@ -61,6 +61,19 @@ export function useAllergens(fallback: RefItem[] = []) {
   return q.data ?? fallback
 }
 
+/**
+ * Le libellé d'un code, ou le code lui-même.
+ *
+ * Les plats stockent des codes (`gluten_free`), et plusieurs écrans les
+ * affichaient tels quels. Tant que le référentiel n'est pas arrivé — ou qu'il
+ * ne connaît pas un code — montrer le code reste préférable à montrer un vide,
+ * mais ce n'est pas ce qu'on veut lire : la fonction sert à ne plus avoir à
+ * choisir au cas par cas.
+ */
+export function refLabel(list: RefItem[], code: string): string {
+  return list.find((x) => x.code === code)?.label ?? code
+}
+
 export function useDishCategories(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'dish-categories'],
