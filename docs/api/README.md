@@ -6,10 +6,22 @@
 
 ## Index
 
-| Flux | Document |
-|---|---|
-| Candidature batch cooker, KYC, validation admin, création du compte | [`FLOW-01-candidature-batch-cooker.md`](FLOW-01-candidature-batch-cooker.md) |
-| Plats, menus, publication et modération | [`FLOW-02-plats-et-menus.md`](FLOW-02-plats-et-menus.md) |
+| Flux | Document | État |
+|---|---|---|
+| Candidature batch cooker, KYC, validation admin, création du compte | [`FLOW-01-candidature-batch-cooker.md`](FLOW-01-candidature-batch-cooker.md) | Livré côté API |
+| Plats, menus, publication et modération | [`FLOW-02-plats-et-menus.md`](FLOW-02-plats-et-menus.md) | Livré côté API |
+| Règlement d'une prestation réalisée | [`FLOW-03-paiement-prestation.md`](FLOW-03-paiement-prestation.md) | **Rien côté API** |
+| Agenda du batch cooker, disponibilités vues par le client | [`FLOW-04-agenda-et-disponibilites.md`](FLOW-04-agenda-et-disponibilites.md) | **v1 — rien côté API** |
+| Déroulé d'une prestation : arrivée, checklist, photos, débours, compte rendu | [`FLOW-05-deroule-prestation.md`](FLOW-05-deroule-prestation.md) | **v1 — partiel** |
+| Avis et réputation | [`FLOW-06-avis-et-reputation.md`](FLOW-06-avis-et-reputation.md) | **v1 — rien côté API** |
+| Rémunération du batch cooker | [`FLOW-07-remuneration-batch-cooker.md`](FLOW-07-remuneration-batch-cooker.md) | **v1 — rien, et non arbitré** |
+| Les manques qui n'ont pas besoin d'un document entier | [`FLOW-08-manques-divers.md`](FLOW-08-manques-divers.md) | **v1** |
+
+> Les documents marqués **v1** ont été rédigés le 11/10/2026 à partir des
+> écrans construits, et attendent une relecture backend et métier. Ils
+> décrivent ce dont le front a besoin, pas ce qui est décidé. `FLOW-08` § 7
+> relève deux conventions annoncées ci-dessous que l'API livrée ne suit pas :
+> c'est `FLOW-08` qui fait foi sur ces deux points.
 
 ## Décisions structurantes
 
