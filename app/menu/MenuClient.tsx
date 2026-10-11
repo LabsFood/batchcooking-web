@@ -8,10 +8,13 @@ import {
   MenuCard,
   MenuDialog,
   MenuFilterBar,
+  MenusError,
+  MenusLoading,
   NoMenus,
   useMenuFilters,
 } from '@/components/menu/ChefMenuBrowser'
-import { WEEK_MENUS, weekLabel, type WeekMenu } from '@/lib/week-menus'
+import { weekLabel, type WeekCard } from '@/lib/api/menus'
+import { useDiets } from '@/lib/api/referentials'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Menus de la semaine.
@@ -28,12 +31,13 @@ import { WEEK_MENUS, weekLabel, type WeekMenu } from '@/lib/week-menus'
 
 export default function MenuClient() {
   const filters = useMenuFilters()
-  const [open, setOpen] = useState<WeekMenu | null>(null)
-  // La date n'est lue qu'au montage : le rendu reste pur.
-  const [today] = useState(() => new Date())
+  const [open, setOpen] = useState<WeekCard | null>(null)
+  const diets = useDiets([])
+  const dietLabel = (code: string) =>
+    diets.find((d) => d.code === code)?.label ?? code
 
   const menus = filters.menus
-  const totalDishes = WEEK_MENUS.reduce((n, m) => n + m.dishIds.length, 0)
+  const totalDishes = menus.reduce((n, m) => n + m.dishes.length, 0)
 
   return (
     <div className="page-transition min-h-screen bg-cream pt-24">
@@ -58,7 +62,7 @@ export default function MenuClient() {
         <div className="container-xl relative">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-amber">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {weekLabel(today)}
+            Semaine {weekLabel(filters.week)}
           </p>
           <h1
             className="mb-5 font-display font-bold leading-none text-white"
@@ -72,8 +76,14 @@ export default function MenuClient() {
           </p>
 
           <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4">
-            <Stat value={String(WEEK_MENUS.length)} label={`chef${WEEK_MENUS.length > 1 ? 's' : ''} cette semaine`} />
-            <Stat value={String(totalDishes)} label="plats proposés" />
+            <Stat
+              value={filters.isPending ? '—' : String(menus.length)}
+              label={`chef${menus.length > 1 ? 's' : ''} cette semaine`}
+            />
+            <Stat
+              value={filters.isPending ? '—' : String(totalDishes)}
+              label="plats proposés"
+            />
             <Stat value="2 h" label="chez vous, une seule session" />
           </dl>
         </div>
@@ -90,17 +100,29 @@ export default function MenuClient() {
       <section className="py-14 lg:py-16">
         <div className="container-xl">
           <p className="mb-6 text-sm text-ink-mid" aria-live="polite">
-            {menus.length === 0
-              ? 'Aucun menu ne correspond à votre recherche.'
-              : `${menus.length} menu${menus.length > 1 ? 's' : ''} cette semaine`}
+            {filters.isPending
+              ? 'Lecture des cartes de la semaine…'
+              : menus.length === 0
+                ? 'Aucune carte ne correspond à votre recherche.'
+                : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} cette semaine`}
           </p>
 
-          {menus.length === 0 ? (
-            <NoMenus onReset={filters.reset} />
+          {filters.isPending ? (
+            <MenusLoading />
+          ) : filters.isError ? (
+            <MenusError onRetry={filters.refetch} />
+          ) : menus.length === 0 ? (
+            <NoMenus onReset={filters.reset} filtered={filters.active} />
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {menus.map((menu, i) => (
-                <MenuCard key={menu.id} menu={menu} index={i} onOpen={() => setOpen(menu)} />
+                <MenuCard
+                  key={menu.chef.id}
+                  menu={menu}
+                  index={i}
+                  onOpen={() => setOpen(menu)}
+                  dietLabel={dietLabel}
+                />
               ))}
             </div>
           )}
@@ -128,11 +150,12 @@ export default function MenuClient() {
       <MenuDialog
         menu={open}
         onClose={() => setOpen(null)}
+        dietLabel={dietLabel}
         renderAction={({ menu, selected, close }) => (
           // La carte se referme : sinon le dialog Radix bloque la modale de connexion.
           <ReserveButton
             meals={selected.join(',')}
-            chef={menu.chefId}
+            chef={menu.chef.id}
             className="text-xs"
             onClick={close}
           >

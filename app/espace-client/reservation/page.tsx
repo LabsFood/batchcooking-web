@@ -23,11 +23,14 @@ import { useAuth } from '@/lib/auth-context'
 import {
   MenuCard,
   MenuDialog,
+  MenusError,
+  MenusLoading,
   MenuFilterBar,
   NoMenus,
   useMenuFilters,
 } from '@/components/menu/ChefMenuBrowser'
-import { WEEK_MENUS, dishesOf, weekLabel, type WeekMenu } from '@/lib/week-menus'
+import { weekLabel, type WeekCard } from '@/lib/api/menus'
+import { useDiets } from '@/lib/api/referentials'
 
 const STEPS = [
   { id: 'chef',      label: 'Chef',      Icon: ChefHat },
@@ -51,16 +54,30 @@ function ReservationFlow() {
   // La page publique et la carte d'un chef arrivent ici avec leur choix deja
   // fait : on reprend au bon endroit plutot que de le redemander.
   const initialMeals = (params.get('meals') || '').split(',').filter(Boolean)
-  const initialChef = WEEK_MENUS.find((m) => m.chefId === params.get('chef')) ?? null
+  const chefParam = params.get('chef')
 
-  const [chef, setChef] = useState<WeekMenu | null>(initialChef)
-  const [step, setStep] = useState<StepId>(
-    initialChef && initialMeals.length ? 'infos' : 'chef',
-  )
+  const [chef, setChef] = useState<WeekCard | null>(null)
+  const [step, setStep] = useState<StepId>('chef')
 
   const filters = useMenuFilters()
-  const [openMenu, setOpenMenu] = useState<WeekMenu | null>(null)
-  const [today] = useState(() => new Date())
+  const [openMenu, setOpenMenu] = useState<WeekCard | null>(null)
+  const diets = useDiets([])
+  const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
+
+  /*
+   * Le chef arrive de la page publique par son identifiant, mais sa carte
+   * vient de l'API : on la retrouve dès que la semaine est chargée, une seule
+   * fois, plutôt que de la reconstruire de mémoire.
+   */
+  const [reprise, setReprise] = useState(false)
+  if (!reprise && chefParam && filters.menus.length > 0) {
+    setReprise(true)
+    const trouve = filters.menus.find((m) => m.chef.id === chefParam)
+    if (trouve) {
+      setChef(trouve)
+      if (initialMeals.length > 0) setStep('infos')
+    }
+  }
 
   // Step state
   const [selectedMeals, setSelectedMeals] = useState<string[]>(initialMeals)
@@ -79,15 +96,18 @@ function ReservationFlow() {
   const stepIndex = STEPS.findIndex((s) => s.id === step)
 
   const meals = useMemo(
-    () => (chef ? dishesOf(chef).filter((m) => selectedMeals.includes(m.id)) : []),
+    () => (chef ? chef.dishes.filter((d) => selectedMeals.includes(d.id)) : []),
     [chef, selectedMeals],
   )
 
   // Le forfait est celui du chef : afficher un tarif de plateforme quand c'est
   // lui qui fixe son prix serait un mensonge sur le recapitulatif.
-  const basePrice = chef?.sessionFrom ?? BASE_PRICE
-  const shoppingFee = chef?.shoppingFee ?? 25
-  const shoppingOffered = chef?.shoppingIncluded ?? true
+  // Le tarif vient du chef, en centimes. Les frais de courses n'ont pas de
+  // champ dans l'API : on ne les facture donc pas, plutôt que d'inventer un
+  // montant sur le récapitulatif (voir BLK-16).
+  const basePrice = chef?.sessionFromCents != null ? chef.sessionFromCents / 100 : BASE_PRICE
+  const shoppingFee = 0
+  const shoppingOffered = chef?.shoppingIncluded ?? false
   const extraPersons = Math.max(0, persons - 3)
   const total =
     basePrice + extraMeals * 8 + extraPersons * 15 + (withShopping ? shoppingFee : 0)
@@ -95,16 +115,16 @@ function ReservationFlow() {
 
   /** Ouvrir une carte. Changer de chef repart de zéro : les plats cochés
       appartiennent à la carte précédente, pas à celle-ci. */
-  const openCarte = (menu: WeekMenu) => {
-    if (chef && menu.chefId !== chef.chefId) setSelectedMeals([])
+  const openCarte = (menu: WeekCard) => {
+    if (chef && menu.chef.id !== chef.chef.id) setSelectedMeals([])
     setOpenMenu(menu)
   }
 
   /** Retenir un chef depuis sa carte, avec les plats cochés dans la modale. */
-  const chooseChef = (menu: WeekMenu, dishes: string[]) => {
+  const chooseChef = (menu: WeekCard, dishes: string[]) => {
     setChef(menu)
     setSelectedMeals(dishes)
-    setWithShopping(menu.shoppingIncluded && menu.shoppingFee === 0)
+    setWithShopping(menu.shoppingIncluded)
     setOpenMenu(null)
     setStep('infos')
   }
@@ -181,19 +201,25 @@ function ReservationFlow() {
           <StepCard
             key="chef"
             title="Avec quel batch cooker ?"
-            subtitle={`${weekLabel(today)} — chaque chef compose sa carte. Ouvrez celle qui vous parle, puis choisissez vos plats dedans.`}
+            subtitle={`Semaine ${weekLabel(filters.week)} — chaque chef compose sa carte. Ouvrez celle qui vous parle, puis choisissez vos plats dedans.`}
           >
             <MenuFilterBar filters={filters} />
 
             <p className="mt-5 text-sm text-ink-mid" aria-live="polite">
-              {filters.menus.length === 0
-                ? 'Aucune carte ne correspond à votre recherche.'
-                : `${filters.menus.length} chef${filters.menus.length > 1 ? 's' : ''} disponible${filters.menus.length > 1 ? 's' : ''} cette semaine`}
+              {filters.isPending
+                ? 'Lecture des cartes de la semaine…'
+                : filters.menus.length === 0
+                  ? 'Aucune carte ne correspond à votre recherche.'
+                  : `${filters.menus.length} chef${filters.menus.length > 1 ? 's' : ''} disponible${filters.menus.length > 1 ? 's' : ''} cette semaine`}
             </p>
 
             <div className="mt-4">
-              {filters.menus.length === 0 ? (
-                <NoMenus onReset={filters.reset}>
+              {filters.isPending ? (
+                <MenusLoading />
+              ) : filters.isError ? (
+                <MenusError onRetry={filters.refetch} />
+              ) : filters.menus.length === 0 ? (
+                <NoMenus onReset={filters.reset} filtered={filters.active}>
                   <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
                     Faire une demande sur mesure
                     <ArrowRight className="icon-arrow h-3.5 w-3.5" />
@@ -203,11 +229,12 @@ function ReservationFlow() {
                 <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                   {filters.menus.map((menu, i) => (
                     <MenuCard
-                      key={menu.id}
+                      key={menu.chef.id}
                       menu={menu}
                       index={i}
                       onOpen={() => openCarte(menu)}
                       openLabel="Voir sa carte"
+                      dietLabel={dietLabel}
                     />
                   ))}
                 </div>
@@ -223,7 +250,7 @@ function ReservationFlow() {
               </Link>
               {chef && (
                 <button onClick={() => setStep('infos')} className="btn btn-primary">
-                  Continuer avec {chef.chefName.split(' ')[0]}
+                  Continuer avec {chef.chef.displayName.split(' ')[0]}
                   <ArrowRight className="h-4 w-4 icon-arrow" />
                 </button>
               )}
@@ -237,7 +264,7 @@ function ReservationFlow() {
             title="Quand et où on cuisine ?"
             subtitle={
               chef
-                ? `Date, créneau, adresse — ${chef.chefName} s'occupe du reste.`
+                ? `Date, créneau, adresse — ${chef.chef.displayName} s'occupe du reste.`
                 : 'Date, créneau, adresse — votre chef s\u2019occupe du reste.'
             }
           >
@@ -293,7 +320,7 @@ function ReservationFlow() {
                     <div>
                       <p className="text-sm font-semibold text-navy">
                         {shoppingOffered
-                          ? `${chef ? chef.chefName.split(' ')[0] : 'Votre chef'} fait les courses`
+                          ? `${chef ? chef.chef.displayName.split(' ')[0] : 'Votre chef'} fait les courses`
                           : 'Courses à votre charge'}
                       </p>
                       <p className="text-[11px] text-ink-soft">
@@ -460,6 +487,7 @@ function ReservationFlow() {
         onClose={() => setOpenMenu(null)}
         selected={selectedMeals}
         onSelectedChange={setSelectedMeals}
+        dietLabel={dietLabel}
         renderAction={({ menu, selected }) => (
           <button
             type="button"
@@ -469,7 +497,7 @@ function ReservationFlow() {
           >
             {selected.length < MIN_DISHES
               ? `Encore ${MIN_DISHES - selected.length} plat${MIN_DISHES - selected.length > 1 ? 's' : ''} minimum`
-              : `Continuer avec ${menu.chefName.split(' ')[0]}`}
+              : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
             <ArrowRight className="icon-arrow h-3.5 w-3.5" />
           </button>
         )}
@@ -572,7 +600,7 @@ function SummaryCard({
   afterTax,
   address,
 }: {
-  chef: WeekMenu | null
+  chef: WeekCard | null
   meals: { id: string; name: string }[]
   date: string
   slot: string
@@ -598,7 +626,7 @@ function SummaryCard({
         </p>
 
         <ul className="space-y-2 text-sm">
-          {chef && <Line Icon={ChefHat} label={chef.chefName} sub={`${chef.title} · ${chef.city}`} />}
+          {chef && <Line Icon={ChefHat} label={chef.chef.displayName} sub={`${chef.title} · ${chef.chef.city}`} />}
           <Line Icon={Sparkles} label={`${meals.length} plat${meals.length > 1 ? 's' : ''}`} sub={meals.map((m) => m.name).join(', ') || '—'} />
           <Line Icon={CalendarRange} label={dateLabel} sub={slot} />
           <Line Icon={Users} label={`${persons} personne${persons > 1 ? 's' : ''}`} sub={extraMeals ? `+${extraMeals} plats supp.` : 'Forfait standard'} />
@@ -606,7 +634,7 @@ function SummaryCard({
           <Line
             Icon={ShoppingBasket}
             label="Courses"
-            sub={withShopping ? `Faites par ${chef ? chef.chefName.split(' ')[0] : 'le chef'}` : 'À votre charge'}
+            sub={withShopping ? `Faites par ${chef ? chef.chef.displayName.split(' ')[0] : 'le chef'}` : 'À votre charge'}
           />
         </ul>
 
