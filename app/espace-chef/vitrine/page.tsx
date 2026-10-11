@@ -20,7 +20,7 @@ import { isValidE164 } from '@/lib/phone'
 import { PAYMENT_METHOD_LABEL } from '@/lib/chef/states'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { chefProfileMessage, useUpdateChefProfile } from '@/lib/api/chef-profile'
-import { useChefApplication } from '@/lib/api/chef-documents'
+import { applicationAnswers, useChefApplication } from '@/lib/api/chef-documents'
 import type { ChefProfile } from '@/lib/api/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -309,15 +309,15 @@ export default function ChefShowcasePage() {
                   </span>
                 </div>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">
-                  Au-delà, les clients ne vous voient pas. Vos zones précises se règlent
-                  dans{' '}
-                  <Link href="/espace-chef/dossier" className="font-semibold text-terra underline">
-                    Mon dossier
-                  </Link>
-                  .
+                  Au-delà de ce rayon, les clients ne vous voient pas.
                 </p>
               </div>
             </div>
+
+            <Zones
+              zones={applicationAnswers(application.data).interventionZones ?? []}
+              modifiable={enInstruction}
+            />
           </Card>
 
           <Card
@@ -464,5 +464,94 @@ export default function ChefShowcasePage() {
         </aside>
       </div>
     </ChefPage>
+  )
+}
+
+/* ── Les zones d'intervention ──────────────────────────────────────────────── */
+
+interface ZoneLue {
+  regionCode?: string
+  regionLabel?: string
+  scope?: 'region' | 'cities'
+  cities?: { name?: string }[]
+}
+
+/**
+ * Là où le batch cooker accepte de se déplacer.
+ *
+ * Elles ne vivent pas sur le profil mais sur la candidature, et l'API ne les
+ * rouvre qu'avant la décision : « the visibility flags, the SAP route and the
+ * zones are set at approval and cannot be sent here ». C'est le rayon de
+ * déplacement, juste au-dessus, qui reste réglable.
+ *
+ * L'écran les montre quand même ici, parce que c'est l'endroit où l'on vient
+ * voir ce qu'un client voit — et il dit où les modifier quand c'est encore
+ * possible, à qui les demander quand ce n'est plus le cas.
+ */
+function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean }) {
+  return (
+    <div className="mt-5 border-t border-[rgba(31,42,55,0.07)] pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-navy">Mes zones d’intervention</p>
+        {modifiable ? (
+          <Link
+            href="/espace-chef/dossier?section=zones"
+            className="text-xs font-semibold text-terra underline-offset-2 hover:underline"
+          >
+            Modifier mes zones
+          </Link>
+        ) : (
+          <span
+            title="Aucun endpoint ne permet encore de modifier les zones après l’approbation."
+            className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-soft"
+          >
+            <Lock className="h-3 w-3" aria-hidden />
+            Modification N/A
+          </span>
+        )}
+      </div>
+
+      {zones.length === 0 ? (
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+          N/A — aucune zone enregistrée. Sans zone, aucun client ne peut vous
+          trouver{modifiable ? ' : renseignez-les depuis votre dossier.' : '.'}
+        </p>
+      ) : (
+        <ul className="mt-2.5 space-y-2">
+          {zones.map((z, i) => (
+            <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-[13px] font-semibold text-navy">
+                  {z.regionLabel ?? z.regionCode}
+                </span>
+                <span className="block text-[13px] leading-relaxed text-ink-mid">
+                  {z.scope === 'cities' && z.cities?.length
+                    ? z.cities.map((c) => c.name).filter(Boolean).join(', ')
+                    : 'Toute la région'}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
+        {modifiable ? (
+          <>Modifiables tant que votre candidature est en cours d’instruction.</>
+        ) : (
+          <>
+            Fixées à l’approbation.{' '}
+            <Link
+              href="/espace-chef/messagerie"
+              className="font-semibold text-terra underline"
+            >
+              Demandez-nous
+            </Link>{' '}
+            pour les changer.
+          </>
+        )}
+      </p>
+    </div>
   )
 }
