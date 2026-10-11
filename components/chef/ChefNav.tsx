@@ -35,6 +35,7 @@ import { useChefDocuments } from '@/lib/api/chef-documents'
 import { useMe } from '@/lib/api/me'
 import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 import { useOffers } from '@/lib/api/chef-catalog'
+import { useUnreadCount } from '@/lib/api/messaging'
 
 /**
  * Navigation en 5 groupes (cf. architecture cible § 4.1 du brief).
@@ -123,7 +124,6 @@ const MESSAGING_HREF = '/espace-chef/messagerie'
 
 export function ChefSidebar() {
   const pathname = usePathname()
-  const unread = useUnreadCount().data ?? 0
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
   const counts = useNavCounts()
