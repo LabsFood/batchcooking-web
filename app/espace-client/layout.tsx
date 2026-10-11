@@ -13,6 +13,7 @@ import ClientSignals from '@/components/dashboard/ClientSignals'
 import DashboardMobileNav from '@/components/dashboard/DashboardMobileNav'
 import LabsLoader from '@/components/shared/LabsLoader'
 import { useTooLong } from '@/lib/use-too-long'
+import MessagingRealtime from '@/components/messaging/MessagingRealtime'
 
 export default function EspaceClientLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isReady, signOut } = useAuth()

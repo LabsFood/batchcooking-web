@@ -851,46 +851,6 @@ export const DISPUTE_STATUS_LABEL: Record<ChefDispute['status'], string> = {
   resolved: 'Résolu',
 }
 
-export interface ChefThread {
-  id: string
-  client: string
-  /** Fiche client consultable depuis le fil ; absent pour le canal support. */
-  clientId?: string
-  /** Prestation rattachée au fil ; absent pour le canal support. */
-  missionRef?: string
-  lastMessage: string
-  at: string
-  unread: number
-}
-
-export interface ChefMessage {
-  id: string
-  threadId: string
-  from: 'client' | 'chef' | 'support'
-  text: string
-  at: string
-}
-
-export const CHEF_THREADS: ChefThread[] = [
-  { id: 'thr_001', client: 'Sophie M.', clientId: 'cli_sophie', missionRef: 'LF-2026-0142', lastMessage: 'Parfait, à jeudi !', at: iso(-0.2), unread: 1 },
-  { id: 'thr_002', client: 'Karim B.', clientId: 'cli_karim', missionRef: 'LF-2026-0151', lastMessage: 'Je suis devant la porte.', at: iso(-0.05), unread: 0 },
-  { id: 'thr_003', client: 'Support Lab’s Food', lastMessage: 'Votre pièce DDPP a été refusée.', at: iso(-6), unread: 0 },
-]
-
-const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
-
-export const CHEF_MESSAGES: ChefMessage[] = [
-  { id: 'm1', threadId: 'thr_001', from: 'client', text: 'Bonjour ! Est-ce que vous pouvez prévoir un plat sans gluten ?', at: hoursAgo(52) },
-  { id: 'm2', threadId: 'thr_001', from: 'chef', text: 'Bonjour Sophie, bien sûr — je note ça pour jeudi.', at: hoursAgo(51) },
-  { id: 'm3', threadId: 'thr_001', from: 'client', text: 'Super. Ma fille adore les lasagnes, si jamais vous avez une idée.', at: hoursAgo(27) },
-  { id: 'm4', threadId: 'thr_001', from: 'chef', text: 'Je prévois des lasagnes de légumes, elle devrait aimer.', at: hoursAgo(26) },
-  { id: 'm5', threadId: 'thr_001', from: 'client', text: 'Parfait, à jeudi !', at: hoursAgo(4) },
-  { id: 'm6', threadId: 'thr_002', from: 'client', text: 'Bonjour, la place de parking devant l’immeuble est libre.', at: hoursAgo(5) },
-  { id: 'm7', threadId: 'thr_002', from: 'chef', text: 'Merci, j’arrive dans dix minutes.', at: hoursAgo(2) },
-  { id: 'm8', threadId: 'thr_002', from: 'client', text: 'Je suis devant la porte.', at: hoursAgo(1) },
-  { id: 'm9', threadId: 'thr_003', from: 'support', text: 'Votre pièce DDPP a été refusée : le scan est rogné. Merci de la redéposer depuis Documents.', at: hoursAgo(144) },
-]
-
 // ── Agenda ──────────────────────────────────────────────────────────────────
 
 export const CHEF_AVAILABILITY = {

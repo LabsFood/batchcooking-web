@@ -17,6 +17,7 @@ import {
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { useUnreadCount } from '@/lib/api/messaging'
 import ReserveButton from '@/components/shared/ReserveButton'
 
 /**
@@ -57,7 +58,7 @@ const NAV: {
     ],
   },
   { href: '/espace-client/courses', label: 'Ma liste de courses', Icon: ShoppingBasket },
-  { href: '/espace-client/messages', label: 'Messagerie', Icon: MessageCircle, badge: '1' },
+  { href: '/espace-client/messages', label: 'Messagerie', Icon: MessageCircle },
   {
     href: '/espace-client/compte',
     label: 'Mon compte',
@@ -80,6 +81,7 @@ function sectionActive(pathname: string, item: (typeof NAV)[number]) {
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
+  const unread = useUnreadCount().data ?? 0
   const { signOut } = useAuth()
   const router = useRouter()
   // Dépliage manuel : ce que l'utilisateur ouvre prime sur la section active.
@@ -103,7 +105,14 @@ export default function DashboardSidebar() {
           <nav className="px-3 flex-1 overflow-y-auto custom-scroll">
             <ul className="space-y-1">
               {NAV.map((item) => {
-                const { href, label, Icon, badge, children } = item
+                const { href, label, Icon, children } = item
+                // La pastille de la messagerie vient de l'API, les autres de la config.
+                const badge =
+                  href === '/espace-client/messages'
+                    ? unread > 0
+                      ? String(unread)
+                      : undefined
+                    : item.badge
                 const active = sectionActive(pathname, item)
                 const expanded = children ? (opened[href] ?? active) : false
                 const panelId = `nav-${href.replace(/\W+/g, '-')}`
