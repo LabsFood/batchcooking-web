@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -111,11 +112,30 @@ const formatSize = (b: number) =>
 
 type Onglet = 'pieces' | 'infos'
 
+/** Les sections de réponses, telles qu'on peut y arriver depuis un lien. */
+const SECTIONS = ['identity', 'address', 'work', 'company', 'zones'] as const
+type Section = (typeof SECTIONS)[number]
+
+/**
+ * On arrive ici depuis la vitrine pour une seule chose — ses zones, par
+ * exemple. `?section=zones` ouvre l'onglet et la section voulue, plutôt que de
+ * laisser chercher dans une page qui en contient cinq.
+ */
 export default function DossierPage() {
+  return (
+    <Suspense fallback={null}>
+      <Dossier />
+    </Suspense>
+  )
+}
+
+function Dossier() {
   const { data, isPending, isError, error, refetch } = useChefDocuments()
   const application = useChefApplication()
   const profil = useMeProfile()
-  const [onglet, setOnglet] = useState<Onglet>('pieces')
+  const demandee = useSearchParams().get('section')
+  const section = SECTIONS.find((s) => s === demandee)
+  const [onglet, setOnglet] = useState<Onglet>(section ? 'infos' : 'pieces')
   const [preview, setPreview] = useState<PreviewSource | null>(null)
   const remote = useDocumentPreview()
 
@@ -398,7 +418,7 @@ export default function DossierPage() {
             )}
           </section>
         ) : (
-          <AnswerSections app={app} />
+          <AnswerSections app={app} section={section} />
         )}
       </div>
 

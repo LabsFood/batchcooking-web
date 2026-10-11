@@ -176,23 +176,52 @@ function Row({ label, value, mono }: { label: string; value?: string | null; mon
 
 type Quelle = 'identity' | 'address' | 'work' | 'company' | 'zones' | null
 
-export default function AnswerSections({ app }: { app?: ChefApplication | null }) {
+export default function AnswerSections({
+  app,
+  section,
+}: {
+  app?: ChefApplication | null
+  /** Section à ouvrir d'emblée : on arrive parfois ici pour une seule chose. */
+  section?: Exclude<Quelle, null>
+}) {
   const toast = useToast()
   const update = useUpdateApplication()
-  const [ouverte, setOuverte] = useState<Quelle>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
   const a = applicationAnswers(app)
 
   // L'API n'ouvre le PATCH que pendant l'instruction.
   const modifiable = app?.status === 'submitted' || app?.status === 'changes-requested'
-  const verrou = !app
-    ? 'Votre candidature n’est pas encore enregistrée.'
-    : app.status === 'approved'
-      ? 'Votre candidature est approuvée : vos informations se modifient désormais depuis vos paramètres, et vos pièces restent à jour ici.'
-      : app.status === 'rejected'
-        ? 'Votre candidature a été tranchée : ces réponses ne se modifient plus. Vous pourrez candidater à nouveau.'
-        : undefined
+
+  const [ouverte, setOuverte] = useState<Quelle>(modifiable ? (section ?? null) : null)
+
+  /**
+   * Pourquoi une section ne s'ouvre pas, section par section.
+   *
+   * Un seul message pour les cinq disait « vos informations se modifient
+   * désormais depuis vos paramètres ». C'est vrai du nom et du téléphone, et
+   * faux de tout le reste : `PATCH /me/chef-profile` tient sept champs et
+   * écrit noir sur blanc que les zones, la route SAP et la visibilité sont
+   * fixées à l'approbation. Envoyer quelqu'un les chercher dans un écran où
+   * elles ne sont pas, c'est lui faire perdre son temps puis sa confiance.
+   */
+  function verrouDe(quelle: Exclude<Quelle, null>): string | undefined {
+    if (modifiable) return undefined
+    if (!app) return 'Votre candidature n’est pas encore enregistrée.'
+    if (app.status === 'rejected') {
+      return 'Votre candidature a été tranchée : ces réponses ne se modifient plus. Vous pourrez candidater à nouveau.'
+    }
+    if (app.status !== 'approved') {
+      return 'Cette réponse ne se modifie pas dans l’état actuel de votre candidature.'
+    }
+    if (quelle === 'identity') {
+      return 'Votre candidature est approuvée : votre nom et votre téléphone se modifient désormais depuis votre vitrine.'
+    }
+    if (quelle === 'zones') {
+      return 'Fixées à l’approbation : modification N/A pour l’instant. Votre rayon de déplacement, lui, reste réglable depuis votre vitrine.'
+    }
+    return 'Votre candidature est approuvée : cette réponse ne se modifie plus ici. Écrivez-nous pour la corriger.'
+  }
 
   // ── Identité ──────────────────────────────────────────────────────────────
   const [prenom, setPrenom] = useState(a.identity?.firstName ?? '')
@@ -288,7 +317,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
         title="Identité"
         note="Votre email est la clé de votre compte : il ne se change pas ici."
         ouverte={ouverte === 'identity'}
-        verrou={modifiable ? undefined : verrou}
+        verrou={verrouDe('identity')}
         onOuvrir={() => ouvrir('identity')}
         onFermer={() => setOuverte(null)}
         enCours={update.isPending}
@@ -338,7 +367,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
         title="Adresse"
         note="Votre point de départ : c’est de là que se calculent vos déplacements."
         ouverte={ouverte === 'address'}
-        verrou={modifiable ? undefined : verrou}
+        verrou={verrouDe('address')}
         onOuvrir={() => ouvrir('address')}
         onFermer={() => setOuverte(null)}
         enCours={update.isPending}
@@ -400,7 +429,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
         title="Autorisation de travail"
         note="C’est ce choix qui décide des pièces de séjour demandées."
         ouverte={ouverte === 'work'}
-        verrou={modifiable ? undefined : verrou}
+        verrou={verrouDe('work')}
         onOuvrir={() => ouvrir('work')}
         onFermer={() => setOuverte(null)}
         enCours={update.isPending}
@@ -463,7 +492,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
         title="Mon activité"
         note="C’est ce choix qui décide du justificatif d’immatriculation. Dès que vous avez votre numéro, renseignez-le ici."
         ouverte={ouverte === 'company'}
-        verrou={modifiable ? undefined : verrou}
+        verrou={verrouDe('company')}
         onOuvrir={() => ouvrir('company')}
         onFermer={() => setOuverte(null)}
         enCours={update.isPending}
@@ -579,7 +608,7 @@ export default function AnswerSections({ app }: { app?: ChefApplication | null }
         title="Zones d’intervention"
         note="Là où vous acceptez de vous déplacer. Les clients hors de ces zones ne vous voient pas."
         ouverte={ouverte === 'zones'}
-        verrou={modifiable ? undefined : verrou}
+        verrou={verrouDe('zones')}
         onOuvrir={() => ouvrir('zones')}
         onFermer={() => setOuverte(null)}
         enCours={update.isPending}
