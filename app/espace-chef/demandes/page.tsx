@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -391,9 +392,12 @@ function RequestDetail({
             </div>
           )}
 
-          <button className="w-full mt-3 text-xs text-terra font-semibold hover:underline inline-flex items-center justify-center gap-1.5">
+          <Link
+            href="/espace-chef/messagerie"
+            className="w-full mt-3 text-xs text-terra font-semibold hover:underline inline-flex items-center justify-center gap-1.5"
+          >
             <MessageCircle className="w-3.5 h-3.5" /> Ouvrir la messagerie
-          </button>
+          </Link>
         </Card>
       </aside>
     </div>

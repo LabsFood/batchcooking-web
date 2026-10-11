@@ -127,6 +127,7 @@ export function ChefSidebar() {
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
   const counts = useNavCounts()
+  const unread = useUnreadCount().data ?? 0
 
   const initials =
     user?.name
@@ -154,7 +155,9 @@ export function ChefSidebar() {
               </p>
               <ul className="space-y-0.5">
                 {items.map(({ href, label, Icon }) => {
-                  const n = counts[href] ?? 0
+                  // La messagerie compte ses non-lus à part, les autres entrées
+                  // viennent de `useNavCounts`.
+                  const n = href === MESSAGING_HREF ? unread : (counts[href] ?? 0)
                   const badge = n > 0 ? String(n) : null
                   const active = isActive(pathname, href)
                   return (
