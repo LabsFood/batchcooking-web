@@ -18,7 +18,36 @@
 
 import type { Ingredient, Recipe } from '@/lib/api/chef-catalog'
 
-export { AISLES, UNITS } from '@/lib/chef/recipes'
+export { UNITS } from '@/lib/chef/recipes'
+
+/**
+ * Les rayons, par identifiant.
+ *
+ * Ce ne sont pas des libellés : `GET /chef-missions/{id}/shopping-list` groupe
+ * la liste de courses **par la chaîne stockée**, et les exemples de l'API
+ * utilisent `boucherie`, `fruits-legumes`. Écrire « Boucherie » d'un côté et
+ * `boucherie` de l'autre, c'est se retrouver avec deux rayons pour la même
+ * allée de magasin. Il n'y a pas de référentiel côté API : ces valeurs sont
+ * notre convention, alignée sur ce que le backend écrit déjà.
+ */
+export const AISLE_LABEL: Record<string, string> = {
+  'fruits-legumes': 'Fruits et légumes',
+  boucherie: 'Boucherie',
+  poissonnerie: 'Poissonnerie',
+  cremerie: 'Crèmerie',
+  'epicerie-salee': 'Épicerie salée',
+  'epicerie-sucree': 'Épicerie sucrée',
+  boulangerie: 'Boulangerie',
+  surgeles: 'Surgelés',
+  boissons: 'Boissons',
+}
+
+/** Dans l'ordre d'un parcours en magasin. */
+export const AISLES = Object.keys(AISLE_LABEL)
+
+/** Le libellé d'un rayon, ou la valeur telle quelle si elle nous est inconnue. */
+export const aisleLabel = (code?: string | null) =>
+  code ? (AISLE_LABEL[code] ?? code) : null
 
 export const REHEAT_MODES: { code: string; label: string }[] = [
   { code: 'oven', label: 'Four' },

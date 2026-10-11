@@ -5,48 +5,70 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
+  AlertTriangle,
   ArrowLeft,
-  ChefHat,
-  CalendarRange,
-  Clock,
-  Users,
-  ShoppingBasket,
-  CheckCircle2,
-  Circle,
-  MessageCircle,
-  Sparkles,
-  Receipt,
-  BadgeEuro,
-  ShieldCheck,
-  XCircle,
   ArrowRight,
+  BadgeEuro,
+  CalendarRange,
+  CheckCircle2,
+  ChefHat,
+  Circle,
+  Clock,
+  Info,
+  MessageCircle,
+  Receipt,
+  RotateCw,
+  ShieldCheck,
+  ShoppingBasket,
+  UtensilsCrossed,
+  XCircle,
 } from 'lucide-react'
 import {
-  DASHBOARD_ORDERS,
-  ORDER_STATUS_LABEL,
-  ORDER_STATUS_FLOW,
-  type OrderPayment,
-  type OrderStatus,
-} from '@/lib/dashboard-mock'
-import { PAYMENT_METHODS, formatEuros } from '@/lib/client/payments'
+  afterTaxCredit,
+  bookingPortions,
+  bookingStatusText,
+  euros,
+  hour,
+  useMissionShoppingList,
+  useMyBooking,
+  type Booking,
+} from '@/lib/api/bookings'
+import { aisleLabel } from '@/lib/recipe-fields'
+import { useChefPublic } from '@/lib/api/menus'
 
-const STEP_LABELS: Record<OrderStatus, string> = {
+/* ─────────────────────────────────────────────────────────────────────────────
+   Le détail d'une commande — `GET /bookings/me/bookings/{id}`.
+
+   La route est réservée au client qui a réservé : « anyone else gets 404 ».
+   D'où le message d'absence, qui ne cherche pas à distinguer une commande
+   supprimée d'une commande qui n'est pas la sienne — l'API ne le dit pas.
+
+   La liste de courses vient de `GET /chef-missions/{id}/shopping-list`, que le
+   client peut lire : elle est groupée par rayon et met les quantités à
+   l'échelle des portions commandées. Le booking en porte une version plus
+   pauvre (`quantity` en texte libre), qui sert de repli.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/** Le parcours d'une prestation, tel que les statuts de l'API le décrivent. */
+const FLOW = ['pending', 'confirmed', 'shopping', 'cooking', 'completed'] as const
+
+const STEP_LABEL: Record<string, string> = {
   pending: 'Reçue',
   confirmed: 'Confirmée',
-  shopping: 'Liste de courses prête',
-  cooking: 'Chef en cuisine',
-  delivered: 'Livrée',
-  cancelled: 'Annulée',
+  shopping: 'Courses',
+  cooking: 'En cuisine',
+  completed: 'Terminée',
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-}
+const longDate = (iso?: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null
 
 export default function OrderDetailPage({
   params,
@@ -54,27 +76,72 @@ export default function OrderDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const order = DASHBOARD_ORDERS.find((o) => o.id === id)
+  const query = useMyBooking(id)
 
-  if (!order) {
+  if (query.isPending) {
     return (
-      <div className="max-w-xl mx-auto py-16 text-center">
-        <p className="text-6xl mb-4" aria-hidden>🍳</p>
-        <h2 className="font-display text-2xl font-bold text-navy mb-2">
-          Commande introuvable
-        </h2>
-        <p className="text-ink-mid mb-6">
-          Cette commande n&apos;existe plus ou n&apos;a jamais existé. Retour à ta liste.
-        </p>
-        <Link href="/espace-client/commandes" className="btn btn-primary text-xs">
-          <ArrowLeft className="w-4 h-4" />
-          Toutes mes commandes
-        </Link>
+      <div className="space-y-6">
+        <div className="h-40 animate-pulse rounded-3xl bg-paper" />
+        <div className="h-24 animate-pulse rounded-3xl bg-paper" />
+        <div className="h-64 animate-pulse rounded-3xl bg-paper" />
       </div>
     )
   }
 
-  const currentStep = ORDER_STATUS_FLOW.indexOf(order.status)
+  if (query.isError || !query.data) {
+    return (
+      <div className="mx-auto max-w-xl py-16 text-center">
+        <UtensilsCrossed className="mx-auto h-8 w-8 text-ink-soft" aria-hidden />
+        <h2 className="mt-4 font-display text-2xl font-bold text-navy">
+          Commande introuvable
+        </h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-mid">
+          Elle n’existe plus, ou elle n’est pas rattachée à votre compte.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button onClick={() => query.refetch()} className="btn btn-outline text-xs">
+            <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+          </button>
+          <Link href="/espace-client/commandes" className="btn btn-primary text-xs">
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes mes commandes
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return <OrderDetail booking={query.data} />
+}
+
+function OrderDetail({ booking: b }: { booking: Booking }) {
+  const chef = useChefPublic(b.chefProfileId ?? undefined)
+  const courses = useMissionShoppingList(b.id)
+
+  const ttc = euros(b.priceCents)
+  const reste = euros(afterTaxCredit(b.priceCents))
+  const credit = euros(
+    b.priceCents != null ? b.priceCents - (afterTaxCredit(b.priceCents) ?? 0) : null,
+  )
+  const portions = bookingPortions(b)
+  const annulee = b.status === 'cancelled' || b.status === 'refunded'
+  const etape = FLOW.indexOf((b.status ?? '') as (typeof FLOW)[number])
+
+  // L'API déplie les groupes ; le booking, lui, ne donne que des lignes plates.
+  const groupes =
+    courses.data?.groups ??
+    (b.shoppingList?.items?.length
+      ? [
+          {
+            aisle: '',
+            lines: b.shoppingList.items.map((it) => ({
+              name: it.name,
+              qty: 0,
+              unit: it.quantity ?? '',
+              edited: false,
+            })),
+          },
+        ]
+      : [])
 
   return (
     <div className="space-y-6">
@@ -82,7 +149,7 @@ export default function OrderDetailPage({
         href="/espace-client/commandes"
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
-        <ArrowLeft className="w-3.5 h-3.5" />
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
         Toutes mes commandes
       </Link>
 
@@ -90,65 +157,111 @@ export default function OrderDetailPage({
         <CheckoutOutcome />
       </Suspense>
 
-      {/* Header card */}
+      {/* ── L'essentiel ──────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-navy text-white p-6 lg:p-8"
+        className="relative overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-8"
       >
-        <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-amber/30 blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber">
-              {order.reference}
-            </p>
-            <h2 className="font-display text-3xl lg:text-4xl font-bold mt-2 leading-tight">
-              Formule {order.formula}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-amber/30 blur-3xl"
+        />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            {b.reference && (
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
+                {b.reference}
+              </p>
+            )}
+            <h2 className="mt-2 font-display text-3xl font-bold capitalize leading-tight lg:text-4xl">
+              {longDate(b.startsAt) ?? 'Date à confirmer'}
             </h2>
-            <p className="mt-3 text-white/65 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="inline-flex items-center gap-1.5"><CalendarRange className="w-4 h-4 text-amber" /> {formatDate(order.date)}</span>
-              <span className="inline-flex items-center gap-1.5"><Clock className="w-4 h-4 text-amber" /> {order.timeSlot}</span>
-              <span className="inline-flex items-center gap-1.5"><ChefHat className="w-4 h-4 text-amber" /> {order.chef}</span>
-              <span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4 text-amber" /> {order.persons} pers.</span>
+            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/65">
+              {hour(b.startsAt) && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-amber" aria-hidden />
+                  {hour(b.startsAt)}
+                  {hour(b.endsAt) ? ` → ${hour(b.endsAt)}` : ''}
+                </span>
+              )}
+              {chef.data?.displayName && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ChefHat className="h-4 w-4 text-amber" aria-hidden />
+                  {chef.data.displayName}
+                </span>
+              )}
+              {portions > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <UtensilsCrossed className="h-4 w-4 text-amber" aria-hidden />
+                  {portions} portions
+                </span>
+              )}
+              <span>{bookingStatusText(b.status)}</span>
             </p>
           </div>
-          <div className="flex flex-col items-start lg:items-end">
-            <p className="font-display text-3xl font-bold text-amber">{order.amountTTC} €</p>
-            <p className="text-xs text-white/60">soit {order.amountAfterTax}€ après crédit d&apos;impôt</p>
-          </div>
+          {ttc && (
+            <div className="flex flex-col items-start lg:items-end">
+              <p className="font-display text-3xl font-bold text-amber">{ttc}</p>
+              {reste && (
+                <p className="text-xs text-white/60">
+                  soit {reste} estimés après crédit d’impôt
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
 
-      {/* Tracker */}
-      <section className="bg-paper rounded-3xl p-6 lg:p-7 border border-[rgba(31,42,55,0.06)]">
-        <h3 className="font-display text-lg font-bold text-navy mb-5">Suivi de la commande</h3>
-        {order.status === 'cancelled' ? (
-          <p className="text-red-700 text-sm font-semibold">Cette commande a été annulée.</p>
+      {/* ── Suivi ────────────────────────────────────────────────────────── */}
+      <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6 lg:p-7">
+        <h3 className="mb-5 font-display text-lg font-bold text-navy">
+          Suivi de la commande
+        </h3>
+        {annulee ? (
+          <p className="text-sm font-semibold text-red-700">
+            {b.status === 'refunded'
+              ? 'Cette commande a été remboursée.'
+              : 'Cette commande a été annulée.'}
+          </p>
+        ) : etape < 0 ? (
+          <p className="text-sm text-ink-mid">
+            Statut «&nbsp;{b.status}&nbsp;» : il ne fait pas partie du parcours
+            habituel, nous ne le situons donc pas sur la frise.
+          </p>
         ) : (
           <div className="relative grid grid-cols-5 gap-2">
-            <div className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]" />
             <div
-              className="absolute left-0 top-4 h-px bg-amber transition-all"
-              style={{ width: `${(currentStep / (ORDER_STATUS_FLOW.length - 1)) * 100}%` }}
+              aria-hidden
+              className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]"
             />
-            {ORDER_STATUS_FLOW.map((step, i) => {
-              const reached = i <= currentStep
+            <div
+              aria-hidden
+              className="absolute left-0 top-4 h-px bg-amber transition-all"
+              style={{ width: `${(etape / (FLOW.length - 1)) * 100}%` }}
+            />
+            {FLOW.map((step, i) => {
+              const atteinte = i <= etape
               return (
                 <div key={step} className="relative flex flex-col items-center text-center">
                   <span
-                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      reached ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-soft'
+                    className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                      atteinte ? 'bg-amber text-navy' : 'bg-cream-deep text-ink-soft'
                     }`}
                   >
-                    {reached ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-3.5 h-3.5" />}
+                    {atteinte ? (
+                      <CheckCircle2 className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Circle className="h-3.5 w-3.5" aria-hidden />
+                    )}
                   </span>
                   <p
-                    className={`mt-2 text-[10px] uppercase tracking-[0.12em] font-semibold ${
-                      reached ? 'text-navy' : 'text-ink-soft'
+                    className={`mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                      atteinte ? 'text-navy' : 'text-ink-soft'
                     }`}
                   >
-                    {STEP_LABELS[step]}
+                    {STEP_LABEL[step]}
                   </p>
                 </div>
               )
@@ -157,120 +270,152 @@ export default function OrderDetailPage({
         )}
       </section>
 
-      {/* Two-col content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2 space-y-6">
-          {/* Meals */}
-          <div className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
-            <h3 className="font-display text-lg font-bold text-navy mb-4 flex items-center gap-2">
-              <ChefHat className="w-4 h-4 text-amber" /> Plats prévus
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section className="space-y-6 lg:col-span-2">
+          {/* ── Plats ──────────────────────────────────────────────────── */}
+          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+            <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
+              <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
             </h3>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {order.meals.map((m) => (
-                <li
-                  key={m.name}
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-cream-soft border border-[rgba(31,42,55,0.04)]"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-amber-soft text-amber-deep flex items-center justify-center text-xs font-bold">
-                    {m.portions}
-                  </span>
-                  <p className="text-sm font-semibold text-navy">{m.name}</p>
-                </li>
-              ))}
-            </ul>
+            {(b.bookingMeals?.length ?? 0) === 0 ? (
+              <p className="text-sm text-ink-soft">
+                Aucun plat rattaché à cette commande.
+              </p>
+            ) : (
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {b.bookingMeals!.map((m) => (
+                  <li
+                    key={m.mealId}
+                    className="flex items-center gap-3 rounded-2xl border border-[rgba(31,42,55,0.04)] bg-cream-soft px-4 py-3"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-soft text-xs font-bold text-amber-deep">
+                      {m.portions}
+                    </span>
+                    <p className="min-w-0 text-sm font-semibold text-navy">
+                      {m.meal?.name ?? 'Plat retiré du catalogue'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {/* Shopping list */}
-          <div className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-bold text-navy flex items-center gap-2">
-                <ShoppingBasket className="w-4 h-4 text-amber" /> Liste de courses
+          {/* ── Liste de courses ───────────────────────────────────────── */}
+          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
+                <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
+                courses
               </h3>
-              <span
-                className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${
-                  order.shoppingByClient ? 'bg-mint text-mint-ink' : 'bg-amber-soft text-amber-deep'
-                }`}
-              >
-                {order.shoppingByClient ? 'Courses : à votre charge' : 'Courses : Lab’s Food'}
-              </span>
+              {courses.data?.persons != null && (
+                <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                  {courses.data.persons} personnes
+                </span>
+              )}
             </div>
 
-            {order.shoppingList ? (
+            {courses.isPending ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-9 animate-pulse rounded-xl bg-cream-soft" />
+                ))}
+              </div>
+            ) : groupes.length === 0 ? (
+              <p className="text-sm leading-relaxed text-ink-soft">
+                Pas encore de liste. Elle se calcule depuis les recettes de vos
+                plats, une fois la prestation confirmée.
+              </p>
+            ) : (
               <div className="space-y-4">
-                {order.shoppingList.map((aisle) => (
-                  <div key={aisle.aisle}>
-                    <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">
-                      {aisle.aisle}
-                    </p>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {aisle.items.map((it) => (
+                {groupes.map((g, gi) => (
+                  <div key={g.aisle || gi}>
+                    {g.aisle && (
+                      <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
+                        {aisleLabel(g.aisle)}
+                      </p>
+                    )}
+                    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {g.lines.map((l, li) => (
                         <li
-                          key={it.name}
-                          className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-cream-soft text-sm"
+                          key={`${l.name}-${li}`}
+                          className="flex items-center justify-between gap-2 rounded-xl bg-cream-soft px-3 py-2 text-sm"
                         >
-                          <span className="text-navy">{it.name}</span>
-                          <span className="text-ink-soft text-xs">{it.qty}</span>
+                          <span className="min-w-0 text-navy">{l.name}</span>
+                          <span className="shrink-0 text-xs tabular-nums text-ink-soft">
+                            {l.qty > 0
+                              ? `${l.qty.toLocaleString('fr-FR')} ${l.unit}`.trim()
+                              : l.unit}
+                          </span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-ink-soft">
-                Pas de liste détaillée pour cette commande — Lab&apos;s Food a tout géré.
-              </p>
             )}
           </div>
-
-          {/* Notes */}
-          {order.notes && (
-            <div className="bg-amber-soft/50 border border-amber/30 rounded-3xl p-5 text-sm text-navy">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-amber-deep font-mono mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Tes consignes
-              </p>
-              {order.notes}
-            </div>
-          )}
         </section>
 
-        {/* Right column */}
+        {/* ── Colonne de droite ─────────────────────────────────────────── */}
         <aside className="space-y-4">
-          <Settlement
-            payment={order.payment}
-            delivered={order.status === 'delivered'}
-            dueAmount={order.amountAfterTax}
-            href={`/espace-client/commandes/${order.id}/paiement`}
-          />
-
-          <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
-            <h4 className="font-display text-base font-bold text-navy mb-3 flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-amber" /> Récapitulatif
+          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
+              <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
-            <ul className="text-sm text-ink-mid space-y-2">
-              <Row label="Forfait" value={`${order.amountTTC} €`} />
-              <Row label="TVA" value="incluse" />
-              <Row label="Crédit d'impôt SAP" value={`-${order.amountTTC - order.amountAfterTax} €`} accent="amber" />
-              <Row label="Reste à charge" value={`${order.amountAfterTax} €`} bold />
-            </ul>
+            {ttc ? (
+              <ul className="space-y-2 text-sm text-ink-mid">
+                <Row label="Prestation TTC" value={ttc} />
+                <Row label="TVA" value="incluse" />
+                <Row label="Crédit d’impôt estimé" value={`− ${credit}`} accent />
+                <Row label="Reste à charge estimé" value={reste ?? '—'} bold />
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-soft">Montant non communiqué par l’API.</p>
+            )}
+            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-ink-soft">
+              <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              Le crédit d’impôt services à la personne est de 50 %. L’API ne
+              renvoie pas ce montant sur une commande : il est calculé ici.
+            </p>
+          </div>
+
+          {/* Le règlement n'a aucun endpoint : on le dit au lieu de l'afficher. */}
+          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
+              <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
+            </h4>
+            <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
+              <strong className="font-semibold text-navy">N/A</strong> — le suivi
+              du paiement n’existe pas encore côté API : une commande ne dit pas
+              si elle est réglée, ni comment.
+            </p>
+            <Link
+              href={`/espace-client/commandes/${b.id}/paiement`}
+              className="btn btn-outline mt-3 w-full justify-center text-xs"
+            >
+              Voir l’écran de règlement
+              <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+            </Link>
           </div>
 
           <Link
             href="/espace-client/messages"
-            className="flex items-center gap-3 bg-mint/40 border border-mint-deep/40 rounded-3xl p-4 hover:bg-mint/60 transition-colors"
+            className="flex items-center gap-3 rounded-3xl border border-mint-deep/40 bg-mint/40 p-4 transition-colors hover:bg-mint/60"
           >
-            <span className="w-10 h-10 rounded-xl bg-mint-deep/20 text-mint-ink flex items-center justify-center">
-              <MessageCircle className="w-4 h-4" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint-deep/20 text-mint-ink">
+              <MessageCircle className="h-4 w-4" aria-hidden />
             </span>
             <div className="text-sm">
               <p className="font-semibold text-navy">Une question ?</p>
-              <p className="text-xs text-ink-mid">Écris à ton chef directement.</p>
+              <p className="text-xs text-ink-mid">Écrivez à votre batch cooker.</p>
             </div>
           </Link>
 
-          <button className="w-full text-xs text-ink-soft hover:text-red-700 transition-colors text-center">
-            Demander une annulation
-          </button>
+          <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-ink-soft">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+            Annuler une prestation n’est pas encore possible depuis cet écran :
+            aucune route ne le permet. Passez par la messagerie.
+          </p>
         </aside>
       </div>
     </div>
@@ -300,131 +445,40 @@ function CheckoutOutcome() {
           <XCircle className="h-4 w-4 text-amber-deep" />
         )}
       </span>
-      <p>
+      <span>
         {ok ? (
           <>
-            <strong className="font-semibold">Paiement accepté.</strong> Votre chef est prévenu et
-            votre reçu est disponible ci-dessous.
+            <strong className="font-semibold">Paiement enregistré.</strong> Votre
+            reçu arrive par email.
           </>
         ) : (
           <>
-            <strong className="font-semibold">Paiement abandonné.</strong> Rien n&apos;a été débité.
-            Vous pouvez reprendre le règlement quand vous voulez.
+            <strong className="font-semibold">Paiement interrompu.</strong> Rien
+            n’a été débité — vous pouvez reprendre quand vous voulez.
           </>
         )}
-      </p>
+      </span>
     </div>
-  )
-}
-
-/** État du règlement : à régler, réglé, ou pas encore exigible. */
-function Settlement({
-  payment,
-  delivered,
-  dueAmount,
-  href,
-}: {
-  payment: OrderPayment
-  delivered: boolean
-  dueAmount: number
-  href: string
-}) {
-  if (payment.status === 'processing') {
-    return (
-      <div className="rounded-3xl bg-cream-soft p-5">
-        <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
-          <BadgeEuro className="h-4 w-4 text-amber-deep" /> Prélèvement en cours
-        </h4>
-        <p className="mt-2 text-sm leading-relaxed text-ink-mid">
-          Vous avez confirmé la prestation en avance immédiate. L’URSSAF prélève{' '}
-          {formatEuros(payment.amountPaid ?? dueAmount)} sur votre compte et règle votre
-          chef. Vous n’avez rien d’autre à faire.
-        </p>
-      </div>
-    )
-  }
-
-  if (payment.status === 'paid') {
-    return (
-      <div className="rounded-3xl bg-mint/40 p-5">
-        <h4 className="font-display text-base font-bold text-navy flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-mint-ink" /> Prestation réglée
-        </h4>
-        <p className="mt-2 text-sm text-ink-mid">
-          {formatEuros(payment.amountPaid ?? dueAmount)}
-          {payment.method && <> · {PAYMENT_METHODS[payment.method].label}</>}
-          {payment.paidAt && (
-            <>
-              {' '}
-              le{' '}
-              {new Date(payment.paidAt).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-              })}
-            </>
-          )}
-        </p>
-        {payment.receiptRef && (
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
-            Reçu {payment.receiptRef}
-          </p>
-        )}
-      </div>
-    )
-  }
-
-  if (payment.status === 'due' || (delivered && payment.status === 'failed')) {
-    const failed = payment.status === 'failed'
-    return (
-      <div className="rounded-3xl bg-navy p-5 text-white">
-        <h4 className="font-display text-base font-bold flex items-center gap-2">
-          <BadgeEuro className="w-4 h-4 text-amber" />
-          {failed ? 'Paiement à reprendre' : 'Prestation à régler'}
-        </h4>
-        <p className="mt-2 text-sm leading-relaxed text-white/70">
-          {failed
-            ? (payment.failureMessage ??
-              'Votre banque a refusé le paiement. Reprenez avec un autre moyen.')
-            : 'Votre chef est passé. Choisissez votre moyen de paiement : le montant dû aujourd’hui en dépend.'}
-        </p>
-        {payment.dueAt && !failed && (
-          <p className="mt-2 text-xs text-white/50">
-            Attendu avant le{' '}
-            {new Date(payment.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-          </p>
-        )}
-        <Link href={href} className="btn btn-amber mt-4 w-full justify-center text-xs">
-          {failed ? 'Reprendre le paiement' : 'Régler la prestation'}
-          <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-        </Link>
-      </div>
-    )
-  }
-
-  return (
-    <p className="rounded-3xl bg-cream-soft p-5 text-sm leading-relaxed text-ink-mid">
-      Le règlement s’ouvre une fois la prestation réalisée. Rien ne vous est demandé avant.
-    </p>
   )
 }
 
 function Row({
   label,
   value,
-  accent,
   bold,
+  accent,
 }: {
   label: string
   value: string
-  accent?: 'amber'
   bold?: boolean
+  accent?: boolean
 }) {
   return (
-    <li className="flex items-center justify-between">
-      <span className="text-ink-soft text-xs uppercase tracking-[0.1em]">{label}</span>
+    <li className="flex items-baseline justify-between gap-3">
+      <span className="text-ink-soft">{label}</span>
       <span
-        className={`${bold ? 'font-display text-lg font-bold text-navy' : ''} ${
-          accent === 'amber' ? 'text-amber font-semibold' : ''
+        className={`text-right tabular-nums ${
+          accent ? 'text-amber-deep' : bold ? 'font-bold text-navy' : 'text-navy'
         }`}
       >
         {value}
