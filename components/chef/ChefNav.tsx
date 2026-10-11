@@ -127,6 +127,7 @@ export function ChefSidebar() {
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
   const counts = useNavCounts()
+  const unread = useUnreadCount().data ?? 0
 
   const initials =
     user?.name
