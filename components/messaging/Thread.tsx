@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ChevronDown,
   EyeOff,
-  FileText,
   Headset,
   Loader2,
   Lock,
@@ -16,17 +15,16 @@ import {
   flattenMessages,
   useConversation,
   useMessages,
-  useOpenAttachment,
   type Conversation,
   type Message,
 } from '@/lib/api/messaging'
 import { cn } from '@/lib/utils'
+import Attachments from './Attachments'
 import Composer from './Composer'
 import {
   contextLine,
   dateTimeLabel,
   dayLabel,
-  fileSize,
   groupByDay,
   hourLabel,
   initials,
@@ -273,7 +271,6 @@ function ContactNotice({ conversation }: { conversation: Conversation }) {
 }
 
 function Bubble({ message, conversation }: { message: Message; conversation: Conversation }) {
-  const openAttachment = useOpenAttachment(conversation.id)
   const mine = message.senderRole === conversation.viewerRole
   // L'équipe qui intervient dans un fil entre un client et un chef.
   const fromTeam = message.senderRole === 'support' && conversation.type === 'chef_client'
@@ -297,29 +294,13 @@ function Bubble({ message, conversation }: { message: Message; conversation: Con
           )}
         >
           {message.body && <p className="whitespace-pre-wrap break-words">{message.body}</p>}
-          {message.attachments.length > 0 && (
-            <ul className={cn('space-y-1.5', message.body && 'mt-2')}>
-              {message.attachments.map((attachment) => (
-                <li key={attachment.id}>
-                  <button
-                    type="button"
-                    disabled={message.pending}
-                    onClick={() => void openAttachment(attachment.id).catch(() => undefined)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs',
-                      mine ? 'bg-white/10 hover:bg-white/20' : 'bg-paper hover:bg-cream-deep',
-                    )}
-                  >
-                    <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate font-medium">
-                      {attachment.fileName}
-                    </span>
-                    <span className="shrink-0 opacity-70">{fileSize(attachment.sizeBytes)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <Attachments
+            conversationId={conversation.id}
+            attachments={message.attachments}
+            mine={mine}
+            pending={message.pending}
+            className={message.body ? 'mt-2' : undefined}
+          />
         </div>
         <p className={cn('mt-1 text-[10px] text-ink-soft', mine && 'text-right')}>
           {message.pending ? 'Envoi…' : hourLabel(message.createdAt)}
