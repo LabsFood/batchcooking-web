@@ -12,6 +12,7 @@ import DashboardTopbar from '@/components/dashboard/DashboardTopbar'
 import ClientSignals from '@/components/dashboard/ClientSignals'
 import DashboardMobileNav from '@/components/dashboard/DashboardMobileNav'
 import LabsLoader from '@/components/shared/LabsLoader'
+import { useTooLong } from '@/lib/use-too-long'
 
 export default function EspaceClientLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isReady, signOut } = useAuth()
@@ -36,28 +37,57 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
   }, [isReady, isAuthenticated, role, router])
 
   // Clerk pas prêt, non connecté, ou /me en cours → loader.
-  if (!isReady || !isAuthenticated || me.isPending) {
+  /*
+   * Une attente peut ne jamais finir : onglet réveillé après des heures,
+   * token que Clerk n'arrive pas à rafraîchir, requête figée. Le loader
+   * promettait alors quelque chose qui n'arrivait pas, sans aucune sortie.
+   */
+  const attente = !isReady || !isAuthenticated || me.isPending
+  const tropLong = useTooLong(attente, 12_000)
+
+  if (attente && !tropLong) {
     return <LabsLoader fullscreen label="On allume les feux…" />
+  }
+
+  if (attente && tropLong) {
+    return (
+      <GateScreen
+        Icon={RotateCw}
+        title="Ça prend trop de temps"
+        text="Votre session a peut-être expiré pendant que l'onglet dormait. Reconnectez-vous : c'est le plus sûr."
+        primary={{ label: 'Se reconnecter', onClick: signOut }}
+      />
+    )
   }
 
   // Erreur API (401 token rejeté, 503, réseau…) : état terminal, pas de
   // redirection. Sortie = se déconnecter.
   if (me.isError) {
-    const is401 = me.error instanceof ApiError && me.error.status === 401
+    const code = me.error instanceof ApiError ? me.error.status : null
+    const expiree = code === 401
+    const injoignable = code === 0
     return (
       <GateScreen
-        Icon={is401 ? ShieldAlert : RotateCw}
-        title={is401 ? 'Session non reconnue' : 'Impossible de vérifier ton accès'}
+        Icon={expiree ? ShieldAlert : RotateCw}
+        title={
+          expiree
+            ? 'Votre session a expiré'
+            : injoignable
+              ? 'Le service ne répond pas'
+              : 'Impossible de vérifier votre accès'
+        }
         text={
-          is401
-            ? "Tu es connecté·e, mais l'API a refusé le token (401). Déconnecte-toi puis reconnecte-toi ; si ça persiste, c'est la validation du token côté backend à corriger."
-            : me.error instanceof ApiError
-              ? me.error.message
-              : 'Le service est momentanément indisponible.'
+          expiree
+            ? "L'API a refusé votre jeton de session. Reconnectez-vous, cela suffit presque toujours."
+            : injoignable
+              ? "La requête n'a pas abouti dans le temps imparti. Vérifiez votre connexion, puis réessayez."
+              : me.error instanceof ApiError
+                ? me.error.message
+                : 'Le service est momentanément indisponible.'
         }
         primary={
-          is401
-            ? { label: 'Se déconnecter', onClick: signOut }
+          expiree
+            ? { label: 'Se reconnecter', onClick: signOut }
             : { label: 'Réessayer', onClick: () => me.refetch() }
         }
       />

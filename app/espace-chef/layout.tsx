@@ -2,11 +2,13 @@
 
 import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { RotateCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
 import { ChefSidebar, ChefMobileNav } from '@/components/chef/ChefNav'
 import ChefSignals from '@/components/chef/ChefSignals'
 import LabsLoader from '@/components/shared/LabsLoader'
+import { useTooLong } from '@/lib/use-too-long'
 
 /**
  * Garde de rôle, symétrique de celle de /espace-client (qui renvoie déjà les
@@ -19,7 +21,7 @@ import LabsLoader from '@/components/shared/LabsLoader'
  * un client dont le rôle était parfaitement connu.
  */
 export default function EspaceChefLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isReady } = useAuth()
+  const { isAuthenticated, isReady, signOut } = useAuth()
   const router = useRouter()
   const me = useMe()
 
@@ -42,8 +44,43 @@ export default function EspaceChefLayout({ children }: { children: ReactNode }) 
 
   // Clerk pas prêt, non connecté, ou redirection en cours → loader. On ne rend
   // surtout pas le dashboard chef entre-temps.
-  if (!isReady || !isAuthenticated || isIntruder) {
+  //
+  // Mais une attente peut ne jamais finir — onglet réveillé après des heures,
+  // token que Clerk n'arrive pas à rafraîchir. Passé douze secondes, on cesse
+  // de promettre et on propose une sortie.
+  const attente = !isReady || !isAuthenticated || isIntruder
+  const tropLong = useTooLong(attente, 12_000)
+
+  if (attente && !tropLong) {
     return <LabsLoader fullscreen label="On allume les fourneaux…" />
+  }
+
+  if (attente && tropLong) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream px-6">
+        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cream-deep text-ink-soft">
+            <RotateCw className="h-6 w-6" aria-hidden />
+          </span>
+          <p className="font-display text-lg font-bold text-navy">
+            Ça prend trop de temps
+          </p>
+          <p className="text-sm leading-relaxed text-ink-mid">
+            Votre session a peut-être expiré pendant que l’onglet dormait.
+            Reconnectez-vous : c’est le plus sûr.
+          </p>
+          <button
+            onClick={() => {
+              signOut()
+              router.replace('/auth/login?next=/espace-chef')
+            }}
+            className="btn btn-primary mt-2 text-sm"
+          >
+            Se reconnecter
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // La palette est montée ici : la barre du haut est rendue par chaque écran
