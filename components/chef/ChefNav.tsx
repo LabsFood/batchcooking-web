@@ -35,6 +35,7 @@ import { useChefDocuments } from '@/lib/api/chef-documents'
 import { useMe } from '@/lib/api/me'
 import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 import { useOffers } from '@/lib/api/chef-catalog'
+import { useUnreadCount } from '@/lib/api/messaging'
 
 /**
  * Navigation en 5 groupes (cf. architecture cible § 4.1 du brief).
@@ -154,7 +155,9 @@ export function ChefSidebar() {
               </p>
               <ul className="space-y-0.5">
                 {items.map(({ href, label, Icon }) => {
-                  const n = counts[href] ?? 0
+                  // La messagerie compte ses non-lus à part, les autres entrées
+                  // viennent de `useNavCounts`.
+                  const n = href === MESSAGING_HREF ? unread : (counts[href] ?? 0)
                   const badge = n > 0 ? String(n) : null
                   const active = isActive(pathname, href)
                   return (
