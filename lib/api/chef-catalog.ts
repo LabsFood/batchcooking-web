@@ -303,10 +303,22 @@ export function useSuggestions() {
   })
 }
 
-/** Adopter crée **une copie** chez le chef : l'original reste à Lab's Food. */
+/**
+ * Adopter crée **une copie** chez le chef : l'original reste à Lab's Food.
+ *
+ * `{ consent: true }` est exigé — `422 CONSENT_REQUIRED` sinon. Ce n'est pas
+ * une formalité : l'API enregistre ce consentement, parce que rien n'est
+ * recopié chez quelqu'un sans qu'il l'ait voulu. Le hook réclame donc le
+ * consentement en argument, pour qu'on ne puisse pas l'envoyer sans l'avoir
+ * demandé.
+ *
+ * Adopter deux fois rend la copie existante (`created: false`). Un menu
+ * emporte ses plats ; un plat déjà adopté est réutilisé, pas recopié.
+ */
 export const useAdoptSuggestion = () =>
-  useCatalogMutation<string, unknown>(
-    (f, id) => f(`/me/suggestions/${id}/adopt`, { method: 'POST' }),
+  useCatalogMutation<{ id: string; consent: true }, unknown>(
+    (f, { id, consent }) =>
+      f(`/me/suggestions/${id}/adopt`, { method: 'POST', body: { consent } }),
     [SUGGESTIONS, DISHES, MENUS],
   )
 
@@ -315,10 +327,18 @@ export function useOffers() {
   return useQuery({ queryKey: OFFERS, queryFn: () => apiFetch<Suggestions>('/me/offers') })
 }
 
+/**
+ * Accepter exige le même consentement enregistré que l'adoption ; refuser
+ * n'exige rien, et l'offre retourne à Lab's Food qui pourra la proposer
+ * ailleurs. D'où le corps envoyé dans un cas et pas dans l'autre.
+ */
 export const useAnswerOffer = () =>
   useCatalogMutation<{ id: string; accept: boolean }, unknown>(
     (f, { id, accept }) =>
-      f(`/me/offers/${id}/${accept ? 'accept' : 'decline'}`, { method: 'POST' }),
+      f(
+        `/me/offers/${id}/${accept ? 'accept' : 'decline'}`,
+        accept ? { method: 'POST', body: { consent: true } } : { method: 'POST' },
+      ),
     [OFFERS, DISHES, MENUS],
   )
 

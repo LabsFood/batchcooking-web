@@ -124,7 +124,6 @@ const MESSAGING_HREF = '/espace-chef/messagerie'
 
 export function ChefSidebar() {
   const pathname = usePathname()
-  const unread = useUnreadCount().data ?? 0
   const { user, roleLabel, signOut } = useAuth()
   const router = useRouter()
   const counts = useNavCounts()

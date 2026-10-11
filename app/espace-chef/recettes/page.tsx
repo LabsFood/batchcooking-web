@@ -610,10 +610,47 @@ function MenuCard({ menu }: { menu: Menu }) {
 
 // ── Propositions Lab's Food ─────────────────────────────────────────────────
 
+/** Ce qu'on s'apprête à adopter, le temps de le confirmer. */
+interface ADopter {
+  id: string
+  nom: string
+  genre: 'plat' | 'carte'
+}
+
 function SuggestionsTab() {
   const toast = useToast()
   const query = useSuggestions()
   const adopt = useAdoptSuggestion()
+  const [aDopter, setADopter] = useState<ADopter | null>(null)
+
+  /*
+   * L'API exige `{ consent: true }` et **enregistre** ce consentement : elle
+   * ne copie rien chez quelqu'un sans qu'il l'ait voulu. L'envoyer au clic,
+   * sans rien demander, viderait la garantie de son sens. On demande donc,
+   * une fois, avant de copier.
+   */
+  function confirmerAdoption() {
+    const quoi = aDopter
+    if (!quoi) return
+    adopt.mutate(
+      { id: quoi.id, consent: true },
+      {
+        onSuccess: () => {
+          setADopter(null)
+          toast.success(
+            `« ${quoi.nom} » ${
+              quoi.genre === 'plat' ? 'ajouté à vos plats' : 'ajoutée à vos cartes'
+            }`,
+            'Une copie, en brouillon : modifiez-la comme vous voulez.',
+          )
+        },
+        onError: (e) =>
+          toast.error('L’adoption a échoué', e instanceof Error ? e.message : undefined),
+      },
+    )
+  }
+
+  const demanderAdoption = (quoi: ADopter) => setADopter(quoi)
 
   if (query.isPending) return <Skeleton />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="les propositions" />
@@ -657,13 +694,7 @@ function SuggestionsTab() {
                   </span>
                 ) : (
                   <button
-                    onClick={() =>
-                      adopt.mutate(d.id, {
-                        onSuccess: () =>
-                          toast.success(`« ${d.name} » ajouté à vos plats`, 'Une copie : modifiez-la comme vous voulez.'),
-                        onError: () => toast.error('L’adoption a échoué'),
-                      })
-                    }
+                    onClick={() => demanderAdoption({ id: d.id, nom: d.name, genre: 'plat' })}
                     disabled={adopt.isPending}
                     className="btn btn-outline text-xs"
                   >
@@ -693,12 +724,7 @@ function SuggestionsTab() {
                   </span>
                 ) : (
                   <button
-                    onClick={() =>
-                      adopt.mutate(m.id, {
-                        onSuccess: () => toast.success(`« ${m.title} » ajoutée à vos cartes`),
-                        onError: () => toast.error('L’adoption a échoué'),
-                      })
-                    }
+                    onClick={() => demanderAdoption({ id: m.id, nom: m.title, genre: 'carte' })}
                     disabled={adopt.isPending}
                     className="btn btn-outline text-xs"
                   >
@@ -709,6 +735,54 @@ function SuggestionsTab() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Le consentement, demandé une fois, puis enregistré par l'API. */}
+      {aDopter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Adopter ${aDopter.nom}`}
+            className="w-full max-w-md rounded-2xl bg-paper p-6"
+          >
+            <h3 className="font-display text-lg font-bold text-navy">
+              Adopter «&nbsp;{aDopter.nom}&nbsp;» ?
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+              Une copie entre dans vos {aDopter.genre === 'plat' ? 'plats' : 'cartes'}, en
+              brouillon : vous la modifiez, la publiez ou la supprimez librement. L’original
+              reste à Lab’s Food.
+            </p>
+            <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+              Si Lab’s Food corrige plus tard les allergènes, les régimes ou le pays, votre
+              copie est signalée et vous êtes prévenu — elle n’est jamais modifiée à votre
+              place.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                onClick={confirmerAdoption}
+                disabled={adopt.isPending}
+                className="btn btn-primary text-xs"
+              >
+                {adopt.isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Copie en cours…
+                  </>
+                ) : (
+                  'Oui, adopter'
+                )}
+              </button>
+              <button
+                onClick={() => setADopter(null)}
+                disabled={adopt.isPending}
+                className="btn btn-ghost text-xs"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   )

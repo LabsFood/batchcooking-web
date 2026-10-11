@@ -4,152 +4,137 @@ import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Plus, Check, Clock, Users, Flame, Sparkles, ArrowRight, ChefHat } from 'lucide-react'
-import { WEEKLY_MEALS } from '@/lib/mock-data'
-import ReserveButton from '@/components/shared/ReserveButton'
+import { ArrowRight, Sparkles } from 'lucide-react'
+import {
+  MenuCard,
+  MenuDialog,
+  MenuFilterBar,
+  MenusError,
+  MenusLoading,
+  NoMenus,
+  useMenuFilters,
+} from '@/components/menu/ChefMenuBrowser'
+import { weekLabel, type WeekCard } from '@/lib/api/menus'
+import { useDiets } from '@/lib/api/referentials'
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Menus et plats, côté client connecté.
+
+   L'écran montrait une grille de plats sans chef, tirée des maquettes. Or on
+   ne réserve pas un plat : on réserve quelqu'un, qui cuisine chez vous. C'est
+   donc le même parcours que sur le site public et que dans la réservation —
+   littéralement le même composant, pour que ce qu'on a vu avant de se
+   connecter soit ce qu'on retrouve après.
+
+   Seule l'action finale change : ici elle emmène vers la réservation avec le
+   chef et les plats déjà retenus.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 function DashboardMenusInner() {
-  const params = useSearchParams()
-  const reserveMode = params.get('reserve') === '1'
-  const [picked, setPicked] = useState<string[]>([])
-  const MAX = 7
-  const toggle = (id: string) =>
-    setPicked((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : p.length < MAX ? [...p, id] : p,
-    )
+  const reserveMode = useSearchParams().get('reserve') === '1'
+  const filters = useMenuFilters()
+  const [open, setOpen] = useState<WeekCard | null>(null)
+  const diets = useDiets([])
+  const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
+
+  const menus = filters.menus
 
   return (
     <div className="space-y-6">
-      {/* Reserve-flow banner */}
       {reserveMode && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl bg-amber-soft/70 border border-amber/40 p-4 lg:p-5 flex items-start gap-3"
+          className="flex items-start gap-3 rounded-3xl border border-amber/40 bg-amber-soft/70 p-4 lg:p-5"
         >
-          <span className="w-10 h-10 rounded-xl bg-amber text-navy flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber text-navy">
+            <Sparkles className="h-4 w-4" aria-hidden />
           </span>
           <div className="flex-1 text-sm text-navy">
-            <p className="font-semibold">D&apos;abord les plats, ensuite la réservation.</p>
-            <p className="text-xs text-ink-mid mt-0.5 leading-relaxed">
-              Sélectionne entre 3 et {MAX} plats ci-dessous, puis clique sur
-              <strong className="text-navy"> Continuer ma réservation</strong>.
+            <p className="font-semibold">D’abord le chef, ensuite ses plats.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-ink-mid">
+              Ouvrez la carte de celui dont la cuisine vous parle, cochez vos plats, et la
+              réservation reprend là où vous en êtes.
             </p>
           </div>
         </motion.div>
       )}
 
-      {/* Hero strip */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-mint via-mint/80 to-mint-deep/30 p-6 lg:p-7 border border-mint-deep/30">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-center">
-          <div>
-            <p className="eyebrow mb-3" style={{ color: 'var(--mint-ink)' }}>Semaine 18</p>
-            <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
-              Compose ton menu — ton chef s&apos;occupe du reste.
-            </h2>
-            <p className="text-ink-mid text-sm mt-2 max-w-xl leading-relaxed">
-              Sélectionne jusqu&apos;à <span className="font-semibold text-navy">{MAX} plats</span> pour
-              ta prochaine session. Tes choix apparaissent direct dans ta commande.
-            </p>
-          </div>
-          <div className="flex flex-col items-start lg:items-end gap-2">
-            <span className="px-3 py-1 rounded-full bg-paper text-navy text-xs font-semibold border border-mint-deep/40">
-              {picked.length} / {MAX} sélectionnés
-            </span>
-            {picked.length >= 3 ? (
-              <Link
-                href={`/espace-client/reservation?meals=${picked.join(',')}`}
-                className="btn btn-navy text-xs"
-              >
-                {reserveMode ? 'Continuer ma réservation' : 'Réserver avec ces plats'}
-                <ArrowRight className="w-4 h-4 icon-arrow" />
-              </Link>
-            ) : (
-              <span className="btn btn-navy text-xs opacity-40 cursor-not-allowed">
-                Encore {3 - picked.length} plat{3 - picked.length > 1 ? 's' : ''} minimum
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {WEEKLY_MEALS.map((meal, i) => {
-          const isPicked = picked.includes(meal.id)
-          return (
-            <motion.button
-              key={meal.id}
-              type="button"
-              onClick={() => toggle(meal.id)}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: i * 0.04 }}
-              className={`group text-left rounded-3xl overflow-hidden bg-paper border-2 transition-all relative ${
-                isPicked
-                  ? 'border-amber shadow-[0_18px_36px_-16px_rgba(243,156,18,0.6)]'
-                  : 'border-[rgba(31,42,55,0.06)] hover:border-amber/50'
-              }`}
-            >
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img
-                  src={meal.image}
-                  alt={meal.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <span
-                  className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    isPicked ? 'bg-amber text-navy' : 'bg-paper/85 text-navy'
-                  }`}
-                >
-                  {isPicked ? <Check className="w-4 h-4" strokeWidth={3} /> : <Plus className="w-4 h-4" />}
-                </span>
-                {meal.isFeatured && (
-                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-navy text-amber text-[10px] font-mono uppercase tracking-[0.12em] flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Coup de cœur
-                  </span>
-                )}
-              </div>
-              <div className="p-4">
-                <h4 className="font-display text-base font-bold text-navy leading-tight line-clamp-2">
-                  {meal.name}
-                </h4>
-                <p className="text-xs text-ink-soft mt-1.5 line-clamp-3 leading-relaxed">
-                  {meal.description}
-                </p>
-              </div>
-            </motion.button>
-          )
-        })}
-      </section>
-
-      {/* Custom CTA */}
-      <section className="rounded-3xl p-6 lg:p-7 bg-paper border border-dashed border-amber/40 text-center">
-        <span className="inline-flex w-12 h-12 rounded-full bg-amber-soft text-amber-deep items-center justify-center mb-3">
-          <ChefHat className="w-5 h-5" />
-        </span>
-        <h3 className="font-display text-xl font-bold text-navy mb-1">
-          Ton plat fétiche n&apos;est pas dans la liste ?
-        </h3>
-        <p className="text-sm text-ink-mid mb-4 max-w-md mx-auto">
-          Demande une session sur-mesure : recettes perso, régime spécial, événement privé.
+      <section className="rounded-3xl border border-mint-deep/30 bg-gradient-to-br from-mint via-mint/80 to-mint-deep/30 p-6 lg:p-7">
+        <p className="eyebrow mb-3" style={{ color: 'var(--mint-ink)' }}>
+          Semaine {weekLabel(filters.week)}
         </p>
-        <Link
-          href="/espace-client/personnalisation"
-          className="btn btn-primary text-xs"
-        >
-          Faire une demande
-          <ArrowRight className="w-4 h-4 icon-arrow" />
-        </Link>
+        <h2 className="font-display text-2xl font-bold leading-tight text-navy lg:text-3xl">
+          Les cartes de la semaine, chef par chef.
+        </h2>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-mid">
+          Chaque batch cooker compose la sienne. Choisissez celui dont la cuisine vous
+          parle, puis les plats que vous voulez retrouver dans votre frigo.
+        </p>
       </section>
+
+      <MenuFilterBar filters={filters} />
+
+      <p className="text-sm text-ink-mid" aria-live="polite">
+        {filters.isPending
+          ? 'Lecture des cartes de la semaine…'
+          : menus.length === 0
+            ? 'Aucune carte ne correspond à votre recherche.'
+            : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} cette semaine`}
+      </p>
+
+      {filters.isPending ? (
+        <MenusLoading />
+      ) : filters.isError ? (
+        <MenusError onRetry={filters.refetch} />
+      ) : menus.length === 0 ? (
+        <NoMenus onReset={filters.reset} filtered={filters.active}>
+          <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
+            Faire une demande sur mesure
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </NoMenus>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          {menus.map((menu, i) => (
+            <MenuCard
+              key={menu.chef.id}
+              menu={menu}
+              index={i}
+              onOpen={() => setOpen(menu)}
+              openLabel="Voir sa carte"
+              dietLabel={dietLabel}
+            />
+          ))}
+        </div>
+      )}
+
+      <MenuDialog
+        menu={open}
+        onClose={() => setOpen(null)}
+        dietLabel={dietLabel}
+        renderAction={({ menu, selected }) => (
+          <Link
+            href={`/espace-client/reservation?chef=${menu.chef.id}${
+              selected.length > 0 ? `&meals=${selected.join(',')}` : ''
+            }`}
+            className={`btn btn-primary text-xs ${
+              selected.length === 0 ? 'pointer-events-none opacity-55' : ''
+            }`}
+            aria-disabled={selected.length === 0}
+          >
+            Réserver avec {menu.chef.displayName.split(' ')[0]}
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          </Link>
+        )}
+      />
     </div>
   )
 }
 
 export default function DashboardMenusPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<MenusLoading />}>
       <DashboardMenusInner />
     </Suspense>
   )
