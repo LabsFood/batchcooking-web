@@ -13,12 +13,14 @@ import {
   MapPin,
   MessageSquare,
 } from 'lucide-react'
+import { ApiError, apiFetch } from '@/lib/api/client'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Formulaire de contact.
 
    Le sujet oriente la demande vers la bonne équipe et évite les allers-retours.
-   L'envoi est simulé : brancher l'API revient à remplacer `send`.
+   Le message part vers l'API (`POST /contact-messages`, route publique) et arrive
+   dans la boîte de réception de la console admin.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const SUBJECTS = [
@@ -39,11 +41,30 @@ interface Errors {
   consent?: string
 }
 
-async function send(payload: Record<string, unknown>): Promise<void> {
-  await new Promise((r) => setTimeout(r, 1000))
-  if (process.env.NODE_ENV !== 'production') {
-    console.info('[contact] POST /contact (simulé)', payload)
-  }
+interface ContactPayload {
+  name: string
+  email: string
+  /** Le libellé du sujet, tel que l'équipe le lira. */
+  subject: string
+  message: string
+  /** Champ piège : invisible, donc laissé vide par une personne. */
+  website: string
+}
+
+/** Sans jeton : le visiteur n'a pas forcément de compte. */
+function send(payload: ContactPayload): Promise<{ received: true }> {
+  return apiFetch('/contact-messages', {
+    token: null,
+    method: 'POST',
+    body: {
+      source: 'batchcooking',
+      name: payload.name,
+      email: payload.email,
+      subject: payload.subject,
+      message: payload.message,
+      ...(payload.website ? { website: payload.website } : {}),
+    },
+  })
 }
 
 export default function ContactForm() {
@@ -52,10 +73,12 @@ export default function ContactForm() {
   const [subject, setSubject] = useState<string>(SUBJECTS[0].id)
   const [message, setMessage] = useState('')
   const [consent, setConsent] = useState(false)
+  const [website, setWebsite] = useState('')
   const [errors, setErrors] = useState<Errors>({})
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // `false`, ou la raison de l'échec quand on la connaît.
+  const [failed, setFailed] = useState<false | 'error' | 'too-many'>(false)
 
   const validate = (): Errors => {
     const e: Errors = {}
@@ -80,10 +103,16 @@ export default function ContactForm() {
     setSending(true)
     setFailed(false)
     try {
-      await send({ name: name.trim(), email: email.trim().toLowerCase(), subject, message: message.trim() })
+      await send({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        subject: SUBJECTS.find((s) => s.id === subject)?.label ?? subject,
+        message: message.trim(),
+        website,
+      })
       setSent(true)
-    } catch {
-      setFailed(true)
+    } catch (cause) {
+      setFailed(cause instanceof ApiError && cause.status === 429 ? 'too-many' : 'error')
     } finally {
       setSending(false)
     }
@@ -128,6 +157,21 @@ export default function ContactForm() {
               Dites-nous en quelques lignes ce dont vous avez besoin. Plus c&apos;est précis, plus notre réponse le
               sera.
             </p>
+
+            {/* Champ piège anti-robot : hors écran, hors tabulation, ignoré des lecteurs d'écran. */}
+            <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+              <label>
+                Site web
+                <input
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </label>
+            </div>
 
             <div className="mt-8 space-y-5">
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -230,8 +274,9 @@ export default function ContactForm() {
               {failed && (
                 <p role="alert" className="flex items-start gap-2.5 rounded-xl bg-red-50 px-4 py-3 text-[13px] text-red-800">
                   <AlertCircle className="mt-px h-4 w-4 shrink-0" aria-hidden />
-                  L&apos;envoi n&apos;a pas abouti. Réessayez dans un instant, ou écrivez directement à
-                  contact@labsfood.fr.
+                  {failed === 'too-many'
+                    ? 'Vous avez envoyé plusieurs messages en peu de temps. Réessayez dans une heure, ou écrivez directement à contact@labsfood.fr.'
+                    : 'L’envoi n’a pas abouti. Réessayez dans un instant, ou écrivez directement à contact@labsfood.fr.'}
                 </p>
               )}
 
