@@ -616,11 +616,12 @@ function RequestCard({ quote }: { quote: Quote }) {
             })}
             {quote.booking.reference ? ` · ${quote.booking.reference}` : ''}
           </p>
+          {/* Le règlement se fait après la prestation : la page le dit si c'est trop tôt. */}
           <Link
-            href="/espace-client/commandes"
+            href={`/espace-client/commandes/${quote.booking.id}/paiement`}
             className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-navy underline"
           >
-            Voir mes prestations <ArrowRight className="w-3 h-3" />
+            Régler la prestation <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
       )}
