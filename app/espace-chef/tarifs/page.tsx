@@ -15,6 +15,7 @@ import {
   toClientPrice,
   type ChefPricing,
 } from '@/lib/chef/pricing'
+import { usePricingRules } from '@/lib/api/quotes'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mes tarifs.
@@ -29,9 +30,12 @@ export default function ChefPricingPage() {
   const [p, setP] = useState<ChefPricing>(DEFAULT_PRICING)
   const set = <K extends keyof ChefPricing>(k: K, v: ChefPricing[K]) => setP((prev) => ({ ...prev, [k]: v }))
 
+  const rules = usePricingRules()
+  const rate = rules.data ? rules.data.commissionBps / 10_000 : COMMISSION_RATE
+
   const error = pricingError(p)
   const shopping = effectiveShoppingFee(p)
-  const sessionClient = toClientPrice(p.baseNet) + toClientPrice(shopping)
+  const sessionClient = toClientPrice(p.baseNet, rate) + toClientPrice(shopping, rate)
 
   return (
     <ChefPage title="Mes tarifs" subtitle="Vous saisissez ce que vous touchez — le reste est calculé.">
@@ -78,15 +82,16 @@ export default function ChefPricingPage() {
               </p>
 
               <div className="mt-5 border-t border-[rgba(31,42,55,0.08)] pt-5">
-                <PriceRow label="Prix de la session de base" value={p.baseNet} onChange={(v) => set('baseNet', v)} />
+                <PriceRow rate={rate} label="Prix de la session de base" value={p.baseNet} onChange={(v) => set('baseNet', v)} />
               </div>
             </Card>
 
             {/* Suppléments */}
             <Card title="Au-delà de la base">
               <div className="space-y-5">
-                <PriceRow label="Repas supplémentaire" value={p.extraMealNet} onChange={(v) => set('extraMealNet', v)} />
+                <PriceRow rate={rate} label="Repas supplémentaire" value={p.extraMealNet} onChange={(v) => set('extraMealNet', v)} />
                 <PriceRow
+                  rate={rate}
                   label="Personne supplémentaire"
                   value={p.extraPersonNet}
                   onChange={(v) => set('extraPersonNet', v)}
@@ -136,6 +141,7 @@ export default function ChefPricingPage() {
 
                   {!p.shoppingFree && (
                     <PriceRow
+                      rate={rate}
                       label="Forfait courses"
                       hint={`Minimum ${SHOPPING_FEE_MIN} €`}
                       value={p.shoppingFeeNet}
@@ -176,7 +182,7 @@ export default function ChefPricingPage() {
 
             <div className="mt-4 rounded-xl bg-white/5 px-3 py-2.5">
               <p className="text-[10px] leading-relaxed text-white/50">
-                Taux de commission indicatif ({COMMISSION_RATE * 100} %) — en attente de la décision Lab&apos;s Food.
+                Commission Lab&apos;s Food : {(rate * 100).toLocaleString('fr-FR')} % du prix client.
               </p>
             </div>
 
@@ -245,12 +251,14 @@ function PriceRow({
   hint,
   value,
   min = 0,
+  rate,
   onChange,
 }: {
   label: string
   hint?: string
   value: number
   min?: number
+  rate: number
   onChange: (n: number) => void
 }) {
   const invalid = value < min
@@ -273,7 +281,7 @@ function PriceRow({
         </div>
         <div className="min-w-[92px] text-right">
           <p className="text-[10px] uppercase tracking-wide text-ink-soft">Prix client</p>
-          <p className="text-sm font-semibold text-navy">{euros(toClientPrice(value))}</p>
+          <p className="text-sm font-semibold text-navy">{euros(toClientPrice(value, rate))}</p>
         </div>
       </div>
     </div>

@@ -199,7 +199,7 @@ export function applicableDocuments(
 
 // ── Offres sur-mesure ───────────────────────────────────────────────────────
 
-export type OfferStatus = 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired'
+export type OfferStatus = 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired' | 'withdrawn'
 
 export const OFFER_STATUS_LABEL: Record<OfferStatus, string> = {
   sent: 'Envoyée',
@@ -207,6 +207,7 @@ export const OFFER_STATUS_LABEL: Record<OfferStatus, string> = {
   accepted: 'Acceptée',
   declined: 'Refusée',
   expired: 'Expirée',
+  withdrawn: 'Retirée',
 }
 
 // ── Prestations ─────────────────────────────────────────────────────────────
