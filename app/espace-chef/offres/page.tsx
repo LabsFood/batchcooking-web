@@ -28,7 +28,15 @@ const MESSAGES: Record<string, string> = {
   QUOTE_CLOSED: 'Cette demande est close.',
   QUOTE_NOT_AWAITING_CHEF: 'Cette demande n’attend plus de réponse.',
   DATE_TOO_SOON: 'La date proposée doit être à partir de demain.',
+  DATE_TOO_FAR: 'La date proposée doit être dans l’année qui vient.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
+}
+
+/** Un jour à `n` jours d'ici, en date locale, au format des champs date. */
+function dayFromNow(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 const errorText = (error: unknown, fallback: string) =>
@@ -272,8 +280,22 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
   const preview = rules.data ? previewOffer(netCents, rules.data) : null
   const clientName = quote.client?.name ?? 'le client'
 
+  // Les règles de l'API (`quote.rules.ts`), répétées pour le message : elle revérifie tout.
+  const problem = (): string | null => {
+    if (!Number.isFinite(net) || net < 10) return 'Votre net perçu est d’au moins 10 €.'
+    if (net > 20_000) return 'Votre net perçu ne peut pas dépasser 20 000 €.'
+    if (conditions.length > 2000) return 'Vos conditions tiennent en 2 000 caractères.'
+    if (otherDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Indiquez la date que vous proposez.'
+      if (date < dayFromNow(1)) return MESSAGES.DATE_TOO_SOON
+      if (date > dayFromNow(365)) return MESSAGES.DATE_TOO_FAR
+    }
+    return null
+  }
+
   const submit = () => {
-    if (!(net >= 10)) return setError('Votre net perçu est d’au moins 10 €.')
+    const refused = problem()
+    if (refused) return setError(refused)
     setError(null)
     send.mutate(
       {
@@ -319,8 +341,10 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   <input
                     type="number"
                     min={10}
+                    max={20000}
+                    step="0.01"
                     value={net}
-                    onChange={(e) => setNet(Math.max(0, Number(e.target.value)))}
+                    onChange={(e) => setNet(Math.max(0, Number(e.target.value) || 0))}
                     className="input-base pr-10 font-display text-xl font-bold"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft">€</span>
@@ -359,7 +383,14 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                 </label>
                 {otherDate && (
                   <div className="grid grid-cols-2 gap-3 mt-2">
-                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base" />
+                    <input
+                      type="date"
+                      value={date}
+                      min={dayFromNow(1)}
+                      max={dayFromNow(365)}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="input-base"
+                    />
                     <select value={slot} onChange={(e) => setSlot(e.target.value as TimeSlot)} className="input-base">
                       {SLOTS.map((s) => (
                         <option key={s} value={s}>

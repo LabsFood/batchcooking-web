@@ -57,12 +57,24 @@ const STATUS_COLOR: Record<QuoteStatus, string> = {
 const DIETS = ['Végétarien', 'Vegan', 'Sans-gluten', 'Sans-lactose', 'Halal', 'Casher', 'High-protein']
 const SLOTS: TimeSlot[] = ['morning', 'afternoon', 'evening']
 
-/** Demain, en date locale : l'API refuse une prestation pour le jour même. */
-function tomorrow(): string {
+/** Un jour à `n` jours d'ici, en date locale, au format des champs date. */
+function dayFromNow(n: number): string {
   const d = new Date()
-  d.setDate(d.getDate() + 1)
+  d.setDate(d.getDate() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+/** Demain : l'API refuse une prestation pour le jour même. */
+const tomorrow = () => dayFromNow(1)
+/** Un an : au-delà, l'API refuse aussi. */
+const latest = () => dayFromNow(365)
+
+/* Les mêmes règles que l'API (`quote.dto.ts`). Elles sont répétées ici pour le
+   confort — un message clair avant l'envoi — jamais pour la sécurité : c'est
+   l'API qui fait foi, et elle revérifie tout. */
+const HAS_LETTER = /\p{L}/u
+const CITY = /^\p{L}[\p{L} .'’-]*$/u
+const MAX_BUDGET_EUROS = 100_000
 
 const errorText = (error: unknown, fallback: string) =>
   error instanceof ApiError && error.status !== 0 && error.status < 500
@@ -72,6 +84,9 @@ const errorText = (error: unknown, fallback: string) =>
 /** Les refus de l'API que le client peut comprendre et corriger. */
 const MESSAGES: Record<string, string> = {
   DATE_TOO_SOON: 'Choisis une date à partir de demain.',
+  DATE_TOO_FAR: 'Choisis une date dans l’année qui vient.',
+  DUPLICATE_REQUEST: 'Cette demande vient déjà d’être envoyée : elle est dans ta liste.',
+  TOO_MANY_OPEN_REQUESTS: 'Tu as déjà 10 demandes en cours. Retires-en une avant d’en envoyer une nouvelle.',
   CHEF_NOT_AVAILABLE: 'Ce batch cooker n’est plus disponible. Choisis-en un autre.',
   SAME_PERSON: 'Tu ne peux pas t’adresser une demande à toi-même.',
   OFFER_EXPIRED: 'Cette offre a expiré. Le batch cooker peut t’en proposer une nouvelle.',
@@ -141,17 +156,43 @@ function RequestForm() {
   const toggle = (d: string) =>
     setDiets((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]))
 
+  /** Les allergies saisies : nettoyées, sans vide ni doublon. */
+  const allergyList = () => {
+    const seen = new Set<string>()
+    return allergies
+      .split(',')
+      .map((a) => a.trim().replace(/\s+/g, ' '))
+      .filter((a) => {
+        const key = a.toLowerCase()
+        if (!key || seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+  }
+
   /** Ce qui manque, dans les mots du formulaire — avant de solliciter l'API. */
   const missing = (): string | null => {
-    if (title.trim().length < 3) return 'Donne un titre à ta demande.'
-    if (!date) return 'Choisis la date souhaitée.'
+    if (title.trim().length < 3 || !HAS_LETTER.test(title)) return 'Donne un titre à ta demande.'
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Choisis la date souhaitée.'
     if (date < tomorrow()) return MESSAGES.DATE_TOO_SOON
-    if (cuisine.trim().length < 2) return 'Indique le style culinaire.'
-    if (brief.trim().length < 10) return 'Décris ta demande en quelques phrases.'
-    if (addressLine.trim().length < 3) return 'Indique l’adresse de la prestation.'
+    if (date > latest()) return MESSAGES.DATE_TOO_FAR
+    if (cuisine.trim().length < 2 || !HAS_LETTER.test(cuisine)) return 'Indique le style culinaire.'
+    const labels = allergyList()
+    if (labels.length > 20) return 'Indique 20 allergies au plus.'
+    if (labels.some((a) => a.length > 60)) {
+      return 'Une allergie tient en quelques mots : sépare-les par des virgules.'
+    }
+    if (brief.trim().length < 10 || !HAS_LETTER.test(brief)) return 'Décris ta demande en quelques phrases.'
+    if (addressLine.trim().length < 3 || !HAS_LETTER.test(addressLine)) {
+      return 'Indique l’adresse de la prestation : numéro et rue.'
+    }
     if (!/^\d{5}$/.test(postalCode.trim())) return 'Le code postal compte 5 chiffres.'
-    if (!city.trim()) return 'Indique la ville.'
-    if (budget && !(Number(budget) > 0)) return 'Le budget est un montant en euros.'
+    if (!CITY.test(city.trim())) return 'Indique le nom de la ville.'
+    if (budget.trim()) {
+      const euros = Number(budget.replace(',', '.'))
+      if (!Number.isFinite(euros) || euros <= 0) return 'Le budget est un montant en euros.'
+      if (euros > MAX_BUDGET_EUROS) return 'Le budget indiqué est trop élevé.'
+    }
     return null
   }
 
@@ -172,15 +213,12 @@ function RequestForm() {
         mealsCount: meals,
         cuisine: cuisine.trim(),
         diet: diets,
-        allergies: allergies
-          .split(',')
-          .map((a) => a.trim())
-          .filter(Boolean),
+        allergies: allergyList(),
         brief: brief.trim(),
         addressLine: addressLine.trim(),
         addressCity: city.trim(),
         addressPostalCode: postalCode.trim(),
-        budgetCents: budget ? Math.round(Number(budget) * 100) : undefined,
+        budgetCents: budget.trim() ? Math.round(Number(budget.replace(',', '.')) * 100) : undefined,
       },
       {
         onSuccess: () => {
@@ -239,6 +277,7 @@ function RequestForm() {
               type="date"
               value={date}
               min={tomorrow()}
+              max={latest()}
               onChange={(e) => setDate(e.target.value)}
               className="input-base"
             />
@@ -307,6 +346,7 @@ function RequestForm() {
           <input
             value={allergies}
             onChange={(e) => setAllergies(e.target.value)}
+            maxLength={1300}
             placeholder="Ex. gluten, fruits à coque"
             className="input-base"
           />
@@ -359,7 +399,8 @@ function RequestForm() {
         <Field label="Budget indicatif en € (facultatif)">
           <input
             type="number"
-            min={0}
+            min={1}
+            max={MAX_BUDGET_EUROS}
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
             placeholder="Ex. 400"
