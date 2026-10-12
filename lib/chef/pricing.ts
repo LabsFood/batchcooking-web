@@ -9,8 +9,11 @@
    3 personnes, soit 12 portions ».
    ───────────────────────────────────────────────────────────────────────────── */
 
-/** Indicatif tant que le taux n'est pas arrêté côté Lab's Food. */
-export const COMMISSION_RATE = 0.1
+/**
+ * Taux de repli, le temps que `GET /pricing-rules` réponde. Le taux en vigueur
+ * est réglé par l'équipe Lab's Food : les écrans le lisent via `usePricingRules`.
+ */
+export const COMMISSION_RATE = 0.15
 export const TAX_CREDIT_RATE = 0.5
 
 /** Plancher imposé sur le forfait courses. En dessous : uniquement la gratuité. */
@@ -42,7 +45,7 @@ export const DEFAULT_PRICING: ChefPricing = {
 }
 
 /** Prix payé par le client : net du chef + commission Lab's Food. */
-export const toClientPrice = (net: number) => net / (1 - COMMISSION_RATE)
+export const toClientPrice = (net: number, rate: number = COMMISSION_RATE) => net / (1 - rate)
 
 export const afterTaxCredit = (clientPrice: number) => clientPrice * (1 - TAX_CREDIT_RATE)
 
