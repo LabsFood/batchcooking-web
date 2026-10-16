@@ -48,6 +48,7 @@ export const OFFER_TONE: Record<OfferStatus, Tone> = {
   accepted: 'success',
   declined: 'danger',
   expired: 'neutral',
+  withdrawn: 'neutral',
 }
 
 export const MISSION_TONE: Record<MissionStatus, Tone> = {

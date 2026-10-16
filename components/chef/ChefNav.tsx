@@ -34,7 +34,7 @@ import { useChefAlerts } from './ChefSignals'
 import { useChefDocuments } from '@/lib/api/chef-documents'
 import { useMe } from '@/lib/api/me'
 import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
-import { useOffers } from '@/lib/api/chef-catalog'
+import { useChefQuotes } from '@/lib/api/quotes'
 import { useUnreadCount } from '@/lib/api/messaging'
 
 /**
@@ -98,11 +98,13 @@ function isActive(pathname: string, href: string) {
  * jour où elles auront leur endpoint.
  */
 function useNavCounts(): Record<string, number> {
-  const offers = useOffers()
+  const quotes = useChefQuotes()
   const docs = useChefDocuments()
 
-  const nOffres =
-    (offers.data?.dishes.length ?? 0) + (offers.data?.menus.length ?? 0)
+  // Les demandes sur-mesure qui attendent une réponse du batch cooker.
+  const nOffres = (quotes.data ?? []).filter((q) =>
+    ['submitted', 'in_review', 'declined'].includes(q.status),
+  ).length
 
   const nPieces = (docs.data?.documents ?? []).filter(
     (d) =>

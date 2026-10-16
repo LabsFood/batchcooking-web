@@ -2,30 +2,60 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  ArrowRight,
-  CalendarDays,
-  Check,
-  FileText,
-  Send,
-  Sparkles,
-  Users,
-} from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
-import { CHEF_OFFERS, CUSTOM_BRIEFS, type CustomBrief } from '@/lib/chef/mock'
+import { ApiError } from '@/lib/api/client'
+import {
+  SLOT_LABEL,
+  centsToEuros,
+  dayLabel,
+  previewOffer,
+  useChefQuotes,
+  useDeclineQuote,
+  usePricingRules,
+  useSendOffer,
+  useWithdrawOffer,
+  type Quote,
+  type TimeSlot,
+} from '@/lib/api/quotes'
 
-/** Taux de commission — valeur de démonstration, décision client en attente. */
-const COMMISSION_RATE = 0.1
-/** Crédit d'impôt services à la personne : 50 %. */
-const TAX_CREDIT = 0.5
+const SLOTS: TimeSlot[] = ['morning', 'afternoon', 'evening']
 
-const euros = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+/** Les refus de l'API que le batch cooker peut comprendre et corriger. */
+const MESSAGES: Record<string, string> = {
+  OFFER_ALREADY_ACTIVE: 'Une offre est déjà en attente pour cette demande. Retirez-la avant d’en envoyer une autre.',
+  QUOTE_CLOSED: 'Cette demande est close.',
+  QUOTE_NOT_AWAITING_CHEF: 'Cette demande n’attend plus de réponse.',
+  DATE_TOO_SOON: 'La date proposée doit être à partir de demain.',
+  DATE_TOO_FAR: 'La date proposée doit être dans l’année qui vient.',
+  OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
+}
+
+/** Un jour à `n` jours d'ici, en date locale, au format des champs date. */
+function dayFromNow(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const errorText = (error: unknown, fallback: string) =>
+  error instanceof ApiError && error.status !== 0 && error.status < 500
+    ? (MESSAGES[(error.body as { code?: string } | null)?.code ?? ''] ?? fallback)
+    : fallback
 
 export default function ChefOffersPage() {
-  const [selected, setSelected] = useState<CustomBrief | null>(null)
+  const quotes = useChefQuotes()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const all = quotes.data ?? []
+  // À répondre : aucune offre en attente, rien de conclu.
+  const toAnswer = all.filter((q) => ['submitted', 'in_review', 'declined'].includes(q.status))
+  const confirmed = all.filter((q) => q.status === 'accepted')
+  const selected = toAnswer.find((q) => q.id === selectedId) ?? null
+  const offers = all
+    .flatMap((quote) => quote.offers.map((offer) => ({ quote, offer })))
+    .sort((a, b) => b.offer.createdAt.localeCompare(a.offer.createdAt))
 
   return (
     <ChefPage
@@ -33,120 +63,259 @@ export default function ChefOffersPage() {
       subtitle="Répondez aux demandes personnalisées avec votre propre prix et vos conditions."
     >
       <div className="space-y-5">
-        {/* Demandes reçues */}
-        <Card title={`Demandes personnalisées reçues (${CUSTOM_BRIEFS.length})`}>
-          {CUSTOM_BRIEFS.length === 0 ? (
-            <Empty text="Aucune demande personnalisée pour le moment." />
+        <Card title={`Demandes à traiter (${toAnswer.length})`}>
+          {quotes.isPending ? (
+            <Empty text="Chargement…" />
+          ) : quotes.isError ? (
+            <div className="py-8 text-center text-sm text-ink-soft">
+              {quotes.error instanceof ApiError && quotes.error.status === 403
+                ? 'Les demandes sur-mesure s’ouvrent une fois votre dossier validé.'
+                : 'Impossible de charger vos demandes.'}{' '}
+              <button onClick={() => quotes.refetch()} className="underline font-semibold text-navy">
+                Réessayer
+              </button>
+            </div>
+          ) : toAnswer.length === 0 ? (
+            <Empty text="Aucune demande personnalisée à traiter pour le moment." />
           ) : (
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {CUSTOM_BRIEFS.map((b) => (
-                <li
-                  key={b.id}
-                  className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex flex-col"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-display text-base font-bold text-navy">{b.occasion}</p>
-                      <p className="text-xs text-ink-soft">
-                        {b.client} · reçue le {shortDate(b.receivedAt)}
-                      </p>
-                    </div>
-                    <StatusBadge tone="warning">À répondre</StatusBadge>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {b.wishes.map((w) => (
-                      <span key={w} className="text-[11px] px-2.5 py-1 rounded-full bg-mint text-mint-ink">
-                        {w}
-                      </span>
-                    ))}
-                    {b.allergies.map((a) => (
-                      <span key={a} className="text-[11px] px-2.5 py-1 rounded-full bg-red-100 text-red-700">
-                        ⚠ {a}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-cream-soft p-3 text-center">
-                    <Mini Icon={Users} label="Convives" value={`${b.persons}`} />
-                    <Mini Icon={CalendarDays} label="Date" value={shortDate(b.date)} />
-                    <Mini Icon={Sparkles} label="Budget" value={euros(b.budgetHint)} />
-                  </div>
-
-                  <button
-                    onClick={() => setSelected(b)}
-                    className="btn btn-primary w-full justify-center mt-4 text-sm"
-                  >
-                    Composer une offre <ArrowRight className="w-4 h-4" />
-                  </button>
-                </li>
+              {toAnswer.map((quote) => (
+                <RequestItem
+                  key={quote.id}
+                  quote={quote}
+                  onCompose={() => setSelectedId(quote.id)}
+                />
               ))}
             </ul>
           )}
         </Card>
 
-        {/* Composeur */}
-        {selected && <OfferComposer brief={selected} onClose={() => setSelected(null)} />}
+        {selected && (
+          <OfferComposer key={selected.id} quote={selected} onClose={() => setSelectedId(null)} />
+        )}
 
-        {/* Suivi */}
+        {confirmed.length > 0 && (
+          <Card title={`Prestations confirmées (${confirmed.length})`}>
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {confirmed.map((quote) => (
+                <ConfirmedItem key={quote.id} quote={quote} />
+              ))}
+            </ul>
+          </Card>
+        )}
+
         <Card title="Suivi de mes offres">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[560px]">
-              <thead>
-                <tr className="text-left font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
-                  <th className="pb-2 font-normal">Client</th>
-                  <th className="pb-2 font-normal">Occasion</th>
-                  <th className="pb-2 font-normal">Net</th>
-                  <th className="pb-2 font-normal">Validité</th>
-                  <th className="pb-2 font-normal">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(31,42,55,0.06)]">
-                {CHEF_OFFERS.map((o) => (
-                  <tr key={o.id}>
-                    <td className="py-3 font-semibold text-navy">{o.client}</td>
-                    <td className="py-3 text-ink-mid">{o.occasion}</td>
-                    <td className="py-3 font-semibold text-navy">{euros(o.net)}</td>
-                    <td className="py-3 text-xs text-ink-soft">
-                      {new Date(o.validUntil) > new Date()
-                        ? `jusqu'au ${shortDate(o.validUntil)}`
-                        : 'échue'}
-                    </td>
-                    <td className="py-3">
-                      <OfferBadge status={o.status} />
-                    </td>
+          {offers.length === 0 ? (
+            <Empty text="Vous n’avez pas encore envoyé d’offre." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[620px]">
+                <thead>
+                  <tr className="text-left font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
+                    <th className="pb-2 font-normal">Client</th>
+                    <th className="pb-2 font-normal">Demande</th>
+                    <th className="pb-2 font-normal">Net</th>
+                    <th className="pb-2 font-normal">Validité</th>
+                    <th className="pb-2 font-normal">Statut</th>
+                    <th className="pb-2 font-normal" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[rgba(31,42,55,0.06)]">
+                  {offers.map(({ quote, offer }) => (
+                    <OfferRow key={offer.id} quote={quote} offerId={offer.id} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
     </ChefPage>
   )
 }
 
+/* ── Une demande à traiter ────────────────────────────────────────────────── */
+
+function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void }) {
+  const decline = useDeclineQuote()
+  const [declining, setDeclining] = useState(false)
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const lastDeclined = quote.status === 'declined' ? quote.offers.find((o) => o.status === 'declined') : null
+
+  return (
+    <li className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-base font-bold text-navy">{quote.title}</p>
+          <p className="text-xs text-ink-soft">
+            {quote.client?.name ?? 'Client'} · reçue le {dayLabel(quote.createdAt)}
+            {quote.occasion ? ` · ${quote.occasion}` : ''}
+          </p>
+        </div>
+        <StatusBadge tone={lastDeclined ? 'danger' : 'warning'}>
+          {lastDeclined ? 'Offre refusée' : 'À répondre'}
+        </StatusBadge>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.cuisine}</span>
+        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.mealsCount} plats</span>
+        {quote.diet.map((d) => (
+          <span key={d} className="text-[11px] px-2.5 py-1 rounded-full bg-mint text-mint-ink">
+            {d}
+          </span>
+        ))}
+        {quote.allergies.map((a) => (
+          <span key={a} className="text-[11px] px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+            ⚠ {a}
+          </span>
+        ))}
+      </div>
+
+      <p className="mt-3 text-xs text-ink-mid leading-relaxed whitespace-pre-line line-clamp-5">{quote.brief}</p>
+
+      {lastDeclined?.declineReason && (
+        <p className="mt-3 text-xs text-ink-mid bg-cream-soft rounded-xl px-3 py-2">
+          <span className="font-semibold text-navy">Le client a refusé votre offre :</span>{' '}
+          {lastDeclined.declineReason}
+        </p>
+      )}
+
+      <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-cream-soft p-3 text-center">
+        <Mini Icon={Users} label="Convives" value={`${quote.persons}`} />
+        <Mini
+          Icon={CalendarDays}
+          label={quote.timeSlot ? SLOT_LABEL[quote.timeSlot].split(' (')[0] : 'Date'}
+          value={quote.desiredDate ? dayLabel(quote.desiredDate) : '—'}
+        />
+        <Mini
+          Icon={quote.budgetCents ? Sparkles : MapPin}
+          label={quote.budgetCents ? 'Budget' : 'Lieu'}
+          value={quote.budgetCents ? centsToEuros(quote.budgetCents) : (quote.address.city ?? '—')}
+        />
+      </div>
+      {quote.budgetCents != null && quote.address.city && (
+        <p className="mt-2 text-[11px] text-ink-soft inline-flex items-center gap-1">
+          <MapPin className="w-3 h-3" /> {quote.address.postalCode} {quote.address.city}
+        </p>
+      )}
+
+      {error && (
+        <p role="alert" className="mt-3 text-xs text-red-700">
+          {error}
+        </p>
+      )}
+
+      {declining ? (
+        <div className="mt-4 space-y-2">
+          <textarea
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={1000}
+            placeholder="Pourquoi déclinez-vous ? (facultatif, lu par l’équipe Lab’s Food)"
+            className="input-base resize-none text-xs"
+          />
+          <div className="flex gap-3 text-xs">
+            <button
+              disabled={decline.isPending}
+              onClick={() =>
+                decline.mutate(
+                  { quoteId: quote.id, reason: reason.trim() || undefined },
+                  { onError: (cause) => setError(errorText(cause, 'La demande n’a pas pu être déclinée.')) },
+                )
+              }
+              className="font-semibold text-red-700 disabled:opacity-60"
+            >
+              Confirmer : je décline
+            </button>
+            <button onClick={() => setDeclining(false)} className="font-semibold text-ink-mid">
+              Annuler
+            </button>
+          </div>
+          <p className="text-[11px] text-ink-soft">
+            La demande quittera votre liste : l’équipe la confiera à un autre batch cooker.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={onCompose} className="btn btn-primary flex-1 justify-center text-sm">
+            {lastDeclined ? 'Proposer une nouvelle offre' : 'Composer une offre'} <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setDeclining(true)}
+            className="text-xs font-semibold text-ink-soft hover:text-red-700"
+          >
+            Décliner
+          </button>
+        </div>
+      )}
+    </li>
+  )
+}
+
+/* ── Le composeur ─────────────────────────────────────────────────────────── */
+
 /**
  * Composeur d'offre.
  *
  * Contrainte § 6.2 : le batch cooker saisit son **net perçu**, jamais le prix
  * de vente. Le prix client et le montant après crédit d'impôt sont calculés et
- * affichés en temps réel.
+ * affichés en temps réel, au taux en vigueur lu depuis l'API.
  */
-function OfferComposer({ brief, onClose }: { brief: CustomBrief; onClose: () => void }) {
-  const [net, setNet] = useState(brief.budgetHint)
+function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }) {
+  const rules = usePricingRules()
+  const send = useSendOffer()
+  const [net, setNet] = useState(quote.budgetCents ? Math.round(quote.budgetCents / 100) : 150)
   const [validityDays, setValidityDays] = useState(7)
   const [conditions, setConditions] = useState('Courses incluses. Déplacement compris dans un rayon de 30 km.')
+  const [otherDate, setOtherDate] = useState(false)
+  const [date, setDate] = useState(quote.desiredDate ?? '')
+  const [slot, setSlot] = useState<TimeSlot>(quote.timeSlot ?? 'evening')
+  const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
 
-  const clientPrice = net / (1 - COMMISSION_RATE)
-  const commission = clientPrice - net
-  const afterCredit = clientPrice * (1 - TAX_CREDIT)
+  const netCents = Math.round(net * 100)
+  const preview = rules.data ? previewOffer(netCents, rules.data) : null
+  const clientName = quote.client?.name ?? 'le client'
+
+  // Les règles de l'API (`quote.rules.ts`), répétées pour le message : elle revérifie tout.
+  const problem = (): string | null => {
+    if (!Number.isFinite(net) || net < 10) return 'Votre net perçu est d’au moins 10 €.'
+    if (net > 20_000) return 'Votre net perçu ne peut pas dépasser 20 000 €.'
+    if (conditions.length > 2000) return 'Vos conditions tiennent en 2 000 caractères.'
+    if (otherDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Indiquez la date que vous proposez.'
+      if (date < dayFromNow(1)) return MESSAGES.DATE_TOO_SOON
+      if (date > dayFromNow(365)) return MESSAGES.DATE_TOO_FAR
+    }
+    return null
+  }
+
+  const submit = () => {
+    const refused = problem()
+    if (refused) return setError(refused)
+    setError(null)
+    send.mutate(
+      {
+        quoteId: quote.id,
+        netCents,
+        validityDays,
+        conditions: conditions.trim() || undefined,
+        ...(otherDate && date ? { proposedDate: date, proposedTimeSlot: slot } : {}),
+      },
+      {
+        onSuccess: () => setSent(true),
+        onError: (cause) => setError(errorText(cause, 'L’offre n’a pas pu être envoyée. Réessayez dans un instant.')),
+      },
+    )
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <Card
-        title={`Composer une offre — ${brief.client}`}
+        title={`Composer une offre — ${clientName}`}
         action={
           <button onClick={onClose} className="text-xs text-ink-soft hover:text-navy">
             Fermer
@@ -160,7 +329,7 @@ function OfferComposer({ brief, onClose }: { brief: CustomBrief; onClose: () => 
             </span>
             <p className="font-display text-lg font-bold text-navy">Offre envoyée</p>
             <p className="text-sm text-ink-mid mt-1">
-              Elle passera en « Vue » dès que {brief.client} l&apos;aura consultée.
+              Elle passera en « Vue » dès que {clientName} l&apos;aura consultée.
             </p>
           </div>
         ) : (
@@ -171,8 +340,11 @@ function OfferComposer({ brief, onClose }: { brief: CustomBrief; onClose: () => 
                 <div className="relative">
                   <input
                     type="number"
+                    min={10}
+                    max={20000}
+                    step="0.01"
                     value={net}
-                    onChange={(e) => setNet(Math.max(0, Number(e.target.value)))}
+                    onChange={(e) => setNet(Math.max(0, Number(e.target.value) || 0))}
                     className="input-base pr-10 font-display text-xl font-bold"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft">€</span>
@@ -200,11 +372,43 @@ function OfferComposer({ brief, onClose }: { brief: CustomBrief; onClose: () => 
               </div>
 
               <div>
+                <label className="label-muted block mb-2">Date de la prestation</label>
+                <p className="text-sm text-navy">
+                  Demandée : {quote.desiredDate ? dayLabel(quote.desiredDate) : '—'}
+                  {quote.timeSlot ? `, ${SLOT_LABEL[quote.timeSlot].toLowerCase()}` : ''}
+                </p>
+                <label className="mt-2 flex items-center gap-2 text-xs text-ink-mid">
+                  <input type="checkbox" checked={otherDate} onChange={(e) => setOtherDate(e.target.checked)} />
+                  Je propose une autre date
+                </label>
+                {otherDate && (
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <input
+                      type="date"
+                      value={date}
+                      min={dayFromNow(1)}
+                      max={dayFromNow(365)}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="input-base"
+                    />
+                    <select value={slot} onChange={(e) => setSlot(e.target.value as TimeSlot)} className="input-base">
+                      {SLOTS.map((s) => (
+                        <option key={s} value={s}>
+                          {SLOT_LABEL[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="label-muted block mb-2">Conditions</label>
                 <textarea
                   rows={3}
                   value={conditions}
                   onChange={(e) => setConditions(e.target.value)}
+                  maxLength={2000}
                   className="input-base resize-none"
                 />
               </div>
@@ -212,32 +416,128 @@ function OfferComposer({ brief, onClose }: { brief: CustomBrief; onClose: () => 
 
             {/* Récapitulatif calculé en temps réel */}
             <aside className="bg-navy text-white rounded-2xl p-5 h-fit">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber mb-4">
-                Récapitulatif
-              </p>
-              <Row label="Votre net perçu" value={euros(net)} strong />
-              <Row label={`Commission (${COMMISSION_RATE * 100} %)`} value={euros(commission)} muted />
-              <div className="my-3 border-t border-white/10" />
-              <Row label="Prix client" value={euros(clientPrice)} strong />
-              <Row
-                label="Après crédit d'impôt"
-                value={euros(afterCredit)}
-                accent
-              />
-              <p className="text-[10px] text-white/45 mt-3 leading-relaxed">
-                Taux de commission indicatif — en attente de la décision client.
-              </p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber mb-4">Récapitulatif</p>
+              <Row label="Votre net perçu" value={centsToEuros(netCents)} strong />
+              {preview && rules.data ? (
+                <>
+                  <Row
+                    label={`Commission (${(rules.data.commissionBps / 100).toLocaleString('fr-FR')} %)`}
+                    value={centsToEuros(preview.commissionCents)}
+                    muted
+                  />
+                  <div className="my-3 border-t border-white/10" />
+                  <Row label="Prix client" value={centsToEuros(preview.clientPriceCents)} strong />
+                  <Row label="Après crédit d'impôt" value={centsToEuros(preview.afterTaxCreditCents)} accent />
+                </>
+              ) : (
+                <p className="text-xs text-white/60 mt-2">
+                  {rules.isError ? 'Le prix client sera calculé à l’envoi.' : 'Calcul du prix client…'}
+                </p>
+              )}
+              {error && (
+                <p role="alert" className="text-xs text-amber mt-3">
+                  {error}
+                </p>
+              )}
               <button
-                onClick={() => setSent(true)}
-                className="btn btn-amber w-full justify-center mt-4 text-sm"
+                onClick={submit}
+                disabled={send.isPending}
+                className="btn btn-amber w-full justify-center mt-4 text-sm disabled:opacity-60"
               >
-                <Send className="w-4 h-4" /> Envoyer l&apos;offre
+                {send.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Envoyer l&apos;offre
               </button>
             </aside>
           </div>
         )}
       </Card>
     </motion.div>
+  )
+}
+
+/* ── Une prestation née d'une offre acceptée ──────────────────────────────── */
+
+function ConfirmedItem({ quote }: { quote: Quote }) {
+  const accepted = quote.offers.find((o) => o.status === 'accepted')
+  return (
+    <li className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-base font-bold text-navy">{quote.title}</p>
+          <p className="text-xs text-ink-soft">
+            {quote.client?.name}
+            {quote.booking?.reference ? ` · ${quote.booking.reference}` : ''}
+          </p>
+        </div>
+        <StatusBadge tone="success">Confirmée</StatusBadge>
+      </div>
+      <div className="mt-3 space-y-1.5 text-xs text-ink-mid">
+        {quote.booking && (
+          <p className="flex items-center gap-2">
+            <CalendarDays className="w-3.5 h-3.5 text-terra" />
+            {new Date(quote.booking.startsAt).toLocaleString('fr-FR', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'Europe/Paris',
+            })}
+          </p>
+        )}
+        <p className="flex items-center gap-2">
+          <MapPin className="w-3.5 h-3.5 text-terra" />
+          {[quote.address.line, quote.address.postalCode, quote.address.city].filter(Boolean).join(', ')}
+        </p>
+        {quote.client?.phone && (
+          <p className="flex items-center gap-2">
+            <Phone className="w-3.5 h-3.5 text-terra" /> {quote.client.phone}
+          </p>
+        )}
+        {quote.client?.email && (
+          <p className="flex items-center gap-2">
+            <Mail className="w-3.5 h-3.5 text-terra" /> {quote.client.email}
+          </p>
+        )}
+      </div>
+      {accepted?.netCents != null && (
+        <p className="mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
+      )}
+    </li>
+  )
+}
+
+/* ── Une ligne du suivi ───────────────────────────────────────────────────── */
+
+function OfferRow({ quote, offerId }: { quote: Quote; offerId: string }) {
+  const withdraw = useWithdrawOffer()
+  const offer = quote.offers.find((o) => o.id === offerId)
+  if (!offer) return null
+  const active = offer.status === 'sent' || offer.status === 'viewed'
+
+  return (
+    <tr>
+      <td className="py-3 font-semibold text-navy">{quote.client?.name ?? 'Client'}</td>
+      <td className="py-3 text-ink-mid">{quote.title}</td>
+      <td className="py-3 font-semibold text-navy">{offer.netCents != null ? centsToEuros(offer.netCents) : '—'}</td>
+      <td className="py-3 text-xs text-ink-soft">
+        {active ? `jusqu'au ${dayLabel(offer.validUntil)}` : '—'}
+      </td>
+      <td className="py-3">
+        <OfferBadge status={offer.status} />
+      </td>
+      <td className="py-3 text-right">
+        {active && (
+          <button
+            disabled={withdraw.isPending}
+            onClick={() => withdraw.mutate({ quoteId: quote.id, offerId: offer.id })}
+            className="text-xs font-semibold text-ink-soft hover:text-red-700 disabled:opacity-60"
+          >
+            {withdraw.isError ? 'Réessayer' : 'Retirer'}
+          </button>
+        )}
+      </td>
+    </tr>
   )
 }
 
@@ -268,15 +568,7 @@ function Row({
   )
 }
 
-function Mini({
-  Icon,
-  label,
-  value,
-}: {
-  Icon: typeof Users
-  label: string
-  value: string
-}) {
+function Mini({ Icon, label, value }: { Icon: typeof Users; label: string; value: string }) {
   return (
     <div>
       <Icon className="w-3.5 h-3.5 text-terra mx-auto mb-1" />

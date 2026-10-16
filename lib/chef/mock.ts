@@ -10,7 +10,6 @@ import type {
   DocDefinition,
   DocState,
   MissionStatus,
-  OfferStatus,
   PaymentMethod,
   PayoutMode,
   PayoutModeStatus,
@@ -243,45 +242,6 @@ export const CHEF_REQUESTS: ChefRequest[] = [
     respondBefore: iso(-22),
     status: 'declined',
   },
-]
-
-// ── Offres sur-mesure ───────────────────────────────────────────────────────
-
-export interface CustomBrief {
-  id: string
-  client: string
-  occasion: string
-  wishes: string[]
-  persons: number
-  allergies: string[]
-  budgetHint: number
-  date: string
-  receivedAt: string
-}
-
-export interface ChefOffer {
-  id: string
-  briefId: string
-  client: string
-  occasion: string
-  net: number
-  clientPrice: number
-  afterTaxCredit: number
-  validUntil: string
-  status: OfferStatus
-  sentAt: string
-}
-
-export const CUSTOM_BRIEFS: CustomBrief[] = [
-  { id: 'brf_001', client: 'Laure P.', occasion: 'Dîner d’anniversaire', wishes: ['Cuisine italienne', 'Dessert maison'], persons: 6, allergies: ['Gluten'], budgetHint: 320, date: iso(14), receivedAt: iso(-1) },
-  { id: 'brf_002', client: 'Karim B.', occasion: 'Batch semaine végétarien', wishes: ['Végétarien', 'Épicé'], persons: 2, allergies: [], budgetHint: 190, date: iso(10), receivedAt: iso(-3) },
-]
-
-export const CHEF_OFFERS: ChefOffer[] = [
-  { id: 'off_001', briefId: 'brf_003', client: 'Nadia L.', occasion: 'Repas de famille', net: 280, clientPrice: 311, afterTaxCredit: 156, validUntil: iso(4), status: 'viewed', sentAt: iso(-2) },
-  { id: 'off_002', briefId: 'brf_004', client: 'Paul V.', occasion: 'Batch mensuel', net: 420, clientPrice: 467, afterTaxCredit: 234, validUntil: iso(-1), status: 'accepted', sentAt: iso(-9) },
-  { id: 'off_003', briefId: 'brf_005', client: 'Inès T.', occasion: 'Brunch dominical', net: 150, clientPrice: 167, afterTaxCredit: 84, validUntil: iso(-4), status: 'expired', sentAt: iso(-18) },
-  { id: 'off_004', briefId: 'brf_006', client: 'Hugo M.', occasion: 'Dîner végan', net: 210, clientPrice: 233, afterTaxCredit: 117, validUntil: iso(-2), status: 'declined', sentAt: iso(-12) },
 ]
 
 // ── Prestations ─────────────────────────────────────────────────────────────
