@@ -43,11 +43,20 @@ date, montant. C'est le point le plus urgent de ce document après le § 1.
 
 ## 3. Les zones d'intervention sont figées à l'approbation
 
-`PATCH /me/chef-application` n'accepte `interventionZones` que pendant
-l'instruction, et `PATCH /me/chef-profile` écrit noir sur blanc que les zones
-sont fixées à l'approbation. Un batch cooker qui déménage, ou qui veut étendre
-sa zone après trois mois, ne peut rien faire : il lui reste le rayon de
-déplacement, qui part de sa ville.
+La route existe, et elle accepte les zones : `PATCH /me/chef-application` prend
+bien `interventionZones`. Mais elle n'est ouverte *« while the candidature is
+`submitted` or `changes-requested` »* — approuvée, elle répond
+`409 APPLICATION_DECIDED`.
+
+Et il n'y a pas de porte de secours : `PATCH /me/chef-profile`, la seule route
+ouverte à un batch cooker approuvé, écrit noir sur blanc que les zones sont
+fixées à l'approbation ; `PATCH /admin/chefs/{id}` n'existe pas, et
+`GET /admin/chefs/{id}` ne fait que lire « the zones covered city by city ».
+
+Donc : un candidat change ses zones quand il veut, un batch cooker approuvé ne
+peut plus, et personne ne peut le faire à sa place. Celui qui déménage ou veut
+ajouter une commune après trois mois n'a que `city` et `serviceRadiusKm` — son
+rayon de déplacement.
 
 Deux chemins possibles :
 
