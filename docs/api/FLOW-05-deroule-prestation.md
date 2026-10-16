@@ -1,11 +1,17 @@
 # FLOW-05 — Le déroulé d'une prestation, de l'arrivée au compte rendu
 
-> **Document v1**, rédigé le 11/10/2026.
-> Ce qui existe déjà côté API : la prestation elle-même (`GET /bookings/me`),
-> sa liste de courses et ses fiches recettes (`/chef-missions/{id}/…`). Ce
-> document décrit ce qui **manque** pour que la session se déroule dans
-> l'application au lieu de se raconter par SMS. À relire avec le métier : la
-> partie mandat de débours a des conséquences juridiques.
+> **Document v1 du 11/10/2026, largement livré le 16/10.**
+>
+> Implémenté depuis : le pointage d'arrivée (§ 2, sous la forme d'une
+> transition vers `cooking` qui écrit `arrivedAt`), les photos de session
+> (§ 4), la part nette et la commission (§ 6.2), et **l'adresse de la
+> prestation** — la ligne la plus gênante du § 7.
+>
+> Restent à faire, et les deux attendent un cadrage plutôt que du code : la
+> **checklist d'hygiène** (§ 3), dont le contenu doit être arrêté par Lab's
+> Food, et le **mandat de débours** (§ 5), dont les quatre questions
+> juridiques sont toujours ouvertes. Le compte rendu au client (§ 6.1) n'a pas
+> de route dédiée, mais tout ce qu'il contient est désormais lisible.
 
 Écrans concernés : `/espace-chef/prestations` (branché sur ce qui existe depuis
 le 11/10) et `/espace-client/commandes/:id`.

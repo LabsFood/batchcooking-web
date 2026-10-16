@@ -1,10 +1,17 @@
 # FLOW-04 — Agenda du batch cooker et disponibilités vues par le client
 
-> **Document v1**, rédigé le 11/10/2026 à partir des écrans déjà construits.
-> Rien de ce qui suit n'existe côté API : aucune route ne porte les
-> disponibilités d'un batch cooker. Ce document décrit ce dont les écrans ont
-> besoin, et les règles métier qui ne doivent pas être décidées par le front.
-> Il attend une relecture de l'équipe backend et du métier avant d'être figé.
+> **Livré le 16/10/2026.** Ce document a été écrit le 11/10 comme une demande ;
+> le backend l'a suivi, et les routes existent : `GET/PUT /chef/availability`,
+> `GET /chef/agenda`, `/chef/agenda/summary`, `/chef/agenda/blocks`,
+> `GET /chefs/{id}/availability`. Il est gardé tel quel parce qu'il explique le
+> **pourquoi** — ce que l'OpenAPI ne dit pas.
+>
+> Trois écarts, tous en mieux : l'implémentation ajoute un `version` qui refuse
+> une sauvegarde venue d'un onglet périmé (§ 3.2 ne le demandait pas), des
+> **blocs** horaires distincts des journées fermées, et la durée d'un créneau
+> vient de l'**offre de service** réservée — ce qui répond à la question 1 du
+> § 7. Reste ouvert : les offres de service elles-mêmes n'ont aucune route
+> (BLK-23), donc un batch cooker sans offre n'est pas réservable.
 
 Écrans concernés :
 
