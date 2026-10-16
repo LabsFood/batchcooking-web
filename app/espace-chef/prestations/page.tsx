@@ -1,262 +1,271 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowLeft,
-  CalendarDays,
+  CalendarClock,
   Camera,
-  CheckCircle2,
-  Circle,
+  Check,
   ClipboardList,
+  Clock,
   FileText,
-  LayoutGrid,
-  List,
+  History,
+  Info,
+  Loader2,
   MapPin,
-  MessageSquare,
-  Receipt,
-  ShoppingBasket,
+  Plus,
+  RotateCcw,
+  RotateCw,
   Trash2,
   UserRound,
   Users,
 } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
-import StatusBadge, { MissionBadge } from '@/components/chef/StatusBadge'
 import DocDialog from '@/components/chef/documents/DocDialog'
-import RecipeSheet from '@/components/chef/documents/RecipeSheet'
-import ShoppingList from '@/components/chef/documents/ShoppingList'
-import ExpenseMandate from '@/components/chef/documents/ExpenseMandate'
+import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import { useToast } from '@/components/shared/Toaster'
 import {
-  CHEF_MISSIONS,
-  CHEF_PROFILE,
-  HYGIENE_CHECKLIST,
-  clientById,
-  dishById,
-  type ChefMission,
-  type MissionPhoto,
-} from '@/lib/chef/mock'
-import type { MissionStatus } from '@/lib/chef/states'
+  aisleLabel,
+  AISLES,
+  UNITS,
+  reheatingLine,
+  storageLine,
+} from '@/lib/recipe-fields'
+import { refLabel, useAllergens, useDiets } from '@/lib/api/referentials'
+import { countryLabel } from '@/lib/chef/countries'
+import {
+  bookingPortions,
+  bookingStatusText,
+  checkPhoto,
+  euros,
+  hour,
+  isBookingOpen,
+  longDate,
+  nextTransition,
+  photoMessage,
+  slot,
+  useAddBookingPhoto,
+  useAdvanceBooking,
+  useAnswerReschedule,
+  useChefBooking,
+  useChefBookings,
+  useMissionRecipeSheet,
+  useMissionShoppingList,
+  useProposeReschedule,
+  useRemoveBookingPhoto,
+  useRepinMissionRecipes,
+  useResetMissionShoppingList,
+  useSaveMissionShoppingList,
+  type Booking,
+  type MissionLine,
+} from '@/lib/api/bookings'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
 
-   Une prestation se lit d'abord sur place : qui, où, quels plats, quelles
-   consignes, quels documents. Le batch cooker pointe son arrivée (horodatage
-   qui fait foi en cas de litige), travaille avec la checklist, puis ajoute ses
-   photos une fois la session terminée.
+   Depuis le 16/10, `/chef/bookings` est la vue du batch cooker — distincte de
+   celle du client — et elle porte enfin ce que lui seul doit voir : sa part
+   nette, la commission, l'adresse de la session, et ce que le client ne peut
+   pas manger.
+
+   Le cycle de vie est à lui :
+
+     confirmed ──> shopping ──> cooking ──> delivered ──> completed
+                                  │
+                            (arrivedAt)
+
+   `cooking` **est** le pointage d'arrivée : l'API enregistre l'heure, et
+   n'accepte la transition qu'à partir de deux heures avant le début. C'est
+   elle qui fait foi en cas de litige — raison pour laquelle ce bouton
+   n'existait pas tant qu'il n'écrivait nulle part.
+
+   Les outils de la prestation (liste de courses, fiches recettes) sont
+   inchangés : ils vivent sur `/chef-missions/{id}/…`.
    ───────────────────────────────────────────────────────────────────────────── */
 
-const euros = (n: number) => `${n.toLocaleString('fr-FR')} €`
+type Filter = 'all' | 'upcoming' | 'history'
 
-const longDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
-
-const timeLabel = (iso: string) =>
-  new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-
-type Filter = 'all' | 'upcoming' | 'current' | 'history'
-
-const FILTERS: { id: Filter; label: string; match: (m: ChefMission) => boolean }[] = [
+const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] = [
   { id: 'all', label: 'Tout', match: () => true },
-  { id: 'upcoming', label: 'À venir', match: (m) => m.status === 'upcoming' || m.status === 'confirmed' },
-  { id: 'current', label: 'En cours', match: (m) => m.status === 'in-progress' },
-  { id: 'history', label: 'Historique', match: (m) => ['done', 'cancelled', 'disputed'].includes(m.status) },
+  { id: 'upcoming', label: 'À venir', match: isBookingOpen },
+  { id: 'history', label: 'Historique', match: (b) => !isBookingOpen(b) },
 ]
 
 export default function ChefMissionsPage() {
   const [filter, setFilter] = useState<Filter>('all')
-  const [view, setView] = useState<'cards' | 'list'>('cards')
   const [openId, setOpenId] = useState<string | null>(null)
-  // Les changements d'état restent locaux tant que l'API n'est pas branchée.
-  const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({})
-  const [arrivals, setArrivals] = useState<Record<string, string>>({})
-  const [photos, setPhotos] = useState<Record<string, MissionPhoto[]>>({})
+  const query = useChefBookings({ limit: 50 })
 
-  const missions = CHEF_MISSIONS.map((m) => ({
-    ...m,
-    status: statuses[m.id] ?? m.status,
-    arrivedAt: arrivals[m.id] ?? m.arrivedAt,
-    photos: photos[m.id] ?? m.photos,
-  }))
+  const missions = query.data?.data ?? []
 
-  const open = missions.find((m) => m.id === openId) ?? null
-
-  if (open) {
-    return (
-      <MissionDetail
-        mission={open}
-        onBack={() => setOpenId(null)}
-        onArrive={() => {
-          setArrivals((p) => ({ ...p, [open.id]: new Date().toISOString() }))
-          setStatuses((p) => ({ ...p, [open.id]: 'in-progress' }))
-        }}
-        onComplete={() => setStatuses((p) => ({ ...p, [open.id]: 'done' }))}
-        onPhotos={(next) => setPhotos((p) => ({ ...p, [open.id]: next }))}
-      />
-    )
+  if (openId) {
+    return <MissionDetail id={openId} onBack={() => setOpenId(null)} />
   }
 
-  const list = missions.filter(FILTERS.find((f) => f.id === filter)!.match)
+  const liste = missions.filter(FILTERS.find((f) => f.id === filter)!.match)
+  const aPointer = missions.filter(
+    (m) => m.status === 'confirmed' || m.status === 'shopping',
+  ).length
 
   return (
     <ChefPage title="Prestations" subtitle="Vos sessions à venir, en cours et passées.">
       <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtrer les prestations">
-            {FILTERS.map((f) => {
-              const count = missions.filter(f.match).length
-              const active = filter === f.id
-              return (
-                <button
-                  key={f.id}
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setFilter(f.id)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    active ? 'bg-navy text-white' : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
-                  }`}
-                >
-                  {f.label} <span className="tabular-nums opacity-70">({count})</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex rounded-full border border-[rgba(31,42,55,0.1)] bg-paper p-0.5">
-            {([
-              { id: 'cards' as const, label: 'Cartes', Icon: LayoutGrid },
-              { id: 'list' as const, label: 'Liste', Icon: List },
-            ]).map((v) => (
-              <button
-                key={v.id}
-                onClick={() => setView(v.id)}
-                aria-pressed={view === v.id}
-                title={`Affichage en ${v.label.toLowerCase()}`}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  view === v.id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy'
-                }`}
-              >
-                <v.Icon className="h-3.5 w-3.5" aria-hidden /> {v.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {list.length === 0 ? (
+        {query.isError ? (
           <Card>
-            <Empty text="Aucune prestation dans cette catégorie." />
+            <p className="flex items-start gap-2 font-display text-lg font-bold text-navy">
+              <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-red-700" aria-hidden />
+              Vos prestations n’ont pas pu être chargées
+            </p>
+            <p className="mt-1.5 text-sm text-ink-mid">Rien n’est perdu.</p>
+            <button onClick={() => query.refetch()} className="btn btn-primary mt-4 text-xs">
+              <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+            </button>
           </Card>
-        ) : view === 'list' ? (
-          <MissionTable missions={list} onOpen={setOpenId} />
         ) : (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {list.map((m) => (
-              <MissionCard key={m.id} mission={m} onOpen={() => setOpenId(m.id)} />
-            ))}
-          </div>
+          <>
+            <div
+              className="flex flex-wrap gap-2"
+              role="tablist"
+              aria-label="Filtrer les prestations"
+            >
+              {FILTERS.map((f) => {
+                const n = missions.filter(f.match).length
+                const active = filter === f.id
+                return (
+                  <button
+                    key={f.id}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setFilter(f.id)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                      active
+                        ? 'bg-navy text-white'
+                        : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
+                    }`}
+                  >
+                    {f.label}
+                    {!query.isPending && (
+                      <span className="ml-1.5 tabular-nums opacity-70">({n})</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {query.isPending ? (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-44 animate-pulse rounded-3xl bg-paper" />
+                ))}
+              </div>
+            ) : missions.length === 0 ? (
+              <Card>
+                <Empty text="Aucune prestation pour l’instant. Elles apparaîtront ici dès qu’un client réservera avec vous." />
+                <p className="mt-2 flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Pour être réservable, il faut des horaires de travail posés
+                  dans votre{' '}
+                  <Link href="/espace-chef/agenda" className="font-semibold text-terra">
+                    agenda
+                  </Link>{' '}
+                  — sans eux, aucun créneau n’est proposé aux clients.
+                </p>
+              </Card>
+            ) : liste.length === 0 ? (
+              <Card>
+                <Empty text="Aucune prestation dans cette catégorie." />
+              </Card>
+            ) : (
+              <>
+                {aPointer > 0 && filter !== 'history' && (
+                  <p className="flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    {aPointer === 1
+                      ? 'Une prestation attend que vous la fassiez avancer : courses, puis arrivée sur place.'
+                      : `${aPointer} prestations attendent que vous les fassiez avancer.`}
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {liste.map((m) => (
+                    <MissionCard key={m.id} mission={m} onOpen={() => setOpenId(m.id)} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </ChefPage>
   )
 }
 
-// ── Liste ───────────────────────────────────────────────────────────────────
+// ── La carte d'une prestation ───────────────────────────────────────────────
 
-function MissionTable({ missions, onOpen }: { missions: ChefMission[]; onOpen: (id: string) => void }) {
-  return (
-    <Card className="!p-0 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b border-[rgba(31,42,55,0.08)] text-left">
-              {['Date', 'Client', 'Plats', 'Statut', 'Net'].map((h) => (
-                <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                  {h}
-                </th>
-              ))}
-              <th className="px-4 py-3">
-                <span className="sr-only">Ouvrir</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[rgba(31,42,55,0.06)]">
-            {missions.map((m) => (
-              <tr
-                key={m.id}
-                onClick={() => onOpen(m.id)}
-                className="cursor-pointer transition-colors hover:bg-cream-soft"
-              >
-                <td className="whitespace-nowrap px-4 py-3">
-                  <p className="font-semibold tabular-nums text-navy">{shortDate(m.date)}</p>
-                  <p className="text-xs text-ink-soft">{m.timeSlot}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-navy">{m.client}</p>
-                  <p className="text-xs text-ink-soft">{m.city}</p>
-                </td>
-                <td className="max-w-[260px] px-4 py-3">
-                  <p className="truncate text-ink-mid">{m.meals.join(', ')}</p>
-                  <p className="text-xs text-ink-soft">
-                    {m.persons} pers. · {m.shoppingByChef ? 'courses incluses' : 'courses client'}
-                  </p>
-                </td>
-                <td className="px-4 py-3">
-                  <MissionBadge status={m.status} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 font-semibold tabular-nums text-navy">{euros(m.net)}</td>
-                <td className="px-4 py-3 text-right">
-                  <span className="text-xs font-semibold text-amber-deep">Ouvrir</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  )
-}
+function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => void }) {
+  const portions = bookingPortions(m)
+  const plats = (m.meals ?? []).map((x) => x.name).filter(Boolean) as string[]
+  const net = euros(m.netCents)
+  const suite = nextTransition(m)
 
-function MissionCard({ mission: m, onOpen }: { mission: ChefMission; onOpen: () => void }) {
   return (
     <Card className="flex flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="font-display text-lg font-bold text-navy">{m.client}</p>
-            <MissionBadge status={m.status} />
+            <p className="font-display text-lg font-bold text-navy">
+              {m.client?.name ?? 'Client'}
+            </p>
+            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+              {bookingStatusText(m.status)}
+            </span>
           </div>
           <p className="text-sm capitalize text-ink-mid">
-            {longDate(m.date)} · {m.timeSlot}
+            {longDate(m.startsAt) ?? 'Date à confirmer'}
+            {slot(m) ? ` · ${slot(m)}` : ''}
           </p>
           <p className="mt-1 inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" aria-hidden /> {m.city}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" aria-hidden /> {m.persons} personnes
-            </span>
+            {m.city && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" aria-hidden /> {m.city}
+              </span>
+            )}
+            {portions > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" aria-hidden /> {portions} portions
+              </span>
+            )}
+            {m.reference && <span className="font-mono">{m.reference}</span>}
           </p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[10px] uppercase tracking-wide text-ink-soft">Net perçu</p>
-          <p className="font-display text-xl font-bold text-navy">{euros(m.net)}</p>
+        {net && (
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+              {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
+            </p>
+            <p className="font-display text-xl font-bold text-navy">{net}</p>
+          </div>
+        )}
+      </div>
+
+      {plats.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {plats.map((nom) => (
+            <span key={nom} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
+              {nom}
+            </span>
+          ))}
         </div>
-      </div>
+      )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {m.meals.map((meal) => (
-          <span key={meal} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
-            {meal}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] pt-3">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
         <p className="text-[11px] text-ink-soft">
-          Prestation n° <span className="font-mono text-ink-mid">{m.reference}</span>
+          {m.reschedule?.status === 'pending'
+            ? 'Un report attend une réponse'
+            : suite
+              ? `Prochaine étape : ${suite.label.toLowerCase()}`
+              : ' '}
         </p>
         <button onClick={onOpen} className="btn btn-outline px-4 py-2 text-xs">
           Ouvrir
@@ -266,33 +275,76 @@ function MissionCard({ mission: m, onOpen }: { mission: ChefMission; onOpen: () 
   )
 }
 
-// ── Détail ──────────────────────────────────────────────────────────────────
+// ── Le détail ───────────────────────────────────────────────────────────────
 
-function MissionDetail({
-  mission: m,
-  onBack,
-  onArrive,
-  onComplete,
-  onPhotos,
-}: {
-  mission: ChefMission
-  onBack: () => void
-  onArrive: () => void
-  onComplete: () => void
-  onPhotos: (photos: MissionPhoto[]) => void
-}) {
-  const [doc, setDoc] = useState<{ kind: 'recipe' | 'shopping' | 'mandate'; dishId?: string } | null>(null)
-  const [checked, setChecked] = useState<string[]>([])
-  const [mandateSignedAt, setMandateSignedAt] = useState<string | undefined>()
+function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const toast = useToast()
+  const query = useChefBooking(id)
+  const avancer = useAdvanceBooking()
+  const proposer = useProposeReschedule('chef')
+  const repondre = useAnswerReschedule('chef')
+  const diets = useDiets()
+  const allergens = useAllergens()
 
-  const client = clientById(m.clientId)
-  const dishes = m.dishIds.map(dishById).filter((d): d is NonNullable<typeof d> => Boolean(d))
-  const allDone = checked.length === HYGIENE_CHECKLIST.length
-  const started = Boolean(m.arrivedAt) || m.status === 'in-progress'
-  const finished = m.status === 'done' || m.status === 'disputed'
+  const [fiche, setFiche] = useState<{ dishId: string; nom: string } | null>(null)
+  const [courses, setCourses] = useState(false)
+  const [aAvancer, setAAvancer] = useState<ReturnType<typeof nextTransition>>(null)
+  const [nouvelHoraire, setNouvelHoraire] = useState<string | null>(null)
+
+  if (query.isPending) {
+    return (
+      <ChefPage title="Prestation">
+        <div className="space-y-4">
+          <div className="h-32 animate-pulse rounded-3xl bg-paper" />
+          <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+        </div>
+      </ChefPage>
+    )
+  }
+
+  if (query.isError || !query.data) {
+    return (
+      <ChefPage title="Prestation introuvable">
+        <Card>
+          <p className="text-sm leading-relaxed text-ink-mid">
+            Cette prestation n’existe plus, ou elle ne vous est pas confiée.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => query.refetch()} className="btn btn-outline text-xs">
+              <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+            </button>
+            <button onClick={onBack} className="btn btn-primary text-xs">
+              Toutes les prestations
+            </button>
+          </div>
+        </Card>
+      </ChefPage>
+    )
+  }
+
+  const m = query.data
+  const portions = bookingPortions(m)
+  const net = euros(m.netCents)
+  const commission = euros(m.commissionCents)
+  const ttc = euros(m.amountTtc ?? m.priceCents)
+  const suite = nextTransition(m)
+
+  /** Un report proposé par le client attend notre réponse. */
+  const report =
+    m.reschedule?.status === 'pending' && m.reschedule.proposedBy === 'client'
+      ? m.reschedule
+      : null
+  /** Celui qu'on a proposé soi-même, et qui attend le client. */
+  const enAttente =
+    m.reschedule?.status === 'pending' && m.reschedule.proposedBy === 'chef'
+      ? m.reschedule
+      : null
 
   return (
-    <ChefPage title={m.client} subtitle={`Prestation n° ${m.reference}`}>
+    <ChefPage
+      title={m.client?.name ?? 'Prestation'}
+      subtitle={m.reference ? `Prestation n° ${m.reference}` : undefined}
+    >
       <div className="space-y-5">
         <button
           onClick={onBack}
@@ -301,163 +353,218 @@ function MissionDetail({
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes les prestations
         </button>
 
+        {/* ── Un report attend une réponse ──────────────────────────────── */}
+        {report && (
+          <Card className="!border-amber/40 !bg-amber-soft/50">
+            <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+              Le client propose un autre horaire
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-mid">
+              Au lieu du {longDate(report.from)} à {hour(report.from)}, il propose le{' '}
+              <strong className="font-semibold text-navy">
+                {longDate(report.to)} à {hour(report.to)}
+              </strong>
+              . La durée et le prix ne changent pas.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() =>
+                  repondre.mutate(
+                    { id: m.id, decision: 'accepted' },
+                    {
+                      onSuccess: () => toast.success('Nouvel horaire accepté'),
+                      onError: () => toast.error('La réponse n’a pas été enregistrée'),
+                    },
+                  )
+                }
+                disabled={repondre.isPending}
+                className="btn btn-primary text-xs"
+              >
+                Accepter
+              </button>
+              <button
+                onClick={() =>
+                  repondre.mutate(
+                    { id: m.id, decision: 'declined' },
+                    {
+                      onSuccess: () =>
+                        toast.info('Horaire refusé', 'La prestation garde son heure.'),
+                      onError: () => toast.error('La réponse n’a pas été enregistrée'),
+                    },
+                  )
+                }
+                disabled={repondre.isPending}
+                className="btn btn-outline text-xs"
+              >
+                Garder l’horaire prévu
+              </button>
+            </div>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-5">
-            {/* Repères */}
+            {/* ── Les repères ─────────────────────────────────────────── */}
             <Card>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <MissionBadge status={m.status} />
-                  <p className="mt-2 font-display text-xl font-bold capitalize text-navy">{longDate(m.date)}</p>
-                  <p className="text-sm text-ink-mid">{m.timeSlot}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wide text-ink-soft">Net perçu</p>
-                  <p className="font-display text-2xl font-bold text-navy">{euros(m.net)}</p>
-                  <p className="text-[11px] text-ink-soft">
-                    Client {euros(m.amountTTC)} · commission {euros(m.commission)}
+                  <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                    {bookingStatusText(m.status)}
+                  </span>
+                  <p className="mt-2 font-display text-xl font-bold capitalize text-navy">
+                    {longDate(m.startsAt) ?? 'Date à confirmer'}
                   </p>
+                  <p className="text-sm text-ink-mid">{slot(m) ?? 'Horaire à confirmer'}</p>
                 </div>
+                {net && (
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+                      {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
+                    </p>
+                    <p className="font-display text-2xl font-bold text-navy">{net}</p>
+                    {ttc && commission && (
+                      <p className="text-[11px] text-ink-soft">
+                        Client {ttc} · commission {commission}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <dl className="mt-4 grid grid-cols-1 gap-3 border-t border-[rgba(31,42,55,0.08)] pt-4 sm:grid-cols-2">
-                <Info icon={<MapPin className="h-4 w-4" />} label="Adresse" value={m.address} />
-                <Info icon={<Users className="h-4 w-4" />} label="Convives" value={`${m.persons} personnes`} />
-                <Info
-                  icon={<ShoppingBasket className="h-4 w-4" />}
-                  label="Courses"
+                <Info2
+                  icon={<MapPin className="h-4 w-4" />}
+                  label="Adresse"
                   value={
-                    m.shoppingByChef
-                      ? `À votre charge${m.expenseCap ? ` · plafond ${m.expenseCap} €` : ''}`
-                      : 'Faites par le client'
+                    m.addressLine
+                      ? `${m.addressLine}${m.city ? `, ${m.city}` : ''}`
+                      : (m.city ?? 'Non communiquée')
                   }
                 />
-                <Info
-                  icon={<CalendarDays className="h-4 w-4" />}
+                <Info2
+                  icon={<Users className="h-4 w-4" />}
+                  label="Convives"
+                  value={portions > 0 ? `${portions} portions` : 'Non précisé'}
+                />
+                <Info2
+                  icon={<ClipboardList className="h-4 w-4" />}
+                  label="Courses"
+                  value={m.shoppingByClient ? 'Faites par le client' : 'À votre charge'}
+                />
+                <Info2
+                  icon={<Clock className="h-4 w-4" />}
                   label="Arrivée"
-                  value={m.arrivedAt ? `Pointée à ${timeLabel(m.arrivedAt)}` : 'Pas encore pointée'}
+                  value={
+                    m.arrivedAt ? `Pointée à ${hour(m.arrivedAt)}` : 'Pas encore pointée'
+                  }
                 />
               </dl>
-            </Card>
 
-            {/* Consignes du client */}
-            <Card title="Consignes du client">
-              {m.clientNote ? (
-                <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">{m.clientNote}</p>
-              ) : (
-                <Empty text="Aucune consigne particulière." />
-              )}
-              {(m.allergies.length > 0 || m.diets.length > 0) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {m.allergies.map((a) => (
-                    <StatusBadge key={a} tone="danger">
-                      <AlertTriangle className="h-3 w-3" aria-hidden /> {a}
-                    </StatusBadge>
-                  ))}
-                  {m.diets.map((d) => (
-                    <StatusBadge key={d} tone="info">
-                      {d}
-                    </StatusBadge>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Plats */}
-            <Card title="Plats associés">
-              <ul className="divide-y divide-[rgba(31,42,55,0.07)]">
-                {m.meals.map((meal) => {
-                  const dish = dishes.find((d) => d.name === meal)
-                  return (
-                    <li key={meal} className="flex items-center justify-between gap-3 py-2.5">
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-navy">{meal}</span>
-                        <span className="block text-xs text-ink-soft">
-                          {dish
-                            ? `${dish.country} · ${dish.portions} portions de base`
-                            : 'Plat hors catalogue — pas de fiche recette'}
-                        </span>
-                      </span>
-                      {dish && (
-                        <button
-                          onClick={() => setDoc({ kind: 'recipe', dishId: dish.id })}
-                          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40"
-                        >
-                          Fiche recette
-                        </button>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </Card>
-
-            {/* Checklist */}
-            {started && !finished && (
-              <Card
-                title="Checklist hygiène"
-                action={
-                  <StatusBadge tone={allDone ? 'success' : 'warning'}>
-                    {checked.length}/{HYGIENE_CHECKLIST.length}
-                  </StatusBadge>
-                }
-              >
-                <p className="mb-3 text-[13px] text-ink-soft">
-                  Contenu provisoire : cette checklist doit être revue avec Lab&apos;s Food.
+              {m.commissionEstimated && net && (
+                <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Ce net est une estimation tant que la prestation n’est pas
+                  entièrement payée : la commission se fixe au paiement.
                 </p>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {HYGIENE_CHECKLIST.map((item) => {
-                    const on = checked.includes(item)
-                    return (
-                      <li key={item}>
-                        <button
-                          onClick={() =>
-                            setChecked((p) => (p.includes(item) ? p.filter((i) => i !== item) : [...p, item]))
-                          }
-                          aria-pressed={on}
-                          className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                            on ? 'border-mint-deep bg-mint/40' : 'border-[rgba(31,42,55,0.08)] hover:bg-cream-soft'
-                          }`}
-                        >
-                          {on ? (
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint-ink" aria-hidden />
-                          ) : (
-                            <Circle className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
-                          )}
-                          <span className={`text-xs ${on ? 'text-mint-ink' : 'text-ink-mid'}`}>{item}</span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-                <button
-                  disabled={!allDone}
-                  onClick={onComplete}
-                  className="btn btn-primary mt-4 w-full justify-center text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Terminer la prestation
-                </button>
-                {!allDone && (
-                  <p className="mt-2 text-center text-[11px] text-ink-soft">Complétez la checklist pour clôturer.</p>
+              )}
+            </Card>
+
+            {/* ── Consignes et allergies ─────────────────────────────── */}
+            {(m.notes || (m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+              <Card title="Ce qu’il faut savoir">
+                {m.notes ? (
+                  <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
+                    {m.notes}
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
                 )}
+                {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(m.allergies ?? []).map((a) => (
+                      <span
+                        key={a}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
+                      >
+                        <AlertTriangle className="h-3 w-3" aria-hidden />
+                        {refLabel(allergens, a)}
+                      </span>
+                    ))}
+                    {(m.diets ?? []).map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
+                      >
+                        {refLabel(diets, d)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                  Lues au moment où vous ouvrez cette fiche : le client peut les
+                  changer dans son profil.
+                </p>
               </Card>
             )}
 
-            {/* Photos */}
-            {(started || finished) && <PhotoSection photos={m.photos} onChange={onPhotos} />}
+            {/* ── Les plats ───────────────────────────────────────────── */}
+            <Card title="Plats de la prestation">
+              {(m.meals?.length ?? 0) === 0 ? (
+                <Empty text="Aucun plat rattaché à cette prestation." />
+              ) : (
+                <ul className="divide-y divide-[rgba(31,42,55,0.07)]">
+                  {m.meals!.map((bm) => (
+                    <li key={bm.mealId} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-navy">
+                          {bm.name ?? 'Plat retiré du catalogue'}
+                        </span>
+                        <span className="block text-xs text-ink-soft">
+                          {bm.portions} portion{bm.portions > 1 ? 's' : ''}
+                          {bm.recipeVersion != null && ` · recette v${bm.recipeVersion}`}
+                        </span>
+                      </span>
+                      <button
+                        onClick={() =>
+                          setFiche({ dishId: bm.mealId, nom: bm.name ?? 'ce plat' })
+                        }
+                        className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40"
+                      >
+                        Fiche recette
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            {/* ── La liste de courses ─────────────────────────────────── */}
+            <ShoppingCard missionId={m.id} onOpenFull={() => setCourses(true)} />
+
+            {/* ── Les photos ─────────────────────────────────────────── */}
+            {(m.status === 'cooking' ||
+              m.status === 'delivered' ||
+              m.status === 'completed' ||
+              (m.photos?.length ?? 0) > 0) && <PhotosCard booking={m} />}
           </div>
 
-          {/* Colonne latérale */}
+          {/* ── Colonne latérale ─────────────────────────────────────── */}
           <aside className="space-y-5">
-            {!started && (
+            {/* L'étape suivante, un seul geste à la fois. */}
+            {suite && (
               <Card>
-                <p className="mb-2 text-sm font-semibold text-navy">Sur place ?</p>
-                <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
-                  Pointez votre arrivée : l&apos;heure est enregistrée et fait foi en cas de litige. La checklist et
-                  l&apos;ajout de photos s&apos;ouvrent ensuite.
-                </p>
-                <button onClick={onArrive} className="btn btn-primary w-full justify-center text-sm">
-                  Je suis arrivé(e)
+                <p className="text-sm font-semibold text-navy">Faire avancer</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-mid">{suite.hint}</p>
+                <button
+                  onClick={() => setAAvancer(suite)}
+                  disabled={avancer.isPending}
+                  className="btn btn-primary mt-3 w-full justify-center text-sm"
+                >
+                  {avancer.isPending && (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  )}
+                  {suite.label}
                 </button>
               </Card>
             )}
@@ -467,135 +574,242 @@ function MissionDetail({
                 <DocRow
                   icon={<ClipboardList className="h-4 w-4" />}
                   label="Liste de courses"
-                  detail={`${m.persons} personnes · modifiable`}
-                  onClick={() => setDoc({ kind: 'shopping' })}
+                  detail="Calculée depuis vos recettes · modifiable"
+                  onClick={() => setCourses(true)}
                 />
-                {m.shoppingByChef && (
+                {(m.meals ?? []).map((bm) => (
                   <DocRow
-                    icon={<Receipt className="h-4 w-4" />}
-                    label="Mandat de débours"
-                    detail={mandateSignedAt ? 'Signé' : 'À signer avant les courses'}
-                    tone={mandateSignedAt ? 'success' : 'warning'}
-                    onClick={() => setDoc({ kind: 'mandate' })}
-                  />
-                )}
-                {dishes.map((d) => (
-                  <DocRow
-                    key={d.id}
+                    key={bm.mealId}
                     icon={<FileText className="h-4 w-4" />}
-                    label={`Fiche recette — ${d.name}`}
-                    detail={`${m.persons} portions`}
-                    onClick={() => setDoc({ kind: 'recipe', dishId: d.id })}
+                    label={`Fiche — ${bm.name ?? 'plat'}`}
+                    detail={`${bm.portions} portions`}
+                    onClick={() => setFiche({ dishId: bm.mealId, nom: bm.name ?? 'ce plat' })}
                   />
                 ))}
               </ul>
             </Card>
 
-            {client && (
-              <Card title="Le client">
-                <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-                  <UserRound className="h-4 w-4 text-amber-deep" aria-hidden /> {client.name}
-                </p>
-                <dl className="mt-3 space-y-2 text-[13px]">
-                  <SideRow label="Foyer" value={client.household} />
-                  <SideRow label="Allergies" value={client.allergies.join(', ') || 'Aucune'} />
-                  <SideRow label="Régimes" value={client.diets.join(', ') || 'Aucun'} />
-                  <SideRow label="Équipement" value={client.equipment.join(', ')} />
-                  <SideRow label="Sessions" value={`${client.sessionsCount} avec vous`} />
-                </dl>
-                {client.note && (
-                  <p className="mt-3 rounded-xl bg-cream-soft px-3 py-2 text-[13px] leading-relaxed text-ink-mid">
-                    <MessageSquare className="mr-1.5 inline h-3.5 w-3.5 text-ink-soft" aria-hidden />
-                    {client.note}
-                  </p>
+            {/* Déplacer la prestation */}
+            {(m.status === 'confirmed' || m.status === 'shopping') && !report && (
+              <Card title="Déplacer la session">
+                {enAttente ? (
+                  <>
+                    <p className="text-[13px] leading-relaxed text-ink-mid">
+                      Vous avez proposé le{' '}
+                      <strong className="font-semibold text-navy">
+                        {longDate(enAttente.to)} à {hour(enAttente.to)}
+                      </strong>
+                      . Le client n’a pas encore répondu.
+                    </p>
+                    <button
+                      onClick={() =>
+                        repondre.mutate(
+                          { id: m.id, decision: 'withdrawn' },
+                          {
+                            onSuccess: () => toast.info('Proposition retirée'),
+                            onError: () => toast.error('Le retrait a échoué'),
+                          },
+                        )
+                      }
+                      disabled={repondre.isPending}
+                      className="btn btn-outline mt-3 w-full justify-center text-xs"
+                    >
+                      Retirer ma proposition
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[13px] leading-relaxed text-ink-mid">
+                      Vous proposez, le client confirme. Rien ne bouge dans les 48
+                      dernières heures — ni l’horaire actuel, ni le nouveau.
+                    </p>
+                    <label className="mt-3 block">
+                      <span className="mb-1.5 block text-[13px] font-semibold text-navy">
+                        Nouvelle date et heure
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={nouvelHoraire ?? ''}
+                        onChange={(e) => setNouvelHoraire(e.target.value)}
+                        className="input-base"
+                      />
+                    </label>
+                    <button
+                      onClick={() =>
+                        nouvelHoraire &&
+                        proposer.mutate(
+                          { id: m.id, startsAt: new Date(nouvelHoraire).toISOString() },
+                          {
+                            onSuccess: () => {
+                              setNouvelHoraire(null)
+                              toast.success(
+                                'Proposition envoyée',
+                                'Le client a 48 h pour répondre.',
+                              )
+                            },
+                            onError: (e) =>
+                              toast.error(
+                                'La proposition a été refusée',
+                                e instanceof Error ? e.message : undefined,
+                              ),
+                          },
+                        )
+                      }
+                      disabled={!nouvelHoraire || proposer.isPending}
+                      className="btn btn-outline mt-2 w-full justify-center text-xs disabled:opacity-55"
+                    >
+                      {proposer.isPending && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      )}
+                      Proposer cet horaire
+                    </button>
+                  </>
                 )}
               </Card>
             )}
+
+            <Card title="Le client">
+              <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                <UserRound className="h-4 w-4 text-amber-deep" aria-hidden />
+                {m.client?.name ?? 'Client'}
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
+                Son foyer et ses préférences vous sont donnés dans la conversation
+                de la prestation — jamais son numéro avant les 48 h qui précèdent.
+              </p>
+              <Link
+                href="/espace-chef/messagerie"
+                className="btn btn-outline mt-3 w-full justify-center text-xs"
+              >
+                Ouvrir la messagerie
+              </Link>
+            </Card>
+
+            {/* Ce qui n'existe toujours pas. */}
+            <Card title="Pas encore disponible">
+              <ul className="space-y-1.5 text-[13px] leading-relaxed text-ink-mid">
+                {['La checklist d’hygiène', 'Le mandat de débours et vos justificatifs'].map(
+                  (x) => (
+                    <li key={x} className="flex items-start gap-2">
+                      <span
+                        aria-hidden
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-soft/50"
+                      />
+                      <span>
+                        {x} — <strong className="font-semibold text-navy">N/A</strong>
+                      </span>
+                    </li>
+                  ),
+                )}
+              </ul>
+              <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                Les deux attendent un cadrage, pas du code : le contenu de la
+                checklist, et les conséquences juridiques du mandat.
+              </p>
+            </Card>
           </aside>
         </div>
       </div>
 
-      {/* Documents */}
-      <DocDialog
-        open={doc?.kind === 'recipe'}
-        onOpenChange={(v) => !v && setDoc(null)}
-        title="Fiche recette"
-        description={`Prestation n° ${m.reference} · ${m.persons} portions`}
-      >
-        {doc?.dishId && dishById(doc.dishId) && (
-          <RecipeSheet dish={dishById(doc.dishId)!} portions={m.persons} chefName={CHEF_PROFILE.name} />
-        )}
-      </DocDialog>
+      <RecipeSheetDialog
+        missionId={m.id}
+        dish={fiche}
+        reference={m.reference}
+        onClose={() => setFiche(null)}
+      />
 
       <DocDialog
-        open={doc?.kind === 'shopping'}
-        onOpenChange={(v) => !v && setDoc(null)}
+        open={courses}
+        onOpenChange={(v) => !v && setCourses(false)}
         title="Liste de courses"
-        description={`${m.client} · ${m.persons} personnes`}
+        description={
+          m.client?.name ? `${m.client.name} · ${portions} portions` : `${portions} portions`
+        }
       >
         <div className="p-5 sm:p-6">
-          <ShoppingList dishes={dishes} persons={m.persons} />
+          <ShoppingEditor missionId={m.id} />
         </div>
       </DocDialog>
 
-      <DocDialog
-        open={doc?.kind === 'mandate'}
-        onOpenChange={(v) => !v && setDoc(null)}
-        title="Mandat de débours"
-        description={`Prestation n° ${m.reference}`}
-      >
-        <ExpenseMandate
-          mission={m}
-          chefName={CHEF_PROFILE.name}
-          signedByChefAt={mandateSignedAt}
-          signedByClientAt={m.date}
-          onSign={() => setMandateSignedAt(new Date().toISOString())}
-        />
-      </DocDialog>
+      <ConfirmDialog
+        open={aAvancer !== null}
+        onClose={() => setAAvancer(null)}
+        onConfirm={() =>
+          aAvancer &&
+          avancer.mutate(
+            { id: m.id, status: aAvancer.status },
+            {
+              onSuccess: (b) => {
+                setAAvancer(null)
+                toast.success(
+                  aAvancer.status === 'cooking'
+                    ? `Arrivée pointée à ${hour(b.arrivedAt) ?? 'maintenant'}`
+                    : `Prestation passée en « ${bookingStatusText(b.status).toLowerCase()} »`,
+                )
+              },
+              onError: (e) =>
+                toast.error(
+                  'La prestation n’a pas avancé',
+                  e instanceof Error ? e.message : undefined,
+                ),
+            },
+          )
+        }
+        pending={avancer.isPending}
+        title={aAvancer ? `${aAvancer.label} ?` : ''}
+        lead={
+          aAvancer?.status === 'cooking'
+            ? 'L’heure est enregistrée par l’API et fait foi en cas de litige. Elle n’est pas modifiable ensuite.'
+            : (aAvancer?.hint ?? '')
+        }
+        detail={
+          aAvancer?.status === 'cooking'
+            ? 'Possible à partir de deux heures avant le début de la session.'
+            : undefined
+        }
+        confirmLabel={aAvancer?.label ?? 'Continuer'}
+      />
     </ChefPage>
   )
 }
 
-// ── Photos ──────────────────────────────────────────────────────────────────
+// ── Les photos de la session ────────────────────────────────────────────────
 
-function PhotoSection({
-  photos,
-  onChange,
-}: {
-  photos: MissionPhoto[]
-  onChange: (photos: MissionPhoto[]) => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState<string | null>(null)
-  const photosRef = useRef(photos)
-  useEffect(() => {
-    photosRef.current = photos
-  }, [photos])
-  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url)), [])
+/**
+ * Plats dressés, contenants étiquetés, cuisine rendue.
+ *
+ * Même trio que partout ailleurs, et 5 Mo au plus — moitié moins que les
+ * pièces jointes de messagerie. Elles accompagnent le compte rendu du client.
+ */
+function PhotosCard({ booking: m }: { booking: Booking }) {
+  const toast = useToast()
+  const ajouter = useAddBookingPhoto()
+  const retirer = useRemoveBookingPhoto()
+  const champ = useRef<HTMLInputElement>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [aRetirer, setARetirer] = useState<string | null>(null)
 
-  const add = (files: FileList | null) => {
-    if (!files?.length) return
-    const accepted: MissionPhoto[] = []
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) {
-        setError('Seules les images sont acceptées (JPG, PNG, WebP).')
-        continue
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        setError(`« ${file.name} » dépasse 10 Mo.`)
-        continue
-      }
-      accepted.push({
-        id: `${file.name}-${file.lastModified}`,
-        url: URL.createObjectURL(file),
-        caption: file.name,
-        at: new Date().toISOString(),
-      })
+  const photos = m.photos ?? []
+
+  function choisir(files: FileList | null) {
+    setErreur(null)
+    const file = files?.[0]
+    if (!file) return
+    const probleme = checkPhoto(file)
+    if (probleme) {
+      setErreur(probleme)
+      return
     }
-    if (accepted.length) {
-      setError(null)
-      onChange([...photos, ...accepted])
-    }
+    ajouter.mutate(
+      { id: m.id, file },
+      {
+        onSuccess: () => {
+          if (champ.current) champ.current.value = ''
+          toast.success('Photo ajoutée')
+        },
+        onError: (e) => setErreur(photoMessage(e)),
+      },
+    )
   }
 
   return (
@@ -603,52 +817,59 @@ function PhotoSection({
       title="Photos de la prestation"
       action={
         <button
-          onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-navy px-3 py-1.5 text-xs font-semibold text-navy hover:bg-navy hover:text-white"
+          onClick={() => champ.current?.click()}
+          disabled={ajouter.isPending}
+          className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-navy px-3 py-1.5 text-xs font-semibold text-navy hover:bg-navy hover:text-white disabled:opacity-55"
         >
-          <Camera className="h-3.5 w-3.5" aria-hidden /> Ajouter
+          {ajouter.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Camera className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Ajouter
         </button>
       }
     >
       <input
-        ref={inputRef}
+        ref={champ}
         type="file"
-        accept="image/*"
-        multiple
+        accept="image/jpeg,image/png,image/webp"
         className="sr-only"
-        onChange={(e) => {
-          add(e.target.files)
-          e.target.value = ''
-        }}
+        onChange={(e) => choisir(e.target.files)}
       />
-      <p className="mb-3 text-[13px] text-ink-mid">
-        Plats dressés, contenants étiquetés, cuisine rendue : ces photos accompagnent le compte rendu envoyé au client.
+      <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
+        Plats dressés, contenants étiquetés, cuisine rendue : elles accompagnent
+        le compte rendu du client. JPG, PNG ou WebP, 5 Mo au plus.
       </p>
-      {error && (
+
+      {erreur && (
         <p role="alert" className="mb-3 text-[13px] text-red-700">
-          {error}
+          {erreur}
         </p>
       )}
+
       {photos.length === 0 ? (
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={() => champ.current?.click()}
           className="flex w-full flex-col items-center gap-2 rounded-xl border-[1.5px] border-dashed border-[rgba(31,42,55,0.2)] px-4 py-8 text-center transition-colors hover:border-amber hover:bg-amber-soft/20"
         >
           <Camera className="h-5 w-5 text-ink-soft" aria-hidden />
-          <span className="text-sm font-semibold text-navy">Ajouter vos premières photos</span>
-          <span className="text-xs text-ink-soft">JPG, PNG ou WebP, 10 Mo maximum par photo</span>
+          <span className="text-sm font-semibold text-navy">
+            Ajouter vos premières photos
+          </span>
         </button>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {photos.map((p) => (
             <li key={p.id} className="group relative overflow-hidden rounded-xl bg-cream-soft">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt={p.caption ?? ''} className="aspect-[4/3] w-full object-cover" />
+              <img
+                src={p.url}
+                alt={p.caption ?? ''}
+                className="aspect-[4/3] w-full object-cover"
+              />
               <button
-                onClick={() => {
-                  URL.revokeObjectURL(p.url)
-                  onChange(photos.filter((x) => x.id !== p.id))
-                }}
+                onClick={() => setARetirer(p.id)}
                 aria-label={`Retirer ${p.caption ?? 'la photo'}`}
                 className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-navy/75 text-white opacity-0 transition-opacity hover:bg-navy focus-visible:opacity-100 group-hover:opacity-100"
               >
@@ -658,13 +879,571 @@ function PhotoSection({
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={aRetirer !== null}
+        onClose={() => setARetirer(null)}
+        onConfirm={() =>
+          aRetirer &&
+          retirer.mutate(
+            { id: m.id, photoId: aRetirer },
+            {
+              onSuccess: () => {
+                setARetirer(null)
+                toast.success('Photo retirée')
+              },
+              onError: () => toast.error('La photo n’a pas été retirée'),
+            },
+          )
+        }
+        pending={retirer.isPending}
+        tone="danger"
+        title="Retirer cette photo ?"
+        lead="Elle disparaît du compte rendu que le client consulte."
+        detail="C’est définitif : il faudra la renvoyer pour la retrouver."
+        confirmLabel="Retirer la photo"
+      />
     </Card>
   )
 }
 
-// ── Détails de présentation ─────────────────────────────────────────────────
+// ── Liste de courses ────────────────────────────────────────────────────────
 
-function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function ShoppingCard({
+  missionId,
+  onOpenFull,
+}: {
+  missionId: string
+  onOpenFull: () => void
+}) {
+  const query = useMissionShoppingList(missionId)
+  const groupes = query.data?.groups ?? []
+  const lignes = groupes.reduce((n, g) => n + g.lines.length, 0)
+  const corrigees = groupes.reduce((n, g) => n + g.lines.filter((l) => l.edited).length, 0)
+
+  return (
+    <Card
+      title="Liste de courses"
+      action={
+        <button onClick={onOpenFull} className="btn btn-outline px-3 py-1.5 text-xs">
+          Ouvrir et corriger
+        </button>
+      }
+    >
+      {query.isPending ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-8 animate-pulse rounded-xl bg-cream-soft" />
+          ))}
+        </div>
+      ) : query.isError ? (
+        <p className="text-[13px] leading-relaxed text-ink-mid">
+          La liste n’a pas pu être lue. Elle se calcule depuis les recettes de la
+          prestation : si aucun de ses plats n’a de recette, il n’y a rien à
+          calculer.
+        </p>
+      ) : lignes === 0 ? (
+        <Empty text="Aucune ligne : les plats de cette prestation n’ont pas de recette renseignée." />
+      ) : (
+        <>
+          <p className="mb-3 text-[13px] text-ink-mid">
+            {lignes} ligne{lignes > 1 ? 's' : ''} sur {groupes.length} rayon
+            {groupes.length > 1 ? 's' : ''}
+            {corrigees > 0 && ` · ${corrigees} corrigée${corrigees > 1 ? 's' : ''} par vous`}
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {groupes.map((g) => (
+              <li
+                key={g.aisle}
+                className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy"
+              >
+                {aisleLabel(g.aisle)}
+                <span className="ml-1.5 tabular-nums text-ink-soft">{g.lines.length}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * La liste, telle qu'on la veut.
+ *
+ * `PUT` envoie **la liste entière** : ce qui diffère des recettes est gardé
+ * comme correction et survit aux recalculs, une ligne calculée qu'on retire
+ * est barrée. On édite donc une copie locale, et on l'envoie d'un bloc.
+ */
+function ShoppingEditor({ missionId }: { missionId: string }) {
+  const toast = useToast()
+  const query = useMissionShoppingList(missionId)
+  const save = useSaveMissionShoppingList()
+  const reset = useResetMissionShoppingList()
+
+  type Row = MissionLine & { aisle: string }
+  const [brouillon, setBrouillon] = useState<Row[] | null>(null)
+  const [aRemettre, setARemettre] = useState(false)
+
+  const serveur: Row[] = (query.data?.groups ?? []).flatMap((g) =>
+    g.lines.map((l) => ({ ...l, aisle: g.aisle })),
+  )
+  const lignes = brouillon ?? serveur
+  const modifie = brouillon !== null
+
+  const changer = (i: number, patch: Partial<Row>) =>
+    setBrouillon(lignes.map((l, j) => (j === i ? { ...l, ...patch } : l)))
+
+  if (query.isPending) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-10 animate-pulse rounded-xl bg-cream-soft" />
+        ))}
+      </div>
+    )
+  }
+
+  if (query.isError) {
+    return (
+      <p className="text-sm leading-relaxed text-ink-mid">
+        La liste n’a pas pu être lue. Elle se calcule depuis les recettes de la
+        prestation.
+      </p>
+    )
+  }
+
+  const valides = lignes.filter(
+    (l) => l.name.trim() && Number.isFinite(l.qty) && l.unit.trim() && l.aisle.trim(),
+  )
+  const incompletes = lignes.length - valides.length
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-prose text-[13px] leading-relaxed text-ink-mid">
+          Calculée depuis les recettes de la prestation, mise à l’échelle des
+          portions commandées.{' '}
+          <strong className="font-semibold text-navy">
+            Vos corrections survivent aux recalculs
+          </strong>{' '}
+          — une ligne retirée reste retirée.
+        </p>
+        {query.data?.persons != null && (
+          <span className="shrink-0 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-mid">
+            {query.data.persons} personnes
+          </span>
+        )}
+      </div>
+
+      {lignes.length === 0 ? (
+        <Empty text="Aucune ligne. Les plats de cette prestation n’ont pas de recette renseignée." />
+      ) : (
+        <ul className="space-y-2">
+          {lignes.map((l, i) => (
+            <li
+              key={`${l.name}-${i}`}
+              className="flex flex-wrap items-center gap-2 rounded-xl bg-cream-soft p-2"
+            >
+              <input
+                value={l.name}
+                onChange={(e) => changer(i, { name: e.target.value })}
+                aria-label={`Ingrédient ${i + 1}`}
+                className="input-base min-w-32 flex-1 py-2"
+              />
+              <input
+                type="number"
+                step="any"
+                min={0}
+                value={Number.isFinite(l.qty) ? l.qty : ''}
+                onChange={(e) => changer(i, { qty: Number(e.target.value) })}
+                aria-label={`Quantité de ${l.name || 'la ligne'}`}
+                className="input-base w-20 shrink-0 py-2"
+              />
+              <select
+                value={l.unit}
+                onChange={(e) => changer(i, { unit: e.target.value })}
+                aria-label={`Unité de ${l.name || 'la ligne'}`}
+                className="input-base w-24 shrink-0 py-2"
+              >
+                <option value="">Unité</option>
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={l.aisle}
+                onChange={(e) => changer(i, { aisle: e.target.value })}
+                aria-label={`Rayon de ${l.name || 'la ligne'}`}
+                className="input-base w-36 shrink-0 py-2"
+              >
+                <option value="">Rayon</option>
+                {AISLES.map((a) => (
+                  <option key={a} value={a}>
+                    {aisleLabel(a)}
+                  </option>
+                ))}
+              </select>
+              {l.edited && !modifie && (
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-deep">
+                  corrigée
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setBrouillon(lignes.filter((_, j) => j !== i))}
+                aria-label={`Retirer ${l.name || 'cette ligne'}`}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        onClick={() =>
+          setBrouillon([...lignes, { name: '', qty: 1, unit: 'g', aisle: AISLES[0] }])
+        }
+        className="btn btn-outline mt-3 text-xs"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter une ligne
+      </button>
+
+      {incompletes > 0 && (
+        <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#8B6200]">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          {incompletes === 1
+            ? 'Une ligne est incomplète : elle ne sera pas envoyée. Il faut un nom, une quantité, une unité et un rayon.'
+            : `${incompletes} lignes sont incomplètes : elles ne seront pas envoyées.`}
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.08)] pt-4">
+        <button
+          type="button"
+          disabled={!modifie || save.isPending || valides.length === 0}
+          onClick={() =>
+            save.mutate(
+              { id: missionId, lines: valides as Required<Row>[] },
+              {
+                onSuccess: () => {
+                  setBrouillon(null)
+                  toast.success('Liste de courses enregistrée')
+                },
+                onError: (e) =>
+                  toast.error(
+                    'La liste n’a pas été enregistrée',
+                    e instanceof Error ? e.message : undefined,
+                  ),
+              },
+            )
+          }
+          className="btn btn-primary text-xs disabled:opacity-55"
+        >
+          {save.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Check className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Enregistrer mes corrections
+        </button>
+
+        {modifie && (
+          <button
+            type="button"
+            onClick={() => setBrouillon(null)}
+            className="btn btn-outline text-xs"
+          >
+            Annuler mes changements
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setARemettre(true)}
+          disabled={reset.isPending}
+          className="btn ml-auto text-xs text-ink-mid hover:text-navy"
+        >
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Revenir à la liste calculée
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={aRemettre}
+        onClose={() => setARemettre(false)}
+        onConfirm={() =>
+          reset.mutate(missionId, {
+            onSuccess: () => {
+              setARemettre(false)
+              setBrouillon(null)
+              toast.success('Liste remise à son calcul')
+            },
+            onError: () => toast.error('La remise à zéro a échoué'),
+          })
+        }
+        pending={reset.isPending}
+        tone="danger"
+        title="Abandonner vos corrections ?"
+        lead="La liste redevient celle que vos recettes donnent, pour les portions commandées."
+        detail="Toutes vos corrections sont perdues : les lignes ajoutées, les quantités changées et celles que vous aviez retirées."
+        confirmLabel="Revenir à la liste calculée"
+      />
+    </div>
+  )
+}
+
+// ── Fiche recette ───────────────────────────────────────────────────────────
+
+function RecipeSheetDialog({
+  missionId,
+  dish,
+  reference,
+  onClose,
+}: {
+  missionId: string
+  dish: { dishId: string; nom: string } | null
+  reference: string | null
+  onClose: () => void
+}) {
+  const toast = useToast()
+  const query = useMissionRecipeSheet(missionId, dish?.dishId)
+  const repin = useRepinMissionRecipes()
+  const diets = useDiets()
+  const allergens = useAllergens()
+  const [aBasculer, setABasculer] = useState(false)
+
+  const f = query.data
+
+  return (
+    <>
+      <DocDialog
+        open={dish !== null}
+        onOpenChange={(v) => !v && onClose()}
+        title={dish ? `Fiche — ${dish.nom}` : 'Fiche recette'}
+        description={
+          f
+            ? `${f.portions} portions${reference ? ` · prestation n° ${reference}` : ''}`
+            : undefined
+        }
+      >
+        <div className="p-5 sm:p-6">
+          {query.isPending ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-10 animate-pulse rounded-xl bg-cream-soft" />
+              ))}
+            </div>
+          ) : query.isError || !f ? (
+            <p className="text-sm leading-relaxed text-ink-mid">
+              Cette fiche n’a pas pu être lue. Elle n’existe que pour un plat de
+              la prestation dont la recette est renseignée.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <h3 className="font-display text-xl font-bold text-navy">{f.dish.name}</h3>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  {[countryLabel(f.dish.country), `${f.portions} portions`]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+
+              {f.version.newerAvailable && (
+                <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
+                  <p className="flex items-start gap-2 text-[13px] font-semibold text-[#8B6200]">
+                    <History className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    Cette prestation cuisine la version {f.version.pinned} de votre
+                    recette ; vous en êtes à la version {f.version.current}.
+                  </p>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-ink-mid">
+                    C’est voulu : une prestation ne change pas sous les pieds du
+                    client qui l’a réservée. Vous pouvez la basculer sur votre
+                    version actuelle, tant qu’elle n’a pas commencé.
+                  </p>
+                  <button
+                    onClick={() => setABasculer(true)}
+                    disabled={repin.isPending}
+                    className="btn btn-outline mt-3 text-xs"
+                  >
+                    Basculer sur ma recette actuelle
+                  </button>
+                </div>
+              )}
+
+              {(f.dish.diets.length > 0 || f.dish.customDiets.length > 0) && (
+                <Section titre="Régimes">
+                  <div className="flex flex-wrap gap-1.5">
+                    {f.dish.diets.map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-full bg-mint/50 px-2.5 py-1 text-[12px] text-mint-ink"
+                      >
+                        {refLabel(diets, d)}
+                      </span>
+                    ))}
+                    {f.dish.customDiets.map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-full bg-mint/40 px-2.5 py-1 text-[12px] italic text-mint-ink"
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              <Section titre="Allergènes">
+                {f.dish.allergensNone ? (
+                  <p className="text-[13px] text-mint-ink">
+                    Aucun des 14 allergènes réglementés.
+                  </p>
+                ) : f.dish.allergens.length === 0 && f.dish.customAllergens.length === 0 ? (
+                  <p className="text-[13px] text-amber-deep">Non renseignés sur ce plat.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {f.dish.allergens.map((a) => (
+                      <span
+                        key={a}
+                        className="rounded-full bg-red-50 px-2.5 py-1 text-[12px] text-red-700"
+                      >
+                        {refLabel(allergens, a)}
+                      </span>
+                    ))}
+                    {f.dish.customAllergens.map((a) => (
+                      <span
+                        key={a}
+                        className="rounded-full bg-red-50 px-2.5 py-1 text-[12px] italic text-red-700"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <Section titre={`Ingrédients pour ${f.portions} portions`}>
+                {f.recipe.ingredients.length === 0 ? (
+                  <p className="text-[13px] text-ink-soft">Aucun ingrédient.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {f.recipe.ingredients.map((ing, i) => (
+                      <li
+                        key={`${ing.name}-${i}`}
+                        className="flex items-baseline justify-between gap-3 text-[13px]"
+                      >
+                        <span className="text-navy">{ing.name}</span>
+                        <span className="shrink-0 tabular-nums text-ink-mid">
+                          {ing.qty.toLocaleString('fr-FR')} {ing.unit}
+                          {ing.aisle && (
+                            <span className="ml-2 text-ink-soft">{aisleLabel(ing.aisle)}</span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+
+              <Section titre="Préparation">
+                {f.recipe.steps.length === 0 ? (
+                  <p className="text-[13px] text-ink-soft">Aucune étape écrite.</p>
+                ) : (
+                  <ol className="space-y-2">
+                    {f.recipe.steps.map((s, i) => (
+                      <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed">
+                        <span
+                          aria-hidden
+                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-cream-deep text-[10px] font-semibold tabular-nums text-navy"
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="text-ink-mid">{s}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </Section>
+
+              {(reheatingLine(f.recipe.reheating) || storageLine(f.recipe.storage)) && (
+                <Section titre="Après la session">
+                  <ul className="space-y-1 text-[13px] text-ink-mid">
+                    {reheatingLine(f.recipe.reheating) && (
+                      <li>Réchauffage · {reheatingLine(f.recipe.reheating)}</li>
+                    )}
+                    {storageLine(f.recipe.storage) && (
+                      <li>Conservation · {storageLine(f.recipe.storage)}</li>
+                    )}
+                  </ul>
+                  {f.recipe.reheating?.note && (
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+                      {f.recipe.reheating.note}
+                    </p>
+                  )}
+                </Section>
+              )}
+            </div>
+          )}
+        </div>
+      </DocDialog>
+
+      <ConfirmDialog
+        open={aBasculer}
+        onClose={() => setABasculer(false)}
+        onConfirm={() =>
+          repin.mutate(missionId, {
+            onSuccess: () => {
+              setABasculer(false)
+              toast.success(
+                'Prestation basculée sur vos recettes actuelles',
+                'La liste de courses a été recalculée ; vos corrections sont gardées.',
+              )
+            },
+            onError: (e) =>
+              toast.error(
+                'La bascule a été refusée',
+                e instanceof Error ? e.message : 'Une prestation commencée ne bascule plus.',
+              ),
+          })
+        }
+        pending={repin.isPending}
+        title="Basculer sur vos recettes actuelles ?"
+        lead="Toutes les fiches de cette prestation passeront à la version actuelle de vos recettes, et la liste de courses sera recalculée."
+        detail="Vos corrections de liste sont gardées. Le geste est enregistré, et devient impossible une fois la prestation commencée."
+        confirmLabel="Basculer"
+      />
+    </>
+  )
+}
+
+// ── Petits blocs ────────────────────────────────────────────────────────────
+
+function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+        {titre}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function Info2({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+}) {
   return (
     <div className="flex gap-2.5">
       <span className="mt-0.5 shrink-0 text-amber-deep" aria-hidden>
@@ -678,26 +1457,15 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
   )
 }
 
-function SideRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-ink-soft">{label}</dt>
-      <dd className="text-right font-medium text-navy">{value}</dd>
-    </div>
-  )
-}
-
 function DocRow({
   icon,
   label,
   detail,
-  tone = 'neutral',
   onClick,
 }: {
   icon: React.ReactNode
   label: string
   detail: string
-  tone?: 'neutral' | 'success' | 'warning'
   onClick: () => void
 }) {
   return (
@@ -707,10 +1475,8 @@ function DocRow({
         className="flex w-full items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.08)] px-3 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.2)] hover:bg-cream-soft"
       >
         <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-            tone === 'warning' ? 'bg-amber-soft text-amber-deep' : tone === 'success' ? 'bg-mint text-mint-ink' : 'bg-cream-soft text-navy'
-          }`}
           aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cream-soft text-navy"
         >
           {icon}
         </span>

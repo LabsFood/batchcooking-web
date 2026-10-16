@@ -79,12 +79,35 @@ export async function uploadPhoto<T>(
   base: string,
   file: File,
 ): Promise<T> {
+  return pushPhoto<T>(apiFetch, file, {
+    ticketPath: `${base}/photo/upload-url`,
+    confirmPath: `${base}/photo/confirm`,
+  })
+}
+
+/**
+ * Le trio, avec les deux chemins donnés explicitement.
+ *
+ * Toutes les photos de l'API suivent le même trio, mais pas la même forme de
+ * chemin : un plat confirme sur `…/photo/confirm`, une photo de prestation sur
+ * `…/photos` tout court, et elle accepte une légende. Plutôt que de deviner
+ * depuis une racine, on nomme les deux appels.
+ */
+export async function pushPhoto<T>(
+  apiFetch: ReturnType<typeof useApiFetch>,
+  file: File,
+  {
+    ticketPath,
+    confirmPath,
+    extra,
+  }: { ticketPath: string; confirmPath: string; extra?: Record<string, unknown> },
+): Promise<T> {
   const probleme = checkPhoto(file)
   if (probleme) throw new PhotoError('ticket', probleme)
 
   let ticket: PhotoTicket
   try {
-    ticket = await apiFetch<PhotoTicket>(`${base}/photo/upload-url`, {
+    ticket = await apiFetch<PhotoTicket>(ticketPath, {
       method: 'POST',
       // `contentType` et `sizeBytes` : c'est tout ce que `PhotoUploadDto`
       // accepte. Le nom du fichier n'y figure pas.
@@ -117,10 +140,10 @@ export async function uploadPhoto<T>(
   }
 
   try {
-    return await apiFetch<T>(`${base}/photo/confirm`, {
+    return await apiFetch<T>(confirmPath, {
       method: 'POST',
       // Le même type qu'à l'étape 1, sinon l'API répond 422.
-      body: { uploadId: ticket.uploadId, contentType: file.type },
+      body: { uploadId: ticket.uploadId, contentType: file.type, ...extra },
     })
   } catch (e) {
     throw new PhotoError('confirm', photoMessage(e))

@@ -28,6 +28,7 @@ import {
   cleanStorage,
   ingredientReady,
   ingredientStarted,
+  aisleLabel,
   toRow,
   type IngredientRow,
 } from '@/lib/recipe-fields'
@@ -837,7 +838,7 @@ function IngredientRows({
                   <option value="">Rayon</option>
                   {AISLES.map((a) => (
                     <option key={a} value={a}>
-                      {a}
+                      {aisleLabel(a)}
                     </option>
                   ))}
                 </select>
