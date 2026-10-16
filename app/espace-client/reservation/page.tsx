@@ -31,6 +31,10 @@ import {
 } from '@/components/menu/ChefMenuBrowser'
 import { weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
+import { useChefSlots } from '@/lib/api/bookings'
+import DatePicker from '@/components/shared/DatePicker'
+import { SlotPicker } from '@/components/shared/TimeField'
+import { dayKey } from '@/lib/time'
 
 const STEPS = [
   { id: 'chef',      label: 'Chef',      Icon: ChefHat },
@@ -270,24 +274,16 @@ function ReservationFlow() {
           >
             <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6">
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Date">
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="input-base"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </Field>
-                  <Field label="Créneau">
-                    <select value={slot} onChange={(e) => setSlot(e.target.value)} className="input-base">
-                      {SLOTS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+                <WhenField
+                  chefId={chef?.chef.id}
+                  chefName={chef?.chef.displayName ?? null}
+                  date={date}
+                  slot={slot}
+                  onPick={(next) => {
+                    setDate(next.date)
+                    setSlot(next.slot)
+                  }}
+                />
 
                 <Field label="Adresse">
                   <input
@@ -530,6 +526,145 @@ function StepCard({
       {subtitle && <p className="text-ink-mid text-sm mt-1.5">{subtitle}</p>}
       <div className="mt-6">{children}</div>
     </motion.section>
+  )
+}
+
+/**
+ * Quand : la date, puis le créneau — et seulement ceux qui existent.
+ *
+ * `GET /chefs/{id}/availability` rend les créneaux réellement réservables chez
+ * ce batch cooker (horaires déclarés, moins ses prestations, moins ses blocs).
+ * On s'en sert deux fois : pour **éteindre les jours sans créneau** dans le
+ * calendrier, et pour lister les heures du jour choisi. Un client ne demande
+ * plus un horaire qui sera refusé après coup.
+ *
+ * Deux replis, parce que l'API a deux façons de ne rien dire :
+ *
+ * - `scheduled: false` — ce batch cooker n'a posé aucun horaire. Tout reste
+ *   possible « sur demande » : on retombe sur les créneaux indicatifs ;
+ * - la route échoue (aucune offre de service configurée, par exemple). Même
+ *   repli, et on le dit.
+ */
+function WhenField({
+  chefId,
+  chefName,
+  date,
+  slot,
+  onPick,
+}: {
+  chefId: string | undefined
+  chefName: string | null
+  date: string
+  slot: string
+  onPick: (next: { date: string; slot: string }) => void
+}) {
+  const [mois, setMois] = useState(() => new Date())
+
+  /* La fenêtre lue suit le mois affiché, bornée à 31 jours comme l'API
+     l'exige, et jamais avant aujourd'hui. */
+  const aujourdhui = new Date()
+  aujourdhui.setHours(0, 0, 0, 0)
+  const premier = new Date(mois.getFullYear(), mois.getMonth(), 1)
+  const debut = premier < aujourdhui ? aujourdhui : premier
+  const fin = new Date(debut)
+  fin.setDate(debut.getDate() + 31)
+
+  const dispos = useChefSlots(chefId, { from: dayKey(debut), to: dayKey(fin) })
+
+  const parJour = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const iso of dispos.data?.slots ?? []) {
+      const cle = dayKey(new Date(iso))
+      map.set(cle, [...(map.get(cle) ?? []), iso])
+    }
+    return map
+  }, [dispos.data])
+
+  /** L'API connaît la durée d'une session : elle fait l'heure de fin. */
+  const duree = dispos.data?.durationMinutes ?? null
+  const indicatif = dispos.isError || dispos.data?.scheduled === false
+  const choisi = date ? new Date(`${date}T12:00:00`) : undefined
+  const creneaux = date ? (parJour.get(date) ?? []) : []
+
+  const libelle = (iso: string) => {
+    const d = new Date(iso)
+    const debutH = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    if (!duree) return debutH
+    const f = new Date(d.getTime() + duree * 60_000)
+    return `${debutH} – ${f.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+
+  return (
+    <div className="space-y-3">
+      <Field label="Date">
+        <DatePicker
+          mode="single"
+          selected={choisi}
+          month={mois}
+          onMonthChange={setMois}
+          onSelect={(d) => {
+            if (!d) return
+            const cle = dayKey(d)
+            const premierCreneau = parJour.get(cle)?.[0]
+            onPick({
+              date: cle,
+              slot: premierCreneau ? libelle(premierCreneau) : indicatif ? slot : '',
+            })
+          }}
+          disabled={
+            indicatif
+              ? { before: aujourdhui }
+              : [{ before: aujourdhui }, (d: Date) => !parJour.has(dayKey(d))]
+          }
+          startMonth={aujourdhui}
+          modifiers={
+            indicatif
+              ? undefined
+              : { free: [...parJour.keys()].map((k) => new Date(`${k}T12:00:00`)) }
+          }
+          className="mx-auto w-fit rounded-2xl bg-paper p-2"
+        />
+        {!indicatif && !dispos.isPending && parJour.size === 0 && (
+          <p className="mt-2 text-[12px] text-ink-soft">
+            Aucun créneau libre dans les prochaines semaines
+            {chefName ? ` chez ${chefName}` : ''}. Essayez le mois suivant.
+          </p>
+        )}
+      </Field>
+
+      <Field label="Créneau">
+        {dispos.isPending && chefId ? (
+          <div className="h-8 animate-pulse rounded-full bg-cream-soft" />
+        ) : indicatif ? (
+          <>
+            <select
+              value={slot}
+              onChange={(e) => onPick({ date, slot: e.target.value })}
+              className="input-base"
+            >
+              {SLOTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
+              {chefName ?? 'Ce batch cooker'} n’a pas publié ses horaires : ces
+              créneaux sont indicatifs, et l’heure sera confirmée avec vous.
+            </p>
+          </>
+        ) : !date ? (
+          <p className="text-[12px] text-ink-soft">Choisissez d’abord une date.</p>
+        ) : (
+          <SlotPicker
+            slots={creneaux}
+            value={creneaux.find((iso) => libelle(iso) === slot) ?? null}
+            onSelect={(iso) => onPick({ date, slot: libelle(iso) })}
+            empty="Plus aucun créneau ce jour-là."
+          />
+        )}
+      </Field>
+    </div>
   )
 }
 

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
 import { useMeKey } from './keys'
+import { dayKey, weekdayIndex } from '@/lib/time'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    L'agenda du batch cooker.
@@ -65,33 +66,20 @@ const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dim
 export const weekdayLabel = (i: number) => JOURS[i] ?? `Jour ${i}`
 export const WEEKDAYS = JOURS
 
-/** `540` → « 9h ». */
-export const minuteLabel = (min: number) => {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`
-}
+/* Les conversions d'heures vivent dans `lib/time.ts` : la réservation publique
+   s'en sert aussi, et elle n'a pas à charger l'agenda pour cela. On les
+   réexporte pour que les appelants historiques n'aient rien à changer. */
 
-export const rangeLabel = (start: number, end: number) =>
-  `${minuteLabel(start)} – ${minuteLabel(end)}`
-
-/** `540` → « 09:00 », pour un `<input type="time">`. */
-export const toHHMM = (min: number) =>
-  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
-
-export const toMinutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
-
-/** Clé de jour locale, stable : `toISOString()` décale en UTC. */
-export const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`
-
-/** Lundi = 0, dimanche = 6 — l'inverse de `getDay()`. */
-export const weekdayIndex = (d: Date) => (d.getDay() + 6) % 7
+export {
+  atTime,
+  dayKey,
+  durationLabel,
+  minuteLabel,
+  rangeLabel,
+  toHHMM,
+  toMinutes,
+  weekdayIndex,
+} from '@/lib/time'
 
 /** Total hebdomadaire, en heures. */
 export const weeklyHours = (weekly: WeeklySlot[]) =>
@@ -217,6 +205,34 @@ export function useAgenda(from: string | undefined, to: string | undefined) {
     queryKey: [...meKey, 'agenda', { from, to }],
     queryFn: () => apiFetch<Agenda>(`/chef/agenda?from=${from}&to=${to}`),
     enabled: !!from && !!to,
+  })
+}
+
+/**
+ * `GET /chef/availability/slots` — ce qu'un client verrait.
+ *
+ * Les mêmes créneaux que `GET /chefs/{id}/availability` rend au public :
+ * horaires déclarés, moins les prestations, moins les blocs, sur une grille de
+ * 30 minutes. C'est la seule façon pour un batch cooker de vérifier que ses
+ * horaires produisent bien quelque chose — un agenda rempli de créneaux dont
+ * aucun n'est réservable est le piège que cette route permet de voir.
+ *
+ * 31 jours au plus, `to` exclu.
+ */
+export function useOwnSlots(
+  from: string | undefined,
+  to: string | undefined,
+  durationMinutes: number,
+) {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'availability', 'slots', { from, to, durationMinutes }],
+    queryFn: () =>
+      apiFetch<{ scheduled: boolean; slots: string[] }>(
+        `/chef/availability/slots?from=${from}&to=${to}&durationMinutes=${durationMinutes}`,
+      ),
+    enabled: !!from && !!to && durationMinutes > 0,
   })
 }
 

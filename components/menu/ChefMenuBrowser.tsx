@@ -322,6 +322,20 @@ export function MenuCard({
       transition={{ delay: Math.min(index * 0.06, 0.24), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper transition-colors hover:border-[rgba(31,42,55,0.18)]"
     >
+      {/*
+        La couverture de la carte, quand le batch cooker en a mis une.
+        `/menus/week` la renvoie depuis le début et personne ne l'affichait :
+        celui qui prenait la peine de l'envoyer ne la voyait nulle part.
+      */}
+      {menu.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={menu.imageUrl}
+          alt=""
+          className="aspect-[21/9] w-full object-cover"
+        />
+      )}
+
       {/* Le chef d'abord : c'est lui qu'on choisit. */}
       <header className="flex items-start gap-4 p-5 pb-4">
         <Avatar card={menu} className="h-14 w-14 text-lg" />

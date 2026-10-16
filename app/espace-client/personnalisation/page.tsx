@@ -17,6 +17,8 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import DatePicker from '@/components/shared/DatePicker'
+import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import { useChefPublic, useWeekMenus } from '@/lib/api/menus'
 import {
@@ -273,13 +275,16 @@ function RequestForm() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Date souhaitée">
-            <input
-              type="date"
-              value={date}
-              min={tomorrow()}
-              max={latest()}
-              onChange={(e) => setDate(e.target.value)}
-              className="input-base"
+            <DatePicker
+              mode="single"
+              selected={date ? new Date(`${date}T12:00:00`) : undefined}
+              onSelect={(d) => d && setDate(dayKey(d))}
+              disabled={{
+                before: new Date(`${tomorrow()}T00:00:00`),
+                after: new Date(`${latest()}T00:00:00`),
+              }}
+              startMonth={new Date(`${tomorrow()}T00:00:00`)}
+              className="rounded-2xl bg-cream-soft p-2"
             />
           </Field>
           <Field label="Créneau">
