@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowLeft,
-  CalendarDays,
+  CalendarClock,
+  Camera,
   Check,
   ClipboardList,
   Clock,
@@ -13,34 +14,47 @@ import {
   History,
   Info,
   Loader2,
+  MapPin,
   Plus,
   RotateCcw,
   RotateCw,
   Trash2,
   UserRound,
   Users,
-  UtensilsCrossed,
 } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import DocDialog from '@/components/chef/documents/DocDialog'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { useToast } from '@/components/shared/Toaster'
-import { aisleLabel, AISLES, UNITS } from '@/lib/recipe-fields'
+import {
+  aisleLabel,
+  AISLES,
+  UNITS,
+  reheatingLine,
+  storageLine,
+} from '@/lib/recipe-fields'
 import { refLabel, useAllergens, useDiets } from '@/lib/api/referentials'
-import { reheatingLine, storageLine } from '@/lib/recipe-fields'
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
   bookingStatusText,
+  checkPhoto,
   euros,
   hour,
   isBookingOpen,
   longDate,
-  shortDate,
+  nextTransition,
+  photoMessage,
   slot,
+  useAddBookingPhoto,
+  useAdvanceBooking,
+  useAnswerReschedule,
+  useChefBooking,
+  useChefBookings,
   useMissionRecipeSheet,
   useMissionShoppingList,
-  useMyBookings,
+  useProposeReschedule,
+  useRemoveBookingPhoto,
   useRepinMissionRecipes,
   useResetMissionShoppingList,
   useSaveMissionShoppingList,
@@ -51,27 +65,24 @@ import {
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
 
-   Trois routes portent cet écran :
+   Depuis le 16/10, `/chef/bookings` est la vue du batch cooker — distincte de
+   celle du client — et elle porte enfin ce que lui seul doit voir : sa part
+   nette, la commission, l'adresse de la session, et ce que le client ne peut
+   pas manger.
 
-   - `GET /bookings/me` — les prestations qui me sont confiées. C'est la même
-     route que les commandes du client : l'API sait de quel côté on est ;
-   - `GET /chef-missions/{id}/shopping-list` — la liste de courses, calculée
-     depuis les recettes et mise à l'échelle des portions commandées, groupée
-     par rayon. Elle se corrige (`PUT`), et les corrections **survivent aux
-     recalculs** ; `reset` les abandonne ;
-   - `GET /chef-missions/{id}/dishes/{dishId}/recipe-sheet` — la fiche d'un
-     plat. Une prestation cuisine depuis la version épinglée au moment de la
-     réservation : si la recette a changé depuis, la fiche le dit, et `repin`
-     bascule la prestation sur la version actuelle.
+   Le cycle de vie est à lui :
 
-   Ce que l'API ne sait pas encore : le pointage d'arrivée, la checklist
-   d'hygiène, les photos de fin de session, le mandat de débours, l'adresse du
-   client et la part nette du batch cooker. Les écrans correspondants étaient
-   des maquettes ; ils sont nommés en bas plutôt que simulés.
+     confirmed ──> shopping ──> cooking ──> delivered ──> completed
+                                  │
+                            (arrivedAt)
 
-   Noter aussi : `GET /bookings/me/bookings/{id}` est réservé au client. Le
-   batch cooker n'a donc pas de route de détail — on travaille avec la ligne
-   de liste, qu'on garde en mémoire.
+   `cooking` **est** le pointage d'arrivée : l'API enregistre l'heure, et
+   n'accepte la transition qu'à partir de deux heures avant le début. C'est
+   elle qui fait foi en cas de litige — raison pour laquelle ce bouton
+   n'existait pas tant qu'il n'écrivait nulle part.
+
+   Les outils de la prestation (liste de courses, fiches recettes) sont
+   inchangés : ils vivent sur `/chef-missions/{id}/…`.
    ───────────────────────────────────────────────────────────────────────────── */
 
 type Filter = 'all' | 'upcoming' | 'history'
@@ -85,16 +96,18 @@ const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] =
 export default function ChefMissionsPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [openId, setOpenId] = useState<string | null>(null)
-  const query = useMyBookings({ limit: 50 })
+  const query = useChefBookings({ limit: 50 })
 
   const missions = query.data?.data ?? []
-  const ouverte = missions.find((m) => m.id === openId) ?? null
 
-  if (ouverte) {
-    return <MissionDetail mission={ouverte} onBack={() => setOpenId(null)} />
+  if (openId) {
+    return <MissionDetail id={openId} onBack={() => setOpenId(null)} />
   }
 
   const liste = missions.filter(FILTERS.find((f) => f.id === filter)!.match)
+  const aPointer = missions.filter(
+    (m) => m.status === 'confirmed' || m.status === 'shopping',
+  ).length
 
   return (
     <ChefPage title="Prestations" subtitle="Vos sessions à venir, en cours et passées.">
@@ -152,9 +165,12 @@ export default function ChefMissionsPage() {
                 <Empty text="Aucune prestation pour l’instant. Elles apparaîtront ici dès qu’un client réservera avec vous." />
                 <p className="mt-2 flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  La réservation n’est pas encore ouverte côté API :{' '}
-                  <code>POST /bookings</code> répond 501. Rien ne peut donc
-                  arriver ici avant que le backend ne l’ouvre.
+                  Pour être réservable, il faut des horaires de travail posés
+                  dans votre{' '}
+                  <Link href="/espace-chef/agenda" className="font-semibold text-terra">
+                    agenda
+                  </Link>{' '}
+                  — sans eux, aucun créneau n’est proposé aux clients.
                 </p>
               </Card>
             ) : liste.length === 0 ? (
@@ -162,11 +178,21 @@ export default function ChefMissionsPage() {
                 <Empty text="Aucune prestation dans cette catégorie." />
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {liste.map((m) => (
-                  <MissionCard key={m.id} mission={m} onOpen={() => setOpenId(m.id)} />
-                ))}
-              </div>
+              <>
+                {aPointer > 0 && filter !== 'history' && (
+                  <p className="flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    {aPointer === 1
+                      ? 'Une prestation attend que vous la fassiez avancer : courses, puis arrivée sur place.'
+                      : `${aPointer} prestations attendent que vous les fassiez avancer.`}
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {liste.map((m) => (
+                    <MissionCard key={m.id} mission={m} onOpen={() => setOpenId(m.id)} />
+                  ))}
+                </div>
+              </>
             )}
           </>
         )}
@@ -179,8 +205,9 @@ export default function ChefMissionsPage() {
 
 function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => void }) {
   const portions = bookingPortions(m)
-  const plats = (m.bookingMeals ?? []).map((x) => x.meal?.name).filter(Boolean) as string[]
-  const ttc = euros(m.priceCents)
+  const plats = (m.meals ?? []).map((x) => x.name).filter(Boolean) as string[]
+  const net = euros(m.netCents)
+  const suite = nextTransition(m)
 
   return (
     <Card className="flex flex-col">
@@ -188,7 +215,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <p className="font-display text-lg font-bold text-navy">
-              {m.client?.fullName ?? 'Client'}
+              {m.client?.name ?? 'Client'}
             </p>
             <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
               {bookingStatusText(m.status)}
@@ -199,6 +226,11 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
             {slot(m) ? ` · ${slot(m)}` : ''}
           </p>
           <p className="mt-1 inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
+            {m.city && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" aria-hidden /> {m.city}
+              </span>
+            )}
             {portions > 0 && (
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" aria-hidden /> {portions} portions
@@ -207,10 +239,12 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
             {m.reference && <span className="font-mono">{m.reference}</span>}
           </p>
         </div>
-        {ttc && (
+        {net && (
           <div className="shrink-0 text-right">
-            <p className="text-[10px] uppercase tracking-wide text-ink-soft">Payé par le client</p>
-            <p className="font-display text-xl font-bold text-navy">{ttc}</p>
+            <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+              {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
+            </p>
+            <p className="font-display text-xl font-bold text-navy">{net}</p>
           </div>
         )}
       </div>
@@ -225,7 +259,14 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-end border-t border-[rgba(31,42,55,0.08)] pt-3">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
+        <p className="text-[11px] text-ink-soft">
+          {m.reschedule?.status === 'pending'
+            ? 'Un report attend une réponse'
+            : suite
+              ? `Prochaine étape : ${suite.label.toLowerCase()}`
+              : ' '}
+        </p>
         <button onClick={onOpen} className="btn btn-outline px-4 py-2 text-xs">
           Ouvrir
         </button>
@@ -236,16 +277,72 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
 
 // ── Le détail ───────────────────────────────────────────────────────────────
 
-function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () => void }) {
+function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const toast = useToast()
+  const query = useChefBooking(id)
+  const avancer = useAdvanceBooking()
+  const proposer = useProposeReschedule('chef')
+  const repondre = useAnswerReschedule('chef')
+  const diets = useDiets()
+  const allergens = useAllergens()
+
   const [fiche, setFiche] = useState<{ dishId: string; nom: string } | null>(null)
   const [courses, setCourses] = useState(false)
+  const [aAvancer, setAAvancer] = useState<ReturnType<typeof nextTransition>>(null)
+  const [nouvelHoraire, setNouvelHoraire] = useState<string | null>(null)
 
+  if (query.isPending) {
+    return (
+      <ChefPage title="Prestation">
+        <div className="space-y-4">
+          <div className="h-32 animate-pulse rounded-3xl bg-paper" />
+          <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+        </div>
+      </ChefPage>
+    )
+  }
+
+  if (query.isError || !query.data) {
+    return (
+      <ChefPage title="Prestation introuvable">
+        <Card>
+          <p className="text-sm leading-relaxed text-ink-mid">
+            Cette prestation n’existe plus, ou elle ne vous est pas confiée.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => query.refetch()} className="btn btn-outline text-xs">
+              <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
+            </button>
+            <button onClick={onBack} className="btn btn-primary text-xs">
+              Toutes les prestations
+            </button>
+          </div>
+        </Card>
+      </ChefPage>
+    )
+  }
+
+  const m = query.data
   const portions = bookingPortions(m)
-  const ttc = euros(m.priceCents)
+  const net = euros(m.netCents)
+  const commission = euros(m.commissionCents)
+  const ttc = euros(m.amountTtc ?? m.priceCents)
+  const suite = nextTransition(m)
+
+  /** Un report proposé par le client attend notre réponse. */
+  const report =
+    m.reschedule?.status === 'pending' && m.reschedule.proposedBy === 'client'
+      ? m.reschedule
+      : null
+  /** Celui qu'on a proposé soi-même, et qui attend le client. */
+  const enAttente =
+    m.reschedule?.status === 'pending' && m.reschedule.proposedBy === 'chef'
+      ? m.reschedule
+      : null
 
   return (
     <ChefPage
-      title={m.client?.fullName ?? 'Prestation'}
+      title={m.client?.name ?? 'Prestation'}
       subtitle={m.reference ? `Prestation n° ${m.reference}` : undefined}
     >
       <div className="space-y-5">
@@ -255,6 +352,56 @@ function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () =>
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes les prestations
         </button>
+
+        {/* ── Un report attend une réponse ──────────────────────────────── */}
+        {report && (
+          <Card className="!border-amber/40 !bg-amber-soft/50">
+            <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+              Le client propose un autre horaire
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-mid">
+              Au lieu du {longDate(report.from)} à {hour(report.from)}, il propose le{' '}
+              <strong className="font-semibold text-navy">
+                {longDate(report.to)} à {hour(report.to)}
+              </strong>
+              . La durée et le prix ne changent pas.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() =>
+                  repondre.mutate(
+                    { id: m.id, decision: 'accepted' },
+                    {
+                      onSuccess: () => toast.success('Nouvel horaire accepté'),
+                      onError: () => toast.error('La réponse n’a pas été enregistrée'),
+                    },
+                  )
+                }
+                disabled={repondre.isPending}
+                className="btn btn-primary text-xs"
+              >
+                Accepter
+              </button>
+              <button
+                onClick={() =>
+                  repondre.mutate(
+                    { id: m.id, decision: 'declined' },
+                    {
+                      onSuccess: () =>
+                        toast.info('Horaire refusé', 'La prestation garde son heure.'),
+                      onError: () => toast.error('La réponse n’a pas été enregistrée'),
+                    },
+                  )
+                }
+                disabled={repondre.isPending}
+                className="btn btn-outline text-xs"
+              >
+                Garder l’horaire prévu
+              </button>
+            </div>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-5">
@@ -270,66 +417,117 @@ function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () =>
                   </p>
                   <p className="text-sm text-ink-mid">{slot(m) ?? 'Horaire à confirmer'}</p>
                 </div>
-                {ttc && (
+                {net && (
                   <div className="text-right">
                     <p className="text-[10px] uppercase tracking-wide text-ink-soft">
-                      Payé par le client
+                      {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
                     </p>
-                    <p className="font-display text-2xl font-bold text-navy">{ttc}</p>
-                    <p className="text-[11px] text-ink-soft">
-                      Votre part n’est pas renvoyée par l’API
-                    </p>
+                    <p className="font-display text-2xl font-bold text-navy">{net}</p>
+                    {ttc && commission && (
+                      <p className="text-[11px] text-ink-soft">
+                        Client {ttc} · commission {commission}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
 
               <dl className="mt-4 grid grid-cols-1 gap-3 border-t border-[rgba(31,42,55,0.08)] pt-4 sm:grid-cols-2">
                 <Info2
-                  icon={<Users className="h-4 w-4" />}
-                  label="Portions"
-                  value={portions > 0 ? `${portions} portions commandées` : 'Non précisé'}
-                />
-                <Info2
-                  icon={<CalendarDays className="h-4 w-4" />}
-                  label="Durée"
+                  icon={<MapPin className="h-4 w-4" />}
+                  label="Adresse"
                   value={
-                    m.startsAt && m.endsAt
-                      ? `${hour(m.startsAt)} → ${hour(m.endsAt)}`
-                      : 'Non précisée'
+                    m.addressLine
+                      ? `${m.addressLine}${m.city ? `, ${m.city}` : ''}`
+                      : (m.city ?? 'Non communiquée')
                   }
                 />
                 <Info2
-                  icon={<UserRound className="h-4 w-4" />}
-                  label="Client"
-                  value={m.client?.fullName ?? m.client?.email ?? 'Non communiqué'}
+                  icon={<Users className="h-4 w-4" />}
+                  label="Convives"
+                  value={portions > 0 ? `${portions} portions` : 'Non précisé'}
+                />
+                <Info2
+                  icon={<ClipboardList className="h-4 w-4" />}
+                  label="Courses"
+                  value={m.shoppingByClient ? 'Faites par le client' : 'À votre charge'}
                 />
                 <Info2
                   icon={<Clock className="h-4 w-4" />}
-                  label="Référence"
-                  value={m.reference ?? '—'}
+                  label="Arrivée"
+                  value={
+                    m.arrivedAt ? `Pointée à ${hour(m.arrivedAt)}` : 'Pas encore pointée'
+                  }
                 />
               </dl>
+
+              {m.commissionEstimated && net && (
+                <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Ce net est une estimation tant que la prestation n’est pas
+                  entièrement payée : la commission se fixe au paiement.
+                </p>
+              )}
             </Card>
+
+            {/* ── Consignes et allergies ─────────────────────────────── */}
+            {(m.notes || (m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+              <Card title="Ce qu’il faut savoir">
+                {m.notes ? (
+                  <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
+                    {m.notes}
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
+                )}
+                {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(m.allergies ?? []).map((a) => (
+                      <span
+                        key={a}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
+                      >
+                        <AlertTriangle className="h-3 w-3" aria-hidden />
+                        {refLabel(allergens, a)}
+                      </span>
+                    ))}
+                    {(m.diets ?? []).map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
+                      >
+                        {refLabel(diets, d)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                  Lues au moment où vous ouvrez cette fiche : le client peut les
+                  changer dans son profil.
+                </p>
+              </Card>
+            )}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
             <Card title="Plats de la prestation">
-              {(m.bookingMeals?.length ?? 0) === 0 ? (
+              {(m.meals?.length ?? 0) === 0 ? (
                 <Empty text="Aucun plat rattaché à cette prestation." />
               ) : (
                 <ul className="divide-y divide-[rgba(31,42,55,0.07)]">
-                  {m.bookingMeals!.map((bm) => (
+                  {m.meals!.map((bm) => (
                     <li key={bm.mealId} className="flex items-center justify-between gap-3 py-2.5">
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-navy">
-                          {bm.meal?.name ?? 'Plat retiré du catalogue'}
+                          {bm.name ?? 'Plat retiré du catalogue'}
                         </span>
                         <span className="block text-xs text-ink-soft">
                           {bm.portions} portion{bm.portions > 1 ? 's' : ''}
+                          {bm.recipeVersion != null && ` · recette v${bm.recipeVersion}`}
                         </span>
                       </span>
                       <button
                         onClick={() =>
-                          setFiche({ dishId: bm.mealId, nom: bm.meal?.name ?? 'ce plat' })
+                          setFiche({ dishId: bm.mealId, nom: bm.name ?? 'ce plat' })
                         }
                         className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40"
                       >
@@ -343,10 +541,34 @@ function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () =>
 
             {/* ── La liste de courses ─────────────────────────────────── */}
             <ShoppingCard missionId={m.id} onOpenFull={() => setCourses(true)} />
+
+            {/* ── Les photos ─────────────────────────────────────────── */}
+            {(m.status === 'cooking' ||
+              m.status === 'delivered' ||
+              m.status === 'completed' ||
+              (m.photos?.length ?? 0) > 0) && <PhotosCard booking={m} />}
           </div>
 
           {/* ── Colonne latérale ─────────────────────────────────────── */}
           <aside className="space-y-5">
+            {/* L'étape suivante, un seul geste à la fois. */}
+            {suite && (
+              <Card>
+                <p className="text-sm font-semibold text-navy">Faire avancer</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-mid">{suite.hint}</p>
+                <button
+                  onClick={() => setAAvancer(suite)}
+                  disabled={avancer.isPending}
+                  className="btn btn-primary mt-3 w-full justify-center text-sm"
+                >
+                  {avancer.isPending && (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  )}
+                  {suite.label}
+                </button>
+              </Card>
+            )}
+
             <Card title="Documents">
               <ul className="space-y-2">
                 <DocRow
@@ -355,52 +577,134 @@ function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () =>
                   detail="Calculée depuis vos recettes · modifiable"
                   onClick={() => setCourses(true)}
                 />
-                {(m.bookingMeals ?? []).map((bm) => (
+                {(m.meals ?? []).map((bm) => (
                   <DocRow
                     key={bm.mealId}
                     icon={<FileText className="h-4 w-4" />}
-                    label={`Fiche — ${bm.meal?.name ?? 'plat'}`}
+                    label={`Fiche — ${bm.name ?? 'plat'}`}
                     detail={`${bm.portions} portions`}
-                    onClick={() =>
-                      setFiche({ dishId: bm.mealId, nom: bm.meal?.name ?? 'ce plat' })
-                    }
+                    onClick={() => setFiche({ dishId: bm.mealId, nom: bm.name ?? 'ce plat' })}
                   />
                 ))}
               </ul>
             </Card>
 
+            {/* Déplacer la prestation */}
+            {(m.status === 'confirmed' || m.status === 'shopping') && !report && (
+              <Card title="Déplacer la session">
+                {enAttente ? (
+                  <>
+                    <p className="text-[13px] leading-relaxed text-ink-mid">
+                      Vous avez proposé le{' '}
+                      <strong className="font-semibold text-navy">
+                        {longDate(enAttente.to)} à {hour(enAttente.to)}
+                      </strong>
+                      . Le client n’a pas encore répondu.
+                    </p>
+                    <button
+                      onClick={() =>
+                        repondre.mutate(
+                          { id: m.id, decision: 'withdrawn' },
+                          {
+                            onSuccess: () => toast.info('Proposition retirée'),
+                            onError: () => toast.error('Le retrait a échoué'),
+                          },
+                        )
+                      }
+                      disabled={repondre.isPending}
+                      className="btn btn-outline mt-3 w-full justify-center text-xs"
+                    >
+                      Retirer ma proposition
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[13px] leading-relaxed text-ink-mid">
+                      Vous proposez, le client confirme. Rien ne bouge dans les 48
+                      dernières heures — ni l’horaire actuel, ni le nouveau.
+                    </p>
+                    <label className="mt-3 block">
+                      <span className="mb-1.5 block text-[13px] font-semibold text-navy">
+                        Nouvelle date et heure
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={nouvelHoraire ?? ''}
+                        onChange={(e) => setNouvelHoraire(e.target.value)}
+                        className="input-base"
+                      />
+                    </label>
+                    <button
+                      onClick={() =>
+                        nouvelHoraire &&
+                        proposer.mutate(
+                          { id: m.id, startsAt: new Date(nouvelHoraire).toISOString() },
+                          {
+                            onSuccess: () => {
+                              setNouvelHoraire(null)
+                              toast.success(
+                                'Proposition envoyée',
+                                'Le client a 48 h pour répondre.',
+                              )
+                            },
+                            onError: (e) =>
+                              toast.error(
+                                'La proposition a été refusée',
+                                e instanceof Error ? e.message : undefined,
+                              ),
+                          },
+                        )
+                      }
+                      disabled={!nouvelHoraire || proposer.isPending}
+                      className="btn btn-outline mt-2 w-full justify-center text-xs disabled:opacity-55"
+                    >
+                      {proposer.isPending && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      )}
+                      Proposer cet horaire
+                    </button>
+                  </>
+                )}
+              </Card>
+            )}
+
             <Card title="Le client">
-              <p className="text-[13px] leading-relaxed text-ink-mid">
-                Son foyer, ses allergies et ses régimes vous sont donnés dans la
-                conversation de la prestation — jamais son adresse postale.
+              <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                <UserRound className="h-4 w-4 text-amber-deep" aria-hidden />
+                {m.client?.name ?? 'Client'}
               </p>
-              <Link href="/espace-chef/messagerie" className="btn btn-outline mt-3 w-full justify-center text-xs">
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
+                Son foyer et ses préférences vous sont donnés dans la conversation
+                de la prestation — jamais son numéro avant les 48 h qui précèdent.
+              </p>
+              <Link
+                href="/espace-chef/messagerie"
+                className="btn btn-outline mt-3 w-full justify-center text-xs"
+              >
                 Ouvrir la messagerie
               </Link>
             </Card>
 
-            {/* Ce qui n'existe pas encore, nommé plutôt que simulé. */}
+            {/* Ce qui n'existe toujours pas. */}
             <Card title="Pas encore disponible">
               <ul className="space-y-1.5 text-[13px] leading-relaxed text-ink-mid">
-                {[
-                  'Pointer votre arrivée',
-                  'La checklist d’hygiène',
-                  'Les photos de fin de session',
-                  'Le mandat de débours',
-                  'L’adresse de la prestation',
-                  'Votre part nette et la commission',
-                ].map((x) => (
-                  <li key={x} className="flex items-start gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-soft/50" aria-hidden />
-                    <span>
-                      {x} — <strong className="font-semibold text-navy">N/A</strong>
-                    </span>
-                  </li>
-                ))}
+                {['La checklist d’hygiène', 'Le mandat de débours et vos justificatifs'].map(
+                  (x) => (
+                    <li key={x} className="flex items-start gap-2">
+                      <span
+                        aria-hidden
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-soft/50"
+                      />
+                      <span>
+                        {x} — <strong className="font-semibold text-navy">N/A</strong>
+                      </span>
+                    </li>
+                  ),
+                )}
               </ul>
               <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
-                Aucune route de l’API ne les porte. Ces écrans existaient en
-                maquette : ils reviendront branchés, pas simulés.
+                Les deux attendent un cadrage, pas du code : le contenu de la
+                checklist, et les conséquences juridiques du mandat.
               </p>
             </Card>
           </aside>
@@ -419,16 +723,187 @@ function MissionDetail({ mission: m, onBack }: { mission: Booking; onBack: () =>
         onOpenChange={(v) => !v && setCourses(false)}
         title="Liste de courses"
         description={
-          m.client?.fullName
-            ? `${m.client.fullName} · ${portions} portions`
-            : `${portions} portions`
+          m.client?.name ? `${m.client.name} · ${portions} portions` : `${portions} portions`
         }
       >
         <div className="p-5 sm:p-6">
           <ShoppingEditor missionId={m.id} />
         </div>
       </DocDialog>
+
+      <ConfirmDialog
+        open={aAvancer !== null}
+        onClose={() => setAAvancer(null)}
+        onConfirm={() =>
+          aAvancer &&
+          avancer.mutate(
+            { id: m.id, status: aAvancer.status },
+            {
+              onSuccess: (b) => {
+                setAAvancer(null)
+                toast.success(
+                  aAvancer.status === 'cooking'
+                    ? `Arrivée pointée à ${hour(b.arrivedAt) ?? 'maintenant'}`
+                    : `Prestation passée en « ${bookingStatusText(b.status).toLowerCase()} »`,
+                )
+              },
+              onError: (e) =>
+                toast.error(
+                  'La prestation n’a pas avancé',
+                  e instanceof Error ? e.message : undefined,
+                ),
+            },
+          )
+        }
+        pending={avancer.isPending}
+        title={aAvancer ? `${aAvancer.label} ?` : ''}
+        lead={
+          aAvancer?.status === 'cooking'
+            ? 'L’heure est enregistrée par l’API et fait foi en cas de litige. Elle n’est pas modifiable ensuite.'
+            : (aAvancer?.hint ?? '')
+        }
+        detail={
+          aAvancer?.status === 'cooking'
+            ? 'Possible à partir de deux heures avant le début de la session.'
+            : undefined
+        }
+        confirmLabel={aAvancer?.label ?? 'Continuer'}
+      />
     </ChefPage>
+  )
+}
+
+// ── Les photos de la session ────────────────────────────────────────────────
+
+/**
+ * Plats dressés, contenants étiquetés, cuisine rendue.
+ *
+ * Même trio que partout ailleurs, et 5 Mo au plus — moitié moins que les
+ * pièces jointes de messagerie. Elles accompagnent le compte rendu du client.
+ */
+function PhotosCard({ booking: m }: { booking: Booking }) {
+  const toast = useToast()
+  const ajouter = useAddBookingPhoto()
+  const retirer = useRemoveBookingPhoto()
+  const champ = useRef<HTMLInputElement>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [aRetirer, setARetirer] = useState<string | null>(null)
+
+  const photos = m.photos ?? []
+
+  function choisir(files: FileList | null) {
+    setErreur(null)
+    const file = files?.[0]
+    if (!file) return
+    const probleme = checkPhoto(file)
+    if (probleme) {
+      setErreur(probleme)
+      return
+    }
+    ajouter.mutate(
+      { id: m.id, file },
+      {
+        onSuccess: () => {
+          if (champ.current) champ.current.value = ''
+          toast.success('Photo ajoutée')
+        },
+        onError: (e) => setErreur(photoMessage(e)),
+      },
+    )
+  }
+
+  return (
+    <Card
+      title="Photos de la prestation"
+      action={
+        <button
+          onClick={() => champ.current?.click()}
+          disabled={ajouter.isPending}
+          className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-navy px-3 py-1.5 text-xs font-semibold text-navy hover:bg-navy hover:text-white disabled:opacity-55"
+        >
+          {ajouter.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Camera className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Ajouter
+        </button>
+      }
+    >
+      <input
+        ref={champ}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={(e) => choisir(e.target.files)}
+      />
+      <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
+        Plats dressés, contenants étiquetés, cuisine rendue : elles accompagnent
+        le compte rendu du client. JPG, PNG ou WebP, 5 Mo au plus.
+      </p>
+
+      {erreur && (
+        <p role="alert" className="mb-3 text-[13px] text-red-700">
+          {erreur}
+        </p>
+      )}
+
+      {photos.length === 0 ? (
+        <button
+          onClick={() => champ.current?.click()}
+          className="flex w-full flex-col items-center gap-2 rounded-xl border-[1.5px] border-dashed border-[rgba(31,42,55,0.2)] px-4 py-8 text-center transition-colors hover:border-amber hover:bg-amber-soft/20"
+        >
+          <Camera className="h-5 w-5 text-ink-soft" aria-hidden />
+          <span className="text-sm font-semibold text-navy">
+            Ajouter vos premières photos
+          </span>
+        </button>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {photos.map((p) => (
+            <li key={p.id} className="group relative overflow-hidden rounded-xl bg-cream-soft">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.url}
+                alt={p.caption ?? ''}
+                className="aspect-[4/3] w-full object-cover"
+              />
+              <button
+                onClick={() => setARetirer(p.id)}
+                aria-label={`Retirer ${p.caption ?? 'la photo'}`}
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-navy/75 text-white opacity-0 transition-opacity hover:bg-navy focus-visible:opacity-100 group-hover:opacity-100"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <ConfirmDialog
+        open={aRetirer !== null}
+        onClose={() => setARetirer(null)}
+        onConfirm={() =>
+          aRetirer &&
+          retirer.mutate(
+            { id: m.id, photoId: aRetirer },
+            {
+              onSuccess: () => {
+                setARetirer(null)
+                toast.success('Photo retirée')
+              },
+              onError: () => toast.error('La photo n’a pas été retirée'),
+            },
+          )
+        }
+        pending={retirer.isPending}
+        tone="danger"
+        title="Retirer cette photo ?"
+        lead="Elle disparaît du compte rendu que le client consulte."
+        detail="C’est définitif : il faudra la renvoyer pour la retrouver."
+        confirmLabel="Retirer la photo"
+      />
+    </Card>
   )
 }
 
@@ -510,8 +985,6 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
   const [brouillon, setBrouillon] = useState<Row[] | null>(null)
   const [aRemettre, setARemettre] = useState(false)
 
-  // La liste du serveur, aplatie. On n'ouvre le brouillon qu'à la première
-  // modification : tant qu'on n'a rien touché, c'est le serveur qui affiche.
   const serveur: Row[] = (query.data?.groups ?? []).flatMap((g) =>
     g.lines.map((l) => ({ ...l, aisle: g.aisle })),
   )
@@ -832,9 +1305,7 @@ function RecipeSheetDialog({
                     Aucun des 14 allergènes réglementés.
                   </p>
                 ) : f.dish.allergens.length === 0 && f.dish.customAllergens.length === 0 ? (
-                  <p className="text-[13px] text-amber-deep">
-                    Non renseignés sur ce plat.
-                  </p>
+                  <p className="text-[13px] text-amber-deep">Non renseignés sur ce plat.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {f.dish.allergens.map((a) => (

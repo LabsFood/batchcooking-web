@@ -26,17 +26,21 @@ import {
 } from '@/lib/api/bookings'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Mes commandes — `GET /bookings/me`.
+   Mes commandes — `GET /me/bookings`.
 
-   L'écran tournait sur `lib/dashboard-mock.ts`, et montrait des choses que
-   l'API ne sait pas dire : un statut de règlement, une formule, un montant
-   après crédit d'impôt, un créneau nommé. Un booking porte une référence, deux
-   bornes horaires, un statut, un prix TTC en centimes et ses plats. C'est ce
-   qui est affiché.
+   La route a changé le 16/10 : `/bookings/me` servait le client et le batch
+   cooker, elle est dépréciée. `/me/bookings` est la vue du client, paginée et
+   filtrable, et elle rend bien plus : l'adresse, le nom du batch cooker, le
+   créneau déjà calculé dans le bon fuseau, ce qui a été payé — et
+   `amountAfterTax`, le reste à charge après crédit d'impôt.
 
-   Le reste à charge est une **estimation** du front — 50 % au titre du service
-   à la personne — et il est dit comme tel : l'API ne renvoie ce montant que
-   sur les formules et dans les totaux de la console, jamais sur une commande.
+   Ce dernier point compte : on affichait une estimation à 50 % calculée ici,
+   faute de mieux. C'est l'API qui le dit maintenant, et c'est elle qui a
+   raison — une formule peut avoir son propre prix après crédit.
+
+   Une commande `pending` n'est pas confirmée : **c'est le paiement qui
+   confirme**, et le créneau n'est tenu que 72 h. La carte le dit, avec le
+   chemin pour régler.
    ───────────────────────────────────────────────────────────────────────────── */
 
 type Filter = 'all' | 'open' | 'history'
@@ -52,10 +56,10 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: 'bg-mint text-mint-ink',
   shopping: 'bg-mint text-mint-ink',
   cooking: 'bg-amber text-navy',
+  delivered: 'bg-mint text-mint-ink',
   completed: 'bg-cream-deep text-navy',
-  delivered: 'bg-cream-deep text-navy',
   cancelled: 'bg-red-100 text-red-700',
-  refunded: 'bg-red-50 text-red-700',
+  disputed: 'bg-red-100 text-red-700',
 }
 
 export default function OrdersListPage() {
@@ -64,6 +68,7 @@ export default function OrdersListPage() {
 
   const toutes = query.data?.data ?? []
   const liste = toutes.filter(FILTERS.find((f) => f.id === filter)!.match)
+  const aRegler = toutes.filter((b) => b.status === 'pending')
 
   if (query.isError) {
     return (
@@ -143,13 +148,12 @@ export default function OrdersListPage() {
         </div>
       )}
 
-      {/* Ce que l'API ne sait pas encore dire, plutôt qu'un chiffre inventé. */}
-      {toutes.length > 0 && (
-        <p className="flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Le règlement d’une prestation n’est pas encore suivi par l’API : une
-          commande n’affiche donc pas si elle est payée. Le reste à charge est une
-          estimation à 50 %, au titre du service à la personne.
+      {aRegler.length > 0 && (
+        <p className="flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          {aRegler.length === 1
+            ? 'Une commande attend son règlement : c’est le paiement qui la confirme, et le créneau n’est tenu que 72 heures.'
+            : `${aRegler.length} commandes attendent leur règlement : c’est le paiement qui les confirme, et le créneau n’est tenu que 72 heures.`}
         </p>
       )}
     </div>
@@ -159,7 +163,9 @@ export default function OrdersListPage() {
 function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
   const plats = bookingMealNames(b)
   const portions = bookingPortions(b)
-  const ttc = euros(b.priceCents)
+  const ttc = euros(b.amountTtc ?? b.priceCents)
+  const reste = euros(b.amountAfterTax)
+  const aRegler = b.status === 'pending'
 
   return (
     <motion.div
@@ -194,24 +200,23 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
             <Clock className="h-3.5 w-3.5 text-amber" aria-hidden /> {slot(b)}
           </li>
         )}
-        <li className="flex items-center gap-1.5">
-          <CalendarRange className="h-3.5 w-3.5 text-amber" aria-hidden />
-          {b.endsAt && b.startsAt
-            ? `${Math.max(
-                1,
-                Math.round(
-                  (new Date(b.endsAt).getTime() - new Date(b.startsAt).getTime()) / 3600000,
-                ),
-              )} h sur place`
-            : 'Durée à confirmer'}
-        </li>
+        {b.chef?.displayName && (
+          <li className="flex items-center gap-1.5">
+            <ChefHat className="h-3.5 w-3.5 text-amber" aria-hidden /> {b.chef.displayName}
+          </li>
+        )}
         <li className="flex items-center gap-1.5">
           <UtensilsCrossed className="h-3.5 w-3.5 text-amber" aria-hidden />
           {plats.length > 0
             ? `${plats.length} plat${plats.length > 1 ? 's' : ''}`
             : 'Plats à définir'}
+          {portions > 0 && ` · ${portions} portions`}
         </li>
-        {portions > 0 && <li>{portions} portions</li>}
+        {b.city && (
+          <li className="flex items-center gap-1.5">
+            <CalendarRange className="h-3.5 w-3.5 text-amber" aria-hidden /> {b.city}
+          </li>
+        )}
       </ul>
 
       {plats.length > 0 && (
@@ -229,30 +234,49 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
         </div>
       )}
 
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           {ttc ? (
             <>
               <p className="text-[10px] uppercase tracking-[0.16em] text-ink-soft">Total TTC</p>
               <p className="font-display text-2xl font-bold text-navy">{ttc}</p>
+              {reste && (
+                <p className="text-[11px] font-semibold text-amber-deep">
+                  soit {reste} après crédit d’impôt
+                </p>
+              )}
             </>
           ) : (
             <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
           )}
         </div>
-        <Link
-          href={`/espace-client/commandes/${b.id}`}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep"
-        >
-          Détail
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href={`/espace-client/commandes/${b.id}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+              aRegler
+                ? 'border border-[rgba(31,42,55,0.14)] text-navy hover:border-navy'
+                : 'bg-navy text-amber hover:bg-navy-deep'
+            }`}
+          >
+            Détail
+            {!aRegler && <ArrowRight className="h-3.5 w-3.5" aria-hidden />}
+          </Link>
+          {aRegler && (
+            <Link
+              href={`/espace-client/commandes/${b.id}/paiement`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep"
+            >
+              Régler
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          )}
+        </div>
       </div>
 
-      {b.chefProfileId && (
-        <p className="mt-3 flex items-center gap-1.5 border-t border-[rgba(31,42,55,0.06)] pt-3 text-[11px] text-ink-soft">
-          <ChefHat className="h-3.5 w-3.5" aria-hidden />
-          Session avec votre batch cooker
+      {aRegler && (
+        <p className="mt-3 border-t border-[rgba(31,42,55,0.06)] pt-3 text-[11px] leading-relaxed text-ink-soft">
+          Le créneau est tenu 72 h, puis la commande est annulée.
         </p>
       )}
     </motion.div>

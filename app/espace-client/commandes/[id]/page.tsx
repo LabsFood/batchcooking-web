@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, use } from 'react'
+import { Suspense, use, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -9,55 +9,64 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeEuro,
-  CalendarRange,
+  CalendarClock,
   CheckCircle2,
   ChefHat,
   Circle,
   Clock,
   Info,
+  MapPin,
   MessageCircle,
   Receipt,
   RotateCw,
   ShieldCheck,
   ShoppingBasket,
+  Sparkles,
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
+import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import { useToast } from '@/components/shared/Toaster'
 import {
-  afterTaxCredit,
   bookingPortions,
   bookingStatusText,
   euros,
   hour,
+  useAnswerReschedule,
   useMissionShoppingList,
   useMyBooking,
+  useUpdateMyBooking,
   type Booking,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
-import { useChefPublic } from '@/lib/api/menus'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Le détail d'une commande — `GET /bookings/me/bookings/{id}`.
+   Le détail d'une commande — `GET /me/bookings/{id}`.
 
-   La route est réservée au client qui a réservé : « anyone else gets 404 ».
-   D'où le message d'absence, qui ne cherche pas à distinguer une commande
-   supprimée d'une commande qui n'est pas la sienne — l'API ne le dit pas.
+   La route a changé le 16/10 ; l'ancienne (`/bookings/me/bookings/{id}`, au
+   segment doublé) est dépréciée. La nouvelle rend tout ce qui manquait :
+   l'adresse, les consignes, le nom du batch cooker, ce qui a été payé, le
+   reste à charge après crédit d'impôt — et la demande de report en cours, s'il
+   y en a une.
 
-   La liste de courses vient de `GET /chef-missions/{id}/shopping-list`, que le
-   client peut lire : elle est groupée par rayon et met les quantités à
-   l'échelle des portions commandées. Le booking en porte une version plus
-   pauvre (`quantity` en texte libre), qui sert de repli.
+   Trois règles de l'API tiennent cet écran :
+
+   - **le paiement confirme.** Une commande `pending` tient son créneau 72 h ;
+   - **les détails ne se changent que sur un `pending`**, et l'annulation n'est
+     possible que si rien n'est payé, ou avant le début une fois confirmée ;
+   - **un report se propose et se confirme**, et rien ne bouge dans les 48
+     dernières heures.
    ───────────────────────────────────────────────────────────────────────────── */
 
 /** Le parcours d'une prestation, tel que les statuts de l'API le décrivent. */
-const FLOW = ['pending', 'confirmed', 'shopping', 'cooking', 'completed'] as const
+const FLOW = ['pending', 'confirmed', 'shopping', 'cooking', 'delivered'] as const
 
 const STEP_LABEL: Record<string, string> = {
-  pending: 'Reçue',
+  pending: 'À régler',
   confirmed: 'Confirmée',
   shopping: 'Courses',
   cooking: 'En cuisine',
-  completed: 'Terminée',
+  delivered: 'Livrée',
 }
 
 const longDate = (iso?: string | null) =>
@@ -114,34 +123,42 @@ export default function OrderDetailPage({
 }
 
 function OrderDetail({ booking: b }: { booking: Booking }) {
-  const chef = useChefPublic(b.chefProfileId ?? undefined)
+  const toast = useToast()
   const courses = useMissionShoppingList(b.id)
+  const update = useUpdateMyBooking()
+  const repondre = useAnswerReschedule('client')
+  const [aAnnuler, setAAnnuler] = useState(false)
 
-  const ttc = euros(b.priceCents)
-  const reste = euros(afterTaxCredit(b.priceCents))
-  const credit = euros(
-    b.priceCents != null ? b.priceCents - (afterTaxCredit(b.priceCents) ?? 0) : null,
-  )
+  const ttc = euros(b.amountTtc ?? b.priceCents)
+  const reste = euros(b.amountAfterTax)
+  const credit =
+    b.amountTtc != null && b.amountAfterTax != null
+      ? euros(b.amountTtc - b.amountAfterTax)
+      : null
+  const paye = euros(b.paidCents)
   const portions = bookingPortions(b)
-  const annulee = b.status === 'cancelled' || b.status === 'refunded'
-  const etape = FLOW.indexOf((b.status ?? '') as (typeof FLOW)[number])
 
-  // L'API déplie les groupes ; le booking, lui, ne donne que des lignes plates.
-  const groupes =
-    courses.data?.groups ??
-    (b.shoppingList?.items?.length
-      ? [
-          {
-            aisle: '',
-            lines: b.shoppingList.items.map((it) => ({
-              name: it.name,
-              qty: 0,
-              unit: it.quantity ?? '',
-              edited: false,
-            })),
-          },
-        ]
-      : [])
+  const aRegler = b.status === 'pending'
+  const arretee = b.status === 'cancelled' || b.status === 'disputed'
+  const etape = FLOW.indexOf(b.status as (typeof FLOW)[number])
+
+  /**
+   * Annuler : tant que rien n'est payé, ou avant le début si c'est confirmé.
+   *
+   * On ne compare pas l'heure ici : c'est l'API qui tient la vérité, et un
+   * `Date.now()` pendant le rendu donnerait une réponse qui change d'un rendu
+   * à l'autre. Le bouton reste donc offert sur une prestation confirmée, et
+   * l'API répond `409` si elle a commencé — le message est affiché tel quel.
+   */
+  const annulable = (b.status === 'pending' && !b.paidCents) || b.status === 'confirmed'
+
+  /** Un report proposé par le batch cooker attend une réponse. */
+  const report =
+    b.reschedule?.status === 'pending' && b.reschedule.proposedBy === 'chef'
+      ? b.reschedule
+      : null
+
+  const groupes = courses.data?.groups ?? []
 
   return (
     <div className="space-y-6">
@@ -156,6 +173,66 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       <Suspense fallback={null}>
         <CheckoutOutcome />
       </Suspense>
+
+      {/* ── Une demande de report attend votre réponse ──────────────────── */}
+      {report && (
+        <section className="rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+          <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
+            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+            Votre batch cooker propose un autre horaire
+          </p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-mid">
+            Au lieu du {longDate(report.from)} à {hour(report.from)}, il propose le{' '}
+            <strong className="font-semibold text-navy">
+              {longDate(report.to)} à {hour(report.to)}
+            </strong>
+            . La durée, le prix et ce qui est payé ne changent pas.
+          </p>
+          {report.expiresAt && (
+            <p className="mt-1 text-[12px] text-ink-soft">
+              Sans réponse avant le {longDate(report.expiresAt)}, la prestation garde
+              son heure.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() =>
+                repondre.mutate(
+                  { id: b.id, decision: 'accepted' },
+                  {
+                    onSuccess: () => toast.success('Nouvel horaire accepté'),
+                    onError: (e) =>
+                      toast.error(
+                        'La réponse n’a pas été enregistrée',
+                        e instanceof Error ? e.message : undefined,
+                      ),
+                  },
+                )
+              }
+              disabled={repondre.isPending}
+              className="btn btn-primary text-xs"
+            >
+              Accepter ce nouvel horaire
+            </button>
+            <button
+              onClick={() =>
+                repondre.mutate(
+                  { id: b.id, decision: 'declined' },
+                  {
+                    onSuccess: () =>
+                      toast.info('Horaire refusé', 'La prestation garde son heure.'),
+                    onError: () => toast.error('La réponse n’a pas été enregistrée'),
+                  },
+                )
+              }
+              disabled={repondre.isPending}
+              className="btn btn-outline text-xs"
+            >
+              Garder l’horaire prévu
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ── L'essentiel ──────────────────────────────────────────────────── */}
       <motion.div
@@ -186,10 +263,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   {hour(b.endsAt) ? ` → ${hour(b.endsAt)}` : ''}
                 </span>
               )}
-              {chef.data?.displayName && (
+              {b.chef?.displayName && (
                 <span className="inline-flex items-center gap-1.5">
                   <ChefHat className="h-4 w-4 text-amber" aria-hidden />
-                  {chef.data.displayName}
+                  {b.chef.displayName}
                 </span>
               )}
               {portions > 0 && (
@@ -205,30 +282,50 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             <div className="flex flex-col items-start lg:items-end">
               <p className="font-display text-3xl font-bold text-amber">{ttc}</p>
               {reste && (
-                <p className="text-xs text-white/60">
-                  soit {reste} estimés après crédit d’impôt
-                </p>
+                <p className="text-xs text-white/60">soit {reste} après crédit d’impôt</p>
               )}
             </div>
           )}
         </div>
       </motion.div>
 
+      {/* ── À régler ─────────────────────────────────────────────────────── */}
+      {aRegler && (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+          <div className="min-w-0">
+            <p className="font-display text-base font-bold text-navy">
+              Cette commande attend son règlement
+            </p>
+            <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-mid">
+              C’est le paiement qui la confirme auprès de votre batch cooker. Le
+              créneau est tenu 72 heures, puis la commande est annulée.
+            </p>
+          </div>
+          <Link
+            href={`/espace-client/commandes/${b.id}/paiement`}
+            className="btn btn-primary shrink-0 text-xs"
+          >
+            Régler maintenant
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </section>
+      )}
+
       {/* ── Suivi ────────────────────────────────────────────────────────── */}
       <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6 lg:p-7">
         <h3 className="mb-5 font-display text-lg font-bold text-navy">
           Suivi de la commande
         </h3>
-        {annulee ? (
+        {arretee ? (
           <p className="text-sm font-semibold text-red-700">
-            {b.status === 'refunded'
-              ? 'Cette commande a été remboursée.'
+            {b.status === 'disputed'
+              ? 'Cette commande fait l’objet d’un litige. Notre équipe vous répond par la messagerie.'
               : 'Cette commande a été annulée.'}
           </p>
-        ) : etape < 0 ? (
-          <p className="text-sm text-ink-mid">
-            Statut «&nbsp;{b.status}&nbsp;» : il ne fait pas partie du parcours
-            habituel, nous ne le situons donc pas sur la frise.
+        ) : b.status === 'completed' ? (
+          <p className="flex items-center gap-2 text-sm font-semibold text-mint-ink">
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            Prestation terminée. Merci !
           </p>
         ) : (
           <div className="relative grid grid-cols-5 gap-2">
@@ -239,7 +336,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             <div
               aria-hidden
               className="absolute left-0 top-4 h-px bg-amber transition-all"
-              style={{ width: `${(etape / (FLOW.length - 1)) * 100}%` }}
+              style={{ width: `${(Math.max(etape, 0) / (FLOW.length - 1)) * 100}%` }}
             />
             {FLOW.map((step, i) => {
               const atteinte = i <= etape
@@ -268,6 +365,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             })}
           </div>
         )}
+        {b.arrivedAt && (
+          <p className="mt-4 flex items-center gap-2 text-[13px] text-ink-mid">
+            <Clock className="h-3.5 w-3.5 text-amber" aria-hidden />
+            Votre batch cooker est arrivé à {hour(b.arrivedAt)}.
+          </p>
+        )}
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -277,13 +380,13 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
             </h3>
-            {(b.bookingMeals?.length ?? 0) === 0 ? (
+            {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
                 Aucun plat rattaché à cette commande.
               </p>
             ) : (
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {b.bookingMeals!.map((m) => (
+                {b.meals!.map((m) => (
                   <li
                     key={m.mealId}
                     className="flex items-center gap-3 rounded-2xl border border-[rgba(31,42,55,0.04)] bg-cream-soft px-4 py-3"
@@ -292,7 +395,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                       {m.portions}
                     </span>
                     <p className="min-w-0 text-sm font-semibold text-navy">
-                      {m.meal?.name ?? 'Plat retiré du catalogue'}
+                      {m.name ?? 'Plat retiré du catalogue'}
                     </p>
                   </li>
                 ))}
@@ -307,11 +410,9 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
                 courses
               </h3>
-              {courses.data?.persons != null && (
-                <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
-                  {courses.data.persons} personnes
-                </span>
-              )}
+              <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                {b.shoppingByClient ? 'À votre charge' : 'Faites par le batch cooker'}
+              </span>
             </div>
 
             {courses.isPending ? (
@@ -354,6 +455,16 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </div>
             )}
           </div>
+
+          {/* ── Vos consignes ──────────────────────────────────────────── */}
+          {b.notes && (
+            <div className="rounded-3xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
+              <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-amber-deep">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden /> Vos consignes
+              </p>
+              {b.notes}
+            </div>
+          )}
         </section>
 
         {/* ── Colonne de droite ─────────────────────────────────────────── */}
@@ -365,38 +476,46 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             {ttc ? (
               <ul className="space-y-2 text-sm text-ink-mid">
                 <Row label="Prestation TTC" value={ttc} />
-                <Row label="TVA" value="incluse" />
-                <Row label="Crédit d’impôt estimé" value={`− ${credit}`} accent />
-                <Row label="Reste à charge estimé" value={reste ?? '—'} bold />
+                {credit && <Row label="Crédit d’impôt" value={`− ${credit}`} accent />}
+                {reste && <Row label="Reste à charge" value={reste} bold />}
+                {paye && <Row label="Déjà réglé" value={paye} />}
               </ul>
             ) : (
               <p className="text-sm text-ink-soft">Montant non communiqué par l’API.</p>
             )}
-            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-ink-soft">
-              <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-              Le crédit d’impôt services à la personne est de 50 %. L’API ne
-              renvoie pas ce montant sur une commande : il est calculé ici.
-            </p>
           </div>
 
-          {/* Le règlement n'a aucun endpoint : on le dit au lieu de l'afficher. */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
-            <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
-              <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
-            </h4>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
-              <strong className="font-semibold text-navy">N/A</strong> — le suivi
-              du paiement n’existe pas encore côté API : une commande ne dit pas
-              si elle est réglée, ni comment.
-            </p>
-            <Link
-              href={`/espace-client/commandes/${b.id}/paiement`}
-              className="btn btn-outline mt-3 w-full justify-center text-xs"
-            >
-              Voir l’écran de règlement
-              <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
-            </Link>
-          </div>
+          {b.addressLine && (
+            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+              <h4 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-navy">
+                <MapPin className="h-4 w-4 text-amber" aria-hidden /> Où
+              </h4>
+              <p className="text-[13px] leading-relaxed text-ink-mid">
+                {b.addressLine}
+                {b.city ? `, ${b.city}` : ''}
+              </p>
+            </div>
+          )}
+
+          {!aRegler && b.status !== 'cancelled' && (
+            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+              <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
+                <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
+              </h4>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
+                {b.paidCents && b.amountTtc && b.paidCents >= b.amountTtc
+                  ? 'Réglée. Votre reçu est dans votre espace.'
+                  : 'Il reste une part à régler sur cette prestation.'}
+              </p>
+              <Link
+                href={`/espace-client/commandes/${b.id}/paiement`}
+                className="btn btn-outline mt-3 w-full justify-center text-xs"
+              >
+                Voir le règlement
+                <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+              </Link>
+            </div>
+          )}
 
           <Link
             href="/espace-client/messages"
@@ -411,13 +530,56 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             </div>
           </Link>
 
-          <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-ink-soft">
-            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-            Annuler une prestation n’est pas encore possible depuis cet écran :
-            aucune route ne le permet. Passez par la messagerie.
-          </p>
+          {annulable ? (
+            <button
+              onClick={() => setAAnnuler(true)}
+              className="w-full text-center text-xs text-ink-soft transition-colors hover:text-red-700"
+            >
+              Annuler cette prestation
+            </button>
+          ) : (
+            !arretee &&
+            b.status !== 'completed' && (
+              <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-ink-soft">
+                <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                Une prestation déjà réglée ne s’annule plus depuis cet écran, et
+                plus du tout une fois commencée. Passez par la messagerie.
+              </p>
+            )
+          )}
         </aside>
       </div>
+
+      <ConfirmDialog
+        open={aAnnuler}
+        onClose={() => setAAnnuler(false)}
+        onConfirm={() =>
+          update.mutate(
+            { id: b.id, patch: { status: 'cancelled' } },
+            {
+              onSuccess: () => {
+                setAAnnuler(false)
+                toast.success('Prestation annulée', 'Votre batch cooker est prévenu.')
+              },
+              onError: (e) =>
+                toast.error(
+                  'L’annulation a été refusée',
+                  e instanceof Error ? e.message : undefined,
+                ),
+            },
+          )
+        }
+        pending={update.isPending}
+        tone="danger"
+        title="Annuler cette prestation ?"
+        lead={`Le créneau du ${longDate(b.startsAt)} est libéré, et votre batch cooker est prévenu.`}
+        detail={
+          b.status === 'pending'
+            ? 'Rien n’a été réglé : il n’y a rien à rembourser.'
+            : 'Une prestation déjà commencée ne peut plus être annulée — celle-ci ne l’est pas encore.'
+        }
+        confirmLabel="Annuler la prestation"
+      />
     </div>
   )
 }
@@ -449,7 +611,7 @@ function CheckoutOutcome() {
         {ok ? (
           <>
             <strong className="font-semibold">Paiement enregistré.</strong> Votre
-            reçu arrive par email.
+            prestation est confirmée, et votre reçu arrive par email.
           </>
         ) : (
           <>
