@@ -129,3 +129,44 @@ export function useApiFetch() {
     [getToken],
   )
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Le détail d'un refus de validation.
+
+   Depuis le 17/10 un `400` porte, à côté du `message[]` historique, un tableau
+   `errors: [{ field, code, message }]` : `field` est le chemin dans le corps
+   envoyé (`meals.0.portions`), `code` le nom de la règle (`min`, `isUuid`,
+   `whitelistValidation` pour un champ inconnu). Le `message` reste en anglais
+   et ne s'affiche pas : c'est au formulaire de traduire depuis le `code`.
+
+   Le statut reste 400, pas 422 : l'API a préféré ne casser aucun client.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface FieldError {
+  field: string
+  code: string
+  message: string
+}
+
+export function fieldErrors(error: unknown): FieldError[] {
+  if (!(error instanceof ApiError)) return []
+  const body = error.body
+  if (!body || typeof body !== 'object') return []
+  const list = (body as { errors?: unknown }).errors
+  if (!Array.isArray(list)) return []
+  return list.flatMap((e) =>
+    e && typeof e === 'object' && typeof (e as FieldError).field === 'string'
+      ? [
+          {
+            field: String((e as FieldError).field),
+            code: String((e as FieldError).code ?? ''),
+            message: String((e as FieldError).message ?? ''),
+          },
+        ]
+      : [],
+  )
+}
+
+/** L'erreur qui vise un champ précis, s'il y en a une. */
+export const errorFor = (error: unknown, field: string) =>
+  fieldErrors(error).find((e) => e.field === field) ?? null

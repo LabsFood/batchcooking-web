@@ -133,6 +133,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const [aAnnuler, setAAnnuler] = useState(false)
 
   const ttc = euros(b.amountTtc ?? b.priceCents)
+  /* Les courses ont leur ligne : l'API les facture à part depuis le 17/10, et
+     elles disparaîtraient dans un total. */
+  const prestation = euros(b.priceCents)
+  const forfaitCourses = b.shoppingFeeCents ? euros(b.shoppingFeeCents) : null
   const reste = euros(b.amountAfterTax)
   const credit =
     b.amountTtc != null && b.amountAfterTax != null
@@ -509,12 +513,27 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
             {ttc ? (
+              <>
               <ul className="space-y-2 text-sm text-ink-mid">
-                <Row label="Prestation TTC" value={ttc} />
+                {forfaitCourses && prestation ? (
+                  <>
+                    <Row label="Prestation" value={prestation} />
+                    <Row label="Courses" value={forfaitCourses} />
+                    <Row label="Total TTC" value={ttc} />
+                  </>
+                ) : (
+                  <Row label="Prestation TTC" value={ttc} />
+                )}
                 {credit && <Row label="Crédit d’impôt" value={`− ${credit}`} accent />}
                 {reste && <Row label="Reste à charge" value={reste} bold />}
                 {paye && <Row label="Déjà réglé" value={paye} />}
               </ul>
+              {b.shoppingByClient && (
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                  Vous faites les courses vous-même : aucun forfait n’est facturé.
+                </p>
+              )}
+              </>
             ) : (
               <p className="text-sm text-ink-soft">Montant non communiqué par l’API.</p>
             )}

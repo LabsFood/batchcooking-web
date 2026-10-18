@@ -453,7 +453,13 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 <Info2
                   icon={<ClipboardList className="h-4 w-4" />}
                   label="Courses"
-                  value={m.shoppingByClient ? 'Faites par le client' : 'À votre charge'}
+                  value={
+                    m.shoppingByClient
+                      ? 'Faites par le client'
+                      : m.shoppingFeeCents
+                        ? `À votre charge · forfait ${euros(m.shoppingFeeCents)}`
+                        : 'À votre charge'
+                  }
                 />
                 <Info2
                   icon={<Clock className="h-4 w-4" />}

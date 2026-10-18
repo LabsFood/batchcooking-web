@@ -15,8 +15,9 @@ import {
   ShieldCheck,
   ShoppingBasket,
   Star,
-  UtensilsCrossed,
   Users,
+  UtensilsCrossed,
+  Wallet,
   X,
 } from 'lucide-react'
 import {
@@ -348,6 +349,13 @@ export function MenuCard({
             {menu.chef.newcomer && (
               <span className="rounded-full bg-mint px-2 py-0.5 text-[10px] font-semibold text-mint-ink">
                 Nouveau
+              </span>
+            )}
+            {/* Le CESU préfinancé change ce que le client paiera réellement :
+                il se voit dès la carte, pas au moment de payer. */}
+            {menu.chef.acceptsCesu && (
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[10px] font-semibold text-amber-deep">
+                CESU accepté
               </span>
             )}
           </div>
@@ -699,8 +707,16 @@ function ChefPanel({ card }: { card: WeekCard }) {
         ))}
       </dl>
 
-      {(card.chef.badges.length > 0 || card.chef.languages.length > 0) && (
+      {(card.chef.badges.length > 0 ||
+        card.chef.languages.length > 0 ||
+        card.chef.acceptsCesu) && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
+          {card.chef.acceptsCesu && (
+            <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
+              <Wallet className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+              Accepte le CESU préfinancé
+            </p>
+          )}
           {card.chef.badges.length > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />

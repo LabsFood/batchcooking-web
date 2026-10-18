@@ -25,6 +25,14 @@ export type QuoteStatus =
   | 'declined'
   | 'chef_declined'
   | 'cancelled'
+  /**
+   * Classée sans suite par Lab's Food — arrivé le 17/10.
+   *
+   * Ce n'est ni un refus du client (`declined`), ni son retrait
+   * (`cancelled`) : c'est la maison qui ne donne pas suite. L'offre qui
+   * attendait est retirée, et rien ne se rouvre.
+   */
+  | 'closed'
 
 export type OfferStatus = 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired' | 'withdrawn'
 

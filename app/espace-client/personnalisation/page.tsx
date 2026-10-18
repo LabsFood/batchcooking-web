@@ -44,6 +44,7 @@ const STATUS_LABEL: Record<QuoteStatus, string> = {
   declined: 'Offre refusée',
   chef_declined: 'À réattribuer',
   cancelled: 'Retirée',
+  closed: 'Sans suite',
 }
 
 const STATUS_COLOR: Record<QuoteStatus, string> = {
@@ -54,6 +55,7 @@ const STATUS_COLOR: Record<QuoteStatus, string> = {
   declined: 'bg-cream-deep text-navy',
   chef_declined: 'bg-amber-soft text-amber-deep',
   cancelled: 'bg-cream-deep text-ink-mid',
+  closed: 'bg-cream-deep text-ink-mid',
 }
 
 const DIETS = ['Végétarien', 'Vegan', 'Sans-gluten', 'Sans-lactose', 'Halal', 'Casher', 'High-protein']
@@ -489,7 +491,10 @@ function RequestCard({ quote }: { quote: Quote }) {
 
   const offer = quote.activeOffer
   const busy = accept.isPending || decline.isPending || cancel.isPending
-  const open = quote.status !== 'accepted' && quote.status !== 'cancelled'
+  const open =
+    quote.status !== 'accepted' &&
+    quote.status !== 'cancelled' &&
+    quote.status !== 'closed'
 
   // L'offre est sous les yeux du client : on le dit au batch cooker, une fois.
   const told = useRef<string | null>(null)
@@ -555,6 +560,12 @@ function RequestCard({ quote }: { quote: Quote }) {
       )}
       {quote.status === 'declined' && (
         <Note>Tu as refusé la dernière offre. Ton batch cooker peut t’en proposer une nouvelle.</Note>
+      )}
+      {quote.status === 'closed' && (
+        <Note>
+          Lab’s Food n’a pas donné suite à cette demande. Tu as reçu un email qui
+          l’explique — et tu peux en déposer une nouvelle quand tu veux.
+        </Note>
       )}
 
       {offer && (

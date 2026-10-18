@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import AgendaTimeGrid, { thingsOn } from '@/components/chef/AgendaTimeGrid'
+import ApprovalGate from '@/components/chef/ApprovalGate'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import DatePicker, { DayLegend } from '@/components/shared/DatePicker'
@@ -166,6 +167,8 @@ export default function ChefAgendaPage() {
   return (
     <ChefPage title="Agenda" subtitle="Vos horaires, vos prestations et vos demandes.">
       <div className="space-y-5">
+        <ApprovalGate quoi="Votre agenda s’écrit" />
+
         {pasDHoraires && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
             <p className="flex items-start gap-2 font-display text-base font-bold text-navy">

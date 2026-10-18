@@ -84,8 +84,17 @@ export interface Booking {
   city?: string | null
   notes?: string | null
   shoppingByClient?: boolean | null
-  /** Centimes. `amountTtc` est ce que le client paie. */
+  /** Centimes — la prestation seule, sans les courses. */
   priceCents: number
+  /**
+   * Le frais de courses, séparé depuis le 17/10.
+   *
+   * Facturé seulement si l'offre inclut les courses **et** que le client ne
+   * les fait pas lui-même. Il ouvre droit au crédit d'impôt : il se montre
+   * sur sa propre ligne, jamais fondu dans le prix.
+   */
+  shoppingFeeCents?: number | null
+  /** Ce que le client paie : prestation + courses. */
   amountTtc: number
   /** Après crédit d'impôt — **calculé par l'API**, plus par nous. */
   amountAfterTax: number

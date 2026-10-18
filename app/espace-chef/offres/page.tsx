@@ -52,6 +52,8 @@ export default function ChefOffersPage() {
 
   const all = quotes.data ?? []
   // À répondre : aucune offre en attente, rien de conclu.
+  /* `closed` n'apparaît dans aucune des deux listes : la maison a classé la
+     demande, il n'y a plus rien à chiffrer ni à attendre. */
   const toAnswer = all.filter((q) => ['submitted', 'in_review', 'declined'].includes(q.status))
   const confirmed = all.filter((q) => q.status === 'accepted')
   const selected = toAnswer.find((q) => q.id === selectedId) ?? null
