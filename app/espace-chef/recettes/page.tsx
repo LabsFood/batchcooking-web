@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
+import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
@@ -45,6 +46,7 @@ import {
   type MenuDish,
   type Suggestions,
 } from '@/lib/api/chef-catalog'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mes plats et mes menus.
@@ -85,6 +87,8 @@ export default function RecettesPage() {
       subtitle="Vos plats, vos cartes, et ce que Lab’s Food vous propose."
     >
       <div className="space-y-6">
+        <ApprovalGate quoi="Vos plats et vos menus s’écrivent" />
+
         <div role="tablist" aria-label="Catalogue" className="flex flex-wrap items-center gap-1">
           {TABS.map((t) => {
             const on = tab === t.id
@@ -332,7 +336,7 @@ function DishCard({ dish }: { dish: Dish }) {
                   onError: (e) =>
                     toast.error(
                       'La publication a été refusée',
-                      e instanceof Error ? e.message : undefined,
+                      apiMessage(e),
                     ),
                 },
               )
@@ -370,7 +374,7 @@ function DishCard({ dish }: { dish: Dish }) {
             onError: (e) =>
               toast.error(
                 'La suppression a échoué',
-                e instanceof Error ? e.message : undefined,
+                apiMessage(e),
               ),
           })
         }
@@ -518,7 +522,7 @@ function MenusTab({
                     onError: (e) =>
                       toast.error(
                         'La carte n’a pas été créée',
-                        e instanceof Error ? e.message : undefined,
+                        apiMessage(e),
                       ),
                   },
                 )
@@ -875,7 +879,7 @@ function MenuCard({ menu }: { menu: Menu }) {
         onError: (e) =>
           toast.error(
             publier ? 'La publication a été refusée' : 'La dépublication a échoué',
-            e instanceof Error ? e.message : undefined,
+            apiMessage(e),
           ),
       },
     )
@@ -1050,7 +1054,7 @@ function MenuCard({ menu }: { menu: Menu }) {
             onError: (e) =>
               toast.error(
                 'La suppression a échoué',
-                e instanceof Error ? e.message : undefined,
+                apiMessage(e),
               ),
           })
         }
@@ -1160,7 +1164,7 @@ function SuggestionsTab() {
           )
         },
         onError: (e) =>
-          toast.error('L’adoption a échoué', e instanceof Error ? e.message : undefined),
+          toast.error('L’adoption a échoué', apiMessage(e)),
       },
     )
   }

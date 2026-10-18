@@ -39,7 +39,7 @@ import {
 import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
 import { dayKey } from '@/lib/time'
-import { fieldErrors } from '@/lib/api/client'
+import { apiMessage } from '@/lib/api/messages'
 import {
   offerDuration,
   offerEuros,
@@ -205,16 +205,7 @@ function ReservationFlow() {
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
-          const champs = fieldErrors(e)
-          setErreur(
-            champs.length > 0
-              ? `Ces informations n’ont pas été acceptées : ${champs
-                  .map((c) => c.field)
-                  .join(', ')}. Reprenez l’étape précédente.`
-              : e instanceof Error
-                ? e.message
-                : 'La réservation n’a pas pu être enregistrée.',
-          )
+          setErreur(apiMessage(e, 'La réservation n’a pas pu être enregistrée.'))
         },
       },
     )
