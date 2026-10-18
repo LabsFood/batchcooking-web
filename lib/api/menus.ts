@@ -44,10 +44,19 @@ export interface WeekChef {
   sessionsDone: number
   newcomer: boolean
   avatarUrl: string | null
-  /** `null` tant qu'il n'y a pas d'avis : le module n'existe pas encore. */
+  /** `null` tant qu'il n'y a pas d'avis : le module est hors MVP. */
   rating: number | null
   reviewCount: number | null
+  /** Vide : le champ existe, l'API ne le remplit pas encore (BLK-17). */
   languages: string[]
+  /**
+   * Le CESU préfinancé est accepté — arrivé le 17/10.
+   *
+   * `true` seulement si le batch cooker a activé le CESU **et** déclaré son
+   * numéro NAN. Le numéro lui-même se lit sur `GET /chefs/{id}/cesu-info`,
+   * au moment de payer — pas avant.
+   */
+  acceptsCesu?: boolean
 }
 
 /** Une carte : un batch cooker, et ce qu'il propose cette semaine. */
@@ -146,6 +155,18 @@ export interface ChefMenuCard {
   dishes?: WeekDish[]
 }
 
+/** Une offre, telle que le public la voit : sans sa description ni son état. */
+export interface PublicServiceOffer {
+  id: string
+  name: string
+  /** C'est elle qui découpe les créneaux proposés au client. */
+  durationMinutes: number
+  /** Prix client, en centimes, hors courses. */
+  priceCents: number
+  shoppingIncluded: boolean
+  shoppingFeeCents: number
+}
+
 export interface ChefPublic extends WeekChef {
   bio: string | null
   zones: ChefZone[]
@@ -153,6 +174,12 @@ export interface ChefPublic extends WeekChef {
   afterTaxCreditCents: number | null
   dishes: WeekDish[]
   menus: ChefMenuCard[]
+  /**
+   * Les offres **actives**, de la moins chère à la plus chère — arrivées le
+   * 17/10. Vide tant que le batch cooker n'en a posé aucune : il n'est alors
+   * réservable que sur demande.
+   */
+  serviceOffers?: PublicServiceOffer[]
 }
 
 /**

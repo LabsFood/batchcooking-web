@@ -17,6 +17,8 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import DatePicker from '@/components/shared/DatePicker'
+import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import { useChefPublic, useWeekMenus } from '@/lib/api/menus'
 import {
@@ -42,6 +44,7 @@ const STATUS_LABEL: Record<QuoteStatus, string> = {
   declined: 'Offre refusée',
   chef_declined: 'À réattribuer',
   cancelled: 'Retirée',
+  closed: 'Sans suite',
 }
 
 const STATUS_COLOR: Record<QuoteStatus, string> = {
@@ -52,6 +55,7 @@ const STATUS_COLOR: Record<QuoteStatus, string> = {
   declined: 'bg-cream-deep text-navy',
   chef_declined: 'bg-amber-soft text-amber-deep',
   cancelled: 'bg-cream-deep text-ink-mid',
+  closed: 'bg-cream-deep text-ink-mid',
 }
 
 const DIETS = ['Végétarien', 'Vegan', 'Sans-gluten', 'Sans-lactose', 'Halal', 'Casher', 'High-protein']
@@ -273,13 +277,16 @@ function RequestForm() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Date souhaitée">
-            <input
-              type="date"
-              value={date}
-              min={tomorrow()}
-              max={latest()}
-              onChange={(e) => setDate(e.target.value)}
-              className="input-base"
+            <DatePicker
+              mode="single"
+              selected={date ? new Date(`${date}T12:00:00`) : undefined}
+              onSelect={(d) => d && setDate(dayKey(d))}
+              disabled={{
+                before: new Date(`${tomorrow()}T00:00:00`),
+                after: new Date(`${latest()}T00:00:00`),
+              }}
+              startMonth={new Date(`${tomorrow()}T00:00:00`)}
+              className="rounded-2xl bg-cream-soft p-2"
             />
           </Field>
           <Field label="Créneau">
@@ -484,7 +491,10 @@ function RequestCard({ quote }: { quote: Quote }) {
 
   const offer = quote.activeOffer
   const busy = accept.isPending || decline.isPending || cancel.isPending
-  const open = quote.status !== 'accepted' && quote.status !== 'cancelled'
+  const open =
+    quote.status !== 'accepted' &&
+    quote.status !== 'cancelled' &&
+    quote.status !== 'closed'
 
   // L'offre est sous les yeux du client : on le dit au batch cooker, une fois.
   const told = useRef<string | null>(null)
@@ -550,6 +560,12 @@ function RequestCard({ quote }: { quote: Quote }) {
       )}
       {quote.status === 'declined' && (
         <Note>Tu as refusé la dernière offre. Ton batch cooker peut t’en proposer une nouvelle.</Note>
+      )}
+      {quote.status === 'closed' && (
+        <Note>
+          Lab’s Food n’a pas donné suite à cette demande. Tu as reçu un email qui
+          l’explique — et tu peux en déposer une nouvelle quand tu veux.
+        </Note>
       )}
 
       {offer && (

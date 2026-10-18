@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   Link2,
   Loader2,
   Lock,
@@ -20,9 +21,14 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import AgendaTimeGrid, { thingsOn } from '@/components/chef/AgendaTimeGrid'
+import ApprovalGate from '@/components/chef/ApprovalGate'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import DatePicker, { DayLegend } from '@/components/shared/DatePicker'
+import { SlotPicker, TimeRange } from '@/components/shared/TimeField'
 import { useToast } from '@/components/shared/Toaster'
+import { atTime, durationLabel } from '@/lib/time'
 import {
   closedReason,
   dayKey,
@@ -30,7 +36,6 @@ import {
   minuteLabel,
   overlaps,
   rangeLabel,
-  toHHMM,
   toMinutes,
   useAddBlock,
   useAgenda,
@@ -39,6 +44,7 @@ import {
   useCalendarFeed,
   useCreateCalendarFeed,
   useDeleteCalendarFeed,
+  useOwnSlots,
   useRemoveBlock,
   useSaveAvailability,
   weekdayIndex,
@@ -46,33 +52,38 @@ import {
   weeklyHours,
   workingRanges,
   WEEKDAYS,
-  type AgendaPrestation,
-  type AgendaRequest,
+  type Agenda,
   type AvailabilityException,
-  type TimeBlock,
   type WeeklySlot,
 } from '@/lib/api/agenda'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Agenda.
 
-   Quatre échelles — jour, semaine, mois, année — sur les données de l'API :
-   `GET /chef/agenda` rend la fusion déjà faite pour une fenêtre de 42 jours au
-   plus (la grille d'un mois fait six semaines), et `GET /chef/agenda/summary`
-   donne le compte par mois pour l'année.
+   Trois échelles sur les données de l'API : `GET /chef/agenda` rend la fusion
+   déjà faite (horaire, prestations, demandes, blocs) pour une fenêtre de 42
+   jours au plus, et `GET /chef/agenda/summary` donne le compte par mois.
+
+   Ce qu'un agenda doit faire, et que des listes ne font pas : montrer le temps
+   **à l'échelle**. Le jour et la semaine sont donc une vraie grille horaire —
+   une prestation de 9 h à 13 h y occupe quatre heures de hauteur, les trous se
+   voient, et deux rendez-vous qui se chevauchent se posent côte à côte. Le
+   mois, lui, n'a pas besoin de la grille : il a besoin de dire d'un coup d'œil
+   quels jours sont pris, fermés, ou encore libres — c'est le calendrier
+   partagé (`react-day-picker`) qui le fait, avec ses pastilles.
 
    Deux choses distinctes, qu'il faut garder distinctes :
 
    - **les horaires** (`PUT /chef/availability`) sont une trame hebdomadaire et
-     des exceptions sur une date. On enregistre tout l'horaire à venir d'un
-     bloc, avec le `version` relu — une sauvegarde depuis un onglet périmé est
-     refusée plutôt que d'écraser l'autre ;
+     des exceptions sur une date. On enregistre tout d'un bloc avec le
+     `version` relu — une sauvegarde depuis un onglet périmé est refusée
+     plutôt que d'écraser l'autre ;
    - **les blocs** (`POST /chef/agenda/blocks`) prennent deux heures un jour
-     donné : un rendez-vous, une après-midi. Une journée entière se ferme dans
-     les horaires, pas ici.
+     donné. Une journée entière se ferme dans les horaires, pas ici.
 
    Sans horaires, aucun créneau n'est proposé aux clients : l'écran le dit en
-   premier, parce que c'est la cause la plus fréquente d'un agenda vide.
+   premier, et la carte « Ce qu'un client voit » le prouve en appelant la même
+   route que le public (`GET /chef/availability/slots`).
    ───────────────────────────────────────────────────────────────────────────── */
 
 type View = 'day' | 'week' | 'month' | 'year'
@@ -119,7 +130,6 @@ export default function ChefAgendaPage() {
   const annee = useAgendaSummary(cursor.getFullYear())
   const horaires = useAvailability()
 
-  const schedule = agenda.data?.schedule ?? horaires.data
   const pasDHoraires =
     (agenda.data && agenda.data.scheduled === false) ||
     (horaires.data && horaires.data.scheduled === false)
@@ -145,9 +155,20 @@ export default function ChefAgendaPage() {
 
   const jour = selected ?? (view === 'day' ? cursor : null)
 
+  /** Les colonnes de la grille : une le jour, sept la semaine. */
+  const colonnes = useMemo(
+    () =>
+      view === 'day'
+        ? [cursor]
+        : Array.from({ length: 7 }, (_, i) => addDays(mondayOf(cursor), i)),
+    [view, cursor],
+  )
+
   return (
     <ChefPage title="Agenda" subtitle="Vos horaires, vos prestations et vos demandes.">
       <div className="space-y-5">
+        <ApprovalGate quoi="Votre agenda s’écrit" />
+
         {pasDHoraires && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
             <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
@@ -246,25 +267,22 @@ export default function ChefAgendaPage() {
                 </button>
               </Card>
             ) : agenda.isPending ? (
-              <div className="h-96 animate-pulse rounded-3xl bg-paper" />
-            ) : view === 'day' ? (
-              <DayColumn
-                date={cursor}
-                agenda={agenda.data!}
-                onSelect={() => setSelected(cursor)}
-              />
-            ) : view === 'week' ? (
-              <WeekGrid
-                start={mondayOf(cursor)}
-                agenda={agenda.data!}
+              <div className="h-[32rem] animate-pulse rounded-3xl bg-paper" />
+            ) : view === 'month' ? (
+              <MonthView
+                month={cursor}
+                agenda={agenda.data}
                 selected={jour}
                 onSelect={setSelected}
+                onMonthChange={(m) => {
+                  setCursor(m)
+                  setSelected(null)
+                }}
               />
             ) : (
-              <MonthGrid
-                start={from}
-                month={cursor.getMonth()}
-                agenda={agenda.data!}
+              <AgendaTimeGrid
+                days={colonnes}
+                agenda={agenda.data}
                 selected={jour}
                 onSelect={setSelected}
               />
@@ -277,6 +295,25 @@ export default function ChefAgendaPage() {
               <DayPanel date={jour} agenda={agenda.data} onClose={() => setSelected(null)} />
             )}
 
+            {view !== 'month' && view !== 'year' && (
+              <Card title="Aller à une date">
+                <DatePicker
+                  mode="single"
+                  selected={jour ?? cursor}
+                  month={cursor}
+                  onMonthChange={setCursor}
+                  onSelect={(d) => {
+                    if (!d) return
+                    setCursor(d)
+                    setSelected(d)
+                  }}
+                  className="mx-auto w-fit"
+                />
+              </Card>
+            )}
+
+            <SlotsCard date={jour ?? cursor} />
+
             <HoursEditor />
 
             <CalendarFeedCard />
@@ -287,308 +324,152 @@ export default function ChefAgendaPage() {
   )
 }
 
-/* ── Les vues ──────────────────────────────────────────────────────────────── */
+/* ── Le mois ───────────────────────────────────────────────────────────────── */
 
-/** Ce qui se passe un jour donné, extrait de la fenêtre lue. */
-function thingsOn(date: Date, a: { prestations: AgendaPrestation[]; requests: AgendaRequest[]; blocks: TimeBlock[] }) {
-  const cle = dayKey(date)
-  return {
-    prestations: a.prestations.filter((p) => dayKey(new Date(p.startsAt)) === cle),
-    requests: a.requests.filter((r) => r.startsAt && dayKey(new Date(r.startsAt)) === cle),
-    blocks: a.blocks.filter((b) => dayKey(new Date(b.startsAt)) === cle),
-  }
-}
-
-const DEBUT_GRILLE = 7 * 60
-const FIN_GRILLE = 22 * 60
-
-/** Position verticale d'un créneau sur la grille horaire, en pourcentage. */
-function band(startMinute: number, endMinute: number) {
-  const span = FIN_GRILLE - DEBUT_GRILLE
-  const haut = Math.max(0, ((startMinute - DEBUT_GRILLE) / span) * 100)
-  const hauteur = Math.max(4, ((endMinute - startMinute) / span) * 100)
-  return { top: `${haut}%`, height: `${Math.min(hauteur, 100 - haut)}%` }
-}
-
-function DayColumn({
-  date,
-  agenda,
-  onSelect,
-}: {
-  date: Date
-  agenda: NonNullable<ReturnType<typeof useAgenda>['data']>
-  onSelect: () => void
-}) {
-  const { prestations, requests, blocks } = thingsOn(date, agenda)
-  const ranges = workingRanges(date, agenda.schedule)
-  const ferme = closedReason(date, agenda.schedule)
-
-  return (
-    <Card>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold capitalize text-navy">
-          {date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
-        <button onClick={onSelect} className="text-xs font-semibold text-terra hover:underline">
-          Modifier cette journée
-        </button>
-      </div>
-
-      {ferme !== null ? (
-        <p className="flex items-center gap-2 rounded-xl bg-cream-soft px-4 py-3 text-[13px] text-ink-mid">
-          <CalendarOff className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
-          Journée fermée{ferme ? ` — ${ferme}` : ''}
-        </p>
-      ) : ranges.length === 0 ? (
-        <Empty text="Vous ne travaillez pas ce jour-là d’après votre semaine type." />
-      ) : (
-        <p className="text-[13px] text-ink-mid">
-          Vous travaillez {ranges.map((r) => rangeLabel(r.startMinute, r.endMinute)).join(' et ')}.
-        </p>
-      )}
-
-      <div className="relative mt-4 h-96 rounded-2xl bg-cream-soft">
-        {/* Les heures travaillées, en fond. */}
-        {ranges.map((r, i) => (
-          <div
-            key={i}
-            aria-hidden
-            className="absolute inset-x-0 rounded-xl bg-paper"
-            style={band(r.startMinute, r.endMinute)}
-          />
-        ))}
-        {blocks.map((b) => (
-          <div
-            key={b.id}
-            className="absolute inset-x-2 flex items-center gap-2 overflow-hidden rounded-xl bg-[rgba(31,42,55,0.08)] px-3 text-[11px] text-ink-mid"
-            style={band(minutesOf(b.startsAt), minutesOf(b.endsAt))}
-          >
-            <Lock className="h-3 w-3 shrink-0" aria-hidden />
-            <span className="truncate">{b.reason || 'Indisponible'}</span>
-          </div>
-        ))}
-        {prestations.map((p) => (
-          <div
-            key={p.id}
-            className="absolute inset-x-2 overflow-hidden rounded-xl bg-navy px-3 py-1.5 text-[11px] text-white"
-            style={band(
-              minutesOf(p.startsAt),
-              minutesOf(p.endsAt) || minutesOf(p.startsAt) + 120,
-            )}
-          >
-            <p className="truncate font-semibold">{p.client?.name ?? 'Client'}</p>
-            <p className="truncate text-white/70">
-              {[p.timeSlot, p.city].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-        ))}
-        {requests.map((r) => (
-          <div
-            key={r.id}
-            className="absolute inset-x-2 overflow-hidden rounded-xl border-[1.5px] border-dashed border-amber bg-amber-soft/70 px-3 py-1.5 text-[11px] text-navy"
-            style={band(
-              minutesOf(r.startsAt!),
-              r.endsAt ? minutesOf(r.endsAt) : minutesOf(r.startsAt!) + 180,
-            )}
-          >
-            <p className="truncate font-semibold">{r.title ?? 'Demande sur-mesure'}</p>
-            <p className="truncate text-ink-mid">
-              {r.stage === 'to_answer' ? 'À chiffrer' : 'Offre envoyée'}
-            </p>
-          </div>
-        ))}
-
-        {/* Repères horaires. */}
-        {[8, 12, 16, 20].map((h) => (
-          <span
-            key={h}
-            aria-hidden
-            className="absolute left-2 -translate-y-1/2 text-[10px] tabular-nums text-ink-soft"
-            style={{ top: `${((h * 60 - DEBUT_GRILLE) / (FIN_GRILLE - DEBUT_GRILLE)) * 100}%` }}
-          >
-            {h}h
-          </span>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-function WeekGrid({
-  start,
-  agenda,
-  selected,
-  onSelect,
-}: {
-  start: Date
-  agenda: NonNullable<ReturnType<typeof useAgenda>['data']>
-  selected: Date | null
-  onSelect: (d: Date) => void
-}) {
-  const jours = Array.from({ length: 7 }, (_, i) => addDays(start, i))
-  const today = new Date()
-
-  return (
-    <Card className="!p-0 overflow-hidden">
-      <div className="grid grid-cols-7">
-        {jours.map((d) => {
-          const { prestations, requests, blocks } = thingsOn(d, agenda)
-          const ranges = workingRanges(d, agenda.schedule)
-          const ferme = closedReason(d, agenda.schedule) !== null
-          const estAujourdhui = sameDay(d, today)
-          const choisi = selected ? sameDay(d, selected) : false
-
-          return (
-            <button
-              key={dayKey(d)}
-              onClick={() => onSelect(d)}
-              aria-current={estAujourdhui ? 'date' : undefined}
-              className={`min-h-48 border-b border-r border-[rgba(31,42,55,0.07)] p-2 text-left align-top transition-colors last:border-r-0 hover:bg-cream-soft ${
-                choisi ? 'bg-cream-soft' : ''
-              }`}
-            >
-              <p className="mb-1.5 flex items-baseline justify-between gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-ink-soft">
-                  {WEEKDAYS[weekdayIndex(d)].slice(0, 3)}
-                </span>
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
-                    estAujourdhui ? 'bg-amber text-navy' : 'text-navy'
-                  }`}
-                >
-                  {d.getDate()}
-                </span>
-              </p>
-
-              {ferme ? (
-                <p className="text-[10px] text-ink-soft">Fermé</p>
-              ) : ranges.length === 0 ? (
-                <p className="text-[10px] text-ink-soft">—</p>
-              ) : (
-                <p className="text-[10px] tabular-nums text-ink-soft">
-                  {minuteLabel(ranges[0].startMinute)}–
-                  {minuteLabel(ranges[ranges.length - 1].endMinute)}
-                </p>
-              )}
-
-              <ul className="mt-1.5 space-y-1">
-                {prestations.map((p) => (
-                  <li
-                    key={p.id}
-                    className="truncate rounded bg-navy px-1.5 py-1 text-[10px] text-white"
-                  >
-                    {p.timeSlot?.split('-')[0] ?? ''} {p.client?.name ?? 'Client'}
-                  </li>
-                ))}
-                {requests.map((r) => (
-                  <li
-                    key={r.id}
-                    className="truncate rounded border border-dashed border-amber bg-amber-soft/70 px-1.5 py-1 text-[10px] text-navy"
-                  >
-                    {r.title ?? 'Demande'}
-                  </li>
-                ))}
-                {blocks.map((b) => (
-                  <li
-                    key={b.id}
-                    className="truncate rounded bg-[rgba(31,42,55,0.08)] px-1.5 py-1 text-[10px] text-ink-mid"
-                  >
-                    {b.reason || 'Indisponible'}
-                  </li>
-                ))}
-              </ul>
-            </button>
-          )
-        })}
-      </div>
-    </Card>
-  )
-}
-
-function MonthGrid({
-  start,
+/**
+ * Le mois ne montre pas le temps à l'échelle, il montre l'état des jours : le
+ * calendrier partagé s'en charge, et la liste dessous donne la suite dans
+ * l'ordre — ce qu'une grille de cases ne sait pas faire lisiblement.
+ */
+function MonthView({
   month,
   agenda,
   selected,
   onSelect,
+  onMonthChange,
 }: {
-  start: Date
-  month: number
-  agenda: NonNullable<ReturnType<typeof useAgenda>['data']>
+  month: Date
+  agenda: Agenda
   selected: Date | null
   onSelect: (d: Date) => void
+  onMonthChange: (d: Date) => void
 }) {
-  const jours = Array.from({ length: 42 }, (_, i) => addDays(start, i))
-  const today = new Date()
+  const jourDe = (iso: string) => dayKey(new Date(iso))
+
+  const modifiers = useMemo(() => {
+    const booked = agenda.prestations.map((p) => new Date(p.startsAt))
+    const pending = agenda.requests
+      .filter((r) => r.startsAt)
+      .map((r) => new Date(r.startsAt!))
+    const blocked = agenda.blocks.map((b) => new Date(b.startsAt))
+    const pris = new Set([...booked, ...pending].map((d) => dayKey(d)))
+
+    /* « Libre » ne se devine pas : c'est un jour travaillé où rien n'est
+       encore posé. Sans ça, un mois vide et un mois fermé se ressemblent. */
+    const free: Date[] = []
+    const closed: Date[] = []
+    const premier = new Date(month.getFullYear(), month.getMonth(), 1)
+    for (let i = 0; i < 31; i += 1) {
+      const d = new Date(premier)
+      d.setDate(premier.getDate() + i)
+      if (d.getMonth() !== month.getMonth()) break
+      const ouvre = workingRanges(d, agenda.schedule).length > 0
+      if (!ouvre) closed.push(d)
+      else if (!pris.has(dayKey(d))) free.push(d)
+    }
+    return { booked, pending, blocked, free, closed }
+  }, [agenda, month])
+
+  const suite = useMemo(() => {
+    const items = [
+      ...agenda.prestations.map((p) => ({
+        id: p.id,
+        at: p.startsAt,
+        title: p.client?.name ?? 'Client',
+        sub: [p.timeSlot, p.city].filter(Boolean).join(' · '),
+        href: '/espace-chef/prestations',
+        ton: 'bg-navy text-white',
+      })),
+      ...agenda.requests
+        .filter((r) => r.startsAt)
+        .map((r) => ({
+          id: r.id,
+          at: r.startsAt!,
+          title: r.title ?? 'Demande sur-mesure',
+          sub: r.stage === 'to_answer' ? 'À chiffrer' : 'Offre envoyée',
+          href: '/espace-chef/offres',
+          ton: 'bg-amber-soft text-navy',
+        })),
+    ]
+      .filter((i) => new Date(i.at).getMonth() === month.getMonth())
+      .sort((a, b) => a.at.localeCompare(b.at))
+    return items
+  }, [agenda, month])
 
   return (
-    <Card className="!p-0 overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-[rgba(31,42,55,0.07)]">
-        {WEEKDAYS.map((j) => (
-          <p
-            key={j}
-            className="px-2 py-2 text-center text-[10px] uppercase tracking-wide text-ink-soft"
-          >
-            {j.slice(0, 3)}
-          </p>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {jours.map((d) => {
-          const { prestations, requests, blocks } = thingsOn(d, agenda)
-          const ranges = workingRanges(d, agenda.schedule)
-          const ferme = closedReason(d, agenda.schedule) !== null
-          const horsMois = d.getMonth() !== month
-          const estAujourdhui = sameDay(d, today)
-          const choisi = selected ? sameDay(d, selected) : false
-          const occupe = prestations.length + requests.length + blocks.length
+    <div className="space-y-5">
+      <Card>
+        <DatePicker
+          mode="single"
+          month={month}
+          onMonthChange={onMonthChange}
+          selected={selected ?? undefined}
+          onSelect={(d) => d && onSelect(d)}
+          modifiers={modifiers}
+          /* Le mois est déjà titré par la barre du haut. */
+          hideNavigation
+          classNames={{ month_caption: 'hidden' }}
+          className="lf-rdp-wide mx-auto w-full"
+        />
+        <DayLegend
+          className="mt-3 justify-center border-t border-[rgba(31,42,55,0.07)] pt-3"
+          items={[
+            { tone: 'booked', label: 'Prestation' },
+            { tone: 'pending', label: 'Demande' },
+            { tone: 'blocked', label: 'Créneau bloqué' },
+            { tone: 'free', label: 'Encore libre' },
+            { tone: 'closed', label: 'Fermé' },
+          ]}
+        />
+      </Card>
 
-          return (
-            <button
-              key={dayKey(d)}
-              onClick={() => onSelect(d)}
-              className={`min-h-20 border-b border-r border-[rgba(31,42,55,0.07)] p-1.5 text-left align-top transition-colors hover:bg-cream-soft ${
-                horsMois ? 'opacity-40' : ''
-              } ${choisi ? 'bg-cream-soft' : ''}`}
-            >
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
-                  estAujourdhui ? 'bg-amber text-navy' : 'text-navy'
-                }`}
-              >
-                {d.getDate()}
-              </span>
-              {ferme ? (
-                <span className="mt-1 block text-[10px] text-ink-soft">Fermé</span>
-              ) : (
-                ranges.length === 0 && (
-                  <span className="mt-1 block text-[10px] text-ink-soft">—</span>
-                )
-              )}
-              {occupe > 0 && (
-                <span className="mt-1 flex flex-wrap gap-0.5">
-                  {prestations.map((p) => (
-                    <span key={p.id} aria-hidden className="h-1.5 w-1.5 rounded-full bg-navy" />
-                  ))}
-                  {requests.map((r) => (
-                    <span key={r.id} aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber" />
-                  ))}
-                  {blocks.map((b) => (
-                    <span
-                      key={b.id}
-                      aria-hidden
-                      className="h-1.5 w-1.5 rounded-full bg-ink-soft/50"
-                    />
-                  ))}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-    </Card>
+      <Card title="Dans ce mois">
+        {suite.length === 0 ? (
+          <Empty text="Rien de prévu ce mois-ci." />
+        ) : (
+          <ul className="space-y-2">
+            {suite.map((i) => (
+              <li key={`${i.id}-${i.at}`}>
+                <Link
+                  href={i.href}
+                  className={`flex items-center gap-3 rounded-xl p-2.5 transition-opacity hover:opacity-90 ${i.ton}`}
+                >
+                  <span className="w-12 shrink-0 text-center">
+                    <span className="block text-[10px] uppercase tracking-wide opacity-70">
+                      {new Date(i.at).toLocaleDateString('fr-FR', { weekday: 'short' })}
+                    </span>
+                    <span className="block font-display text-lg font-bold tabular-nums leading-none">
+                      {new Date(i.at).getDate()}
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold">{i.title}</span>
+                    {i.sub && (
+                      <span className="block truncate text-[11px] opacity-70">{i.sub}</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      onSelect(new Date(i.at))
+                    }}
+                    aria-label={`Ouvrir le ${new Date(i.at).getDate()}`}
+                    className="shrink-0 rounded-full p-1 opacity-60 hover:opacity-100"
+                  >
+                    <Eye className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   )
 }
+
+/* ── L'année ───────────────────────────────────────────────────────────────── */
 
 function YearView({
   query,
@@ -645,6 +526,72 @@ function YearView({
   )
 }
 
+/* ── Ce qu'un client voit ──────────────────────────────────────────────────── */
+
+const DUREES = [120, 180, 240, 300]
+
+/**
+ * La même route que le public (`GET /chef/availability/slots`), sur la journée
+ * ouverte. C'est la seule façon de vérifier qu'un horaire produit vraiment des
+ * créneaux : une semaine type pleine dont tout est bloqué ne se voit pas
+ * autrement.
+ */
+function SlotsCard({ date }: { date: Date }) {
+  const [duree, setDuree] = useState(180)
+  const query = useOwnSlots(dayKey(date), dayKey(addDays(date, 1)), duree)
+
+  return (
+    <Card title="Ce qu’un client voit">
+      <p className="text-[13px] leading-relaxed text-ink-mid">
+        Les créneaux réservables le{' '}
+        <strong className="font-semibold text-navy">
+          {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+        </strong>{' '}
+        pour une prestation de {durationLabel(duree)}.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {DUREES.map((d) => (
+          <button
+            key={d}
+            onClick={() => setDuree(d)}
+            aria-pressed={duree === d}
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              duree === d
+                ? 'border-navy bg-navy text-white'
+                : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
+            }`}
+          >
+            {durationLabel(d)}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3">
+        {query.isPending ? (
+          <div className="h-8 animate-pulse rounded-full bg-cream-soft" />
+        ) : query.isError ? (
+          <p className="text-[12px] text-ink-soft">
+            Les créneaux n’ont pas pu être lus.{' '}
+            <button onClick={() => query.refetch()} className="font-semibold underline">
+              Réessayer
+            </button>
+          </p>
+        ) : query.data?.scheduled === false ? (
+          <p className="text-[12px] text-amber-deep">
+            Aucun horaire posé : rien n’est proposé, quelle que soit la durée.
+          </p>
+        ) : (
+          <SlotPicker
+            slots={query.data?.slots ?? []}
+            empty="Aucun créneau de cette durée ce jour-là : la journée est fermée, prise, ou trop courte."
+          />
+        )}
+      </div>
+    </Card>
+  )
+}
+
 /* ── Le panneau d'une journée ──────────────────────────────────────────────── */
 
 function DayPanel({
@@ -653,7 +600,7 @@ function DayPanel({
   onClose,
 }: {
   date: Date
-  agenda: NonNullable<ReturnType<typeof useAgenda>['data']>
+  agenda: Agenda
   onClose: () => void
 }) {
   const toast = useToast()
@@ -666,8 +613,7 @@ function DayPanel({
   const ferme = closedReason(date, agenda.schedule)
   const cle = dayKey(date)
 
-  const [blocDe, setBlocDe] = useState('14:00')
-  const [blocA, setBlocA] = useState('16:00')
+  const [bloc, setBloc] = useState({ from: '14:00', to: '16:00' })
   const [motif, setMotif] = useState('')
   const [aFermer, setAFermer] = useState(false)
 
@@ -836,26 +782,18 @@ function DayPanel({
           <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
             Un rendez-vous, une course : personne ne pourra réserver dessus.
           </p>
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <label className="flex-1">
-              <span className="mb-1 block text-[11px] text-ink-soft">De</span>
-              <input
-                type="time"
-                value={blocDe}
-                onChange={(e) => setBlocDe(e.target.value)}
-                className="input-base py-2"
-              />
-            </label>
-            <label className="flex-1">
-              <span className="mb-1 block text-[11px] text-ink-soft">À</span>
-              <input
-                type="time"
-                value={blocA}
-                onChange={(e) => setBlocA(e.target.value)}
-                className="input-base py-2"
-              />
-            </label>
-          </div>
+          <TimeRange
+            idPrefix="bloc"
+            from={bloc.from}
+            to={bloc.to}
+            onChange={setBloc}
+            presets={[
+              { label: 'Matin', from: '09:00', to: '12:00' },
+              { label: 'Après-midi', from: '14:00', to: '18:00' },
+              { label: 'Journée', from: '09:00', to: '18:00' },
+            ]}
+            className="mt-2"
+          />
           <input
             value={motif}
             onChange={(e) => setMotif(e.target.value)}
@@ -863,15 +801,11 @@ function DayPanel({
             className="input-base mt-2 py-2"
           />
           <button
-            onClick={() => {
-              const debut = new Date(date)
-              debut.setHours(Math.floor(toMinutes(blocDe) / 60), toMinutes(blocDe) % 60, 0, 0)
-              const fin = new Date(date)
-              fin.setHours(Math.floor(toMinutes(blocA) / 60), toMinutes(blocA) % 60, 0, 0)
+            onClick={() =>
               ajouterBloc.mutate(
                 {
-                  startsAt: debut.toISOString(),
-                  endsAt: fin.toISOString(),
+                  startsAt: atTime(date, bloc.from).toISOString(),
+                  endsAt: atTime(date, bloc.to).toISOString(),
                   reason: motif.trim() || undefined,
                 },
                 {
@@ -886,8 +820,8 @@ function DayPanel({
                     ),
                 },
               )
-            }}
-            disabled={ajouterBloc.isPending || toMinutes(blocA) <= toMinutes(blocDe)}
+            }
+            disabled={ajouterBloc.isPending || toMinutes(bloc.to) <= toMinutes(bloc.from)}
             className="btn btn-outline mt-2 w-full justify-center text-xs disabled:opacity-55"
           >
             {ajouterBloc.isPending ? (
@@ -949,8 +883,7 @@ function HoursEditor() {
   const modifie = brouillon !== null
 
   const [jour, setJour] = useState(0)
-  const [de, setDe] = useState('09:00')
-  const [a, setA] = useState('13:00')
+  const [plage, setPlage] = useState({ from: '09:00', to: '13:00' })
 
   if (query.isPending) {
     return <div className="h-64 animate-pulse rounded-3xl bg-paper" />
@@ -969,10 +902,18 @@ function HoursEditor() {
 
   const nouveau: WeeklySlot = {
     weekday: jour,
-    startMinute: toMinutes(de),
-    endMinute: toMinutes(a),
+    startMinute: toMinutes(plage.from),
+    endMinute: toMinutes(plage.to),
   }
   const invalide = nouveau.endMinute <= nouveau.startMinute || chevauche(nouveau)
+
+  /** Une ligne par jour de la semaine : la trame se lit comme un planning. */
+  const parJour = WEEKDAYS.map((_, i) => ({
+    weekday: i,
+    slots: weekly
+      .filter((s) => s.weekday === i)
+      .sort((a, b) => a.startMinute - b.startMinute),
+  }))
 
   return (
     <Card title="Ma semaine type">
@@ -984,29 +925,43 @@ function HoursEditor() {
       {weekly.length === 0 ? (
         <Empty text="Aucun créneau. Personne ne peut vous réserver." />
       ) : (
-        <ul className="mt-3 space-y-1.5">
-          {[...weekly]
-            .sort((x, y) => x.weekday - y.weekday || x.startMinute - y.startMinute)
-            .map((s, i) => (
-              <li
-                key={`${s.weekday}-${s.startMinute}-${i}`}
-                className="flex items-center gap-2 rounded-xl bg-cream-soft px-3 py-2 text-[13px]"
+        <ul className="mt-3 space-y-1">
+          {parJour.map(({ weekday, slots }) => (
+            <li
+              key={weekday}
+              className={`flex items-start gap-2 rounded-xl px-3 py-2 text-[13px] ${
+                slots.length === 0 ? '' : 'bg-cream-soft'
+              }`}
+            >
+              <span
+                className={`w-20 shrink-0 font-semibold ${
+                  slots.length === 0 ? 'text-ink-soft' : 'text-navy'
+                }`}
               >
-                <span className="w-20 shrink-0 font-semibold text-navy">
-                  {weekdayLabel(s.weekday)}
+                {weekdayLabel(weekday)}
+              </span>
+              {slots.length === 0 ? (
+                <span className="text-ink-soft">Repos</span>
+              ) : (
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  {slots.map((s, i) => (
+                    <span key={`${s.startMinute}-${i}`} className="flex items-center gap-2">
+                      <span className="flex-1 tabular-nums text-ink-mid">
+                        {rangeLabel(s.startMinute, s.endMinute)}
+                      </span>
+                      <button
+                        onClick={() => setBrouillon(weekly.filter((x) => x !== s))}
+                        aria-label={`Retirer ${weekdayLabel(weekday)} ${rangeLabel(s.startMinute, s.endMinute)}`}
+                        className="shrink-0 text-ink-soft hover:text-red-700"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  ))}
                 </span>
-                <span className="flex-1 tabular-nums text-ink-mid">
-                  {rangeLabel(s.startMinute, s.endMinute)}
-                </span>
-                <button
-                  onClick={() => setBrouillon(weekly.filter((x) => x !== s))}
-                  aria-label={`Retirer ${weekdayLabel(s.weekday)} ${rangeLabel(s.startMinute, s.endMinute)}`}
-                  className="shrink-0 text-ink-soft hover:text-red-700"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            ))}
+              )}
+            </li>
+          ))}
         </ul>
       )}
 
@@ -1017,40 +972,27 @@ function HoursEditor() {
 
       {/* Ajouter un créneau */}
       <div className="mt-4 border-t border-[rgba(31,42,55,0.07)] pt-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="min-w-28 flex-1">
-            <span className="mb-1 block text-[11px] text-ink-soft">Jour</span>
-            <select
-              value={jour}
-              onChange={(e) => setJour(Number(e.target.value))}
-              className="input-base py-2"
-            >
-              {WEEKDAYS.map((j, i) => (
-                <option key={j} value={i}>
-                  {j}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="w-24">
-            <span className="mb-1 block text-[11px] text-ink-soft">De</span>
-            <input
-              type="time"
-              value={de}
-              onChange={(e) => setDe(e.target.value)}
-              className="input-base py-2"
-            />
-          </label>
-          <label className="w-24">
-            <span className="mb-1 block text-[11px] text-ink-soft">À</span>
-            <input
-              type="time"
-              value={a}
-              onChange={(e) => setA(e.target.value)}
-              className="input-base py-2"
-            />
-          </label>
-        </div>
+        <label className="block">
+          <span className="mb-1 block text-[11px] text-ink-soft">Jour</span>
+          <select
+            value={jour}
+            onChange={(e) => setJour(Number(e.target.value))}
+            className="input-base py-2"
+          >
+            {WEEKDAYS.map((j, i) => (
+              <option key={j} value={i}>
+                {j}
+              </option>
+            ))}
+          </select>
+        </label>
+        <TimeRange
+          idPrefix="semaine"
+          from={plage.from}
+          to={plage.to}
+          onChange={setPlage}
+          className="mt-2"
+        />
         <button
           onClick={() => setBrouillon([...weekly, nouveau])}
           disabled={invalide}
@@ -1058,11 +1000,10 @@ function HoursEditor() {
         >
           <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter ce créneau
         </button>
-        {invalide && (
+        {chevauche(nouveau) && nouveau.endMinute > nouveau.startMinute && (
           <p className="mt-1.5 text-[12px] text-amber-deep">
-            {nouveau.endMinute <= nouveau.startMinute
-              ? 'La fin doit venir après le début.'
-              : 'Ce créneau en chevauche un autre le même jour — l’API le refuserait.'}
+            Ce créneau en chevauche un autre le {weekdayLabel(jour).toLowerCase()} — l’API
+            le refuserait.
           </p>
         )}
       </div>

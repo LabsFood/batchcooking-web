@@ -84,8 +84,17 @@ export interface Booking {
   city?: string | null
   notes?: string | null
   shoppingByClient?: boolean | null
-  /** Centimes. `amountTtc` est ce que le client paie. */
+  /** Centimes — la prestation seule, sans les courses. */
   priceCents: number
+  /**
+   * Le frais de courses, séparé depuis le 17/10.
+   *
+   * Facturé seulement si l'offre inclut les courses **et** que le client ne
+   * les fait pas lui-même. Il ouvre droit au crédit d'impôt : il se montre
+   * sur sa propre ligne, jamais fondu dans le prix.
+   */
+  shoppingFeeCents?: number | null
+  /** Ce que le client paie : prestation + courses. */
   amountTtc: number
   /** Après crédit d'impôt — **calculé par l'API**, plus par nous. */
   amountAfterTax: number
@@ -381,6 +390,37 @@ export function useAnswerReschedule(side: 'client' | 'chef') {
         body: { decision },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: meKey }),
+  })
+}
+
+/* ── Mettre la prestation dans son calendrier ──────────────────────────────── */
+
+/**
+ * `GET /me/bookings/{id}/calendar.ics`
+ *
+ * La route exige le jeton, donc un simple lien ne suffit pas : on récupère le
+ * fichier avec le client authentifié, puis on le remet au navigateur. Le
+ * client bas niveau rend le texte brut quand ce n'est pas du JSON — c'est
+ * exactement ce cas.
+ *
+ * Retélécharger la même prestation **met à jour le même événement** dans
+ * l'agenda : l'`UID` du fichier ne change pas.
+ */
+export function useBookingIcs() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: async ({ id, reference }: { id: string; reference?: string | null }) => {
+      const ics = await apiFetch<string>(`/me/bookings/${id}/calendar.ics`)
+      if (typeof ics !== 'string' || !ics.includes('BEGIN:VCALENDAR')) {
+        throw new Error("Le fichier reçu n'est pas un calendrier.")
+      }
+      const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${reference ?? 'prestation'}.ics`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }
 

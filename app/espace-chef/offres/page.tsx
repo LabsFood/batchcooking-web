@@ -5,6 +5,8 @@ import { motion } from 'framer-motion'
 import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
+import DatePicker from '@/components/shared/DatePicker'
+import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import {
   SLOT_LABEL,
@@ -50,6 +52,8 @@ export default function ChefOffersPage() {
 
   const all = quotes.data ?? []
   // À répondre : aucune offre en attente, rien de conclu.
+  /* `closed` n'apparaît dans aucune des deux listes : la maison a classé la
+     demande, il n'y a plus rien à chiffrer ni à attendre. */
   const toAnswer = all.filter((q) => ['submitted', 'in_review', 'declined'].includes(q.status))
   const confirmed = all.filter((q) => q.status === 'accepted')
   const selected = toAnswer.find((q) => q.id === selectedId) ?? null
@@ -382,14 +386,17 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   Je propose une autre date
                 </label>
                 {otherDate && (
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <input
-                      type="date"
-                      value={date}
-                      min={dayFromNow(1)}
-                      max={dayFromNow(365)}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="input-base"
+                  <div className="mt-2 space-y-2">
+                    <DatePicker
+                      mode="single"
+                      selected={date ? new Date(`${date}T12:00:00`) : undefined}
+                      onSelect={(d) => d && setDate(dayKey(d))}
+                      disabled={{
+                        before: new Date(`${dayFromNow(1)}T00:00:00`),
+                        after: new Date(`${dayFromNow(365)}T00:00:00`),
+                      }}
+                      startMonth={new Date(`${dayFromNow(1)}T00:00:00`)}
+                      className="rounded-2xl bg-cream-soft p-2"
                     />
                     <select value={slot} onChange={(e) => setSlot(e.target.value as TimeSlot)} className="input-base">
                       {SLOTS.map((s) => (

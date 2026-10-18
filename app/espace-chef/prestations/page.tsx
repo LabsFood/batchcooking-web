@@ -25,7 +25,11 @@ import {
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import DocDialog from '@/components/chef/documents/DocDialog'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import DatePicker from '@/components/shared/DatePicker'
+import TimeField, { SlotPicker } from '@/components/shared/TimeField'
 import { useToast } from '@/components/shared/Toaster'
+import { atTime, dayKey, durationLabel } from '@/lib/time'
+import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
   AISLES,
@@ -289,7 +293,6 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [fiche, setFiche] = useState<{ dishId: string; nom: string } | null>(null)
   const [courses, setCourses] = useState(false)
   const [aAvancer, setAAvancer] = useState<ReturnType<typeof nextTransition>>(null)
-  const [nouvelHoraire, setNouvelHoraire] = useState<string | null>(null)
 
   if (query.isPending) {
     return (
@@ -450,7 +453,13 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 <Info2
                   icon={<ClipboardList className="h-4 w-4" />}
                   label="Courses"
-                  value={m.shoppingByClient ? 'Faites par le client' : 'À votre charge'}
+                  value={
+                    m.shoppingByClient
+                      ? 'Faites par le client'
+                      : m.shoppingFeeCents
+                        ? `À votre charge · forfait ${euros(m.shoppingFeeCents)}`
+                        : 'À votre charge'
+                  }
                 />
                 <Info2
                   icon={<Clock className="h-4 w-4" />}
@@ -591,81 +600,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
             {/* Déplacer la prestation */}
             {(m.status === 'confirmed' || m.status === 'shopping') && !report && (
-              <Card title="Déplacer la session">
-                {enAttente ? (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-ink-mid">
-                      Vous avez proposé le{' '}
-                      <strong className="font-semibold text-navy">
-                        {longDate(enAttente.to)} à {hour(enAttente.to)}
-                      </strong>
-                      . Le client n’a pas encore répondu.
-                    </p>
-                    <button
-                      onClick={() =>
-                        repondre.mutate(
-                          { id: m.id, decision: 'withdrawn' },
-                          {
-                            onSuccess: () => toast.info('Proposition retirée'),
-                            onError: () => toast.error('Le retrait a échoué'),
-                          },
-                        )
-                      }
-                      disabled={repondre.isPending}
-                      className="btn btn-outline mt-3 w-full justify-center text-xs"
-                    >
-                      Retirer ma proposition
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-ink-mid">
-                      Vous proposez, le client confirme. Rien ne bouge dans les 48
-                      dernières heures — ni l’horaire actuel, ni le nouveau.
-                    </p>
-                    <label className="mt-3 block">
-                      <span className="mb-1.5 block text-[13px] font-semibold text-navy">
-                        Nouvelle date et heure
-                      </span>
-                      <input
-                        type="datetime-local"
-                        value={nouvelHoraire ?? ''}
-                        onChange={(e) => setNouvelHoraire(e.target.value)}
-                        className="input-base"
-                      />
-                    </label>
-                    <button
-                      onClick={() =>
-                        nouvelHoraire &&
-                        proposer.mutate(
-                          { id: m.id, startsAt: new Date(nouvelHoraire).toISOString() },
-                          {
-                            onSuccess: () => {
-                              setNouvelHoraire(null)
-                              toast.success(
-                                'Proposition envoyée',
-                                'Le client a 48 h pour répondre.',
-                              )
-                            },
-                            onError: (e) =>
-                              toast.error(
-                                'La proposition a été refusée',
-                                e instanceof Error ? e.message : undefined,
-                              ),
-                          },
-                        )
-                      }
-                      disabled={!nouvelHoraire || proposer.isPending}
-                      className="btn btn-outline mt-2 w-full justify-center text-xs disabled:opacity-55"
-                    >
-                      {proposer.isPending && (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      )}
-                      Proposer cet horaire
-                    </button>
-                  </>
-                )}
-              </Card>
+              <RescheduleCard booking={m} enAttente={enAttente} />
             )}
 
             <Card title="Le client">
@@ -770,6 +705,196 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
         confirmLabel={aAvancer?.label ?? 'Continuer'}
       />
     </ChefPage>
+  )
+}
+
+// ── Déplacer la session ─────────────────────────────────────────────────────
+
+/**
+ * Proposer un autre horaire au client.
+ *
+ * Avant, c'était un `datetime-local` : le batch cooker tapait une date, et
+ * découvrait le refus de l'API après l'envoi — journée fermée, créneau déjà
+ * pris, moins de 48 h. Ici il choisit dans **ses propres créneaux libres**
+ * (`GET /chef/availability/slots`, la même route que voit un client), pour la
+ * durée exacte de la prestation. Un horaire qu'on ne peut pas tenir ne
+ * s'affiche plus.
+ *
+ * L'API garde le dernier mot : le délai de 48 h et la disponibilité sont
+ * revérifiés à l'envoi, et son message est montré tel quel.
+ */
+function RescheduleCard({
+  booking: m,
+  enAttente,
+}: {
+  booking: Booking
+  enAttente: NonNullable<Booking['reschedule']> | null
+}) {
+  const toast = useToast()
+  const proposer = useProposeReschedule('chef')
+  const repondre = useAnswerReschedule('chef')
+
+  const [jour, setJour] = useState<Date | null>(null)
+  const [choisi, setChoisi] = useState<string | null>(null)
+  /** Repli quand l'API ne propose rien : l'heure se tape, à vos risques. */
+  const [heure, setHeure] = useState('09:00')
+  const [manuel, setManuel] = useState(false)
+
+  /* La durée de la prestation, pas une durée au hasard : c'est elle qui
+     décide quels créneaux sont assez longs. */
+  const duree =
+    m.endsAt && m.startsAt
+      ? Math.max(
+          30,
+          Math.round(
+            (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
+          ),
+        )
+      : 180
+
+  const slots = useOwnSlots(
+    jour ? dayKey(jour) : undefined,
+    jour ? dayKey(new Date(jour.getTime() + 86_400_000)) : undefined,
+    duree,
+  )
+
+  /* L'API refuse tout mouvement à moins de 48 h : autant ne pas proposer ces
+     journées. Le lendemain d'aujourd'hui + 2 jours, pour rester du bon côté. */
+  const plancher = new Date()
+  plancher.setHours(0, 0, 0, 0)
+  plancher.setDate(plancher.getDate() + 2)
+
+  const libres = slots.data?.slots ?? []
+  const sansHoraire = slots.data?.scheduled === false
+  const horaire = manuel && jour ? atTime(jour, heure).toISOString() : choisi
+
+  if (enAttente) {
+    return (
+      <Card title="Déplacer la session">
+        <p className="text-[13px] leading-relaxed text-ink-mid">
+          Vous avez proposé le{' '}
+          <strong className="font-semibold text-navy">
+            {longDate(enAttente.to)} à {hour(enAttente.to)}
+          </strong>
+          . Le client n’a pas encore répondu.
+        </p>
+        <button
+          onClick={() =>
+            repondre.mutate(
+              { id: m.id, decision: 'withdrawn' },
+              {
+                onSuccess: () => toast.info('Proposition retirée'),
+                onError: () => toast.error('Le retrait a échoué'),
+              },
+            )
+          }
+          disabled={repondre.isPending}
+          className="btn btn-outline mt-3 w-full justify-center text-xs"
+        >
+          Retirer ma proposition
+        </button>
+      </Card>
+    )
+  }
+
+  return (
+    <Card title="Déplacer la session">
+      <p className="text-[13px] leading-relaxed text-ink-mid">
+        Vous proposez, le client confirme. Rien ne bouge dans les 48 dernières
+        heures — ni l’horaire actuel, ni le nouveau.
+      </p>
+
+      <DatePicker
+        mode="single"
+        selected={jour ?? undefined}
+        onSelect={(d) => {
+          setJour(d ?? null)
+          setChoisi(null)
+          setManuel(false)
+        }}
+        disabled={{ before: plancher }}
+        startMonth={plancher}
+        className="mx-auto mt-3 w-fit"
+      />
+
+      {jour && (
+        <div className="mt-3 border-t border-[rgba(31,42,55,0.07)] pt-3">
+          <p className="text-[12px] text-ink-soft">
+            Créneaux libres de {durationLabel(duree)} le{' '}
+            {jour.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+          </p>
+
+          <div className="mt-2">
+            {slots.isPending ? (
+              <div className="h-8 animate-pulse rounded-full bg-cream-soft" />
+            ) : manuel ? (
+              <TimeField
+                id="report-heure"
+                label="Heure proposée"
+                value={heure}
+                onChange={setHeure}
+                className="w-32"
+              />
+            ) : (
+              <SlotPicker
+                slots={libres}
+                value={choisi}
+                onSelect={setChoisi}
+                empty={
+                  sansHoraire
+                    ? 'Vous n’avez aucun horaire déclaré : l’API ne propose rien.'
+                    : 'Aucun créneau de cette durée ce jour-là.'
+                }
+              />
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setManuel(!manuel)
+              setChoisi(null)
+            }}
+            className="mt-2 text-[12px] font-semibold text-terra hover:underline"
+          >
+            {manuel
+              ? 'Revenir à mes créneaux libres'
+              : 'Proposer une autre heure quand même'}
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={() =>
+          horaire &&
+          proposer.mutate(
+            { id: m.id, startsAt: horaire },
+            {
+              onSuccess: () => {
+                setJour(null)
+                setChoisi(null)
+                setManuel(false)
+                toast.success('Proposition envoyée', 'Le client a 48 h pour répondre.')
+              },
+              onError: (e) =>
+                toast.error(
+                  'La proposition a été refusée',
+                  e instanceof Error ? e.message : undefined,
+                ),
+            },
+          )
+        }
+        disabled={!horaire || proposer.isPending}
+        className="btn btn-outline mt-3 w-full justify-center text-xs disabled:opacity-55"
+      >
+        {proposer.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+        {horaire
+          ? `Proposer le ${new Date(horaire).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'long',
+            })} à ${hour(horaire)}`
+          : 'Choisissez une date et un créneau'}
+      </button>
+    </Card>
   )
 }
 

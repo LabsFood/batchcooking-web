@@ -789,3 +789,154 @@
 .cl-formFieldRow {
   width: 100% !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Le calendrier partagé (`components/shared/DatePicker.tsx`).
+
+   `react-day-picker` apporte sa feuille de base ; ici on ne fait que
+   l'habiller aux couleurs de la maison. Les variables `--rdp-*` suffisent pour
+   l'essentiel — la sélection, l'aujourd'hui, les tailles — et les quelques
+   règles qui suivent servent ce que les variables ne couvrent pas : la barre
+   de titre, et les pastilles qui disent l'état d'une journée avant le clic.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.lf-rdp {
+  --rdp-accent-color: var(--terra);
+  --rdp-accent-background-color: rgba(243, 156, 18, 0.14);
+  --rdp-today-color: var(--terra);
+  --rdp-day-height: 2.5rem;
+  --rdp-day-width: 2.5rem;
+  --rdp-day_button-height: 2.25rem;
+  --rdp-day_button-width: 2.25rem;
+  --rdp-day_button-border-radius: 9999px;
+  --rdp-day_button-border: 1.5px solid transparent;
+  --rdp-selected-border: 1.5px solid var(--terra);
+  --rdp-nav_button-height: 2rem;
+  --rdp-nav_button-width: 2rem;
+  --rdp-outside-opacity: 0.35;
+  --rdp-disabled-opacity: 0.4;
+  --rdp-weekday-opacity: 1;
+  --rdp-weekday-text-transform: uppercase;
+  --rdp-months-gap: 1.5rem;
+  --rdp-animation_duration: 0.18s;
+  font-family: var(--font-montserrat), sans-serif;
+  color: var(--ink);
+}
+
+.lf-rdp .rdp-month_caption {
+  justify-content: center;
+}
+
+.lf-rdp .rdp-caption_label {
+  font-family: var(--font-fraunces), serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: capitalize;
+}
+
+.lf-rdp .rdp-weekday {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.lf-rdp .rdp-button_previous,
+.lf-rdp .rdp-button_next {
+  border-radius: 9999px;
+  color: var(--ink-mid);
+}
+
+.lf-rdp .rdp-button_previous:hover,
+.lf-rdp .rdp-button_next:hover {
+  background: var(--cream-soft);
+  color: var(--navy);
+}
+
+.lf-rdp .rdp-day_button {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-rdp .rdp-day_button:hover:not([disabled]) {
+  background: var(--cream-soft);
+}
+
+.lf-rdp .rdp-today:not(.rdp-selected) .rdp-day_button {
+  border-color: rgba(243, 156, 18, 0.45);
+}
+
+.lf-rdp .rdp-selected .rdp-day_button {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* ── Les pastilles d'état ── Une journée peut en porter plusieurs : elles se
+   posent côte à côte sous le chiffre, et la cellule garde sa taille. */
+.lf-rdp .rdp-day {
+  position: relative;
+}
+
+.lf-rdp .rdp-day::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0.3rem;
+  transform: translateX(-50%);
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.lf-rdp .lf-day-free::after {
+  background: var(--mint-deep, #a7e0d0);
+}
+
+.lf-rdp .lf-day-blocked::after {
+  background: var(--ink-soft);
+}
+
+.lf-rdp .lf-day-pending::after {
+  background: var(--terra);
+}
+
+.lf-rdp .lf-day-booked::after {
+  background: var(--navy);
+}
+
+.lf-rdp .lf-day-booked.rdp-selected::after,
+.lf-rdp .lf-day-pending.rdp-selected::after,
+.lf-rdp .lf-day-free.rdp-selected::after,
+.lf-rdp .lf-day-blocked.rdp-selected::after {
+  background: #fff;
+}
+
+/* Une journée fermée se barre : l'absence de pastille ne suffit pas à dire
+   « on ne travaille pas », elle pourrait passer pour une journée vide. */
+.lf-rdp .lf-day-closed .rdp-day_button {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* Le calendrier d'un mois plein (vue « Mois » de l'agenda) prend la largeur
+   qu'on lui donne : les jours s'y répartissent au lieu de rester collés à
+   gauche dans une colonne de 340 px. */
+.lf-rdp-wide .rdp-months,
+.lf-rdp-wide .rdp-month,
+.lf-rdp-wide .rdp-month_grid {
+  width: 100%;
+}
+
+.lf-rdp-wide .rdp-day,
+.lf-rdp-wide .rdp-weekday {
+  width: auto;
+}
+
+.lf-rdp-wide {
+  --rdp-day-height: 3rem;
+}

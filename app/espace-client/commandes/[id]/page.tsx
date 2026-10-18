@@ -10,6 +10,7 @@ import {
   ArrowRight,
   BadgeEuro,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   ChefHat,
   Circle,
@@ -33,6 +34,7 @@ import {
   euros,
   hour,
   useAnswerReschedule,
+  useBookingIcs,
   useMissionShoppingList,
   useMyBooking,
   useUpdateMyBooking,
@@ -127,9 +129,14 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const courses = useMissionShoppingList(b.id)
   const update = useUpdateMyBooking()
   const repondre = useAnswerReschedule('client')
+  const ics = useBookingIcs()
   const [aAnnuler, setAAnnuler] = useState(false)
 
   const ttc = euros(b.amountTtc ?? b.priceCents)
+  /* Les courses ont leur ligne : l'API les facture à part depuis le 17/10, et
+     elles disparaîtraient dans un total. */
+  const prestation = euros(b.priceCents)
+  const forfaitCourses = b.shoppingFeeCents ? euros(b.shoppingFeeCents) : null
   const reste = euros(b.amountAfterTax)
   const credit =
     b.amountTtc != null && b.amountAfterTax != null
@@ -277,6 +284,38 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               )}
               <span>{bookingStatusText(b.status)}</span>
             </p>
+
+            {/* Le fichier exige le jeton : on le télécharge, on ne le lie pas. */}
+            {b.startsAt && !arretee && (
+              <button
+                onClick={() =>
+                  ics.mutate(
+                    { id: b.id, reference: b.reference },
+                    {
+                      onSuccess: () =>
+                        toast.success(
+                          'Prestation ajoutée à votre agenda',
+                          'Ouvrez le fichier téléchargé : il crée l’événement, et le met à jour si l’horaire change.',
+                        ),
+                      onError: (e) =>
+                        toast.error(
+                          'Le calendrier n’a pas pu être préparé',
+                          e instanceof Error ? e.message : undefined,
+                        ),
+                    },
+                  )
+                }
+                disabled={ics.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-60"
+              >
+                {ics.isPending ? (
+                  <RotateCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <CalendarPlus className="h-3.5 w-3.5 text-amber" aria-hidden />
+                )}
+                Ajouter à mon agenda
+              </button>
+            )}
           </div>
           {ttc && (
             <div className="flex flex-col items-start lg:items-end">
@@ -474,12 +513,27 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
             {ttc ? (
+              <>
               <ul className="space-y-2 text-sm text-ink-mid">
-                <Row label="Prestation TTC" value={ttc} />
+                {forfaitCourses && prestation ? (
+                  <>
+                    <Row label="Prestation" value={prestation} />
+                    <Row label="Courses" value={forfaitCourses} />
+                    <Row label="Total TTC" value={ttc} />
+                  </>
+                ) : (
+                  <Row label="Prestation TTC" value={ttc} />
+                )}
                 {credit && <Row label="Crédit d’impôt" value={`− ${credit}`} accent />}
                 {reste && <Row label="Reste à charge" value={reste} bold />}
                 {paye && <Row label="Déjà réglé" value={paye} />}
               </ul>
+              {b.shoppingByClient && (
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                  Vous faites les courses vous-même : aucun forfait n’est facturé.
+                </p>
+              )}
+              </>
             ) : (
               <p className="text-sm text-ink-soft">Montant non communiqué par l’API.</p>
             )}
