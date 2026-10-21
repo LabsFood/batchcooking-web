@@ -168,11 +168,20 @@ export interface AvatarResponse {
   avatarUrl?: string | null
 }
 
+/**
+ * La clef commune aux deux mutations. Elle sert à `useIsMutating` : la photo
+ * s'affiche à plusieurs endroits à la fois — le menu du compte et la page
+ * profil — et chacun doit voir le voile d'attente, même si c'est l'autre qui
+ * a lancé l'envoi.
+ */
+export const AVATAR_MUTATION = ['avatar'] as const
+
 export function useUploadAvatar() {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
 
   return useMutation({
+    mutationKey: AVATAR_MUTATION,
     mutationFn: async (file: File) => {
       const probleme = checkPhoto(file)
       if (probleme) throw new PhotoError('ticket', probleme)
@@ -217,6 +226,7 @@ export function useRemoveAvatar() {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
   return useMutation({
+    mutationKey: AVATAR_MUTATION,
     mutationFn: () => apiFetch<AvatarResponse>('/me/avatar', { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
   })

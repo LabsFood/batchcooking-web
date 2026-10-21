@@ -5,7 +5,9 @@ import { motion } from 'framer-motion'
 import { Plus, X, Sparkles, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
 import { DEFAULT_PREFS, type ProfilePrefs } from '@/lib/dashboard-mock'
 import { useAuth } from '@/lib/auth-context'
+import { useMe } from '@/lib/api/me'
 import { useMeProfile, useUpdateMeProfile } from '@/lib/api/me-profile'
+import { AvatarButtons, AvatarPending } from '@/components/shared/Avatar'
 import { ApiError } from '@/lib/api/client'
 import type { ClientProfile, ClientProfilePatch } from '@/lib/api/types'
 
@@ -92,6 +94,7 @@ export default function ProfilPage() {
 
 function ProfileForm({ initial }: { initial: ProfilePrefs }) {
   const { user } = useAuth()
+  const me = useMe()
   const update = useUpdateMeProfile()
   const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
 
@@ -123,14 +126,18 @@ function ProfileForm({ initial }: { initial: ProfilePrefs }) {
         <div className="bg-navy text-white rounded-3xl p-5 relative overflow-hidden">
           <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
           <div className="relative flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-full bg-amber text-navy text-2xl font-display font-bold flex items-center justify-center mb-3">
-              {user?.name?.[0]?.toUpperCase() || 'G'}
+            <AvatarPending
+              url={me.data?.avatarUrl ?? null}
+              name={me.data?.fullName || user?.name}
+              className="mb-3 h-20 w-20 bg-amber text-2xl font-display text-navy"
+            />
+            <p className="font-display text-lg font-bold">
+              {me.data?.fullName || user?.name || 'Invité'}
+            </p>
+            <p className="text-white/55 text-xs">{me.data?.email || user?.email}</p>
+            <div className="mt-4">
+              <AvatarButtons tone="dark" />
             </div>
-            <p className="font-display text-lg font-bold">{user?.name || 'Invité'}</p>
-            <p className="text-white/55 text-xs">{user?.email}</p>
-            <button className="mt-4 text-[11px] uppercase tracking-[0.16em] font-semibold text-amber hover:text-white transition-colors">
-              Changer ma photo
-            </button>
           </div>
         </div>
 

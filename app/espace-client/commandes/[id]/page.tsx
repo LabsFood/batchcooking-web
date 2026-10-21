@@ -11,6 +11,7 @@ import {
   BadgeEuro,
   CalendarClock,
   CalendarPlus,
+  Camera,
   CheckCircle2,
   ChefHat,
   Circle,
@@ -39,6 +40,7 @@ import {
   useMyBooking,
   useUpdateMyBooking,
   type Booking,
+  type BookingPhoto,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
 import { apiMessage } from '@/lib/api/messages'
@@ -443,6 +445,9 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             )}
           </div>
 
+          {/* ── Les photos de la session ───────────────────────────────── */}
+          {(b.photos?.length ?? 0) > 0 && <PhotosSession photos={b.photos!} />}
+
           {/* ── Liste de courses ───────────────────────────────────────── */}
           <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -675,6 +680,54 @@ function CheckoutOutcome() {
           </>
         )}
       </span>
+    </div>
+  )
+}
+
+/* ── Les photos de la session ──────────────────────────────────────────────── */
+
+/**
+ * Ce que le batch cooker a photographié chez vous : les bocaux alignés, les
+ * parts filmées, l'étiquette sur le couvercle. L'API les rendait déjà sur la
+ * commande, l'écran ne les montrait qu'au batch cooker — alors que c'est au
+ * client qu'elles servent, le soir où il ouvre le frigo.
+ *
+ * Pas de visionneuse : chaque photo s'ouvre en grand dans un onglet. Une
+ * légende, quand il en a laissé une, dit de quel plat il s'agit.
+ */
+function PhotosSession({ photos }: { photos: BookingPhoto[] }) {
+  return (
+    <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+      <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
+        <Camera className="h-4 w-4 text-amber" aria-hidden /> Photos de la session
+      </h3>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {photos.map((p) => (
+          <li key={p.id}>
+            <a
+              href={p.url}
+              target="_blank"
+              rel="noreferrer"
+              className="group block overflow-hidden rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-2"
+            >
+              <span className="block aspect-[4/3] overflow-hidden rounded-2xl bg-cream-deep">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.url}
+                  alt={p.caption ?? ''}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                />
+              </span>
+              {p.caption && (
+                <span className="mt-1.5 block text-[12px] leading-snug text-ink-mid">
+                  {p.caption}
+                </span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

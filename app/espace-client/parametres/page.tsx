@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Bell, Mail, Lock, Eye, EyeOff, Trash2, Download, Globe, Save, Check } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import DeleteMyAccount from '@/components/client/DeleteMyAccount'
 
 export default function ParametresPage() {
   const { user, signOut } = useAuth()
@@ -117,7 +118,7 @@ export default function ParametresPage() {
           Supprimer ton compte effacera ton historique de commandes, tes préférences et tes badges.
           Cette action est irréversible.
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <button
             onClick={() => {
               signOut()
@@ -127,9 +128,7 @@ export default function ParametresPage() {
           >
             Me déconnecter
           </button>
-          <button className="px-4 py-2 rounded-full bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors">
-            Supprimer mon compte
-          </button>
+          <DeleteMyAccount />
         </div>
       </div>
     </div>
