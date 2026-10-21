@@ -24,10 +24,18 @@ import { useApiFetch } from './client'
 export interface WeekDish {
   id: string
   name: string
+  /** Rendue par l'API, et utilisée sur l'accueil public. */
+  description: string | null
   country: string | null
+  continent: string | null
   category: string | null
   imageUrl: string | null
   portions: number
+  /** Minutes. */
+  prepMinutes: number | null
+  cookMinutes: number | null
+  calories: number | null
+  difficulty: string | null
   diets: string[]
   customDiets: string[]
   allergens: string[]
