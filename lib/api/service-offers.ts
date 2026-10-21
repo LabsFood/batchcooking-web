@@ -153,3 +153,60 @@ export const offerDuration = (minutes: number) => {
 
 export const offerEuros = (cents: number) =>
   (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+
+/* ── Le prix exact, avant de réserver ──────────────────────────────────────── */
+
+/**
+ * Ce que coûte une réservation de cette offre — `GET /service-offers/{id}/price`.
+ *
+ * Arrivé le 18/10, et il règle une question qui traînait : les suppléments.
+ * Le 17/10 l'API n'en appliquait aucun, et le front avait cessé d'en inventer ;
+ * depuis, ils existent **côté serveur** — un montant par personne au-delà de
+ * celles qui sont comprises, un autre par plat supplémentaire — et la console
+ * les règle (`/admin/settings/booking-supplements`).
+ *
+ * D'où la règle, désormais sans exception : **le front n'additionne rien**. Il
+ * demande, il affiche. `rules` dit au passage pourquoi le total est ce qu'il
+ * est, ce qui permet de l'expliquer au client plutôt que de le lui asséner.
+ */
+export interface OfferPrice {
+  serviceOfferId: string
+  /** L'offre seule. */
+  priceCents: number
+  extraMealsCents: number
+  extraPersonsCents: number
+  /** `0` si le client fait les courses, ou si l'offre ne les comprend pas. */
+  shoppingFeeCents: number
+  /** Ce que le client paie, tout compris. */
+  amountTtc: number
+  amountAfterTax: number
+  currency: string
+  /** Les règles appliquées, pour les dire à l'écran. */
+  rules: {
+    includedPersons: number
+    extraPersonCents: number
+    extraMealCents: number
+  }
+}
+
+export function useOfferPrice(
+  offerId: string | undefined,
+  opts: { persons?: number; extraMeals?: number; shoppingByClient?: boolean } = {},
+) {
+  const apiFetch = useApiFetch()
+  const { persons, extraMeals, shoppingByClient } = opts
+
+  const p = new URLSearchParams()
+  if (persons != null) p.set('persons', String(persons))
+  if (extraMeals != null) p.set('extraMeals', String(extraMeals))
+  if (shoppingByClient != null) p.set('shoppingByClient', String(shoppingByClient))
+  const qs = p.toString()
+
+  return useQuery({
+    queryKey: ['service-offers', offerId, 'price', { persons, extraMeals, shoppingByClient }],
+    queryFn: () =>
+      apiFetch<OfferPrice>(`/service-offers/${offerId}/price${qs ? `?${qs}` : ''}`),
+    enabled: !!offerId,
+    staleTime: 60_000,
+  })
+}
