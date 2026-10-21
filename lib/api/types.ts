@@ -24,6 +24,9 @@ export interface ClientProfile {
   favorites: string[]
   spiceLevel: number
   kitchenNotes: string | null
+  /** Le foyer dimensionne les portions : 1 à 20 adultes, 0 à 20 enfants. */
+  householdAdults?: number | null
+  householdKids?: number | null
 }
 
 /** Profil prestataire (`chef_profiles`). */
@@ -81,4 +84,7 @@ export interface ClientProfilePatch {
   favorites?: string[]
   spiceLevel?: number
   kitchenNotes?: string
+  /** `householdKids` côté API, pas `householdChildren` : l'orthographe compte. */
+  householdAdults?: number
+  householdKids?: number
 }

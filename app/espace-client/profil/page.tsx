@@ -33,8 +33,7 @@ function clampSpice(n: number): ProfilePrefs['spiceLevel'] {
   return v as ProfilePrefs['spiceLevel']
 }
 
-/** `client_profiles` (API) → état éditable de la page. `household` n'est pas
-    fourni par l'API : on garde la valeur par défaut (champ à exposer côté back). */
+/** `client_profiles` (API) → état éditable de la page. */
 function toPrefs(p: ClientProfile | null): ProfilePrefs {
   if (!p) return EMPTY_PREFS
   return {
@@ -43,7 +42,13 @@ function toPrefs(p: ClientProfile | null): ProfilePrefs {
     dislikes: p.dislikes ?? [],
     favorites: p.favorites ?? [],
     spiceLevel: clampSpice(p.spiceLevel),
-    household: DEFAULT_PREFS.household,
+    // Un profil neuf n'a pas encore de foyer : on propose le plus courant
+    // plutôt qu'un zéro, mais rien n'est écrit tant que la page n'est pas
+    // enregistrée.
+    household: {
+      adults: p.householdAdults ?? DEFAULT_PREFS.household.adults,
+      kids: p.householdKids ?? DEFAULT_PREFS.household.kids,
+    },
     kitchenNotes: p.kitchenNotes ?? '',
   }
 }
@@ -107,7 +112,6 @@ function ProfileForm({ initial }: { initial: ProfilePrefs }) {
   }
 
   const save = () => {
-    // `household` volontairement omis : pas encore supporté par l'API.
     const patch: ClientProfilePatch = {
       dietaryPreferences: prefs.diets,
       allergies: prefs.allergies,
@@ -115,6 +119,10 @@ function ProfileForm({ initial }: { initial: ProfilePrefs }) {
       favorites: prefs.favorites,
       spiceLevel: prefs.spiceLevel,
       kitchenNotes: prefs.kitchenNotes,
+      // Le foyer dimensionne les portions, et il part avec le reste. L'API
+      // borne les adultes à 1 au moins : le compteur fait de même.
+      householdAdults: Math.min(20, Math.max(1, prefs.household.adults)),
+      householdKids: Math.min(20, Math.max(0, prefs.household.kids)),
     }
     update.mutate(patch)
   }
@@ -146,6 +154,7 @@ function ProfileForm({ initial }: { initial: ProfilePrefs }) {
           <div className="grid grid-cols-2 gap-3">
             <Counter
               label="Adultes"
+              min={1}
               value={prefs.household.adults}
               onChange={(n) => setPrefs({ ...prefs, household: { ...prefs.household, adults: n } })}
             />
@@ -373,14 +382,27 @@ function Tags({
   )
 }
 
-function Counter({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+function Counter({
+  label,
+  value,
+  onChange,
+  min = 0,
+}: {
+  label: string
+  value: number
+  onChange: (n: number) => void
+  /** L'API refuse un foyer sans adulte, et plus de vingt : les deux boutons
+      s'arrêtent avant le refus plutôt que de le provoquer. */
+  min?: number
+}) {
+  const MAX = 20
   return (
     <div>
       <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
       <div className="flex items-center bg-cream-soft rounded-full p-1.5">
         <button
           type="button"
-          onClick={() => onChange(Math.max(0, value - 1))}
+          onClick={() => onChange(Math.max(min, value - 1))}
           className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           –
@@ -388,7 +410,7 @@ function Counter({ label, value, onChange }: { label: string; value: number; onC
         <span className="flex-1 text-center font-display text-lg font-bold text-navy">{value}</span>
         <button
           type="button"
-          onClick={() => onChange(value + 1)}
+          onClick={() => onChange(Math.min(MAX, value + 1))}
           className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           +

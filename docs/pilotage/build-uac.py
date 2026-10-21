@@ -88,11 +88,12 @@ CLIENT = [
     ("Pratique", "C-40", "Mon tableau de bord montre ma vraie prochaine session.", "La session affichée est celle de Mes commandes.", "/espace-client", "GET /me/bookings", "Livré", "Branché le 21/10"),
     ("Pratique", "C-41", "Mes statistiques reflètent mes prestations réelles.", "Comparer le nombre de sessions avec Mes commandes.", "/espace-client/statistiques", "GET /me/bookings", "Livré", "Branché le 21/10"),
     ("Pratique", "C-42", "Je vois les pays que ma cuisine a explorés.", "Ouvrir la carte culinaire : les pays correspondent aux plats cuisinés.", "/espace-client", "GET /me/culinary-map", "Simulé", "La route existe, la carte lit un jeu de données écrit en dur"),
-    ("Pratique", "C-43", "Je vois la liste de courses de ma prestation.", "Les ingrédients sont rangés par rayon.", "/espace-client/courses", "GET /chef-missions/{id}/shopping-list", "Simulé", ""),
+    ("Pratique", "C-43", "Je vois la liste de courses de ma prestation.", "Les ingrédients sont rangés par rayon.", "/espace-client/courses", "GET /chef-missions/{id}/shopping-list", "Livré", "Branché le 21/10 : la liste du batch cooker, corrections comprises"),
     ("Pratique", "C-44", "Je sais comment conserver et réchauffer chaque plat.", "Chaque plat indique sa méthode et sa durée.", "/espace-client/conservation", "réchauffe / conservation des plats", "Simulé", "Les données existent sur les plats"),
     ("Pratique", "C-45", "Je retrouve les batch cookers avec qui j'ai déjà cuisiné.", "La liste correspond à mes prestations passées.", "/espace-client/chefs", "GET /me/bookings + /chefs/{id}", "Simulé", ""),
     ("Payer", "C-46", "Je trouve le numéro NAN de mon batch cooker pour déclarer mes titres CESU.", "Le numéro s'affiche sur l'écran de règlement CESU.", "/espace-client/commandes/{id}/paiement", "GET /me/bookings/{id}/payment-options (crcesuNan)", "Livré", "La route publique /chefs/{id}/cesu-info reste non utilisée"),
-    ("Pratique", "C-47", "Je gère mes adresses et mes moyens de paiement.", "Ajouter une adresse, retirer une carte.", "/espace-client/compte", "—", "Bloqué", "Aucune route ; les cartes sont chez Stripe"),
+    ("Pratique", "C-47", "Je gère mes adresses et mes moyens de paiement.", "Ajouter une adresse, retirer une carte.", "/espace-client/compte", "PATCH /me/profile (adresse)", "À brancher", "L'adresse de service est acceptée par l'API ; les cartes sont chez Stripe"),
+    ("Compte & profil", "C-48", "Je déclare la taille de mon foyer, pour que les portions suivent.", "Changer le nombre d'adultes et d'enfants, recharger : les valeurs sont conservées.", "/espace-client/profil", "PATCH /me/profile (householdAdults, householdKids)", "Livré", "Branché le 21/10"),
 ]
 
 CHEF = [
