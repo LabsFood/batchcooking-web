@@ -17,6 +17,7 @@
 | Rémunération du batch cooker | [`FLOW-07-remuneration-batch-cooker.md`](FLOW-07-remuneration-batch-cooker.md) | **v1 — rien, et non arbitré** |
 | Les manques qui n'ont pas besoin d'un document entier | [`FLOW-08-manques-divers.md`](FLOW-08-manques-divers.md) | **v1** |
 | **Ce que le backend doit livrer ensuite, par ordre d'urgence** | [`PRIORITES-BACKEND.md`](PRIORITES-BACKEND.md) | À jour au 16/10/2026 |
+| **Les routes de la spec qu'aucun front n'appelle encore** | [`COUVERTURE-API.md`](COUVERTURE-API.md) | Relevé du 21/10/2026 |
 
 > Les documents marqués **v1** ont été rédigés le 11/10/2026 à partir des
 > écrans construits, et attendent une relecture backend et métier. Ils
