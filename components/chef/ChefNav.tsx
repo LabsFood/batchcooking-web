@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  Inbox,
   FileText,
   CalendarRange,
   CalendarDays,
@@ -49,7 +48,6 @@ export const CHEF_NAV = [
     group: 'Pilotage',
     items: [
       { href: '/espace-chef', label: 'Accueil', Icon: LayoutDashboard },
-      { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox },
       { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText },
       { href: '/espace-chef/prestations', label: 'Prestations', Icon: CalendarRange },
       { href: '/espace-chef/agenda', label: 'Agenda', Icon: CalendarDays },
@@ -215,7 +213,6 @@ export function ChefSidebar() {
 
 const MOBILE_ITEMS = [
   { href: '/espace-chef', label: 'Accueil', Icon: LayoutDashboard },
-  { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox },
   { href: '/espace-chef/offres', label: 'Offres', Icon: FileText },
   { href: '/espace-chef/dossier', label: 'Dossier', Icon: ShieldCheck },
   { href: '/espace-chef/messagerie', label: 'Messages', Icon: MessageCircle },
