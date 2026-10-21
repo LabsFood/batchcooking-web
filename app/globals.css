@@ -1,3 +1,19 @@
+/* Hauteur du bandeau « site en construction » (components/shared/DevBanner).
+   La passer à `0px` le fait disparaître et rend sa place à chaque en-tête. */
+:root {
+  --lf-dev-banner: 3.25rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --lf-dev-banner: 2.25rem;
+  }
+}
+
+body {
+  padding-top: var(--lf-dev-banner);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

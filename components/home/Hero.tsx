@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, Star, Leaf, ChefHat } from 'lucide-react'
+import { ArrowRight, Leaf, ChefHat } from 'lucide-react'
 import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAnimations'
 import ReserveButton from '@/components/shared/ReserveButton'
 
@@ -81,17 +81,9 @@ export default function Hero() {
               variants={FADE} custom={0.38} initial="hidden" animate="show"
               className="flex flex-wrap items-center gap-8 mt-12 pt-8 border-t border-[rgba(31,26,20,0.08)]"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber text-amber" />
-                  ))}
-                </div>
-                <p className="text-sm text-ink-mid">
-                  <span className="font-semibold text-ink">4.9/5</span> · clients vérifiés
-                </p>
-              </div>
-              <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
+              {/* La note moyenne a été retirée : le module d'avis n'existe pas,
+                  l'API rend `rating: null`, et une note que rien ne soutient
+                  n'a pas sa place au-dessus d'un bandeau « en construction ». */}
               <p className="text-sm text-ink-mid">
                 <span className="font-semibold text-terra">−50%</span> Avance immédiate
               </p>

@@ -58,7 +58,7 @@ export default function EspaceChefLayout({ children }: { children: ReactNode }) 
 
   if (attente && tropLong) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-cream px-6">
+      <div className="flex min-h-[calc(100vh-var(--lf-dev-banner))] items-center justify-center bg-cream px-6">
         <div className="flex max-w-sm flex-col items-center gap-3 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cream-deep text-ink-soft">
             <RotateCw className="h-6 w-6" aria-hidden />
@@ -88,7 +88,7 @@ export default function EspaceChefLayout({ children }: { children: ReactNode }) 
   // (via ChefPage), elle doit trouver le fournisseur au-dessus d'elle.
   return (
     <ChefSignals>
-      <div className="min-h-screen bg-cream flex">
+      <div className="min-h-[calc(100vh-var(--lf-dev-banner))] bg-cream flex">
         <ChefSidebar />
         <div className="flex-1 min-w-0 flex flex-col">
           {children}

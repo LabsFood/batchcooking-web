@@ -123,11 +123,11 @@ export default function Testimonials() {
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
+          className="mt-20 grid grid-cols-2 gap-6 max-w-xl mx-auto"
         >
+          {/* Note moyenne et nombre d'avis retirés : le module d'avis n'existe
+              pas encore côté API, ces deux nombres ne s'appuyaient sur rien. */}
           {[
-            { value: '4.9/5', label: 'Note moyenne' },
-            { value: '+330', label: 'Avis vérifiés' },
             { value: '98%', label: 'Satisfaction' },
             { value: '87%', label: 'Renouvellement' },
           ].map((s) => (

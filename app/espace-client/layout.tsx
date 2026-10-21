@@ -115,7 +115,7 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
   // role === 'client' (ou tout autre rôle applicatif client) → dashboard.
   return (
     <ClientSignals>
-      <div className="min-h-screen bg-cream flex">
+      <div className="min-h-[calc(100vh-var(--lf-dev-banner))] bg-cream flex">
         <DashboardSidebar />
         <div className="flex-1 min-w-0 flex flex-col">
           <DashboardTopbar />
@@ -141,7 +141,7 @@ function GateScreen({
   primary: { label: string; onClick: () => void }
 }) {
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+    <div className="min-h-[calc(100vh-var(--lf-dev-banner))] bg-cream flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
         <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-navy text-amber">
           <Icon className="h-7 w-7" />
