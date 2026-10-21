@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import ApprovalGate from '@/components/chef/ApprovalGate'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
 import DatePicker from '@/components/shared/DatePicker'
 import { dayKey } from '@/lib/time'
@@ -67,6 +68,8 @@ export default function ChefOffersPage() {
       subtitle="Répondez aux demandes personnalisées avec votre propre prix et vos conditions."
     >
       <div className="space-y-5">
+        <ApprovalGate quoi="Vos réponses aux demandes partent" />
+
         <Card title={`Demandes à traiter (${toAnswer.length})`}>
           {quotes.isPending ? (
             <Empty text="Chargement…" />

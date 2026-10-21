@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -22,15 +23,11 @@ import {
 } from '@/lib/api/chef-documents'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ChefProfile } from '@/lib/api/types'
-import { DossierBadge, MissionBadge } from '@/components/chef/StatusBadge'
-import {
-  CHEF_DOCS,
-  CHEF_EARNINGS,
-  CHEF_MISSIONS,
-  CHEF_PROFILE,
-  CHEF_REQUESTS,
-  DOC_DEFINITIONS,
-} from '@/lib/chef/mock'
+import { DossierBadge } from '@/components/chef/StatusBadge'
+import { CHEF_DOCS, CHEF_PROFILE, DOC_DEFINITIONS } from '@/lib/chef/mock'
+import { bookingStatusText, hour, isBookingOpen, longDate, useChefBookings } from '@/lib/api/bookings'
+import { useChefQuotes } from '@/lib/api/quotes'
+import { moneyCents } from '@/lib/api/chef-money'
 import {
   MICRO_ALERT_RATIO,
   MICRO_CEILING_EUR,
@@ -59,6 +56,9 @@ const DOSSIER_LEAD: Record<DossierStatus, string> = {
 const DOSSIER_URGENT = new Set<DossierStatus>(['incomplete', 'suspended', 'disabled'])
 
 export default function ChefHomePage() {
+  /* Une seule lecture de l'heure, au montage : comparer des dates pendant le
+     rendu avec `Date.now()` rendrait l'écran impur. */
+  const [maintenant] = useState(() => new Date())
   const dossier = useChefDocuments()
   const application = useChefApplication()
   const profil = useMeProfile()
@@ -88,11 +88,35 @@ export default function ChefHomePage() {
   const urgentDef = urgent ? byId.get(urgent.definitionId) : undefined
   const blocking = urgentDef?.family === 'blocking'
 
-  const nextMission = CHEF_MISSIONS.find(
-    (m) => m.status === 'upcoming' || m.status === 'in-progress',
+  /*
+   * Les chiffres de cet écran viennent des mêmes routes que les écrans
+   * qu'il résume : des prestations et des devis réels. Il affichait jusqu'ici
+   * un solde et une date de versement qui n'existent nulle part.
+   */
+  const bookings = useChefBookings()
+  const quotes = useChefQuotes()
+
+  const prestations = bookings.data?.data ?? []
+  const aVenir = prestations
+    .filter((b) => isBookingOpen(b) && new Date(b.startsAt) >= maintenant)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  const prochaine = aVenir[0] ?? null
+
+  const annee = maintenant.getFullYear()
+  const reglees = prestations.filter(
+    (b) => b.paidCents && new Date(b.startsAt).getFullYear() === annee,
   )
-  const newRequests = CHEF_REQUESTS.filter((r) => r.status === 'new')
-  const ceilingRatio = CHEF_EARNINGS.yearRevenue / MICRO_CEILING_EUR
+  const netAnnee = reglees.reduce((n, b) => n + (b.netCents ?? 0), 0)
+  const netMois = reglees
+    .filter((b) => new Date(b.startsAt).getMonth() === maintenant.getMonth())
+    .reduce((n, b) => n + (b.netCents ?? 0), 0)
+
+  /** Les demandes qui attendent une offre de ma part. */
+  const aRepondre = (quotes.data ?? []).filter((q) =>
+    ['submitted', 'in_review', 'declined'].includes(q.status),
+  )
+
+  const ceilingRatio = netAnnee / 100 / MICRO_CEILING_EUR
   const ceilingAlert = ceilingRatio >= MICRO_ALERT_RATIO
 
   return (
@@ -108,10 +132,27 @@ export default function ChefHomePage() {
 
         {/* Indicateurs du mois */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          <Stat Icon={Wallet} label="Solde" value={euros(CHEF_EARNINGS.balance)} hint={`Versement le ${new Date(CHEF_EARNINGS.nextPayoutAt).toLocaleDateString('fr-FR')}`} />
-          <Stat Icon={TrendingUp} label="Net ce mois" value={euros(CHEF_EARNINGS.monthNet)} />
-          <Stat Icon={Inbox} label="Nouvelles demandes" value={`${newRequests.length}`} />
-          <Stat Icon={CalendarRange} label="Prestations à venir" value={`${CHEF_MISSIONS.filter((m) => m.status === 'upcoming').length}`} />
+          <Stat
+            Icon={TrendingUp}
+            label="Net ce mois"
+            value={bookings.isPending ? '…' : (moneyCents(netMois) ?? '0 €')}
+          />
+          <Stat
+            Icon={Wallet}
+            label={`Net en ${annee}`}
+            value={bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
+            hint={`${reglees.length} prestation${reglees.length > 1 ? 's' : ''} réglée${reglees.length > 1 ? 's' : ''}`}
+          />
+          <Stat
+            Icon={Inbox}
+            label="Demandes à chiffrer"
+            value={quotes.isPending ? '…' : `${aRepondre.length}`}
+          />
+          <Stat
+            Icon={CalendarRange}
+            label="Prestations à venir"
+            value={bookings.isPending ? '…' : `${aVenir.length}`}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
@@ -124,35 +165,56 @@ export default function ChefHomePage() {
               </Link>
             }
           >
-            {nextMission ? (
-              <div className="rounded-2xl bg-cream-soft p-4">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <p className="font-display text-lg font-bold text-navy">{nextMission.client}</p>
-                    <p className="text-xs text-ink-soft">{nextMission.city}</p>
+            {bookings.isPending ? (
+              <div className="h-40 animate-pulse rounded-2xl bg-cream-soft" />
+            ) : prochaine ? (
+              <Link
+                href="/espace-chef/prestations"
+                className="block rounded-2xl bg-cream-soft p-4 transition-colors hover:bg-cream-deep"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-display text-lg font-bold text-navy">
+                      {prochaine.client?.name ?? 'Client'}
+                    </p>
+                    <p className="text-xs text-ink-soft">
+                      {prochaine.city ?? prochaine.addressLine ?? 'Adresse à confirmer'}
+                    </p>
                   </div>
-                  <MissionBadge status={nextMission.status} />
+                  <span className="shrink-0 rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                    {bookingStatusText(prochaine.status)}
+                  </span>
                 </div>
-                <p className="text-sm text-ink-mid capitalize">
-                  {shortDate(nextMission.date)} · {nextMission.timeSlot}
+                <p className="text-sm capitalize text-ink-mid">
+                  {longDate(prochaine.startsAt)} · {hour(prochaine.startsAt)}
+                  {hour(prochaine.endsAt) ? ` → ${hour(prochaine.endsAt)}` : ''}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {nextMission.meals.map((m) => (
-                    <span key={m} className="text-[11px] px-2.5 py-1 rounded-full bg-paper text-navy">
-                      {m}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-4 pt-3 border-t border-[rgba(31,42,55,0.08)] flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">Net perçu</p>
-                    <p className="font-display text-2xl font-bold text-navy">{euros(nextMission.net)}</p>
+                {(prochaine.meals?.length ?? 0) > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {prochaine.meals!.slice(0, 6).map((m) => (
+                      <span
+                        key={m.mealId}
+                        className="rounded-full bg-paper px-2.5 py-1 text-[11px] text-navy"
+                      >
+                        {m.name ?? 'Plat'}
+                      </span>
+                    ))}
                   </div>
-                  {/* Le règlement a lieu après la prestation : pas de moyen de
-                      paiement affiché sur une session à venir. */}
-                  <span className="text-[11px] text-ink-soft">Réglé après la prestation</span>
+                )}
+                <div className="mt-4 flex items-end justify-between border-t border-[rgba(31,42,55,0.08)] pt-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+                      {prochaine.commissionEstimated ? 'Net estimé' : 'Net perçu'}
+                    </p>
+                    <p className="font-display text-2xl font-bold text-navy">
+                      {moneyCents(prochaine.netCents) ?? '—'}
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-ink-soft">
+                    {prochaine.paidCents ? 'Déjà réglée' : 'Réglée par le client'}
+                  </span>
                 </div>
-              </div>
+              </Link>
             ) : (
               <p className="py-6 text-center text-sm text-ink-soft">Aucune prestation planifiée.</p>
             )}
@@ -161,10 +223,11 @@ export default function ChefHomePage() {
           {/* Jauge CA vs plafond micro */}
           <Card title="Plafond micro-entreprise">
             <p className="font-display text-3xl font-bold text-navy">
-              {euros(CHEF_EARNINGS.yearRevenue)}
+              {bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
             </p>
-            <p className="text-xs text-ink-soft mb-4">
-              sur {euros(MICRO_CEILING_EUR)} autorisés cette année
+            <p className="mb-4 text-xs text-ink-soft">
+              sur {euros(MICRO_CEILING_EUR)} autorisés — d’après vos seules
+              prestations Lab’s Food
             </p>
             <div className="h-3 rounded-full bg-cream-deep overflow-hidden">
               <div
@@ -189,30 +252,34 @@ export default function ChefHomePage() {
         <Card
           title="Nouvelles demandes"
           action={
-            <Link href="/espace-chef/demandes" className="text-xs text-terra font-semibold hover:underline">
+            <Link href="/espace-chef/offres" className="text-xs text-terra font-semibold hover:underline">
               Tout voir
             </Link>
           }
         >
-          {newRequests.length === 0 ? (
+          {quotes.isPending ? (
+            <div className="h-24 animate-pulse rounded-2xl bg-cream-soft" />
+          ) : aRepondre.length === 0 ? (
             <p className="py-6 text-center text-sm text-ink-soft">Aucune demande en attente.</p>
           ) : (
             <ul className="divide-y divide-[rgba(31,42,55,0.06)]">
-              {newRequests.map((r) => (
-                <li key={r.id} className="py-3 flex items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-navy truncate">
-                      {r.client} · {r.city}
-                    </p>
-                    <p className="text-xs text-ink-soft capitalize">
-                      {shortDate(r.date)} · {r.persons} pers. · {r.dishes.length} plats
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-display text-base font-bold text-navy">{euros(r.net)}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">net</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-terra shrink-0" />
+              {aRepondre.slice(0, 5).map((q) => (
+                <li key={q.id}>
+                  <Link href="/espace-chef/offres" className="flex items-center gap-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-navy">{q.title}</p>
+                      <p className="text-xs capitalize text-ink-soft">
+                        {[
+                          q.desiredDate ? shortDate(q.desiredDate) : null,
+                          q.persons ? `${q.persons} pers.` : null,
+                          q.mealsCount ? `${q.mealsCount} plats` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+                  </Link>
                 </li>
               ))}
             </ul>

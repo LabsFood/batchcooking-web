@@ -7,6 +7,7 @@ import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
 import { useToast } from '@/components/shared/Toaster'
 import { useCreateDish, type DishInput } from '@/lib/api/chef-catalog'
+import { apiMessage } from '@/lib/api/messages'
 
 /**
  * Écrire un plat prend du temps : ça mérite une page, pas une fenêtre qui se
@@ -23,11 +24,7 @@ export default function NouveauPlatPage() {
         toast.success(`« ${dish.name} » enregistré`, 'En brouillon : rien n’est public tant que vous ne publiez pas.')
         router.push('/espace-chef/recettes')
       },
-      onError: (e) =>
-        toast.error(
-          'Le plat n’a pas été enregistré',
-          e instanceof Error ? e.message : 'Réessayez dans un instant.',
-        ),
+      onError: (e) => toast.error('Le plat n’a pas été enregistré', apiMessage(e)),
     })
   }
 
@@ -45,7 +42,7 @@ export default function NouveauPlatPage() {
         dish={null}
         onSave={save}
         saving={create.isPending}
-        error={create.error instanceof Error ? create.error.message : null}
+        error={create.error ? apiMessage(create.error) : null}
         backHref="/espace-chef/recettes"
       />
     </ChefPage>

@@ -56,6 +56,7 @@ import {
   type AvailabilityException,
   type WeeklySlot,
 } from '@/lib/api/agenda'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Agenda.
@@ -626,7 +627,7 @@ function DayPanel({
         onError: (e) =>
           toast.error(
             'La journée n’a pas été modifiée',
-            e instanceof Error ? e.message : undefined,
+            apiMessage(e),
           ),
       },
     )
@@ -816,7 +817,7 @@ function DayPanel({
                   onError: (e) =>
                     toast.error(
                       'Le créneau n’a pas été bloqué',
-                      e instanceof Error ? e.message : undefined,
+                      apiMessage(e),
                     ),
                 },
               )
@@ -1026,9 +1027,7 @@ function HoursEditor() {
                   onError: (e) =>
                     toast.error(
                       'Les horaires n’ont pas été enregistrés',
-                      e instanceof Error
-                        ? e.message
-                        : 'Un autre onglet a peut-être enregistré entre-temps : rechargez.',
+                      apiMessage(e),
                     ),
                 },
               )

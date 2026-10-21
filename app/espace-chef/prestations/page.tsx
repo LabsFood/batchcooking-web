@@ -23,6 +23,7 @@ import {
   Users,
 } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import ApprovalGate from '@/components/chef/ApprovalGate'
 import DocDialog from '@/components/chef/documents/DocDialog'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import DatePicker from '@/components/shared/DatePicker'
@@ -65,6 +66,7 @@ import {
   type Booking,
   type MissionLine,
 } from '@/lib/api/bookings'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -116,6 +118,8 @@ export default function ChefMissionsPage() {
   return (
     <ChefPage title="Prestations" subtitle="Vos sessions à venir, en cours et passées.">
       <div className="space-y-5">
+        <ApprovalGate quoi="Vos prestations s’ouvrent" />
+
         {query.isError ? (
           <Card>
             <p className="flex items-start gap-2 font-display text-lg font-bold text-navy">
@@ -685,7 +689,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
               onError: (e) =>
                 toast.error(
                   'La prestation n’a pas avancé',
-                  e instanceof Error ? e.message : undefined,
+                  apiMessage(e),
                 ),
             },
           )
@@ -878,7 +882,7 @@ function RescheduleCard({
               onError: (e) =>
                 toast.error(
                   'La proposition a été refusée',
-                  e instanceof Error ? e.message : undefined,
+                  apiMessage(e),
                 ),
             },
           )
@@ -1263,7 +1267,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 onError: (e) =>
                   toast.error(
                     'La liste n’a pas été enregistrée',
-                    e instanceof Error ? e.message : undefined,
+                    apiMessage(e),
                   ),
               },
             )
@@ -1533,7 +1537,7 @@ function RecipeSheetDialog({
             onError: (e) =>
               toast.error(
                 'La bascule a été refusée',
-                e instanceof Error ? e.message : 'Une prestation commencée ne bascule plus.',
+                apiMessage(e),
               ),
           })
         }

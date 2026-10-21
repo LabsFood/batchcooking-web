@@ -30,19 +30,16 @@ import {
 } from '@/components/menu/ChefMenuBrowser'
 import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
-import {
-  afterTaxFromClientPrice,
-  useChefSlots,
-  useCreateBooking,
-  usePricingRules,
-} from '@/lib/api/bookings'
+import { useChefSlots, useCreateBooking } from '@/lib/api/bookings'
 import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
 import { dayKey } from '@/lib/time'
-import { fieldErrors } from '@/lib/api/client'
+import { apiMessage } from '@/lib/api/messages'
 import {
   offerDuration,
   offerEuros,
+  useOfferPrice,
+  type OfferPrice,
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
 
@@ -110,6 +107,8 @@ function ReservationFlow() {
   /** L'instant exact envoyé à l'API. `''` tant qu'aucun créneau n'est retenu. */
   const [creneauIso, setCreneauIso] = useState('')
   const [persons, setPersons] = useState(3)
+  /** Les plats au-delà de ce que l'offre comprend. L'API les facture. */
+  const [extraMeals, setExtraMeals] = useState(0)
   /** L'offre retenue : sa durée fait le créneau, son prix fait le montant. */
   const [offerId, setOfferId] = useState<string>('')
   /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
@@ -143,12 +142,18 @@ function ReservationFlow() {
     setCoursesParMoi(!offres[0].shoppingIncluded)
   }
 
-  const rules = usePricingRules()
-  const coursesFacturees =
-    offre && offre.shoppingIncluded && !coursesParMoi ? offre.shoppingFeeCents : 0
-  const totalCents = offre ? offre.priceCents + coursesFacturees : null
-  const afterTaxCents =
-    totalCents != null && rules.data ? afterTaxFromClientPrice(totalCents, rules.data) : null
+  /*
+   * Le prix ne se calcule plus ici du tout : l'API le rend, suppléments
+   * compris, et dit les règles qu'elle a appliquées. Tant qu'il n'est pas
+   * arrivé, on montre le prix de l'offre seule plutôt qu'un vide — mais c'est
+   * celui de l'API qui s'affiche dès qu'il répond.
+   */
+  const tarif = useOfferPrice(offre?.id, {
+    persons,
+    extraMeals,
+    shoppingByClient: coursesParMoi,
+  })
+  const prix = tarif.data ?? null
 
   const creer = useCreateBooking()
 
@@ -193,6 +198,7 @@ function ReservationFlow() {
         serviceOfferId: offre.id,
         startsAt: creneauIso,
         persons,
+        ...(extraMeals > 0 ? { extraMeals } : {}),
         addressLine: address.trim(),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
@@ -205,16 +211,7 @@ function ReservationFlow() {
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
-          const champs = fieldErrors(e)
-          setErreur(
-            champs.length > 0
-              ? `Ces informations n’ont pas été acceptées : ${champs
-                  .map((c) => c.field)
-                  .join(', ')}. Reprenez l’étape précédente.`
-              : e instanceof Error
-                ? e.message
-                : 'La réservation n’a pas pu être enregistrée.',
-          )
+          setErreur(apiMessage(e, 'La réservation n’a pas pu être enregistrée.'))
         },
       },
     )
@@ -425,16 +422,39 @@ function ReservationFlow() {
                   />
                 </Field>
 
-                {/* Le nombre de personnes ne change plus le prix : c'est
-                    l'offre qui le fixe. Il reste utile au batch cooker. */}
-                <Stepper
-                  label="Adultes"
-                  Icon={Users}
-                  value={persons}
-                  setValue={setPersons}
-                  min={1}
-                  max={10}
-                />
+                {/*
+                  * Les deux compteurs qui font bouger le prix. Combien ils le
+                  * font bouger, c'est l'API qui le dit : on affiche sa règle
+                  * plutôt que de la deviner — elle se règle en console.
+                  */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Stepper
+                    label="Adultes"
+                    Icon={Users}
+                    value={persons}
+                    setValue={setPersons}
+                    min={1}
+                    max={10}
+                  />
+                  <Stepper
+                    label="Plats en plus"
+                    Icon={ChefHat}
+                    value={extraMeals}
+                    setValue={setExtraMeals}
+                    min={0}
+                    max={10}
+                  />
+                </div>
+
+                {prix && (
+                  <p className="rounded-2xl bg-cream-soft px-4 py-3 text-[12px] leading-relaxed text-ink-mid">
+                    {prix.rules.includedPersons} personne
+                    {prix.rules.includedPersons > 1 ? 's' : ''} comprise
+                    {prix.rules.includedPersons > 1 ? 's' : ''} dans la formule, puis{' '}
+                    {offerEuros(prix.rules.extraPersonCents)} par personne. Chaque plat
+                    en plus : {offerEuros(prix.rules.extraMealCents)}.
+                  </p>
+                )}
 
                 {/*
                   * Les courses suivent l'offre, et le client garde le dernier
@@ -509,10 +529,10 @@ function ReservationFlow() {
                 date={date}
                 slot={slot}
                 persons={persons}
+                extraMeals={extraMeals}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
-                totalCents={totalCents}
-                afterTaxCents={afterTaxCents}
+                prix={prix}
               />
             </div>
 
@@ -619,10 +639,10 @@ function ReservationFlow() {
                 date={date}
                 slot={slot}
                 persons={persons}
+                extraMeals={extraMeals}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
-                totalCents={totalCents}
-                afterTaxCents={afterTaxCents}
+                prix={prix}
                 address={address}
               />
             </div>
@@ -904,11 +924,10 @@ function Stepper({
 /**
  * Le récapitulatif.
  *
- * Il ne calcule plus rien : il lit l'offre choisie. Prestation et courses
- * tiennent deux lignes distinctes, parce que l'API les sépare et que le frais
- * de courses disparaît si le client les fait lui-même. Le montant après
- * crédit d'impôt vient du taux de `GET /pricing-rules`, et la réservation
- * créée portera les montants qui font foi.
+ * Il ne calcule rien : `GET /service-offers/{id}/price` rend chaque ligne, y
+ * compris les suppléments par personne et par plat, et le montant après
+ * crédit d'impôt. C'est le même calcul que celui qui s'appliquera à la
+ * réservation : ce que le client lit ici est ce qu'il paiera.
  */
 function SummaryCard({
   chef,
@@ -916,10 +935,10 @@ function SummaryCard({
   date,
   slot,
   persons,
+  extraMeals,
   offre,
   coursesParMoi,
-  totalCents,
-  afterTaxCents,
+  prix,
   address,
 }: {
   chef: WeekCard | null
@@ -927,16 +946,16 @@ function SummaryCard({
   date: string
   slot: string
   persons: number
+  extraMeals: number
   offre: PublicServiceOffer | null
   coursesParMoi: boolean
-  totalCents: number | null
-  afterTaxCents: number | null
+  /** `null` tant que l'API n'a pas répondu. */
+  prix: OfferPrice | null
   address?: string
 }) {
   const dateLabel = date
     ? new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
     : '—'
-  const courses = offre && offre.shoppingIncluded && !coursesParMoi ? offre.shoppingFeeCents : 0
 
   return (
     <aside className="bg-navy text-white rounded-3xl p-5 lg:p-6 relative overflow-hidden">
@@ -970,8 +989,19 @@ function SummaryCard({
           <Line
             Icon={Users}
             label={`${persons} personne${persons > 1 ? 's' : ''}`}
-            sub="Le prix ne dépend pas du nombre"
+            sub={
+              prix && persons > prix.rules.includedPersons
+                ? `${prix.rules.includedPersons} comprise${prix.rules.includedPersons > 1 ? 's' : ''}, ${persons - prix.rules.includedPersons} en supplément`
+                : 'Comprises dans la formule'
+            }
           />
+          {extraMeals > 0 && (
+            <Line
+              Icon={ChefHat}
+              label={`${extraMeals} plat${extraMeals > 1 ? 's' : ''} en plus`}
+              sub="Au-delà de ce que comprend la formule"
+            />
+          )}
           {address && <Line Icon={MapPin} label="Adresse" sub={address} />}
           <Line
             Icon={ShoppingBasket}
@@ -987,23 +1017,44 @@ function SummaryCard({
         </ul>
 
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
-          {offre ? (
+          {prix ? (
             <>
-              <Row label="Prestation" value={offerEuros(offre.priceCents)} />
-              {courses > 0 && <Row label="Courses" value={offerEuros(courses)} />}
+              <Row label="Prestation" value={offerEuros(prix.priceCents)} />
+              {prix.extraPersonsCents > 0 && (
+                <Row
+                  label={`+ ${persons - prix.rules.includedPersons} personne${persons - prix.rules.includedPersons > 1 ? 's' : ''}`}
+                  value={offerEuros(prix.extraPersonsCents)}
+                />
+              )}
+              {prix.extraMealsCents > 0 && (
+                <Row
+                  label={`+ ${extraMeals} plat${extraMeals > 1 ? 's' : ''}`}
+                  value={offerEuros(prix.extraMealsCents)}
+                />
+              )}
+              {prix.shoppingFeeCents > 0 && (
+                <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
+              )}
               <div className="pt-3 border-t border-white/10 flex items-baseline justify-between">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-white/55">
                   Total TTC
                 </span>
                 <span className="font-display text-3xl font-bold">
-                  {totalCents != null ? offerEuros(totalCents) : '—'}
+                  {offerEuros(prix.amountTtc)}
                 </span>
               </div>
-              {afterTaxCents != null && (
-                <p className="text-[11px] text-amber font-semibold text-right">
-                  soit {offerEuros(afterTaxCents)} après crédit d&apos;impôt
-                </p>
-              )}
+              <p className="text-[11px] text-amber font-semibold text-right">
+                soit {offerEuros(prix.amountAfterTax)} après crédit d&apos;impôt
+              </p>
+            </>
+          ) : offre ? (
+            /* En attendant la réponse de l'API : le prix de l'offre seule,
+               annoncé comme tel plutôt que pris pour un total. */
+            <>
+              <Row label="À partir de" value={offerEuros(offre.priceCents)} />
+              <p className="text-[11px] leading-relaxed text-white/55">
+                Calcul du total en cours…
+              </p>
             </>
           ) : (
             <p className="text-[12px] leading-relaxed text-white/60">

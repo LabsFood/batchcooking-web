@@ -36,6 +36,7 @@ import {
   type ServiceOffer,
   type ServiceOfferInput,
 } from '@/lib/api/service-offers'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mes tarifs — mes offres de service.
@@ -130,7 +131,7 @@ export default function ChefPricingPage() {
       onError: (e: unknown) =>
         toast.error(
           'L’offre n’a pas été enregistrée',
-          e instanceof Error ? e.message : undefined,
+          apiMessage(e),
         ),
     }
 
@@ -346,7 +347,7 @@ export default function ChefPricingPage() {
               } else {
                 toast.error(
                   'L’offre n’a pas été supprimée',
-                  e instanceof Error ? e.message : undefined,
+                  apiMessage(e),
                 )
               }
             },

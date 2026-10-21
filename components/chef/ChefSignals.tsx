@@ -6,7 +6,6 @@ import {
   CalendarDays,
   CalendarRange,
   FileText,
-  Inbox,
   LayoutDashboard,
   LifeBuoy,
   MessageCircle,
@@ -48,7 +47,6 @@ import { countryLabel } from '@/lib/chef/countries'
 
 const PAGES: { href: string; label: string; Icon: PaletteItem['Icon']; keywords: string }[] = [
   { href: '/espace-chef', label: 'Accueil', Icon: LayoutDashboard, keywords: 'tableau de bord pilotage' },
-  { href: '/espace-chef/demandes', label: 'Demandes', Icon: Inbox, keywords: 'clients briefs' },
   { href: '/espace-chef/offres', label: 'Offres sur-mesure', Icon: FileText, keywords: 'devis propositions' },
   { href: '/espace-chef/prestations', label: 'Prestations', Icon: CalendarRange, keywords: 'sessions missions' },
   { href: '/espace-chef/agenda', label: 'Agenda', Icon: CalendarDays, keywords: 'disponibilites planning calendrier' },

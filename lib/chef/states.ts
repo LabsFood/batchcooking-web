@@ -241,25 +241,9 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   cesu: 'CESU préfinancé',
 }
 
-/**
- * Circuit de l'argent : en carte la plateforme encaisse et prélève sa
- * commission par split ; dans les deux autres l'argent va directement au batch
- * cooker et la commission est prélevée après coup (mandat SEPA B2B).
- */
-export const PAYMENT_CIRCUIT: Record<PaymentMethod, 'platform' | 'direct'> = {
-  card: 'platform',
-  urssaf: 'direct',
-  cesu: 'direct',
-}
-
 // ── Mode de rémunération ────────────────────────────────────────────────────
 
 export type PayoutMode = 'commission' | 'subscription'
-
-export const PAYOUT_MODE_LABEL: Record<PayoutMode, string> = {
-  commission: 'Commission',
-  subscription: 'Abonnement 0 %',
-}
 
 export type PayoutModeStatus =
   | 'active'
@@ -267,17 +251,6 @@ export type PayoutModeStatus =
   | 'awaiting-payment'
   | 'suspended'
   | 'terminated'
-
-export const PAYOUT_MODE_STATUS_LABEL: Record<PayoutModeStatus, string> = {
-  active: 'Actif',
-  switching: 'Changement en cours',
-  'awaiting-payment': 'En attente de paiement',
-  suspended: 'Suspendu',
-  terminated: 'Résilié',
-}
-
-/** Décision client : préavis de changement de mode fixé à 30 jours. */
-export const PAYOUT_SWITCH_NOTICE_DAYS = 30
 
 /** Plafond du régime micro-entreprise ; alerte à 80 %. */
 export const MICRO_CEILING_EUR = 77_700

@@ -43,6 +43,7 @@ import {
   type DocumentStatus,
   type DossierStatus,
 } from '@/lib/api/chef-documents'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mon dossier — les pièces et les réponses déclarées, au même endroit.
@@ -567,9 +568,7 @@ function DocumentCard({
             `${doc.label} n’a pas été déposée`,
             e instanceof UploadError && e.step === 'transfer'
               ? 'Le transfert s’est interrompu. Rien n’a été enregistré.'
-              : e instanceof Error
-                ? e.message
-                : undefined,
+              : apiMessage(e),
           ),
       },
     )

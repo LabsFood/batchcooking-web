@@ -1,256 +1,98 @@
 # Ce que le backend doit livrer ensuite
 
-> Écrit le 16/10/2026, après avoir branché l'agenda, le déroulé d'une
-> prestation et les semaines de menus. **Chaque point ci-dessous a été
-> revérifié le 16/10 au soir sur `/openapi.json` de
-> `lf-api-develop.up.railway.app`** : 195 chemins, 8 opérations dépréciées. Les
-> chiffres cités sont mesurés, pas supposés.
-
-Chaque point part de ce qu'un utilisateur **ne peut pas faire aujourd'hui**,
-nomme l'écran qui attend, et propose le contrat minimal. L'ordre est celui de
-l'urgence, pas de la difficulté.
-
-Les identifiants `BLK-xx` / `BUG-xx` renvoient au classeur de pilotage
-(`docs/pilotage/pilotage-labs-food.xlsx`, onglet *Bugs & blocages*).
+> Écrit le 16/10/2026, **revu le 18/10** après la réponse du backend et une
+> nouvelle lecture de `/openapi.json` sur `lf-api-develop.up.railway.app` :
+> 191 chemins, une seule opération dépréciée.
+>
+> **Dix des douze points du 16/10 sont livrés.** Ce document ne garde en tête
+> que ce qui reste ouvert ; le reste est en bas, daté, pour ne pas rouvrir des
+> sujets clos.
 
 ---
 
-## Déjà branché depuis le 16/10 — ne pas casser
+## Rectification du 18/10
 
-Ces routes sont arrivées récemment et sont **consommées en production du
-front** depuis aujourd'hui :
+Le 16/10 au soir, nous avions mesuré **174 réponses `2xx` sans schéma sur 222**
+et écrit que BUG-02 n'était pas résolu malgré le classeur de l'équipe. C'était
+exact à l'heure de la mesure, et faux dès le lendemain : la correction a été
+poussée entre-temps.
 
-| Route | Écran |
-|---|---|
-| `GET /chef/agenda`, `/summary`, `POST` et `DELETE /chef/agenda/blocks` | Agenda du batch cooker |
-| `GET` et `PUT /chef/availability` | Semaine type |
-| `GET /chef/availability/slots` | Carte « Ce qu'un client voit » |
-| `GET /chefs/{id}/availability` | Étape « Quand et où » de la réservation |
-| `GET /me/bookings/{id}/calendar.ics` | Bouton « Ajouter à mon agenda » |
-| `PATCH` et `DELETE /admin/menu-weeks/{id}` | Tiroir d'une semaine, console admin |
-| `/chef/bookings*`, `/me/bookings*` | Prestations (chef) et commandes (client) |
+Relevé ce jour, sur la même spec :
 
----
+| Vérification | 16/10 au soir | 18/10 |
+|---|---|---|
+| Réponses `2xx` avec un contenu JSON **et** un schéma | 48 | **217 sur 217** |
+| Dont un schéma lu sur l'exemple (`x-schema-from-example`) | 0 | 168 |
+| `reheating` / `storage` typés | `object` nu | **`allOf` → `ReheatingDto` / `StorageDto`** |
 
-## 1. Les offres de service d'un batch cooker — BLK-23, P1
-
-**Ce qui se passe.** Aucune route ne liste, ne crée ni ne modifie les offres
-d'un batch cooker. `GET /chefs/{id}` ne les rend pas, et
-`GET /chefs/{id}/availability` prend « l'offre active la plus chère » sans que
-personne ne puisse en créer une.
-
-**Ce qui est bloqué.** Le tunnel public tout entier : c'est la **durée** de
-l'offre qui fait le créneau et le **prix** qui fait le montant. En attendant :
-
-- `app/espace-client/reservation` affiche un prix écrit en dur (`BASE_PRICE`) ;
-- l'écran *Tarifs* du batch cooker n'a rien où écrire ;
-- `GET /chef/availability/slots` oblige le front à **deviner** une durée (on
-  propose 2 h / 3 h / 4 h / 5 h à la main, faute de mieux) ;
-- `POST /me/bookings` ne peut pas être rattaché à une offre.
-
-**Contrat minimal.**
-
-```http
-GET    /me/chef/service-offers
-POST   /me/chef/service-offers
-PATCH  /me/chef/service-offers/{id}
-DELETE /me/chef/service-offers/{id}
-```
-
-```json
-{
-  "id": "uuid",
-  "name": "Session 4 heures",
-  "durationMinutes": 240,
-  "priceCents": 18000,
-  "shoppingIncluded": true,
-  "shoppingFeeCents": 1500,
-  "active": true
-}
-```
-
-Et, côté public, les offres actives sur `GET /chefs/{id}` :
-
-```json
-{ "serviceOffers": [{ "id": "…", "name": "…", "durationMinutes": 240, "priceCents": 18000 }] }
-```
-
-`POST /me/bookings` accepte alors `offerId`, et c'est l'API qui fixe durée et
-prix — le front cesse de les calculer.
+Nos excuses pour le faux signalement. La leçon pour la suite : republier une
+mesure sans la refaire le jour où on la cite.
 
 ---
 
-## 2. Les zones d'intervention se ferment à l'approbation — BLK-19, P1
+## Ce qui reste ouvert
 
-**Ce qui se passe.** `PATCH /me/chef-application` existe bien, mais répond
-`409 APPLICATION_DECIDED` dès que le dossier est approuvé. La seule route
-ouverte ensuite, `PATCH /me/chef-profile`, **exclut explicitement les zones**,
-et aucune route admin ne les écrit (`PATCH /admin/chefs/{id}` n'existe pas).
+### 1. Les zones d'intervention se ferment à l'approbation — BLK-19
 
-**Ce qui est bloqué.** Un batch cooker approuvé qui déménage, ou qui veut
-élargir son rayon, ne peut rien faire — ni lui, ni un admin pour lui.
+**Toujours vrai au 18/10.** `UpdateMeChefProfileDto` accepte `bio`, `city`,
+`displayName`, `firstName`, `lastName`, `phone` et `serviceRadiusKm` — mais
+pas `interventionZones`, qui n'existe que dans `UpdateChefApplicationDto`,
+c'est-à-dire derrière le `409 APPLICATION_DECIDED`.
 
-**Le détail qui montre l'oubli.** `UpdateMeChefProfileDto` accepte
-`serviceRadiusKm` — le **rayon** se change donc librement après approbation.
-Ce sont les **zones** qui manquent, et elles n'existent que dans
-`UpdateChefApplicationDto`, c'est-à-dire derrière le `409`.
+Le **rayon** se change donc librement après approbation, les **zones** non.
+Un batch cooker qui déménage est coincé, et aucune route admin ne le dépanne.
 
-**Contrat minimal.** Ajouter `interventionZones` à `UpdateMeChefProfileDto`,
-à côté du rayon qui y est déjà. C'est une information publique, déjà rendue
-par `GET /chefs/{id}` : elle a sa place sur le profil, pas dans la
-candidature.
+**Ce qu'il faut :** `interventionZones` dans `UpdateMeChefProfileDto`, à côté
+du rayon qui y est déjà. C'est une information publique, déjà rendue par
+`GET /chefs/{id}`.
 
----
+Le backend l'annonce comme prévu, sans date. Côté front, rien n'est à faire
+avant.
 
-## 3. Supprimer les six routes dépréciées `/bookings*` — BLK-14, P1 (sécurité)
+### 2. Les langues parlées — BLK-17
 
-**Ce qui se passe.** `GET /bookings` rend **toutes les prestations de tout le
-monde** — nom, ville, adresse, horaire — à n'importe quel compte connecté.
-Elle est marquée `deprecated` dans la spec, mais elle répond toujours.
+`languages` est rendu, toujours vide. La vitrine affiche donc un batch cooker
+sans aucune langue, et le filtre correspondant n'a rien à filtrer. Un champ sur
+le profil public suffirait — sinon, nous retirons l'idée de la maquette.
 
-**Ce qui change.** Le front n'y touche plus depuis le 16/10 : tout passe par
-`/me/bookings`, `/chef/bookings` et `/admin/bookings`. Les six opérations
-peuvent partir :
+### 3. Le template Brevo des emails de classement
 
-```
-GET|POST /bookings
-GET      /bookings/me
-GET      /bookings/me/bookings/{id}
-GET      /bookings/admin/bookings/{id}
-POST     /bookings/admin/bookings/{id}/shopping-list/regenerate
-```
+Le statut `closed` d'un devis est livré et branché des deux côtés, mais les
+emails qu'il déclenche attendent leur template. Tant qu'il manque, un client
+dont la demande est classée l'apprend en revenant sur le site.
 
-Et, tant qu'elles vivent, `GET /bookings` devrait déjà exiger le rôle admin.
+### 4. Avis et réputation — FLOW-06, hors MVP
 
-> Les deux autres opérations dépréciées, `GET /menus/current` et
-> `POST /me/quotes/{id}/accept`, ne sont plus appelées par le front non plus.
+Décision de Lab's Food : hors périmètre. `rating` et `reviewCount` restent
+`null`, et les écrans affichent « Pas encore d'avis ». Rien à faire, de part
+et d'autre, tant que la décision tient.
+
+### 5. Checklist d'hygiène et mandat de débours — FLOW-05
+
+En attente du contenu arrêté par Lab's Food et des quatre questions juridiques
+du mandat. Ce sont les deux seuls « N/A » qui restent sur l'écran *Prestation*
+d'un batch cooker.
 
 ---
 
-## 4. Rendre la spec exploitable — BUG-02 et BUG-04, P1
+## Livré depuis le 16/10
 
-Ces deux points bloquent la même chose : **générer un client typé** depuis
-`/openapi.json` au lieu d'écrire les types à la main, et afficher une erreur
-utile à l'utilisateur.
+Ce que le backend a fermé en deux jours, et ce que le front en a fait :
 
-1. **Schémas de réponse manquants** (BUG-02) : **174 des 222 réponses `2xx`**
-   n'ont aucun `content.schema` — mesuré le 16/10 sur la spec de `develop`.
-   Un générateur produit `unknown` pour les trois quarts des routes, et c'est
-   pour cela que les types sont encore écrits à la main dans `lib/api/`.
-   *Le classeur partagé donne ce point pour terminé : il ne l'est pas sur
-   `develop`.*
-2. **Erreurs de validation illisibles** (BUG-04) : `message` est un tableau de
-   phrases anglaises qu'il faut parser pour savoir quel champ est en cause.
-   Un tableau structuré suffirait :
+| Demande | Livré | Côté front |
+|---|---|---|
+| **Offres de service** (BLK-23) | `/me/chef/service-offers` ×4, `serviceOffers` sur `GET /chefs/{id}`, `?offerId=` sur les créneaux, `serviceOfferId` au `POST` | Écran *Mes tarifs* reconstruit, tunnel de réservation sur les offres, prix calculés côté front supprimés |
+| **Frais de courses séparé** | `shoppingFeeCents` sur les trois listes de réservations | Ligne « Courses » dans le récap, la commande et la prestation ; `shoppingByClient` envoyé |
+| **Routes `/bookings*`** (BLK-14, BLK-22) | Supprimées | Plus aucun appel ; la console était déjà sur `/admin/bookings` |
+| **Schémas de réponse** (BUG-02) | 217 réponses sur 217 | Génération d'un client typé encore à faire |
+| **Erreurs de validation** (BUG-04) | `errors: [{ field, code, message }]` sur les `400` | `fieldErrors()` dans les deux repos ; la réservation nomme le champ refusé |
+| **`reheating` / `storage`** (BUG-03) | Typés via `allOf` | Rien à changer |
+| **`GET /admin/dishes`** | `imageUrl`, `allergens`, `allergensNone`, `prepTime` | Vignette et allergènes rendus depuis la ligne |
+| **`GET /menus/current`** (BUG-05) | Supprimée | `/menus/week` était déjà la source |
+| **Classer un devis** (BLK-20) | Statut `closed`, affectation par `assignedChefUserId` | Action « Classer sans suite » en console, statut reconnu chez le client et le batch cooker |
+| **Routes fermées avant approbation** (DEM-06) | 49 opérations documentées `x-requires-approved-chef` | `ApprovalGate` le dit avant le clic |
+| **Semaines de menus** (BLK-09) | `PATCH` et `DELETE /admin/menu-weeks/{id}` | Tiroir d'édition en console |
+| **Minimum de 3 plats** | Décision : retiré | `MIN_DISHES` supprimé |
 
-```json
-{
-  "statusCode": 422,
-  "code": "VALIDATION_FAILED",
-  "errors": [{ "field": "siret", "code": "LENGTH", "message": "14 chiffres attendus" }]
-}
-```
-
----
-
-## 5. Les deux champs qui restent `object` — BUG-03, P2
-
-**Trois cinquièmes sont faits** : `calories`, `country` et `cookTime` sont
-désormais typés avec `nullable: true`. Merci.
-
-Restent `reheating` et `storage`, toujours `object` **sans `properties`** : un
-client généré les reçoit opaques. Leur forme est connue et stable, elle tient
-en deux lignes — `reheating { mode, minutes }`, `storage { method, days }` —
-et c'est elle que le formulaire de plat envoie déjà.
-
----
-
-## 6. `GET /admin/dishes` ne rend que douze champs — P2
-
-**Ce qui se passe.** La file de modération reçoit une ligne sans `imageUrl`,
-sans allergènes, sans temps de préparation. Conséquences vues en vrai :
-
-- une vignette qui ne se remplissait jamais (retirée) ;
-- un badge « allergènes non déclarés » qui s'affichait sur **toutes** les
-  lignes, puisque le tableau arrivait vide (remplacé par les `flags` que l'API
-  calcule, qui, eux, sont justes).
-
-**Contournement en place.** Le tiroir va chercher la fiche complète chez son
-auteur (`GET /admin/chefs/{id}/dishes`) — un appel de plus par ouverture.
-
-**Ce qu'on demande.** Soit `imageUrl` + `allergens` + `allergensNone` sur la
-ligne, soit une mention dans la spec disant que c'est une liste légère et que
-le détail se lit ailleurs. L'un ou l'autre, mais écrit.
-
----
-
-## 7. Avis et réputation — FLOW-06, P2
-
-`rating` et `reviewCount` sont **toujours `null`** sur un batch cooker, et
-aucune route ne permet de déposer ni de lire un avis. Les écrans publics
-montrent donc un batch cooker sans aucune preuve sociale, et l'étoile de la
-maquette n'a rien à afficher.
-
-Contrat proposé dans [`FLOW-06-avis-et-reputation.md`](FLOW-06-avis-et-reputation.md).
-
----
-
-## 8. Moyens de paiement acceptés, et langues parlées — BLK-16 / BLK-17, P2
-
-Le profil d'un batch cooker ne porte ni les moyens de paiement qu'il accepte
-(CESU préfinancé, virement, carte), ni ses langues parlées. Les deux sont
-affichés dans la maquette de sa vitrine, et le CESU change ce que le client
-paiera réellement : c'est au moins une information de parcours, pas un
-ornement.
-
----
-
-## 9. `GET /menus/current` — BUG-05, à confirmer
-
-La route est maintenant marquée **`deprecated`** dans la spec, et la semaine
-publique se lit sur `GET /menus/week`, que le front utilise déjà. Le bug est
-donc résolu par disparition — reste à savoir si elle part pour de bon ou si
-elle revient corrigée, pour qu'on sache quoi en faire.
-
----
-
-## 10. Affecter un devis à un batch cooker — BLK-20, P3
-
-La console peut lire et répondre à un devis, mais ne peut pas le **confier**
-à un batch cooker, et le seul statut de clôture disponible veut dire « le
-client a refusé ». Il manque l'affectation et un statut de clôture maison
-distinct du refus client.
-
----
-
-## 11. Dire quelles routes sont fermées avant approbation — DEM-06, P3
-
-L'espace batch cooker est en lecture seule tant que le dossier n'est pas
-approuvé, mais la liste des routes qui répondent `403` n'est écrite nulle
-part : l'écran découvre le refus au moment du clic. Une liste, même dans la
-spec, suffirait à l'annoncer avant.
-
----
-
-## 12. Les deux « N/A » qui restent sur une prestation — FLOW-05, P3
-
-La checklist d'hygiène et le mandat de débours (avec ses justificatifs) n'ont
-aucune route. Ce sont les deux seuls endroits de l'écran *Prestation* du batch
-cooker où l'on affiche encore **N/A**.
-
----
-
-## Ce qui n'est plus un manque
-
-À jour au 16/10, pour éviter de rouvrir des sujets clos :
-
-- **Messagerie** (BLK-05) : `/me/conversations*` et `/admin/conversations*`
-  existent et sont branchés.
-- **Contact** (BLK-02) : `POST /contact-messages` et la console admin existent.
-- **Rémunération** (BLK-06) : CESU, factures de commission et liens URSSAF
-  sont exposés et branchés.
-- **Réservation** (BLK-21, BLK-22) : `POST /me/bookings` crée, `/admin/bookings`
-  filtre, pagine et exige le rôle admin.
-- **Semaines de menus** (BLK-09) : `PATCH` et `DELETE` sont arrivés, et la
-  console les utilise.
-- **Agenda** (FLOW-04) : livré et branché.
+Et, plus tôt : messagerie, contact, rémunération (CESU, factures de commission,
+liens URSSAF), agenda et disponibilités — tous exposés et branchés.

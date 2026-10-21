@@ -8,6 +8,7 @@ import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
 import { useToast } from '@/components/shared/Toaster'
 import { useDishes, useUpdateDish, type DishInput } from '@/lib/api/chef-catalog'
+import { apiMessage } from '@/lib/api/messages'
 
 /**
  * Modifier un plat. La liste est déjà en cache après un passage par
@@ -32,10 +33,7 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
           router.push('/espace-chef/recettes')
         },
         onError: (e) =>
-          toast.error(
-            'Les modifications n’ont pas été enregistrées',
-            e instanceof Error ? e.message : 'Réessayez dans un instant.',
-          ),
+          toast.error('Les modifications n’ont pas été enregistrées', apiMessage(e)),
       },
     )
   }
@@ -83,7 +81,7 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
         dish={dish}
         onSave={save}
         saving={update.isPending}
-        error={update.error instanceof Error ? update.error.message : null}
+        error={update.error ? apiMessage(update.error) : null}
         backHref="/espace-chef/recettes"
       />
     </ChefPage>

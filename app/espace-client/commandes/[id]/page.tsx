@@ -41,6 +41,7 @@ import {
   type Booking,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
+import { apiMessage } from '@/lib/api/messages'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le détail d'une commande — `GET /me/bookings/{id}`.
@@ -211,7 +212,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                     onError: (e) =>
                       toast.error(
                         'La réponse n’a pas été enregistrée',
-                        e instanceof Error ? e.message : undefined,
+                        apiMessage(e),
                       ),
                   },
                 )
@@ -300,7 +301,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                       onError: (e) =>
                         toast.error(
                           'Le calendrier n’a pas pu être préparé',
-                          e instanceof Error ? e.message : undefined,
+                          apiMessage(e),
                         ),
                     },
                   )
@@ -618,7 +619,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               onError: (e) =>
                 toast.error(
                   'L’annulation a été refusée',
-                  e instanceof Error ? e.message : undefined,
+                  apiMessage(e),
                 ),
             },
           )
