@@ -1,90 +1,155 @@
-# Ce que les fronts n'appellent pas encore
+# Couverture de l'API — ce qui est branché, ce qui ne l'est pas
 
-> Relevé le 21/10/2026 sur `/openapi.json` de `lf-api-develop` : **236
-> opérations**. Méthode : extraction des chemins appelés dans `lib/` des deux
-> repos (`batchcooking-web`, `admin-dashboard`), commentaires exclus, puis
-> contre-épreuve au grep sur chaque route donnée pour absente.
->
-> **Environ 206 opérations sur 236 sont branchées.** Les ~30 qui suivent ne le
-> sont pas. Trois quarts d'entre elles appartiennent au même sujet : l'argent.
+Relevé du 24/10/2026 contre `https://lf-api-develop.up.railway.app/openapi.json`
+(v1.3.0, 195 chemins, **238 opérations**), croisé avec les deux fronts.
+
+> Méthode : un script compare les opérations du spec aux chemins appelés dans
+> `labs-food` et `admin-labsfood`, en résolvant les constantes et les
+> interpolations. Il se trompe dans les deux sens — un helper générique comme
+> `${base}/photo/upload-url` lui échappe, un littéral voisin d'un `method:
+> 'POST'` lui fait voir un appel qui n'existe pas. **Chaque route listée
+> ci-dessous comme non utilisée a donc été revérifiée à la main.**
+
+| | Opérations |
+|---|---|
+| Exposées par l'API | 238 |
+| Appelées par un front | ~207 |
+| **Jamais appelées** | **30** |
 
 ---
 
-## 1. Le module « argent » de la console — 10 routes, aucune branchée
+## 1. Jamais appelées — et c'est voulu (8)
 
-C'est le plus gros manque, et il est d'un seul tenant : **la console ne voit
-rien de ce qui concerne les encaissements**. Les routes existent toutes.
+Rien à faire : ces routes ne s'adressent pas à nous.
 
-| Route | Ce qu'elle permettrait |
+| Route | Pourquoi |
 |---|---|
-| `GET /admin/cesu-payments` | Voir toutes les déclarations CESU du réseau |
-| `GET /admin/cesu-payments/{id}/proof-url` | Ouvrir la preuve déposée par le client |
-| `POST /admin/cesu-payments/{id}/force-settle` | Trancher à la place d'un batch cooker qui ne répond pas |
-| `GET /admin/commission-invoices` | Voir les factures de commission émises |
-| `POST /admin/commission-invoices/run-due` | Facturer et prélever les commissions dues d'une période |
-| `POST /admin/commission-invoices/{id}/retry-debit` | Relancer un prélèvement qui a échoué |
-| `GET /admin/urssaf-links` | Les demandes d'avance immédiate en attente |
-| `POST /admin/urssaf-links/{id}/decision` | Y répondre (simulation URSSAF) |
-| `GET /admin/urssaf-payments` | Les demandes de paiement URSSAF |
-| `POST /admin/urssaf-payments/{id}/outcome` | Y répondre (simulation) |
+| `GET /health` · `GET /ready` | Sondes d'infrastructure, lues par Railway |
+| `GET /thisUser` | Outil de débogage du token |
+| `GET /calendar/feed/{file}` | Lue par Google Agenda et Apple Calendrier, pas par le site |
+| `POST /auth/register` | Les comptes clients naissent par Clerk ; le `/auth/register` du front est une page, pas un appel |
+| `POST /me/quotes/{id}/accept` | **Dépréciée** — on utilise `…/offers/{offerId}/accept` |
+| `POST /payments/intent` | On utilise `POST /payments/checkout-session`, qui gère la page Stripe |
+| `GET /me/chef/quotes/{id}` | La liste `GET /me/chef/quotes` porte déjà tout le détail |
+| `GET /chefs/{id}/cesu-info` | Le NAN arrive déjà par `GET /me/bookings/{id}/payment-options` |
 
-Conséquence concrète : **personne ne peut déclencher la facturation des
-commissions**, ni débloquer un paiement CESU resté en attente, ni instruire une
-demande d'avance immédiate. Côté batch cooker ces objets sont visibles depuis
-le 21/10 (écran *Revenus*) ; côté maison, non.
+---
 
-## 2. Les attestations fiscales — 3 routes
+## 2. Jamais appelées — le module n'existe pas encore (16)
 
-| Route | Pour qui |
+**Tout l'argent au-delà du paiement par carte.** C'est le plus gros manque du
+produit, et il est entièrement de notre côté : les seize routes existent et
+fonctionnent.
+
+### Console — CESU (3)
+
+| Route | Écran à écrire |
 |---|---|
-| `GET /me/fiscal-attestations/{year}` | Le client : son total ouvrant droit au crédit d'impôt |
-| `GET /admin/fiscal-attestations` | La console : tous les clients |
-| `GET /admin/fiscal-attestations/{clientId}` | La console : un client |
+| `GET /admin/cesu-payments` | Liste de toutes les déclarations CESU du réseau |
+| `GET /admin/cesu-payments/{id}/proof-url` | Ouvrir le justificatif déposé par le client |
+| `POST /admin/cesu-payments/{id}/force-settle` | Solder à la place d'un batch cooker qui ne répond pas |
 
-C'est la pièce que le client attend en janvier. Aucun écran ne la propose.
+### Console — commissions (3)
 
-## 3. Le paiement en CESU, côté client — 5 routes
-
-| Route | Ce qui manque |
+| Route | Écran à écrire |
 |---|---|
-| `GET /chefs/{chefProfileId}/cesu-info` | Comment payer **ce** batch cooker en CESU, avant de payer |
-| `POST /me/bookings/{id}/cesu-proof/upload-url` | Déposer la preuve de son virement e-CESU |
+| `GET /admin/commission-invoices` | Liste des factures de commission |
+| `POST /admin/commission-invoices/run-due` | Lancer la facturation d'une période — **rien ne facture aujourd'hui** |
+| `POST /admin/commission-invoices/{id}/retry-debit` | Relancer un prélèvement échoué |
+
+### Console — URSSAF (4)
+
+| Route | Écran à écrire |
+|---|---|
+| `GET /admin/urssaf-links` | Demandes de rattachement à l'avance immédiate |
+| `POST /admin/urssaf-links/{id}/decision` | Y répondre (simulation de l'URSSAF) |
+| `GET /admin/urssaf-payments` | Demandes de paiement |
+| `POST /admin/urssaf-payments/{id}/outcome` | Y répondre |
+
+### Console — attestations fiscales (2)
+
+| Route | Écran à écrire |
+|---|---|
+| `GET /admin/fiscal-attestations` | Totaux crédit d'impôt, tous clients |
+| `GET /admin/fiscal-attestations/{clientId}` | Celui d'un client, depuis sa fiche |
+
+### Espace client — preuve e-CESU et reste à payer (4)
+
+| Route | Écran à écrire |
+|---|---|
+| `POST /me/bookings/{id}/cesu-proof/upload-url` | Déposer la preuve du virement e-CESU |
 | `PUT /me/cesu-payments/{id}/proof` | La remplacer |
 | `GET /me/cesu-payments/{id}/proof-url` | La relire |
-| `GET /me/bookings/{id}/payment-status` | Combien reste-t-il à payer |
-
-Le client peut déclarer un paiement CESU, mais ne peut ni téléverser sa preuve,
-ni la revoir — alors que le batch cooker, lui, attend cette preuve pour
-confirmer.
-
-`POST /payments/intent` n'est pas branché non plus, mais c'est un choix :
-le front utilise `POST /payments/checkout-session`. À supprimer côté API si
-personne ne s'en sert.
-
-## 4. Quatre routes isolées qui bloquent chacune un geste
-
-| Route | Le geste impossible aujourd'hui |
-|---|---|
-| `POST /admin/chef-users/{id}/resend-invitation` | **Renvoyer son lien de connexion** à un batch cooker. La fiche DEM-01 est marquée résolue côté API — le bouton n'existe toujours pas dans la console. |
-| `PATCH /admin/chefs/{id}/sap-external-status` | Instruire l'affiliation CRCESU et l'avance immédiate. L'écran du batch cooker annonce « instruit par l'équipe » ; l'équipe n'a pas l'écran. |
-| `POST /me/chef-application/reapply` | Recandidater après un refus. |
-| `DELETE /admin/users/{id}` | Supprimer un compte depuis la console. |
-
-## 5. Le reste — sans objet ou volontaire
-
-| Route | Pourquoi ce n'est pas un manque |
-|---|---|
-| `GET /health`, `GET /ready` | Sondes d'infrastructure |
-| `GET /thisUser` | Debug du jeton |
-| `GET /calendar/feed/{file}` | Lue par les applications de calendrier, pas par nous |
-| `POST /auth/register` | Les comptes clients naissent par Clerk |
-| `DELETE /me` | Suppression de compte : à arbitrer (RGPD) avant de l'exposer |
-| `POST /me/quotes/{id}/accept` | **Dépréciée** — le front utilise déjà `…/offers/{offerId}/accept` |
+| `GET /me/bookings/{id}/payment-status` | « Il vous reste X € à régler » |
 
 ---
 
-## Dans l'autre sens
+## 3. Jamais appelées — livrées le 24/10, à brancher cette semaine (2)
 
-Aucun appel du front ne vise une route inexistante, et **aucune route dépréciée
-n'est appelée**. Les six `/bookings*` supprimées le 17/10 ne sont plus citées
-nulle part.
+| Route | Écran |
+|---|---|
+| `PATCH /admin/chefs/{id}/zones` | Modifier les zones depuis la fiche batch cooker |
+| `GET /referentials/languages` | Alimenter le champ « langues parlées » de la vitrine |
+
+---
+
+## 4. Jamais appelées — l'écran n'a jamais été écrit (4)
+
+| Route | Écran manquant |
+|---|---|
+| `POST /chef/bookings` | Un batch cooker réserve pour un de ses clients |
+| `POST /me/chef-application/reapply` | Redéposer une candidature après un refus |
+| `GET /chefs/{id}/showcase` | La vitrine publique, telle que le client la voit |
+| `DELETE /admin/users/{id}/avatar` | Retirer la photo de profil de quelqu'un |
+
+---
+
+## 5. Ce qui manque côté **backend** (5)
+
+Détail, JSON attendu et tests de validation dans [MANQUES-API.md](MANQUES-API.md).
+
+| # | Route | Manque | Gravité |
+|---|---|---|---|
+| 1 | `GET`/`PATCH /me/profile` | `householdAdults`, `householdKids`, `addressStreet`, `addressCity`, `addressPostalCode` écrits mais jamais rendus | **Bloquant** |
+| 2 | `GET /admin/clients/{id}` | les mêmes cinq champs | **Bloquant** |
+| 3 | `GET /admin/clients/{id}` | `200` corps vide sur id inconnu, au lieu de `404` | Haute |
+| 4 | `PATCH /me/profile` | pas de préférences de notification | Basse |
+| 5 | — | pas d'avis, pas de litiges — décision attendue | Décision |
+
+---
+
+## 6. Ce qui manque côté **front**
+
+### Écrans à écrire sur des routes qui existent (les 23 ci-dessus)
+
+Le module argent (16) pèse à lui seul les deux tiers. Il se découpe en quatre
+chantiers indépendants : CESU console, commissions, URSSAF, attestations.
+
+### Écrans qui affichent des données écrites en dur (6)
+
+| Écran | Ce qu'il faudrait lire |
+|---|---|
+| `/espace-client` — carte culinaire | `GET /me/culinary-map` (la route existe) |
+| `/espace-client/conservation` | `GET /chef-missions/{id}/dishes/{dishId}/recipe-sheet`, lisible par le client **après** la prestation |
+| `/espace-client/chefs` — mes batch cookers | `GET /me/bookings` + `GET /chefs/{id}` |
+| `/espace-client/parametres` | Identité par Clerk ; les notifications attendent la demande n° 4 |
+| `/espace-chef/parametres` | idem |
+| `/transactions` (console) | Les 16 routes du module argent |
+
+### Dette connue
+
+- `lib/chef/mock.ts` : ~120 lignes mortes. Deux tentatives de nettoyage
+  automatique ont cassé le fichier ; à faire à la main.
+- `lib/client/mock.ts` : `SHOPPING_LIST` et `SHOPPING_AISLES` ne servent plus
+  depuis que la page Courses lit l'API.
+- Aucun client typé généré depuis `/openapi.json` : les types sont écrits à la
+  main dans `lib/api/types.ts`, et c'est exactement ce qui a laissé passer le
+  changement de forme de `GET /admin/clients`.
+
+---
+
+## 7. Dans l'autre sens
+
+**Aucun appel du front ne vise une route inexistante.** Les routes supprimées
+par le backend le 17/10 ne sont plus citées nulle part, et la seule opération
+dépréciée du spec (`POST /me/quotes/{id}/accept`) n'est pas appelée.
