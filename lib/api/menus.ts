@@ -273,3 +273,68 @@ export function useChefShowcase(id: string | undefined) {
     retry: false,
   })
 }
+
+/* ── Les semaines qu'on peut parcourir ─────────────────────────────────────── */
+
+/**
+ * `AAAA-MM-JJ` en heure **locale**.
+ *
+ * `toISOString()` convertirait en UTC : minuit à Paris y devient la veille à
+ * 22 h, et toutes les semaines partaient du dimanche. L'API attend un jour de
+ * calendrier, pas un instant.
+ */
+function jourISO(d: Date): string {
+  const mois = String(d.getMonth() + 1).padStart(2, '0')
+  const jour = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mois}-${jour}`
+}
+
+/** Le lundi de la semaine d'une date, en `AAAA-MM-JJ`. */
+export function lundiDe(d: Date): string {
+  const x = new Date(d)
+  // `getDay()` rend 0 le dimanche : on le ramène à 7 pour reculer jusqu'au lundi.
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  return jourISO(x)
+}
+
+/**
+ * Les semaines proposées au visiteur, à partir de la semaine en cours.
+ *
+ * Six suffisent : au-delà, personne ne sait encore ce qu'il mangera, et les
+ * batch cookers n'ont pas posé leurs menus.
+ */
+export function semainesAVenir(depuis = new Date(), combien = 6): string[] {
+  const premier = new Date(`${lundiDe(depuis)}T00:00:00`)
+  return Array.from({ length: combien }, (_, i) => {
+    const d = new Date(premier)
+    d.setDate(d.getDate() + i * 7)
+    return jourISO(d)
+  })
+}
+
+/**
+ * La semaine sur laquelle ouvrir.
+ *
+ * Pas toujours celle en cours : une prestation se prépare, et le batch cooking
+ * ne se réserve presque jamais pour le lendemain. À partir du vendredi, la
+ * semaine en cours n'est plus réservable en pratique — ouvrir dessus
+ * montrerait une carte vide à qui arrive un vendredi soir, et lui ferait
+ * croire que la plateforme est déserte. On ouvre alors sur la suivante, et le
+ * sélecteur permet de revenir en arrière.
+ */
+export function semaineParDefaut(maintenant = new Date()): string {
+  const semaines = semainesAVenir(maintenant, 2)
+  // 5 = vendredi, 6 = samedi, 0 = dimanche.
+  const jour = maintenant.getDay()
+  const finDeSemaine = jour === 0 || jour >= 5
+  return finDeSemaine ? semaines[1] : semaines[0]
+}
+
+/** « du 26 octobre au 1er novembre » → « 26 oct. – 1er nov. », pour un bouton. */
+export function semaineCourte(lundi: string): string {
+  const debut = new Date(`${lundi}T00:00:00`)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + 6)
+  const f = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  return `${f(debut)} – ${f(fin)}`
+}

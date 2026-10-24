@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import ApprovalGate, { useChefApproved } from '@/components/chef/ApprovalGate'
+import { CeQueChangeUneFormule } from '@/components/chef/PresenceCarte'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { useToast } from '@/components/shared/Toaster'
@@ -171,6 +172,8 @@ export default function ChefPricingPage() {
         </div>
 
         <ApprovalGate quoi="Vos offres s’écrivent" />
+
+        <CeQueChangeUneFormule aUneOffre={offres.some((o) => o.active)} />
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
