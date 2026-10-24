@@ -285,7 +285,7 @@ function ReservationFlow() {
               ) : filters.isError ? (
                 <MenusError onRetry={filters.refetch} />
               ) : filters.menus.length === 0 ? (
-                <NoMenus onReset={filters.reset} filtered={filters.active}>
+                <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters}>
                   <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
                     Faire une demande sur mesure
                     <ArrowRight className="icon-arrow h-3.5 w-3.5" />
