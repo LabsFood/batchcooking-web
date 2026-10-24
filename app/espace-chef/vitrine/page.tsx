@@ -21,6 +21,7 @@ import { PAYMENT_METHOD_LABEL } from '@/lib/chef/states'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { chefProfileMessage, useUpdateChefProfile } from '@/lib/api/chef-profile'
 import { applicationAnswers, useChefApplication } from '@/lib/api/chef-documents'
+import { useLanguages } from '@/lib/api/referentials'
 import type { ChefProfile } from '@/lib/api/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export default function ChefShowcasePage() {
   const [bio, setBio] = useState(chef?.bio ?? '')
   const [ville, setVille] = useState(chef?.city ?? '')
   const [rayon, setRayon] = useState(chef?.serviceRadiusKm ?? 20)
+  const [langues, setLangues] = useState<string[]>(chef?.languages ?? [])
   const [prenom, setPrenom] = useState('')
   const [nom, setNom] = useState('')
   const [tel, setTel] = useState(compte?.phone ?? '')
@@ -96,6 +98,7 @@ export default function ChefShowcasePage() {
     setBio(chef?.bio ?? '')
     setVille(chef?.city ?? '')
     setRayon(chef?.serviceRadiusKm ?? 20)
+    setLangues(chef?.languages ?? [])
     setTel(compte?.phone ?? '')
     const entier = (compte?.fullName ?? '').trim().split(/\s+/)
     setPrenom(entier[0] ?? '')
@@ -133,6 +136,9 @@ export default function ChefShowcasePage() {
         bio: bio.trim() || undefined,
         city: ville.trim() || undefined,
         serviceRadiusKm: rayon,
+        // L'API remplace la liste entière : on l'envoie telle qu'elle est à
+        // l'écran, y compris vide, sinon on ne pourrait jamais retirer une langue.
+        languages: langues,
         firstName: prenom.trim() || undefined,
         lastName: nom.trim() || undefined,
         phone: tel.trim() || undefined,
@@ -313,6 +319,8 @@ export default function ChefShowcasePage() {
                 </p>
               </div>
             </div>
+
+            <Langues choisies={langues} onChange={setLangues} />
 
             <Zones
               zones={applicationAnswers(application.data).interventionZones ?? []}
@@ -552,6 +560,63 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
           </>
         )}
       </p>
+    </div>
+  )
+}
+
+/* ── Les langues parlées ───────────────────────────────────────────────────── */
+
+/**
+ * Un critère de choix réel : on fait entrer quelqu'un dans sa cuisine pour
+ * quatre heures. Le référentiel est fermé côté API — vingt-quatre codes — et
+ * l'écran se contente de les cocher : un champ libre aurait donné « Anglais »,
+ * « anglais » et « EN » dans la même liste.
+ */
+function Langues({
+  choisies,
+  onChange,
+}: {
+  choisies: string[]
+  onChange: (l: string[]) => void
+}) {
+  const langues = useLanguages()
+
+  const basculer = (code: string) =>
+    onChange(
+      choisies.includes(code)
+        ? choisies.filter((c) => c !== code)
+        : [...choisies, code],
+    )
+
+  if (langues.length === 0) return null
+
+  return (
+    <div className="mt-5 border-t border-[rgba(31,42,55,0.06)] pt-5">
+      <p className="mb-1.5 text-sm font-semibold text-navy">Langues parlées</p>
+      <p className="mb-3 text-[13px] leading-relaxed text-ink-soft">
+        Elles s’affichent sur votre vitrine. Un client qui cherche quelqu’un
+        avec qui parler dans sa cuisine les regarde avant tout le reste.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {langues.map((l) => {
+          const active = choisies.includes(l.code)
+          return (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => basculer(l.code)}
+              aria-pressed={active}
+              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                active
+                  ? 'bg-navy text-white'
+                  : 'bg-cream-soft text-navy hover:bg-cream-deep'
+              }`}
+            >
+              {l.label}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
