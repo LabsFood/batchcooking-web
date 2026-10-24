@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Suspense, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -34,6 +36,7 @@ import {
   PreviewUnavailable,
   UploadError,
   checkFile,
+  reapplyTooEarly,
   useChefApplication,
   useChefDocuments,
   useDocumentPreview,
@@ -333,11 +336,21 @@ function Dossier() {
               Votre candidature a été refusée
             </p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink">{app.refusal.reason}</p>
-            {app.refusal.allowReapplyAfter && (
+            {reapplyTooEarly(app) ? (
               <p className="mt-2 text-xs text-ink-mid">
                 Vous pourrez candidater à nouveau à partir du{' '}
-                {formatDate(app.refusal.allowReapplyAfter)}.
+                {formatDate(app.refusal.allowReapplyAfter!)}.
               </p>
+            ) : (
+              <>
+                <p className="mt-2 text-xs text-ink-mid">
+                  Vous pouvez corriger votre dossier et le redéposer. Vos
+                  réponses sont conservées, vos pièces aussi.
+                </p>
+                <Link href="/devenir-chef" className="btn btn-primary mt-3 text-xs">
+                  Corriger et redéposer
+                </Link>
+              </>
             )}
           </section>
         )}

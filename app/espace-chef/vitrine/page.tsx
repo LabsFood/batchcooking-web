@@ -21,6 +21,7 @@ import { PAYMENT_METHOD_LABEL } from '@/lib/chef/states'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { chefProfileMessage, useUpdateChefProfile } from '@/lib/api/chef-profile'
 import { applicationAnswers, useChefApplication } from '@/lib/api/chef-documents'
+import VitrineDuMois from '@/components/chef/VitrineDuMois'
 import type { ChefProfile } from '@/lib/api/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -318,6 +319,20 @@ export default function ChefShowcasePage() {
               zones={applicationAnswers(application.data).interventionZones ?? []}
               modifiable={enInstruction}
             />
+          </Card>
+
+          <Card title="Ma vitrine du mois">
+            {chef?.id ? (
+              <VitrineDuMois
+                chefProfileId={chef.id}
+                enLigne={Boolean(chef.isActive && chef.isVerified)}
+              />
+            ) : (
+              <p className="text-[13px] leading-relaxed text-ink-soft">
+                Votre page publique naîtra avec l’approbation de votre
+                candidature.
+              </p>
+            )}
           </Card>
 
           <Card
