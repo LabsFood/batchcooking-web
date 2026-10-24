@@ -44,6 +44,7 @@ import {
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
 import { apiMessage } from '@/lib/api/messages'
+import { usePaymentStatus } from '@/lib/api/payments'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le détail d'une commande — `GET /me/bookings/{id}`.
@@ -342,6 +343,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               C’est le paiement qui la confirme auprès de votre batch cooker. Le
               créneau est tenu 72 heures, puis la commande est annulée.
             </p>
+            <ResteAPayer bookingId={b.id} />
           </div>
           <Link
             href={`/espace-client/commandes/${b.id}/paiement`}
@@ -754,5 +756,36 @@ function Row({
         {value}
       </span>
     </li>
+  )
+}
+
+/* ── Ce qu'il reste à payer ────────────────────────────────────────────────── */
+
+/**
+ * `GET /me/bookings/{id}/payment-status` ne compte que les paiements
+ * **soldés**. Un règlement en titres CESU que le batch cooker n'a pas encore
+ * confirmé ne couvre donc rien — et c'est précisément ce qu'il faut dire : le
+ * client qui a remis ses titres croit avoir payé, et verra sa commande
+ * attendre sans comprendre pourquoi.
+ */
+function ResteAPayer({ bookingId }: { bookingId: string }) {
+  const etat = usePaymentStatus(bookingId)
+  if (!etat.data) return null
+
+  const { amountTtcCents, coveredAmountCents, remainingAmountCents } = etat.data
+  if (coveredAmountCents <= 0) return null
+
+  return (
+    <p className="mt-3 text-[13px] text-ink-mid">
+      <span className="font-semibold text-navy">
+        {euros(remainingAmountCents)}
+      </span>{' '}
+      à régler, sur {euros(amountTtcCents)} — {euros(coveredAmountCents)} déjà
+      couverts.
+      <span className="mt-1 block text-[12px] text-ink-soft">
+        Un règlement en titres CESU ne compte qu’une fois votre batch cooker
+        l’a confirmé.
+      </span>
+    </p>
   )
 }
