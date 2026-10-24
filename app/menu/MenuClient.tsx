@@ -112,7 +112,7 @@ export default function MenuClient() {
           ) : filters.isError ? (
             <MenusError onRetry={filters.refetch} />
           ) : menus.length === 0 ? (
-            <NoMenus onReset={filters.reset} filtered={filters.active} />
+            <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {menus.map((menu, i) => (

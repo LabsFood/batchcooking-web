@@ -22,6 +22,9 @@ import {
 } from 'lucide-react'
 import {
   euros,
+  semaineCourte,
+  semaineParDefaut,
+  semainesAVenir,
   useChefPublic,
   useWeekMenus,
   type WeekCard,
@@ -48,9 +51,45 @@ import { countryLabel } from '@/lib/chef/countries'
 
 export const MAX_DISHES = 7
 
+/**
+ * `['fr', 'en']` → « Français · Anglais ».
+ *
+ * Le champ est rempli depuis le 24/10 ; il valait `[]` avant, et les deux
+ * endroits qui l'affichaient montraient donc des codes bruts sans que ça se
+ * voie. « fr, en, es, tr » sur une carte publique ne dit rien à personne.
+ */
+function useLangueLabels(codes: string[]): string {
+  const referentiel = useLanguages()
+  return codes
+    .map((c) => referentiel.find((l) => l.code === c)?.label ?? c)
+    .join(' · ')
+}
+
+function LanguesChip({ codes }: { codes: string[] }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
+      <Languages className="h-3 w-3" aria-hidden /> {useLangueLabels(codes)}
+    </span>
+  )
+}
+
+function LanguesLigne({ codes }: { codes: string[] }) {
+  return (
+    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
+      <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+      Parle {useLangueLabels(codes)}
+    </p>
+  )
+}
+
 /* ── Filtres ───────────────────────────────────────────────────────────────── */
 
 export interface MenuFilters {
+  /** Le lundi de la semaine regardée, `AAAA-MM-JJ`. */
+  semaine: string
+  setSemaine: (v: string) => void
+  /** Les six lundis proposés, à partir de la semaine en cours. */
+  semaines: string[]
   query: string
   setQuery: (v: string) => void
   region: string
@@ -72,12 +111,17 @@ export interface MenuFilters {
 }
 
 export function useMenuFilters(): MenuFilters {
+  /* Figées au montage : lire l'horloge pendant le rendu rendrait la liste
+     différente à chaque passage, et la semaine choisie sauterait. */
+  const [semaines] = useState(() => semainesAVenir())
+  const [semaine, setSemaine] = useState(() => semaineParDefaut())
   const [query, setQuery] = useState('')
   const [region, setRegion] = useState('all')
   const [diets, setDiets] = useState<string[]>([])
   const [shoppingOnly, setShoppingOnly] = useState(false)
 
   const q = useWeekMenus({
+    week: semaine,
     q: query || undefined,
     region: region === 'all' ? undefined : region,
     diets: diets.length > 0 ? diets : undefined,
@@ -86,6 +130,9 @@ export function useMenuFilters(): MenuFilters {
   })
 
   return {
+    semaine,
+    setSemaine,
+    semaines,
     query,
     setQuery,
     region,
@@ -100,6 +147,8 @@ export function useMenuFilters(): MenuFilters {
     isPending: q.isPending,
     isError: q.isError,
     refetch: () => q.refetch(),
+    /* La semaine n'y compte pas : remettre les filtres à zéro ne doit pas
+       renvoyer quelqu'un sur une autre semaine que celle qu'il regarde. */
     active: query !== '' || region !== 'all' || diets.length > 0 || shoppingOnly,
     reset: () => {
       setQuery('')
@@ -118,6 +167,8 @@ export function MenuFilterBar({ filters }: { filters: MenuFilters }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
+      <SemainePicker filters={filters} />
+
       {/* Recherche et région tiennent sur une ligne : sur mobile, la barre de
           filtres mangeait un quart de l'écran. */}
       <div className="flex w-full items-center gap-2 sm:flex-1">
@@ -183,6 +234,49 @@ export function MenuFilterBar({ filters }: { filters: MenuFilters }) {
   )
 }
 
+/**
+ * Quelle semaine on regarde.
+ *
+ * L'écran n'en montrait qu'une, celle en cours, sans jamais le dire. Un
+ * visiteur arrivé un vendredi soir voyait donc une carte presque vide — les
+ * batch cookers complets d'ici dimanche en sortent — et en concluait qu'il n'y
+ * avait personne. Or une session se prépare : c'est la semaine suivante qu'il
+ * voulait voir.
+ *
+ * Le premier bouton reste « Cette semaine » : on ne cache pas ce qui est
+ * encore réservable, on cesse seulement d'ouvrir dessus quand elle se termine.
+ */
+function SemainePicker({ filters }: { filters: MenuFilters }) {
+  const { semaine, setSemaine, semaines } = filters
+
+  return (
+    <div
+      role="group"
+      aria-label="Choisir la semaine"
+      /* Sa propre ligne : mis bout à bout avec la recherche et la région, il
+         repoussait le sélecteur de région hors de l'écran dès 1280 px. */
+      className="-mx-4 flex w-[calc(100%+2rem)] gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:w-full sm:px-0 sm:pb-0"
+    >
+      {semaines.map((lundi, i) => {
+        const on = lundi === semaine
+        return (
+          <button
+            key={lundi}
+            type="button"
+            onClick={() => setSemaine(lundi)}
+            aria-pressed={on}
+            className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold transition-colors ${
+              on ? 'bg-terra text-white' : 'bg-paper text-ink-mid hover:text-navy'
+            }`}
+          >
+            {i === 0 ? 'Cette semaine' : semaineCourte(lundi)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
 export function MenusLoading() {
   return (
@@ -214,28 +308,50 @@ export function MenusError({ onRetry }: { onRetry: () => void }) {
 export function NoMenus({
   onReset,
   filtered,
+  filters,
   children,
 }: {
   onReset: () => void
   /** Aucun résultat après filtrage, ou aucun batch cooker du tout. */
   filtered?: boolean
+  /**
+   * Donné, l'écran peut proposer la semaine suivante — le cas le plus
+   * fréquent d'une carte vide n'est pas qu'il n'y ait personne, c'est que la
+   * semaine regardée soit déjà prise ou presque finie.
+   */
+  filters?: MenuFilters
   children?: ReactNode
 }) {
+  const suivante = filters
+    ? filters.semaines[filters.semaines.indexOf(filters.semaine) + 1]
+    : undefined
+
   return (
     <div className="rounded-2xl border border-dashed border-[rgba(31,42,55,0.18)] bg-paper px-6 py-14 text-center">
       <ChefHat className="mx-auto mb-4 h-8 w-8 text-ink-soft" aria-hidden />
       <h2 className="font-display text-xl font-bold text-navy">
-        {filtered ? 'Rien ne correspond, pour l’instant' : 'Aucun batch cooker cette semaine'}
+        {filtered ? 'Rien ne correspond, pour l’instant' : 'Personne de libre cette semaine-là'}
       </h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-mid">
         {filtered
           ? 'Élargissez vos critères, ou décrivez-nous ce que vous cherchez : un chef vous fera une proposition sur mesure.'
-          : 'Personne n’est encore en ligne sur cette semaine. Décrivez-nous ce que vous cherchez, nous reviendrons vers vous.'}
+          : suivante
+            ? 'Un batch cooker dont la semaine est complète n’apparaît pas ici. Regardez la semaine suivante : il y est probablement.'
+            : 'Personne n’est encore en ligne sur cette semaine. Décrivez-nous ce que vous cherchez, nous reviendrons vers vous.'}
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         {filtered && (
           <button type="button" onClick={onReset} className="btn btn-outline text-xs">
             Réinitialiser les filtres
+          </button>
+        )}
+        {!filtered && suivante && filters && (
+          <button
+            type="button"
+            onClick={() => filters.setSemaine(suivante)}
+            className="btn btn-navy text-xs"
+          >
+            Voir le {semaineCourte(suivante)}
           </button>
         )}
         {children}
@@ -438,11 +554,7 @@ export function MenuCard({
             <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
           </span>
         )}
-        {menu.chef.languages.length > 1 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
-            <Languages className="h-3 w-3" aria-hidden /> {menu.chef.languages.join(', ')}
-          </span>
-        )}
+        {menu.chef.languages.length > 1 && <LanguesChip codes={menu.chef.languages} />}
       </div>
 
       <footer className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-4">
@@ -732,10 +844,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
             </p>
           )}
           {card.chef.languages.length > 0 && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-              <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
-              {card.chef.languages.join(', ')}
-            </p>
+            <LanguesLigne codes={card.chef.languages} />
           )}
         </div>
       )}

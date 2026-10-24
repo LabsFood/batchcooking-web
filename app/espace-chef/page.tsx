@@ -24,6 +24,7 @@ import {
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ChefProfile } from '@/lib/api/types'
 import { DossierBadge } from '@/components/chef/StatusBadge'
+import PresenceCarte from '@/components/chef/PresenceCarte'
 import { CHEF_DOCS, CHEF_PROFILE, DOC_DEFINITIONS } from '@/lib/chef/mock'
 import { bookingStatusText, hour, isBookingOpen, longDate, useChefBookings } from '@/lib/api/bookings'
 import { useChefQuotes } from '@/lib/api/quotes'
@@ -122,6 +123,9 @@ export default function ChefHomePage() {
   return (
     <ChefPage title="Accueil" subtitle="Votre activité en un coup d'œil.">
       <div className="space-y-5">
+        {/* « Pourquoi je n'apparais plus ? » — avant tout le reste. */}
+        <PresenceCarte />
+
         {/* État du dossier — la seule chose qui puisse bloquer une prestation */}
         <DossierCard
           status={dossier.data?.dossierStatus}
