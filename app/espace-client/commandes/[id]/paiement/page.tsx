@@ -11,9 +11,11 @@ import {
   ChefHat,
   Clock,
   CreditCard,
+  FileCheck2,
   Info,
   Loader2,
   Lock,
+  Paperclip,
   ShieldCheck,
   Ticket,
 } from 'lucide-react'
@@ -22,6 +24,9 @@ import {
   CESU_ISSUERS,
   useCardCheckout,
   useDeclareCesu,
+  useUploadCesuProof,
+  PREUVE_MAX_MO,
+  verifiePreuve,
   usePaymentOptions,
   useRequestUrssafLink,
   useSettleWithUrssaf,
@@ -142,6 +147,8 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
   )
   const [cesuAmount, setCesuAmount] = useState('')
   const [medium, setMedium] = useState<CesuMedium>('cesu_paper')
+  const [preuve, setPreuve] = useState<File | null>(null)
+  const [preuveRef, setPreuveRef] = useState('')
   const [issuer, setIssuer] = useState<CesuIssuer>('pluxee')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(
@@ -152,6 +159,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
 
   const checkout = useCardCheckout(data.bookingId)
   const declare = useDeclareCesu(data.bookingId)
+  const deposer = useUploadCesuProof(data.bookingId)
   const settle = useSettleWithUrssaf(data.bookingId)
   const link = useRequestUrssafLink(data.bookingId)
   const pending = checkout.isPending || declare.isPending || settle.isPending
@@ -178,11 +186,38 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
     })
   }
 
-  function declareCesu() {
+  /**
+   * L'e-CESU ne se déclare pas sans la confirmation de l'émetteur : l'API
+   * l'exige. On dépose donc le fichier d'abord, et son `uploadId` part avec la
+   * déclaration. Si le dépôt échoue, rien n'est déclaré — et on le dit, plutôt
+   * que de laisser l'API répondre « PROOF_MISSING » en anglais.
+   */
+  async function declareCesu() {
     if (cesuTooHigh || cesuEmpty) return
     setError(null)
+
+    let proofUploadId: string | undefined
+    if (medium === 'ecesu') {
+      if (!preuve) {
+        setError(
+          'Joignez la confirmation de votre émetteur : sans elle, la déclaration est refusée.',
+        )
+        return
+      }
+      try {
+        proofUploadId = await deposer.mutateAsync(preuve)
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Le justificatif n’a pas pu être déposé. Rien n’a été déclaré.',
+        )
+        return
+      }
+    }
+
     declare.mutate(
-      { amountCents: titresCents, medium, issuer },
+      { amountCents: titresCents, medium, issuer, proofUploadId, clientProofRef: preuveRef },
       {
         onError: (cause) =>
           setError(errorText(cause, 'La déclaration n’a pas été enregistrée. Réessayez dans un instant.')),
@@ -333,6 +368,15 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                             </label>
                           )}
                         </div>
+
+                        {medium === 'ecesu' && (
+                          <PreuveECesu
+                            fichier={preuve}
+                            onFichier={setPreuve}
+                            reference={preuveRef}
+                            onReference={setPreuveRef}
+                          />
+                        )}
                       </div>
                     )}
                   </MethodCard>
@@ -623,6 +667,110 @@ function Line({ label, value, accent }: { label: string; value: string; accent?:
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-white/70">{label}</dt>
       <dd className={`shrink-0 tabular-nums ${accent ? 'font-semibold text-mint' : 'text-white'}`}>{value}</dd>
+    </div>
+  )
+}
+
+/* ── La confirmation de l'émetteur ─────────────────────────────────────────── */
+
+/**
+ * Un virement e-CESU se prouve. L'émetteur envoie une confirmation, et c'est
+ * elle que le batch cooker regardera avant de dire « j'ai reçu ». L'API la
+ * rend obligatoire ; l'écran le dit avant le clic plutôt qu'après le refus.
+ *
+ * Le fichier ne part qu'au moment de déclarer : tant que la personne hésite,
+ * rien n'est envoyé.
+ */
+function PreuveECesu({
+  fichier,
+  onFichier,
+  reference,
+  onReference,
+}: {
+  fichier: File | null
+  onFichier: (f: File | null) => void
+  reference: string
+  onReference: (v: string) => void
+}) {
+  const [refus, setRefus] = useState<string | null>(null)
+
+  function choisir(f: File | null) {
+    setRefus(null)
+    if (!f) {
+      onFichier(null)
+      return
+    }
+    const probleme = verifiePreuve(f)
+    if (probleme) {
+      setRefus(probleme)
+      onFichier(null)
+      return
+    }
+    onFichier(f)
+  }
+
+  return (
+    <div className="space-y-3 border-t border-[rgba(31,42,55,0.08)] pt-3">
+      <div>
+        <label
+          htmlFor="preuve-ecesu"
+          className="block text-[13px] font-semibold text-navy"
+        >
+          Confirmation de votre émetteur <span className="text-red-700">*</span>
+        </label>
+        <p className="mt-1 text-[13px] leading-relaxed text-ink-mid">
+          Le mail ou le relevé qui atteste du virement. Sans lui, la déclaration
+          est refusée.
+        </p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label
+            htmlFor="preuve-ecesu"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-paper px-3.5 py-2 text-[13px] font-semibold text-navy shadow-[0_1px_0_rgba(31,42,55,0.12)] transition-colors hover:bg-cream-deep"
+          >
+            <Paperclip className="h-3.5 w-3.5" aria-hidden />
+            {fichier ? 'Changer le fichier' : 'Joindre le justificatif'}
+          </label>
+          {fichier && (
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-ink-mid">
+              <FileCheck2 className="h-3.5 w-3.5 shrink-0 text-mint-ink" aria-hidden />
+              <span className="truncate">{fichier.name}</span>
+              <button
+                type="button"
+                onClick={() => choisir(null)}
+                className="shrink-0 text-ink-soft underline underline-offset-2 hover:text-red-700"
+              >
+                retirer
+              </button>
+            </span>
+          )}
+        </div>
+
+        <input
+          id="preuve-ecesu"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          className="sr-only"
+          onChange={(e) => choisir(e.target.files?.[0] ?? null)}
+        />
+
+        <p
+          className={`mt-1.5 text-[12px] ${refus ? 'font-semibold text-red-700' : 'text-ink-soft'}`}
+          role={refus ? 'alert' : undefined}
+        >
+          {refus ?? `PDF, JPG, PNG ou WebP, ${PREUVE_MAX_MO} Mo au plus.`}
+        </p>
+      </div>
+
+      <label className="block text-[13px] font-semibold text-navy">
+        Référence de l’émetteur <span className="font-normal text-ink-soft">(facultatif)</span>
+        <input
+          value={reference}
+          onChange={(e) => onReference(e.target.value)}
+          placeholder="Numéro lu sur le mail de confirmation"
+          className="input-base mt-1.5"
+        />
+      </label>
     </div>
   )
 }

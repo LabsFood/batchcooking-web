@@ -104,11 +104,26 @@ export function useCardCheckout(bookingId: string) {
   })
 }
 
+/**
+ * Déclarer un règlement en titres CESU.
+ *
+ * `proofUploadId` est **obligatoire pour l'e-CESU** : sans la confirmation de
+ * l'émetteur, l'API refuse la déclaration. Il s'obtient par
+ * `useUploadCesuProof` avant d'arriver ici. Sur des titres papier, il n'y a
+ * rien à joindre.
+ */
 export function useDeclareCesu(bookingId: string) {
   const apiFetch = useApiFetch()
   const refresh = useRefresh(bookingId)
   return useMutation({
-    mutationFn: (input: { amountCents: number; medium: CesuMedium; issuer?: CesuIssuer }) =>
+    mutationFn: (input: {
+      amountCents: number
+      medium: CesuMedium
+      issuer?: CesuIssuer
+      proofUploadId?: string
+      /** La référence lue sur le mail de l'émetteur. Facultative. */
+      clientProofRef?: string
+    }) =>
       apiFetch('/payments/cesu', {
         method: 'POST',
         body: {
@@ -116,6 +131,10 @@ export function useDeclareCesu(bookingId: string) {
           amountTtc: input.amountCents,
           medium: input.medium,
           ...(input.medium === 'ecesu' && input.issuer ? { issuer: input.issuer } : {}),
+          ...(input.proofUploadId ? { proofUploadId: input.proofUploadId } : {}),
+          ...(input.clientProofRef?.trim()
+            ? { clientProofRef: input.clientProofRef.trim() }
+            : {}),
         },
       }),
     onSettled: refresh,
@@ -155,3 +174,132 @@ export const CESU_ISSUERS: { id: CesuIssuer; label: string }[] = [
   { id: 'domiserve', label: 'Domiserve' },
   { id: 'other', label: 'Autre' },
 ]
+
+/* ── La preuve e-CESU ──────────────────────────────────────────────────────── */
+
+/**
+ * Un virement e-CESU ne se déclare pas sans la confirmation de l'émetteur :
+ * `proofUploadId` est **obligatoire** pour `medium: 'ecesu'`. Le fichier ne
+ * passe pas par l'API — on demande un lien, on y dépose le fichier, et c'est
+ * l'`uploadId` qu'on joint à la déclaration.
+ *
+ * PDF, JPEG, PNG ou WebP, 10 Mo au plus : ce n'est pas la même règle que les
+ * photos de plats, d'où un vérificateur à part.
+ */
+export const PREUVE_MIME = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]
+export const PREUVE_MAX_MO = 10
+
+export function verifiePreuve(file: File): string | null {
+  if (!PREUVE_MIME.includes(file.type)) {
+    return 'Format non accepté. Déposez un PDF, un JPG, un PNG ou un WebP.'
+  }
+  if (file.size > PREUVE_MAX_MO * 1024 * 1024) {
+    return `Fichier trop lourd. La limite est de ${PREUVE_MAX_MO} Mo.`
+  }
+  if (file.size === 0) return 'Ce fichier est vide.'
+  return null
+}
+
+interface Ticket {
+  uploadId: string
+  method?: string
+  url: string
+  headers?: Record<string, string>
+  expiresAt?: string
+}
+
+/** Dépose le fichier et rend l'`uploadId` à joindre à la déclaration. */
+export function useUploadCesuProof(bookingId: string) {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      const probleme = verifiePreuve(file)
+      if (probleme) throw new Error(probleme)
+
+      const ticket = await apiFetch<Ticket>(
+        `/me/bookings/${bookingId}/cesu-proof/upload-url`,
+        { method: 'POST', body: { contentType: file.type, sizeBytes: file.size } },
+      )
+
+      const res = await fetch(ticket.url, {
+        method: ticket.method || 'PUT',
+        headers: ticket.headers ?? { 'Content-Type': file.type },
+        body: file,
+      }).catch(() => {
+        throw new Error('Le transfert s’est interrompu. Rien n’a été enregistré.')
+      })
+      if (!res.ok) {
+        throw new Error(
+          res.status === 403
+            ? 'Le stockage a refusé le fichier : sa taille ne correspond pas à celle annoncée.'
+            : `Le transfert a échoué (${res.status}).`,
+        )
+      }
+      return ticket.uploadId
+    },
+  })
+}
+
+/** Remplacer une preuve déposée — tant que le batch cooker n'a pas répondu. */
+export function useReplaceCesuProof(bookingId: string) {
+  const apiFetch = useApiFetch()
+  const refresh = useRefresh(bookingId)
+  return useMutation({
+    mutationFn: ({ paymentId, uploadId }: { paymentId: string; uploadId: string }) =>
+      apiFetch(`/me/cesu-payments/${paymentId}/proof`, {
+        method: 'PUT',
+        body: { uploadId },
+      }),
+    onSettled: refresh,
+  })
+}
+
+/** Relire sa propre preuve : un lien signé, valable cinq minutes. */
+export function useMyCesuProofUrl() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: (paymentId: string) =>
+      apiFetch<{ url: string; expiresAt: string }>(
+        `/me/cesu-payments/${paymentId}/proof-url`,
+      ),
+  })
+}
+
+/* ── Le reste à payer ──────────────────────────────────────────────────────── */
+
+export interface PaymentStatus {
+  bookingId: string
+  amountTtcCents: number
+  /** Somme des paiements **soldés** — un CESU en attente n'y est pas. */
+  coveredAmountCents: number
+  remainingAmountCents: number
+  currency: string
+  fullyCovered: boolean
+  cesuAvailable: boolean
+  crcesuNan?: string | null
+}
+
+/**
+ * `GET /me/bookings/{id}/payment-status` — ce qui reste dû.
+ *
+ * Ne compte que les paiements soldés : c'est ce qui permet de régler une
+ * prestation moitié en CESU, moitié en carte, et de ne la confirmer que quand
+ * les parts s'additionnent. Un CESU déclaré mais pas encore confirmé par le
+ * batch cooker ne couvre donc rien — et le dire évite au client de croire
+ * qu'il a payé.
+ */
+export function usePaymentStatus(bookingId: string | undefined) {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'booking', bookingId, 'payment-status'],
+    queryFn: () =>
+      apiFetch<PaymentStatus>(`/me/bookings/${bookingId}/payment-status`),
+    enabled: !!bookingId,
+  })
+}
