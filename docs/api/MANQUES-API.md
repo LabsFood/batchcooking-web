@@ -13,6 +13,7 @@ Livré depuis le 21/10, vérifié : statuts SAP sur `GET /admin/chefs/{id}`,
 | 3 | `GET /admin/clients/{id}` | `200` corps vide sur id inconnu, au lieu de `404` | Haute |
 | 4 | `PATCH /me/profile` | pas de préférences de notification | Basse |
 | 5 | — | pas d'avis, pas de litiges | Décision |
+| 6 | `PATCH /admin/chefs/{id}/zones` | rend `cities: string[]`, attend `{name, dept, insee}` | Haute |
 
 ---
 
@@ -111,6 +112,41 @@ consommateur retombera dedans.
 
 **Si d'autres routes ont le même comportement**, elles nous intéressent aussi :
 nous n'avons audité que celle-ci.
+
+---
+
+## 6. Les zones : ce qui est rendu ne peut pas être renvoyé
+
+**Routes concernées :** `GET /admin/chefs/{id}` et `PATCH /admin/chefs/{id}/zones`
+(livrée le 24/10 — merci).
+
+La lecture rend les villes d'une zone comme de simples noms :
+
+```json
+{ "regionCode": "84", "regionLabel": "Auvergne-Rhône-Alpes",
+  "scope": "cities", "cities": ["Lyon", "Villeurbanne"] }
+```
+
+L'écriture en attend des objets complets (`InterventionCityDto`) :
+
+```json
+{ "regionCode": "84", "regionLabel": "Auvergne-Rhône-Alpes",
+  "scope": "cities",
+  "cities": [{ "name": "Lyon", "dept": "69", "insee": "69123" }] }
+```
+
+Comme le `PATCH` remplace la liste entière, une zone lue ne peut pas être
+réécrite : le `dept` et l'`insee` manquent. La console ne peut donc éditer
+qu'au niveau des régions entières, et doit prévenir qu'enregistrer élargira
+les zones limitées à quelques villes. C'est fonctionnel, mais c'est une perte
+que personne ne devrait avoir à accepter.
+
+**Ce qu'on demande :** rendre `cities` sous la même forme qu'en écriture, dans
+`GET /admin/chefs/{id}` et dans la réponse du `PATCH`. Les trois champs sont
+en base, puisqu'ils viennent de la candidature.
+
+**Validation :** copier les `zones` d'un `GET /admin/chefs/{id}` dans un
+`PATCH /admin/chefs/{id}/zones` laisse le batch cooker inchangé.
 
 ---
 
