@@ -37,11 +37,10 @@ const NAV: {
 }[] = [
   { href: '/espace-client', label: 'Accueil', Icon: LayoutDashboard },
   {
-    href: '/espace-client/chefs',
+    href: '/espace-client/menus',
     label: 'Réserver',
     Icon: ChefHat,
     children: [
-      { href: '/espace-client/chefs', label: 'Trouver un batch cooker' },
       { href: '/espace-client/menus', label: 'Menus & plats' },
       { href: '/espace-client/reservation', label: 'Composer ma session' },
       { href: '/espace-client/personnalisation', label: 'Demande sur-mesure' },
