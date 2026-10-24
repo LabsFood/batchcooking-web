@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 /* Les 5 entrées les plus utilisées, alignées sur la navigation principale. */
 const ITEMS = [
   { href: '/espace-client',           label: 'Accueil',  Icon: LayoutDashboard },
-  { href: '/espace-client/chefs',     label: 'Réserver', Icon: ChefHat },
+  { href: '/espace-client/menus',     label: 'Réserver', Icon: ChefHat },
   { href: '/espace-client/commandes', label: 'Sessions', Icon: CalendarRange },
   { href: '/espace-client/courses',   label: 'Courses',  Icon: ShoppingBasket },
   { href: '/espace-client/compte',    label: 'Compte',   Icon: UserCircle2 },
