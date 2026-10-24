@@ -37,6 +37,7 @@ export interface ChefProfile {
   bio?: string | null
   city?: string | null
   serviceRadiusKm: number
+  languages?: string[] | null
   /** Toujours `false` à l'auto-inscription — seul un admin peut l'activer. */
   isActive: boolean
   isVerified: boolean
@@ -70,6 +71,8 @@ export interface ChefProfilePatch {
   city?: string
   /** Distance que le chef accepte de parcourir, en kilomètres. */
   serviceRadiusKm?: number
+  /** Codes de `GET /referentials/languages`. Remplace toute la liste ; `[]` l'efface. */
+  languages?: string[]
   /** Avec `lastName`, compose `users.full_name` et se synchronise vers Clerk. */
   firstName?: string
   lastName?: string

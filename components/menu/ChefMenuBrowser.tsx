@@ -27,7 +27,7 @@ import {
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
-import { useDiets, useRegions } from '@/lib/api/referentials'
+import { useDiets, useLanguages, useRegions } from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -649,6 +649,13 @@ function ChefPanel({ card }: { card: WeekCard }) {
     )
   }, [chef?.zones])
 
+  // Les langues arrivent de `GET /chefs/{id}` depuis le 24/10 ; le référentiel
+  // donne le libellé français du code.
+  const referentiel = useLanguages()
+  const langues = (chef?.languages ?? [])
+    .map((c) => referentiel.find((l) => l.code === c)?.label ?? c)
+    .join(' · ')
+
   const faits: { icon: typeof MapPin; label: string; value: string }[] = [
     ...(zones.length > 0
       ? [{ icon: MapPin, label: 'Se déplace', value: zones.join(' · ') }]
@@ -665,6 +672,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
       label: 'Cette semaine',
       value: placesLabel(card.slotsLeft),
     },
+    ...(langues ? [{ icon: Languages, label: 'Parle', value: langues }] : []),
   ]
 
   return (
