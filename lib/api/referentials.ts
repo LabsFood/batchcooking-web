@@ -52,6 +52,22 @@ export function useDiets(fallback: RefItem[] = []) {
   return q.data ?? fallback
 }
 
+/**
+ * Les langues qu'un batch cooker peut déclarer parler avec ses clients.
+ *
+ * Référentiel fermé côté API — vingt-quatre codes, du français au wolof. Un
+ * champ libre aurait donné « Anglais », « anglais », « EN » et « English »
+ * dans la même liste, et aucun filtre possible.
+ */
+export function useLanguages(fallback: RefItem[] = []) {
+  const q = useQuery({
+    queryKey: ['referentials', 'languages'],
+    queryFn: () => fetchRef('languages', 'languages'),
+    staleTime: HOUR,
+  })
+  return q.data ?? fallback
+}
+
 export function useAllergens(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'allergens'],
