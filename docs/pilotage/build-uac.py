@@ -212,6 +212,36 @@ ADMIN = [
     ("Échanges", "A-56", "Je modère les avis déposés par les clients.", "Ouvrir Avis.", "/avis", "—", "Hors MVP", ""),
 ]
 
+# Relevé du 24/10 : ce que le backend a livré et ce que nous avons branché
+# depuis. La clef est la référence ; la valeur, le nouveau statut et sa
+# remarque. Mettre à jour ici évite de rouvrir chaque tuple.
+MISES_A_JOUR = {
+    # Les douze routes du module argent, côté console.
+    "A-45": ("Livré", "Branché le 24/10"),
+    "A-46": ("Livré", "Branché le 24/10"),
+    "A-47": ("Livré", "Référence de justificatif obligatoire"),
+    "A-48": ("Livré", "Branché le 24/10"),
+    "A-49": ("Livré", "Branché le 24/10 — rien ne facturait avant"),
+    "A-50": ("Livré", "Branché le 24/10"),
+    "A-51": ("Livré", "L'écran dit quand la passerelle n'est pas simulée"),
+    "A-52": ("Livré", "Idem"),
+    "A-53": ("Livré", "Branché le 24/10"),
+    "A-54": ("Livré", "L'écran Transactions lit les douze routes"),
+    # Côté client.
+    "C-19": ("Livré", "Obligatoire pour l'e-CESU : sans elle, l'API refusait"),
+    "C-20": ("Livré", "Branché le 24/10"),
+    "C-21": ("Livré", "Ne compte que les paiements soldés, et le dit"),
+    "C-48": ("Livré", "Écrit, mais l'API ne le rend pas en lecture — demande n° 1"),
+    # Les deux routes livrées par le backend, et les quatre derniers écrans.
+    "A-21": ("Livré", "Branché le 24/10"),
+    "B-06": ("Livré", "La page de candidature devient un formulaire de correction"),
+    "B-10": ("Livré", "Console seulement ; régions entières — demande n° 6"),
+    "B-11": ("Livré", "Référentiel livré par le backend le 24/10"),
+    "B-12": ("Livré", "L'écran manquait jusqu'au 24/10 malgré les routes"),
+    "B-13": ("Livré", "Comparé à ce que le client voit vraiment"),
+    "B-39": ("Livré", "Branché le 24/10"),
+}
+
 MODULES = [
     ("Visiteur — site public", VISITEUR),
     ("Client", CLIENT),
@@ -226,6 +256,7 @@ with io.open(sortie, "w", encoding="utf-8-sig", newline="") as f:
     w.writerow(ENTETES)
     for module, lignes in MODULES:
         for theme, ref, critere, verif, ecran, route, statut, remarque in lignes:
+            statut, remarque = MISES_A_JOUR.get(ref, (statut, remarque))
             role = module.split(" —")[0].lower()
             w.writerow([
                 module, theme, ref,
@@ -236,8 +267,9 @@ with io.open(sortie, "w", encoding="utf-8-sig", newline="") as f:
 total = sum(len(l) for _, l in MODULES)
 print("écrit :", sortie)
 print(total, "critères")
+statut_final = lambda l: MISES_A_JOUR.get(l[1], (l[6], None))[0]
 for module, lignes in MODULES:
-    c = Counter(x[6] for x in lignes)
+    c = Counter(statut_final(x) for x in lignes)
     print(f"  {module:26} {len(lignes):3}  " + " · ".join(f"{k} {v}" for k, v in sorted(c.items())))
-globale = Counter(x[6] for _, l in MODULES for x in l)
+globale = Counter(statut_final(x) for _, l in MODULES for x in l)
 print("  " + "TOTAL".ljust(26) + f" {total:3}  " + " · ".join(f"{k} {v}" for k, v in sorted(globale.items())))

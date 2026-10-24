@@ -742,3 +742,41 @@ export function slot(b: Booking): string | null {
   const fin = hour(b.endsAt)
   return fin ? `${debut} → ${fin}` : debut
 }
+
+/* ── Réserver pour un de ses clients ───────────────────────────────────────── */
+
+export interface ChefBookingInput {
+  serviceOfferId: string
+  startsAt: string
+  clientId: string
+  persons?: number
+  addressLine?: string
+  addressCity?: string
+  addressPostalCode?: string
+  notes?: string
+  shoppingByClient?: boolean
+  extraMeals?: number
+  meals?: { mealId: string; portions: number }[]
+}
+
+/**
+ * `POST /chef/bookings` — proposer une prestation à un client qu'on connaît
+ * déjà : quelqu'un avec qui on a une prestation passée ou une conversation.
+ *
+ * Elle naît `pending`, sur une de mes offres, à une heure où je suis libre.
+ * **Le client l'accepte en la payant**, dans les 72 heures — ce n'est donc pas
+ * une réservation imposée, c'est une proposition qui tient le créneau.
+ */
+export function useCreateChefBooking() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: (input: ChefBookingInput) =>
+      apiFetch<Booking>('/chef/bookings', { method: 'POST', body: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...meKey, 'chef-bookings'] })
+      qc.invalidateQueries({ queryKey: [...meKey, 'agenda'] })
+    },
+  })
+}

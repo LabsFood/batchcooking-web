@@ -398,6 +398,78 @@ export function buildPayload(v: ApplicationValues, acceptedAt: string): Applicat
   }
 }
 
+/**
+ * L'inverse de `buildPayload` : les réponses déjà enregistrées redeviennent un
+ * formulaire.
+ *
+ * Sert au redépôt après un refus. Refaire saisir dix minutes de formulaire à
+ * quelqu'un dont on vient de refuser le dossier, pour corriger une ligne, est
+ * le meilleur moyen de ne jamais le revoir.
+ *
+ * Ce qui manque reste vide plutôt que deviné : `consent` notamment, qui doit
+ * être recoché — on ne consent pas une seconde fois par héritage.
+ */
+export function valuesFromAnswers(a: ApplicationAnswersLike): ApplicationValues {
+  const zones: Zone[] = (a.interventionZones ?? []).map((z0) => ({
+    regionCode: z0.regionCode ?? '',
+    wholeRegion: z0.scope !== 'cities',
+    cities: (z0.cities ?? []).flatMap((c) =>
+      c.name && c.dept && c.insee
+        ? [{ name: c.name, dept: c.dept, insee: c.insee }]
+        : [],
+    ),
+  }))
+
+  const sapTypeA = a.company?.sap?.path === 'type-a'
+
+  return {
+    ...DEFAULT_VALUES,
+    firstName: a.identity?.firstName ?? '',
+    lastName: a.identity?.lastName ?? '',
+    email: a.identity?.email ?? '',
+    phone: a.identity?.phone ?? '',
+    street: a.address?.street ?? '',
+    addressLine2: a.address?.line2 ?? '',
+    postcode: a.address?.postcode ?? '',
+    city: a.address?.city ?? '',
+    zones: zones.filter((z0) => z0.regionCode),
+    workStatus: (a.workAuthorization?.status ?? undefined) as WorkStatus,
+    workStatusOther: a.workAuthorization?.details ?? '',
+    legalForm: (a.company?.legalForm ?? undefined) as LegalForm,
+    siret: a.company?.siret ?? '',
+    sapTypeA,
+    sapNumber: sapTypeA ? (a.company?.sap?.declarationNumber ?? '') : '',
+    consent: false,
+  }
+}
+
+/** Ce que `applicationAnswers()` rend — redit ici pour ne pas croiser les imports. */
+export interface ApplicationAnswersLike {
+  identity?: {
+    firstName?: string
+    lastName?: string
+    email?: string
+    phone?: string
+  }
+  address?: {
+    street?: string
+    line2?: string | null
+    postcode?: string
+    city?: string
+  }
+  interventionZones?: {
+    regionCode?: string
+    scope?: 'region' | 'cities'
+    cities?: { name?: string; dept?: string; insee?: string }[]
+  }[]
+  workAuthorization?: { status?: string; details?: string | null }
+  company?: {
+    legalForm?: string
+    siret?: string | null
+    sap?: { path?: string; declarationNumber?: string | null }
+  }
+}
+
 /** Multipart envoyé à l'API : le JSON + un fichier par pièce (`documents[<type>]`). */
 /** Pièce telle que l'API la décrit dans sa réponse. */
 export interface ApplicationDocument {
