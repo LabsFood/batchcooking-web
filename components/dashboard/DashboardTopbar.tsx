@@ -25,10 +25,6 @@ const TITLES: Record<string, { title: string; sub?: string }> = {
     title: 'Composer ma session',
     sub: 'Choisir un batch cooker, puis ses plats.',
   },
-  '/espace-client/chefs': {
-    title: 'Trouver un batch cooker',
-    sub: 'Ceux qui interviennent chez vous.',
-  },
   '/espace-client/courses': {
     title: 'Ma liste de courses',
     sub: 'Rangée par rayon, prête à emporter.',

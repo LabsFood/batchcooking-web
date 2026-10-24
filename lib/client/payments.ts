@@ -105,7 +105,7 @@ export function methodsFor(chefId: string): MethodAvailability[] {
         reason: URSSAF_BLOCKED[urssaf],
         action:
           urssaf === 'none'
-            ? { label: 'Demander le rattachement', href: '/espace-client/chefs' }
+            ? { label: 'Demander le rattachement', href: '/espace-client/menus' }
             : undefined,
       }
     }
