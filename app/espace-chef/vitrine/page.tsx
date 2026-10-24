@@ -400,13 +400,13 @@ export default function ChefShowcasePage() {
             )}
           </div>
 
-          {/* Ce que l'API ne sait pas encore stocker. Nommé, pas simulé. */}
-          <Card title="Prévu, pas encore enregistrable">
+          {/* Ce qui se règle ailleurs, et ce qui ne se règle pas du tout. */}
+          <Card title="Ce qui ne se saisit pas ici">
             <p className="text-[13px] leading-relaxed text-ink-mid">
-              Trois choses manquent au contrat de l’API et ne peuvent donc pas être
-              saisies ici&nbsp;: les <strong>langues parlées</strong>, les{' '}
-              <strong>badges</strong> tirés de vos pièces facultatives, et les{' '}
-              <strong>moyens de paiement que vous acceptez</strong>.
+              <strong>Les moyens de paiement que vous acceptez</strong> se règlent
+              dans Rémunération. Le CESU préfinancé est le seul qui dépende de
+              vous&nbsp;: la carte est toujours proposée, et l’avance immédiate
+              dépend du rattachement de chaque client à l’URSSAF.
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {Object.values(PAYMENT_METHOD_LABEL).map((l) => (
@@ -418,10 +418,14 @@ export default function ChefShowcasePage() {
                 </span>
               ))}
             </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
-              Le dernier point compte&nbsp;: c’est lui qui décide des moyens proposés au
-              client au moment de régler. En attendant le champ, cet écran de paiement
-              s’appuie sur une liste tenue côté application.
+            <Link href="/espace-chef/remuneration" className="btn btn-outline mt-3 text-xs">
+              Régler mes moyens de paiement
+            </Link>
+
+            <p className="mt-4 text-[13px] leading-relaxed text-ink-mid">
+              <strong>Vos badges</strong> ne se saisissent pas, et c’est voulu&nbsp;:
+              Lab’s Food les pose à partir de vos pièces justificatives. Un badge
+              qu’on s’attribue soi-même ne dirait rien à personne.
             </p>
           </Card>
         </div>
