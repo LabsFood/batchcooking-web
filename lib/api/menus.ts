@@ -240,3 +240,36 @@ export function weekParam(offset: number): string | undefined {
   d.setDate(d.getDate() + offset * 7)
   return d.toISOString().slice(0, 10)
 }
+
+/* ── La vitrine du mois, vue du public ─────────────────────────────────────── */
+
+export interface ShowcasePublicWeek {
+  weekStart: string
+  /** `null` quand le menu de cette semaine n'est pas publié : le client ne voit rien. */
+  menu: { id: string; title: string; imageUrl?: string | null } | null
+}
+
+/**
+ * `GET /chefs/{id}/showcase` — publique.
+ *
+ * À ne pas confondre avec `GET /me/showcase/weeks`, qui rend ce que le batch
+ * cooker a **affecté**. Celle-ci rend ce qu'un client **voit** : une semaine
+ * dont le menu n'est pas publié y vaut `null`. C'est tout l'intérêt de la
+ * montrer à côté — un batch cooker qui a programmé un brouillon croit avoir
+ * une vitrine, et n'en a pas.
+ *
+ * `404` quand le batch cooker n'est pas approuvé et en ligne : ce n'est pas
+ * une panne, c'est qu'il n'a pas encore de page publique.
+ */
+export function useChefShowcase(id: string | undefined) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: ['chef', id, 'showcase'],
+    queryFn: () =>
+      apiFetch<{ from: string; to: string; weeks: ShowcasePublicWeek[] }>(
+        `/chefs/${id}/showcase`,
+      ),
+    enabled: !!id,
+    retry: false,
+  })
+}

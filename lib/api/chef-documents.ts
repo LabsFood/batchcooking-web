@@ -428,3 +428,37 @@ export function applicationPatchMessage(error: unknown): string {
   }
   return e?.message || 'La modification n’a pas été enregistrée.'
 }
+
+/* ── Redéposer après un refus ──────────────────────────────────────────────── */
+
+/**
+ * `POST /me/chef-application/reapply` — même corps que la candidature
+ * publique, mais signé par le compte.
+ *
+ * La même candidature repart en `submitted` avec les nouvelles réponses, et
+ * les pièces déjà déposées restent avec leur statut : on ne refait pas
+ * téléverser une carte d'identité parce qu'un SIRET était faux.
+ *
+ * Deux refus à traduire : `REAPPLY_TOO_EARLY` avant la date portée par
+ * `refusal.allowReapplyAfter`, et `APPLICATION_NOT_REJECTED` si la
+ * candidature n'a pas été refusée.
+ */
+export function useReapply() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: unknown) =>
+      apiFetch<ChefApplication>('/me/chef-application/reapply', {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: APPLICATION_KEY }),
+  })
+}
+
+/** Le refus dit quand on peut revenir. `true` tant que ce jour n'est pas venu. */
+export function reapplyTooEarly(app?: ChefApplication | null): boolean {
+  const quand = app?.refusal?.allowReapplyAfter
+  if (!quand) return false
+  return new Date(quand).getTime() > Date.now()
+}

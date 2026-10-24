@@ -30,6 +30,7 @@ import {
   labelOf,
   requiredDocuments,
   submitApplication,
+  valuesFromAnswers,
   applicationErrorMessage,
   applicationErrorStep,
   type ApplicationCreated,
@@ -41,6 +42,13 @@ import {
   type StepId,
   type WorkStatus,
 } from '@/lib/chef/application'
+import { useAuth } from '@clerk/nextjs'
+import {
+  applicationAnswers,
+  useChefApplication,
+  useReapply,
+  type ChefApplication,
+} from '@/lib/api/chef-documents'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Candidature batch cooker.
@@ -111,15 +119,52 @@ const formatSiret = (raw: string) => {
 export default function BecomeChefPage() {
   // Vrai dans le navigateur, faux au rendu serveur : le brouillon n'existe que côté client.
   const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false)
-  return isClient ? <ApplicationForm draft={readDraft()} /> : <Shell />
+  const { isLoaded, isSignedIn } = useAuth()
+  const application = useChefApplication()
+
+  if (!isClient || !isLoaded) return <Shell />
+
+  /*
+   * Un compte connecté dont la candidature a été refusée ne vient pas
+   * candidater : il vient la corriger. La page devient alors un redépôt,
+   * préremplie de ses réponses — sans quoi il faudrait refaire dix minutes de
+   * formulaire pour changer une ligne, ce qui est le meilleur moyen de ne
+   * jamais revoir quelqu'un.
+   */
+  const refusee = isSignedIn && application.data?.status === 'rejected'
+  if (isSignedIn && application.isPending) return <Shell />
+
+  if (refusee) {
+    return (
+      <ApplicationForm
+        key="redepot"
+        draft={{
+          values: valuesFromAnswers(applicationAnswers(application.data)),
+          step: 'identity',
+          furthest: 0,
+        }}
+        redepot={application.data ?? null}
+      />
+    )
+  }
+
+  return <ApplicationForm draft={readDraft()} />
 }
 
-function ApplicationForm({ draft }: { draft: Draft | null }) {
+function ApplicationForm({
+  draft,
+  redepot = null,
+}: {
+  draft: Draft | null
+  /** La candidature refusée qu'on corrige, ou `null` pour une première fois. */
+  redepot?: ChefApplication | null
+}) {
   const [values, setValues] = useState<ApplicationValues>(draft?.values ?? DEFAULT_VALUES)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [step, setStep] = useState<StepId>(draft?.step ?? 'identity')
   const [furthest, setFurthest] = useState(draft?.furthest ?? 0)
   const [attempted, setAttempted] = useState<Set<StepId>>(() => new Set())
+  const reapply = useReapply()
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [done, setDone] = useState<ApplicationCreated & { email: string } | null>(null)
@@ -199,7 +244,9 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
     setSendError(null)
     try {
       const payload = buildPayload(values, new Date().toISOString())
-      const res = await submitApplication(payload)
+      const res = redepot
+        ? await reapply.mutateAsync(payload)
+        : await submitApplication(payload)
       writeDraft(null)
       setDone({ ...res, email: payload.identity.email })
       window.scrollTo({ top: 0 })
@@ -225,11 +272,24 @@ function ApplicationForm({ draft }: { draft: Draft | null }) {
         {/* ── Étapes ─────────────────────────────────────────────────────── */}
         <aside className="lg:sticky lg:top-10 lg:self-start">
           <h1 className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:text-[32px]">
-            Rejoindre Lab’s Food
+            {redepot ? 'Corriger ma candidature' : 'Rejoindre Lab’s Food'}
           </h1>
           <p className="mt-2 hidden text-sm leading-relaxed text-ink-mid lg:block">
-            Une dizaine de minutes pour candidater. Notre équipe étudie chaque dossier sous 48 h ouvrées.
+            {redepot
+              ? 'Vos réponses sont déjà là : corrigez ce qui doit l’être. Les pièces que vous aviez déposées restent en place.'
+              : 'Une dizaine de minutes pour candidater. Notre équipe étudie chaque dossier sous 48 h ouvrées.'}
           </p>
+
+          {redepot?.refusal?.reason && (
+            <div className="mt-4 rounded-2xl bg-red-50 p-4">
+              <p className="text-[13px] font-semibold text-red-800">
+                Motif du refus
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-ink">
+                {redepot.refusal.reason}
+              </p>
+            </div>
+          )}
 
           {/* Mobile : progression compacte */}
           <div className="mt-4 lg:hidden">
