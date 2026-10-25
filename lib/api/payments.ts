@@ -59,7 +59,7 @@ export interface PaymentOptions {
   savedCards: never[]
 }
 
-export type CesuMedium = 'cesu_paper' | 'ecesu'
+export type CesuMedium = 'ecesu'
 export type CesuIssuer = 'pluxee' | 'edenred' | 'up' | 'bimpli' | 'domiserve' | 'other'
 
 export function usePaymentOptions(bookingId: string, opts: { watch?: boolean } = {}) {
