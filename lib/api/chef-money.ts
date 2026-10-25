@@ -295,6 +295,13 @@ const STATUT: Record<string, string> = {
   none: 'Aucun',
   approved: 'Approuvé',
   refused: 'Refusé',
+  /* Les trois valeurs réellement envoyées par l'API pour l'affiliation CRCESU
+     et l'habilitation URSSAF. `not_started` manquait : un batch cooker sans
+     démarche lisait « not_started » à l'écran. Les deux clefs suivantes ne
+     viennent d'aucune réponse de l'API — elles datent d'un vocabulaire inventé
+     côté console — mais rien ne coûte à les garder le temps qu'un relevé
+     confirme qu'aucun écran ne les attend. */
+  not_started: 'Pas de démarche',
   not_requested: 'Non demandée',
   requested: 'Demandée',
 }
