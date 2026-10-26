@@ -120,7 +120,8 @@ function PayoutMode() {
   }, [retour, router, toast, confirmer])
 
   function signer() {
-    mandat.mutate(`${window.location.origin}/espace-chef/remuneration`, {
+    // Retour par la page publique : un espace connecté renvoyait à la connexion.
+    mandat.mutate(`${window.location.origin}/retour-stripe?vers=/espace-chef/remuneration`, {
       onSuccess: (r) => {
         if (r?.url) window.location.href = r.url
         else toast.error('Stripe n’a pas renvoyé de page de signature')

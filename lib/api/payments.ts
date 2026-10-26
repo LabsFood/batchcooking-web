@@ -88,7 +88,8 @@ export function useCardCheckout(bookingId: string) {
   const apiFetch = useApiFetch()
   return useMutation({
     mutationFn: (amountCents: number) => {
-      const here = `${window.location.origin}/espace-client/commandes/${bookingId}/paiement`
+      // Retour par la page publique : un espace connecté renvoyait à la connexion.
+      const here = `${window.location.origin}/retour-stripe?vers=/espace-client/commandes/${bookingId}/paiement`
       return apiFetch<{ sessionId: string; url: string }>('/payments/checkout-session', {
         method: 'POST',
         body: {
@@ -96,8 +97,8 @@ export function useCardCheckout(bookingId: string) {
           method: 'card',
           amountCents,
           currency: 'eur',
-          successUrl: `${here}?paiement=succes`,
-          cancelUrl: `${here}?paiement=annule`,
+          successUrl: `${here}&paiement=succes`,
+          cancelUrl: `${here}&paiement=annule`,
         },
       })
     },
