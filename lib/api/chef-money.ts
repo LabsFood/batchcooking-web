@@ -1,6 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { DOCUMENTS_KEY } from './chef-documents'
 import { useApiFetch } from './client'
 import { useMeKey } from './keys'
 
@@ -252,7 +253,7 @@ export function useStripeDashboardLink() {
 }
 
 export interface SepaMandate {
-  /** `active`, `pending`, `none`… */
+  /** `pending` · `active` · `revoked` (banque ou batch cooker) · `failed`. */
   status: string
   ibanLast4: string | null
   signedAt: string | null
@@ -268,15 +269,45 @@ export function useSepaMandate() {
   })
 }
 
-/** `POST …/sepa-mandate/setup-intent` — de quoi faire signer le mandat. */
-export function useSepaSetupIntent() {
+/**
+ * `POST …/sepa-mandate/checkout` — la page Stripe où le batch cooker saisit son
+ * IBAN et signe. L'IBAN ne passe jamais par nous. Stripe le renvoie ensuite sur
+ * `returnUrl` avec `?mandat=signe&session_id=…`, ou `?mandat=annule`.
+ *
+ * L'ancien `…/setup-intent` rendait un secret à confirmer avec Stripe Elements,
+ * que cet écran n'a jamais intégré : aucun mandat ne pouvait être signé.
+ */
+export function useSepaMandateCheckout() {
   const apiFetch = useApiFetch()
   return useMutation({
-    mutationFn: () =>
-      apiFetch<{ clientSecret?: string | null }>(
-        '/me/chef-profile/sepa-mandate/setup-intent',
-        { method: 'POST' },
-      ),
+    mutationFn: (returnUrl: string) =>
+      apiFetch<{ url?: string | null }>('/me/chef-profile/sepa-mandate/checkout', {
+        method: 'POST',
+        body: { returnUrl },
+      }),
+  })
+}
+
+/**
+ * `POST …/sepa-mandate/confirm` — au retour de Stripe : active le mandat tout de
+ * suite, sans attendre le webhook. Le rappeler ne change rien.
+ */
+export function useConfirmSepaMandate() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      apiFetch<SepaMandate>('/me/chef-profile/sepa-mandate/confirm', {
+        method: 'POST',
+        body: { sessionId },
+      }),
+    onSuccess: (mandat) => {
+      qc.setQueryData([...meKey, 'sepa-mandate'], mandat)
+      // Le mandat signé rejoint le dossier, et les commissions dues partent.
+      qc.invalidateQueries({ queryKey: DOCUMENTS_KEY })
+      qc.invalidateQueries({ queryKey: [...meKey, 'commission-invoices'] })
+    },
   })
 }
 
@@ -303,6 +334,7 @@ const STATUT: Record<string, string> = {
   paid: 'Payée',
   failed: 'Échec',
   active: 'Actif',
+  revoked: 'Révoqué',
   none: 'Aucun',
   approved: 'Approuvé',
   refused: 'Refusé',

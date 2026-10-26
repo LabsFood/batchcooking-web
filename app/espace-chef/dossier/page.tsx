@@ -30,6 +30,7 @@ import {
   DOC_STATUS_LABEL,
   DOSSIER_LABEL,
   EXPIRING_TYPES,
+  SYSTEM_TYPES,
   FAMILY_HINT,
   FAMILY_LABEL,
   MAX_FILE_MB,
@@ -531,6 +532,8 @@ function DocumentCard({
   // Sept pièces sur dix portent une échéance : on ne demande la date que pour
   // celles-là, et on dit pourquoi. Les autres n'en entendent jamais parler.
   const needsDate = EXPIRING_TYPES.has(doc.type)
+  // Le mandat SEPA se signe chez Stripe : il se relit ici, il ne se dépose pas.
+  const systeme = SYSTEM_TYPES.has(doc.type)
   const deposited = doc.version > 0
   const busy = upload.isPending
   const failure = upload.error instanceof UploadError ? upload.error : null
@@ -784,16 +787,25 @@ function DocumentCard({
        * remplacer ce qui pose problème. Le reste tient dans une icône.
        */}
       <div className={cn('mt-auto flex flex-wrap items-center gap-2 pt-4', !aDeposer && 'pl-2.5')}>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.webp"
-          className="sr-only"
-          id={`file-${doc.type}`}
-          onChange={(e) => pick(e.target.files?.[0] ?? null)}
-        />
+        {systeme ? (
+          <Link
+            href="/espace-chef/remuneration"
+            className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
+          >
+            Changer de compte bancaire
+          </Link>
+        ) : (
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            className="sr-only"
+            id={`file-${doc.type}`}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+        )}
 
-        {aDeposer || probleme ? (
+        {systeme ? null : aDeposer || probleme ? (
           <label
             htmlFor={`file-${doc.type}`}
             className={cn(
