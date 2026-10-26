@@ -112,6 +112,7 @@ export interface Booking {
   paidCents?: number | null
   /** Vue batch cooker seulement. */
   netCents?: number | null
+  collectedNetCents?: number
   commissionCents?: number | null
   /** Vrai tant que la prestation n'est pas entièrement payée. */
   commissionEstimated?: boolean | null
