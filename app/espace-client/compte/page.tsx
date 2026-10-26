@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { CreditCard, Home, Info, MapPin, Plus, ShieldCheck, Star } from 'lucide-react'
-import { ADDRESSES, PAYMENT_CARDS } from '@/lib/client/mock'
+import Link from 'next/link'
+import { CreditCard, Home, Info, MapPin, Pencil, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import { apiMessage } from '@/lib/api/messages'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ClientProfile } from '@/lib/api/types'
 import {
   centimes,
   useFiscalAttestation,
@@ -43,88 +45,83 @@ export default function AccountPage() {
         ))}
       </div>
 
-      {tab === 'addresses' && (
-        <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-bold text-navy">Mes adresses</h2>
-            <button className="btn btn-outline text-xs px-3.5 py-2">
-              <Plus className="w-3.5 h-3.5" /> Ajouter
-            </button>
-          </div>
-          <ul className="space-y-2.5">
-            {ADDRESSES.map((a) => (
-              <li
-                key={a.id}
-                className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex items-start gap-3"
-              >
-                <span className="w-10 h-10 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
-                  <Home className="w-4 h-4 text-terra" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-navy">{a.label}</p>
-                    {a.isDefault && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-mint text-mint-ink font-semibold inline-flex items-center gap-1">
-                        <Star className="w-2.5 h-2.5 fill-current" /> Par défaut
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-ink-mid mt-0.5 inline-flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3 text-ink-soft" />
-                    {a.street}, {a.postalCode} {a.city}
-                  </p>
-                  {a.accessCode && (
-                    <p className="text-[11px] text-ink-soft mt-0.5">Code d&apos;accès : {a.accessCode}</p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {tab === 'addresses' && <Adresse />}
 
-      {tab === 'payments' && (
-        <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-bold text-navy">Mes cartes</h2>
-            <button className="btn btn-outline text-xs px-3.5 py-2">
-              <Plus className="w-3.5 h-3.5" /> Ajouter
-            </button>
-          </div>
-          <ul className="space-y-2.5">
-            {PAYMENT_CARDS.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex items-center gap-3"
-              >
-                <span className="w-10 h-10 rounded-xl bg-navy flex items-center justify-center shrink-0">
-                  <CreditCard className="w-4 h-4 text-amber" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-navy">
-                    {c.brand} •••• {c.last4}
-                  </p>
-                  <p className="text-xs text-ink-soft">Expire {c.expiry}</p>
-                </div>
-                {c.isDefault && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-mint text-mint-ink font-semibold">
-                    Par défaut
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-          <p className="text-[11px] text-ink-soft mt-4 leading-relaxed">
-            Les cartes sont conservées de façon sécurisée par notre prestataire de
-            paiement. Lab&apos;s Food n&apos;a jamais accès à vos numéros.
-          </p>
-        </section>
-      )}
+      {tab === 'payments' && <MoyensDePaiement />}
 
       {tab === 'urssaf' && <AvanceImmediate />}
 
       {tab === 'fiscal' && <Attestation />}
     </div>
+  )
+}
+
+/* ── Adresse ───────────────────────────────────────────────────────────────── */
+
+/**
+ * L'API garde une adresse par compte, sur le profil : celle des sessions. Elle
+ * se modifie dans les paramètres, avec le reste de l'identité.
+ */
+function Adresse() {
+  const me = useMeProfile()
+  const p = me.data?.profileType === 'client' ? (me.data.profile as ClientProfile) : null
+  const ville = [p?.addressPostalCode, p?.addressCity].filter(Boolean).join(' ')
+  const ligne = [p?.addressStreet, ville].filter(Boolean).join(', ')
+
+  return (
+    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-display text-lg font-bold text-navy">Mon adresse</h2>
+        <Link href="/espace-client/parametres" className="btn btn-outline text-xs px-3.5 py-2">
+          <Pencil className="w-3.5 h-3.5" /> {ligne ? 'Modifier' : 'Ajouter'}
+        </Link>
+      </div>
+      {me.isPending ? (
+        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
+      ) : me.isError ? (
+        <p className="text-sm text-ink-soft">{apiMessage(me.error)}</p>
+      ) : ligne ? (
+        <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex items-start gap-3">
+          <span className="w-10 h-10 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
+            <Home className="w-4 h-4 text-terra" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-navy">Adresse des sessions</p>
+            <p className="text-xs text-ink-mid mt-0.5 inline-flex items-center gap-1.5">
+              <MapPin className="w-3 h-3 text-ink-soft" />
+              {ligne}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="rounded-2xl bg-cream-soft px-4 py-6 text-center text-sm text-ink-mid">
+          Aucune adresse enregistrée.
+        </p>
+      )}
+    </section>
+  )
+}
+
+/* ── Moyens de paiement ────────────────────────────────────────────────────── */
+
+/**
+ * Aucune carte n'est enregistrée : chaque paiement passe par Stripe Checkout,
+ * sans client Stripe, et la carte ne sert qu'une fois.
+ */
+function MoyensDePaiement() {
+  return (
+    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+      <h2 className="font-display text-lg font-bold text-navy mb-4">Moyens de paiement</h2>
+      <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
+        <CreditCard className="mx-auto h-5 w-5 text-ink-soft" aria-hidden />
+        <p className="mt-2 text-sm text-ink-mid">Aucune carte enregistrée.</p>
+        <p className="mx-auto mt-1 max-w-prose text-xs leading-relaxed text-ink-soft">
+          Chaque prestation se règle au moment du paiement, sur la page sécurisée de Stripe :
+          votre carte n’est pas conservée. Les titres CESU et l’avance immédiate se choisissent
+          sur ce même écran.
+        </p>
+      </div>
+    </section>
   )
 }
 
