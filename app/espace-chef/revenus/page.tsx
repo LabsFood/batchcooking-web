@@ -183,7 +183,7 @@ export default function ChefEarningsPage() {
                       {p.bookingReference ?? ''}
                     </span>
                     <span className="ml-auto text-ink-soft">
-                      {statutLabel(p.paymentStatus)}
+                      {statutLabel(p.settlementStatus)}
                       {p.rejectionReason ? ` — « ${p.rejectionReason} »` : ''}
                     </span>
                   </li>

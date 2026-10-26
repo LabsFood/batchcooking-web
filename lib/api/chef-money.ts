@@ -310,4 +310,4 @@ export const statutLabel = (s?: string | null) => (s ? (STATUT[s] ?? s) : '—')
 
 /** Un paiement CESU qui attend le geste du batch cooker. */
 export const cesuAttendMoi = (p: CesuPayment) =>
-  p.paymentStatus === 'declared' && !p.confirmedAt && !p.rejectionReason
+  p.settlementStatus === 'declared'
