@@ -83,6 +83,7 @@ const longDate = (iso: string) =>
 const MESSAGES: Record<string, string> = {
   AMOUNT_MISMATCH: 'Le montant dû a changé. La page vient d’être mise à jour : vérifiez et recommencez.',
   BOOKING_NOT_DUE: 'Cette prestation n’a pas encore eu lieu.',
+  CHEF_UNAVAILABLE: 'Ce batch cooker ne peut pas recevoir de paiement pour le moment. Réessayez plus tard.',
   URSSAF_REQUEST_PENDING: 'Votre demande est déjà transmise à l’URSSAF.',
   URSSAF_UNAVAILABLE: 'L’URSSAF ne répond pas pour le moment. Réessayez, ou choisissez un autre moyen.',
 }
