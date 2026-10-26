@@ -24,6 +24,7 @@ import {
   useSaveSapProfile,
   useSepaMandate,
   useSepaSetupIntent,
+  useStripeDashboardLink,
   useStripeLink,
   useStripeStatus,
   type SapDeclarationType,
@@ -71,6 +72,7 @@ export default function ChefPayoutModePage() {
   const save = useSaveSapProfile()
   const stripe = useStripeStatus()
   const lien = useStripeLink()
+  const tableauDeBord = useStripeDashboardLink()
   const sepa = useSepaMandate()
   const mandat = useSepaSetupIntent()
 
@@ -322,6 +324,7 @@ export default function ChefPayoutModePage() {
                   </p>
                 )}
 
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={() =>
                     lien.mutate(undefined, {
@@ -334,7 +337,7 @@ export default function ChefPayoutModePage() {
                     })
                   }
                   disabled={lien.isPending}
-                  className="btn btn-outline mt-3 w-full justify-center text-xs"
+                  className="btn btn-outline flex-1 justify-center text-xs"
                 >
                   {lien.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -345,6 +348,30 @@ export default function ChefPayoutModePage() {
                     ? 'Ouvrir mon compte Stripe'
                     : 'Créer mon compte Stripe'}
                 </button>
+                {stripe.data?.detailsSubmitted && (
+                  <button
+                    onClick={() =>
+                      tableauDeBord.mutate(undefined, {
+                        onSuccess: (r) => {
+                          if (r?.url) window.location.href = r.url
+                          else toast.error('Stripe n’a pas renvoyé de lien')
+                        },
+                        onError: (e) =>
+                          toast.error('Le tableau de bord n’a pas pu s’ouvrir', apiMessage(e)),
+                      })
+                    }
+                    disabled={tableauDeBord.isPending}
+                    className="btn btn-outline flex-1 justify-center text-xs"
+                  >
+                    {tableauDeBord.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    Mon tableau de bord Stripe
+                  </button>
+                )}
+                </div>
               </>
             )}
           </Card>

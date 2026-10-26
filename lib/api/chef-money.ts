@@ -240,6 +240,17 @@ export function useStripeLink() {
   })
 }
 
+/** `POST …/stripe-connect/dashboard-link` — l'accès à mon tableau de bord Stripe (dossier complet). */
+export function useStripeDashboardLink() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ url?: string | null }>('/me/chef-profile/stripe-connect/dashboard-link', {
+        method: 'POST',
+      }),
+  })
+}
+
 export interface SepaMandate {
   /** `active`, `pending`, `none`… */
   status: string
