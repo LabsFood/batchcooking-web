@@ -10,6 +10,20 @@ import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 import { useAuth } from '@/lib/auth-context'
 
+/*
+ * Deux entrées masquées le temps des mises à jour, à la demande de Lab's Food.
+ *
+ * Elles ne sont pas supprimées : les pages `/devenir-chef` et `/auth/login`
+ * restent en ligne et fonctionnelles, et quiconque a leur adresse — le lien
+ * reçu après une candidature, par exemple — y accède toujours. Seule
+ * l'invitation disparaît de la barre.
+ *
+ * Pour les faire revenir : repasser ces deux constantes à `true`. Rien
+ * d'autre à toucher.
+ */
+const MONTRER_RECRUTEMENT = false
+const MONTRER_CONNEXION = false
+
 const NAV_LINKS = [
   { label: 'Concept', href: '/#concept' },
   { label: 'Menu', href: '/menu' },
@@ -17,7 +31,9 @@ const NAV_LINKS = [
   { label: 'FAQ', href: '/faq' },
   // Entrée de recrutement : elle ne s'adresse pas aux clients, d'où le
   // traitement visuel distinct (encadré discret) et sa place en fin de liste.
-  { label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const },
+  ...(MONTRER_RECRUTEMENT
+    ? [{ label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const }]
+    : []),
   { label: 'Contact', href: '/contact' },
 ]
 
@@ -135,12 +151,14 @@ export default function Navbar() {
                   </span>
                 </Link>
             ) : (
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
-              >
-                Connexion
-              </Link>
+              MONTRER_CONNEXION && (
+                <Link
+                  href="/auth/login"
+                  className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+                >
+                  Connexion
+                </Link>
+              )
             )}
             <ReserveButton className="text-xs px-5 py-3">
               Réserver
@@ -203,9 +221,11 @@ export default function Navbar() {
                   {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
                 </Link>
               ) : (
-                <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
-                  Connexion
-                </Link>
+                MONTRER_CONNEXION && (
+                  <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
+                    Connexion
+                  </Link>
+                )
               )}
               <ReserveButton className="justify-center w-full">
                 Réserver ma session
