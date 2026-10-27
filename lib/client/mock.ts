@@ -137,23 +137,6 @@ export const URSSAF_LINKS: UrssafLink[] = [
   { chefId: 'bc_002', chefName: 'Marc Lefèvre', status: 'none' },
 ]
 
-// ── Adresses (CL-12) ────────────────────────────────────────────────────────
-
-export interface Address {
-  id: string
-  label: string
-  street: string
-  postalCode: string
-  city: string
-  accessCode?: string
-  isDefault: boolean
-}
-
-export const ADDRESSES: Address[] = [
-  { id: 'ad_1', label: 'Domicile', street: '15 rue de la Buffa', postalCode: '06000', city: 'Nice', accessCode: 'B1234', isDefault: true },
-  { id: 'ad_2', label: 'Résidence secondaire', street: '8 avenue des Mimosas', postalCode: '06400', city: 'Cannes', isDefault: false },
-]
-
 // ── Litiges (CL-03) ─────────────────────────────────────────────────────────
 
 export type ClientDisputeStatus = 'open' | 'processing' | 'resolved'

@@ -7,26 +7,30 @@ import { useApiFetch } from './client'
    Les chiffres de l'espace client.
 
    Trois routes que j'avais ratées en écrivant le suivi : elles existent depuis
-   le début. Aucune n'a de schéma dans la documentation (c'est BUG-02), donc on
-   lit chaque champ avec précaution et on n'affiche que ce qui arrive.
+   le début. `/me/dashboard` et `/me/stats` ont été remises en forme le 26/10
+   (avant : les lignes brutes de la base, que l'écran ne savait pas lire) ; on
+   lit quand même chaque champ avec précaution et on n'affiche que ce qui arrive.
    ───────────────────────────────────────────────────────────────────────────── */
 
 /** `GET /me/dashboard` — ce que l'accueil du client montre. */
 export interface MyDashboard {
   bookingsCount?: number
   quotesCount?: number
-  /** La dernière réservation passée, `null` quand il n'y en a aucune. */
-  latestBooking?: {
+  /**
+   * La session à venir — en attente, confirmée ou en cours, pas encore finie.
+   * `null` quand il n'y en a aucune.
+   */
+  nextBooking?: {
     id?: string
+    reference?: string | null
     status?: string
-    scheduledAt?: string
-    date?: string
+    startsAt?: string
+    endsAt?: string
     chefName?: string
-    formule?: string
   } | null
 }
 
-/** `GET /me/stats` — tout ce qui a été réservé, additionné. */
+/** `GET /me/stats` — tout ce qui a été réservé, additionné, hors annulations. */
 export interface MyStats {
   totals?: {
     bookings?: number
@@ -34,7 +38,7 @@ export interface MyStats {
     amountTtc?: number
     amountAfterTax?: number
   }
-  /** Nombre de devis par statut. */
+  /** Nombre de devis par statut, seulement ceux qui existent : `{ quoted: 1 }`. */
   quotesByStatus?: Record<string, number>
 }
 

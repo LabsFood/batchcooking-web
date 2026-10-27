@@ -27,6 +27,10 @@ export interface ClientProfile {
   /** Le foyer dimensionne les portions : 1 à 20 adultes, 0 à 20 enfants. */
   householdAdults?: number | null
   householdKids?: number | null
+  /** L'adresse des sessions, en trois colonnes comme côté API. */
+  addressStreet?: string | null
+  addressCity?: string | null
+  addressPostalCode?: string | null
 }
 
 /** Profil prestataire (`chef_profiles`). */
@@ -51,6 +55,8 @@ export interface MeProfile {
   user: Me
   profileType: 'client' | 'chef' | 'none'
   profile: ClientProfile | ChefProfile | null
+  /** Fixé par l'API pour tout le monde : les emails sont transactionnels, le SMS n'existe pas encore. */
+  notificationPreferences?: { email: boolean; sms: boolean }
 }
 
 /**
@@ -90,4 +96,11 @@ export interface ClientProfilePatch {
   /** `householdKids` côté API, pas `householdChildren` : l'orthographe compte. */
   householdAdults?: number
   householdKids?: number
+  /** Ces trois-là vont sur le compte, pas sur le profil ; le nom part aussi chez Clerk. */
+  firstName?: string
+  lastName?: string
+  phone?: string
+  addressStreet?: string
+  addressCity?: string
+  addressPostalCode?: string
 }

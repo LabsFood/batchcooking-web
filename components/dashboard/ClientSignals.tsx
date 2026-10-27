@@ -63,9 +63,12 @@ export function useClientPaletteItems(): PaletteItem[] {
 
 function joursAvant(iso?: string | null): number | null {
   if (!iso) return null
-  const t = Date.parse(iso)
-  if (Number.isNaN(t)) return null
-  return Math.ceil((t - Date.now()) / 86_400_000)
+  const t = new Date(iso)
+  if (Number.isNaN(t.getTime())) return null
+  // En jours de calendrier : une session ce soir est « aujourd'hui », pas
+  // « dans 1 jour ». `round` absorbe les journées de 23 h ou 25 h du changement d'heure.
+  const minuit = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  return Math.round((minuit(t) - minuit(new Date())) / 86_400_000)
 }
 
 export function useClientAlerts(): { alerts: Alert[]; loading: boolean } {
@@ -78,8 +81,8 @@ export function useClientAlerts(): { alerts: Alert[]; loading: boolean } {
     const d = board.data
 
     // ── La prochaine session ───────────────────────────────────────────────
-    const prochaine = d?.latestBooking
-    const quand = prochaine?.scheduledAt ?? prochaine?.date
+    const prochaine = d?.nextBooking
+    const quand = prochaine?.startsAt
     const j = joursAvant(quand)
     if (prochaine && j !== null && j >= 0 && j <= 7) {
       out.push({

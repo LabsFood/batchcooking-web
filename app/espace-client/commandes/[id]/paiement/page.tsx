@@ -83,6 +83,7 @@ const longDate = (iso: string) =>
 const MESSAGES: Record<string, string> = {
   AMOUNT_MISMATCH: 'Le montant dû a changé. La page vient d’être mise à jour : vérifiez et recommencez.',
   BOOKING_NOT_DUE: 'Cette prestation n’a pas encore eu lieu.',
+  CHEF_UNAVAILABLE: 'Ce batch cooker ne peut pas recevoir de paiement pour le moment. Réessayez plus tard.',
   URSSAF_REQUEST_PENDING: 'Votre demande est déjà transmise à l’URSSAF.',
   URSSAF_UNAVAILABLE: 'L’URSSAF ne répond pas pour le moment. Réessayez, ou choisissez un autre moyen.',
 }
@@ -146,7 +147,8 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
     () => data.methods.find((m) => m.available)?.id ?? null,
   )
   const [cesuAmount, setCesuAmount] = useState('')
-  const [medium, setMedium] = useState<CesuMedium>('cesu_paper')
+  // Seul l'e-CESU est proposé : le papier n'est plus accepté.
+  const medium: CesuMedium = 'ecesu'
   const [preuve, setPreuve] = useState<File | null>(null)
   const [preuveRef, setPreuveRef] = useState('')
   const [issuer, setIssuer] = useState<CesuIssuer>('pluxee')
@@ -196,24 +198,22 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
     if (cesuTooHigh || cesuEmpty) return
     setError(null)
 
-    let proofUploadId: string | undefined
-    if (medium === 'ecesu') {
-      if (!preuve) {
-        setError(
-          'Joignez la confirmation de votre émetteur : sans elle, la déclaration est refusée.',
-        )
-        return
-      }
-      try {
-        proofUploadId = await deposer.mutateAsync(preuve)
-      } catch (cause) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : 'Le justificatif n’a pas pu être déposé. Rien n’a été déclaré.',
-        )
-        return
-      }
+    if (!preuve) {
+      setError(
+        'Joignez la confirmation de votre émetteur : sans elle, la déclaration est refusée.',
+      )
+      return
+    }
+    let proofUploadId: string
+    try {
+      proofUploadId = await deposer.mutateAsync(preuve)
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Le justificatif n’a pas pu être déposé. Rien n’a été déclaré.',
+      )
+      return
     }
 
     declare.mutate(
@@ -339,44 +339,27 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                               : `${firstName} confirmera avoir reçu vos titres. Le solde éventuel se règle ensuite par carte.`}
                           </p>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <label className="block text-[13px] font-semibold text-navy">
-                            Forme des titres
-                            <select
-                              value={medium}
-                              onChange={(e) => setMedium(e.target.value as CesuMedium)}
-                              className="input-base mt-1.5"
-                            >
-                              <option value="cesu_paper">Titres papier</option>
-                              <option value="ecesu">e-CESU (dématérialisé)</option>
-                            </select>
-                          </label>
-                          {medium === 'ecesu' && (
-                            <label className="block text-[13px] font-semibold text-navy">
-                              Émetteur
-                              <select
-                                value={issuer}
-                                onChange={(e) => setIssuer(e.target.value as CesuIssuer)}
-                                className="input-base mt-1.5"
-                              >
-                                {CESU_ISSUERS.map((i) => (
-                                  <option key={i.id} value={i.id}>
-                                    {i.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          )}
-                        </div>
+                        <label className="block text-[13px] font-semibold text-navy">
+                          Émetteur
+                          <select
+                            value={issuer}
+                            onChange={(e) => setIssuer(e.target.value as CesuIssuer)}
+                            className="input-base mt-1.5"
+                          >
+                            {CESU_ISSUERS.map((i) => (
+                              <option key={i.id} value={i.id}>
+                                {i.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
 
-                        {medium === 'ecesu' && (
-                          <PreuveECesu
-                            fichier={preuve}
-                            onFichier={setPreuve}
-                            reference={preuveRef}
-                            onReference={setPreuveRef}
-                          />
-                        )}
+                        <PreuveECesu
+                          fichier={preuve}
+                          onFichier={setPreuve}
+                          reference={preuveRef}
+                          onReference={setPreuveRef}
+                        />
                       </div>
                     )}
                   </MethodCard>
@@ -414,6 +397,12 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                 ? euros(0)
                 : euros(remaining)}
           </p>
+          {method === 'cesu' && titresCents > 0 && !cesuTooHigh && remaining - titresCents > 0 && (
+            <p className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-[13px] leading-relaxed">
+              Solde de <strong>{euros(remaining - titresCents)}</strong> à régler par carte
+              une fois vos titres confirmés par {firstName}.
+            </p>
+          )}
           <p className="mt-2 text-[12px] leading-relaxed text-white/60">
             {method === 'urssaf' && chosen
               ? `L’URSSAF prélèvera ensuite ${euros(chosen.debitedLaterCents ?? 0)} sur le compte de votre rattachement et réglera ${firstName} directement.`

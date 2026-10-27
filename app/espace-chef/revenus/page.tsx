@@ -65,12 +65,19 @@ export default function ChefEarningsPage() {
   const annee = prestations.filter(
     (b) => b.paidCents && new Date(b.startsAt).getFullYear() === ANNEE,
   )
-  const netAnnee = annee.reduce((n, b) => n + (b.netCents ?? 0), 0)
-  const commissionAnnee = annee.reduce((n, b) => n + (b.commissionCents ?? 0), 0)
+  const netAnnee = annee.reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
+  // Seulement la commission prélevée sur ce qui est payé : `commissionCents`
+  // y ajoute l'estimation sur le reste à payer.
+  const commissionAnnee = annee.reduce(
+    (n, b) => n + Math.max(0, (b.paidCents ?? 0) - (b.collectedNetCents ?? 0)),
+    0,
+  )
+  // Une prestation payée en partie compte dans les sommes, pas dans ce décompte.
+  const reglees = annee.filter((b) => b.commissionEstimated === false)
   const mois = new Date().getMonth()
   const netMois = annee
     .filter((b) => new Date(b.startsAt).getMonth() === mois)
-    .reduce((n, b) => n + (b.netCents ?? 0), 0)
+    .reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
 
   const ratio = netAnnee / 100 / MICRO_CEILING_EUR
   const alerte = ratio >= MICRO_ALERT_RATIO
@@ -94,8 +101,8 @@ export default function ChefEarningsPage() {
               {bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
             </p>
             <p className="mt-1 text-xs text-ink-soft">
-              Sur {annee.length} prestation{annee.length > 1 ? 's' : ''} réglée
-              {annee.length > 1 ? 's' : ''}
+              Sur {reglees.length} prestation{reglees.length > 1 ? 's' : ''} réglée
+              {reglees.length > 1 ? 's' : ''}
             </p>
           </Card>
 
@@ -183,7 +190,7 @@ export default function ChefEarningsPage() {
                       {p.bookingReference ?? ''}
                     </span>
                     <span className="ml-auto text-ink-soft">
-                      {statutLabel(p.paymentStatus)}
+                      {statutLabel(p.settlementStatus)}
                       {p.rejectionReason ? ` — « ${p.rejectionReason} »` : ''}
                     </span>
                   </li>

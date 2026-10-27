@@ -9,6 +9,7 @@ import {
   Clock,
   Image as ImageIcon,
   Loader2,
+  Pencil,
   Plus,
   RotateCw,
   Sparkles,
@@ -40,10 +41,12 @@ import {
   usePublishDish,
   usePublishMenu,
   useSuggestions,
+  useUpdateMenu,
   type Dish,
   type DishStatus,
   type Menu,
   type MenuDish,
+  type MenuInput,
   type Suggestions,
 } from '@/lib/api/chef-catalog'
 import { apiMessage } from '@/lib/api/messages'
@@ -62,6 +65,11 @@ import { apiMessage } from '@/lib/api/messages'
    ───────────────────────────────────────────────────────────────────────────── */
 
 type Tab = 'dishes' | 'menus' | 'suggestions'
+
+const PERIODS = [
+  { id: 'week', label: 'Semaine' },
+  { id: 'month', label: 'Mois' },
+] as const
 
 const STATUS_STYLE: Record<DishStatus, { dot: string; text: string }> = {
   draft: { dot: 'bg-ink-soft/50', text: 'text-ink-soft' },
@@ -401,23 +409,11 @@ function MenusTab({
   const toast = useToast()
   const create = useCreateMenu()
   const [composing, setComposing] = useState(false)
-  const [title, setTitle] = useState('')
-  const [pitch, setPitch] = useState('')
-  const [shoppingIncluded, setShoppingIncluded] = useState(false)
-  const [picked, setPicked] = useState<string[]>([])
 
   if (query.isPending) return <Skeleton />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos menus" />
 
   const menus = query.data ?? []
-
-  function reset() {
-    setComposing(false)
-    setTitle('')
-    setPitch('')
-    setShoppingIncluded(false)
-    setPicked([])
-  }
 
   return (
     <section>
@@ -428,7 +424,7 @@ function MenusTab({
             : `${menus.length} carte${menus.length > 1 ? 's' : ''}`}
         </p>
         <button
-          onClick={() => (composing ? reset() : setComposing(true))}
+          onClick={() => setComposing((v) => !v)}
           className="btn btn-primary text-xs"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden /> Nouvelle carte
@@ -436,114 +432,28 @@ function MenusTab({
       </div>
 
       {composing && (
-        <div className="mt-4 space-y-5 rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-semibold text-navy">
-                Titre de la carte <span className="text-terra">*</span>
-              </span>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Tour du monde en sept plats"
-                className="input-base"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-semibold text-navy">
-                Accroche
-              </span>
-              <input
-                value={pitch}
-                onChange={(e) => setPitch(e.target.value)}
-                placeholder="Sept plats, sept pays, une semaine de frigo."
-                className="input-base"
-              />
-              <span className="mt-1 block text-xs text-ink-soft">
-                Une phrase, lue par le client sur votre carte.
-              </span>
-            </label>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShoppingIncluded((v) => !v)}
-            aria-pressed={shoppingIncluded}
-            className={`flex w-full items-start gap-2.5 rounded-xl border px-3.5 py-3 text-left transition-colors ${
-              shoppingIncluded
-                ? 'border-mint-deep bg-mint/40'
-                : 'border-[rgba(31,42,55,0.12)] hover:border-mint-deep'
-            }`}
-          >
-            <span
-              aria-hidden
-              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                shoppingIncluded
-                  ? 'border-mint-ink bg-mint-ink text-white'
-                  : 'border-ink-soft/40'
-              }`}
-            >
-              {shoppingIncluded && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-            </span>
-            <span className="text-[13px] leading-snug">
-              <span className="block font-semibold text-navy">
-                Je fais les courses pour cette carte
-              </span>
-              <span className="mt-0.5 block text-ink-mid">
-                Décoché, le client achète lui-même les ingrédients de la liste.
-              </span>
-            </span>
-          </button>
-
-          <DishPicker
-            dishes={dishes}
-            picked={picked}
-            onChange={setPicked}
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() =>
-                create.mutate(
-                  {
-                    title: title.trim(),
-                    pitch: pitch.trim() || null,
-                    shoppingIncluded,
-                    dishIds: picked,
-                  },
-                  {
-                    onSuccess: (menu) => {
-                      reset()
-                      toast.success(
-                        `Carte « ${menu.title} » créée`,
-                        'En brouillon : publiez-la quand elle vous convient.',
-                      )
-                    },
-                    onError: (e) =>
-                      toast.error(
-                        'La carte n’a pas été créée',
-                        apiMessage(e),
-                      ),
-                  },
+        <MenuForm
+          dishes={dishes}
+          submitLabel="Créer la carte"
+          pending={create.isPending}
+          onCancel={() => setComposing(false)}
+          onSubmit={(input) =>
+            create.mutate(input, {
+              onSuccess: (menu) => {
+                setComposing(false)
+                toast.success(
+                  `Carte « ${menu.title} » créée`,
+                  'En brouillon : publiez-la quand elle vous convient.',
                 )
-              }
-              disabled={title.trim().length < 3 || picked.length === 0 || create.isPending}
-              className="btn btn-primary text-xs disabled:opacity-50"
-            >
-              {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Créer la carte
-            </button>
-            <button onClick={reset} className="btn btn-outline text-xs">
-              Annuler
-            </button>
-            {picked.length === 0 && (
-              <p className="basis-full text-xs text-ink-soft">
-                Une carte vide ne peut pas être publiée : choisissez au moins un
-                plat.
-              </p>
-            )}
-          </div>
-        </div>
+              },
+              onError: (e) =>
+                toast.error(
+                  'La carte n’a pas été créée',
+                  apiMessage(e),
+                ),
+            })
+          }
+        />
       )}
 
       {menus.length === 0 && !composing ? (
@@ -555,11 +465,164 @@ function MenusTab({
       ) : (
         <ul className="mt-4 space-y-4">
           {menus.map((m) => (
-            <MenuCard key={m.id} menu={m} />
+            <MenuCard key={m.id} menu={m} dishes={dishes} />
           ))}
         </ul>
       )}
     </section>
+  )
+}
+
+/**
+ * Composer une carte, ou la reprendre : titre, accroche, courses et plats.
+ *
+ * Une carte publiée le reste pendant qu'on la modifie, donc l'API n'y accepte
+ * que des plats déjà publiés : le choix ne propose qu'eux.
+ */
+function MenuForm({
+  initial,
+  dishes,
+  submitLabel,
+  pending,
+  onSubmit,
+  onCancel,
+}: {
+  initial?: Menu
+  dishes: Dish[]
+  submitLabel: string
+  pending: boolean
+  onSubmit: (input: MenuInput) => void
+  onCancel: () => void
+}) {
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [pitch, setPitch] = useState(initial?.pitch ?? '')
+  const [period, setPeriod] = useState(initial?.period ?? 'week')
+  const [shoppingIncluded, setShoppingIncluded] = useState(initial?.shoppingIncluded ?? false)
+  const [picked, setPicked] = useState<string[]>(initial?.dishes.map((d) => d.id) ?? [])
+  const published = initial?.status === 'published'
+
+  return (
+    <div className="mt-4 space-y-5 rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-navy">
+            Titre de la carte <span className="text-terra">*</span>
+          </span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Tour du monde en sept plats"
+            className="input-base"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-navy">
+            Accroche
+          </span>
+          <input
+            value={pitch}
+            onChange={(e) => setPitch(e.target.value)}
+            placeholder="Sept plats, sept pays, une semaine de frigo."
+            className="input-base"
+          />
+          <span className="mt-1 block text-xs text-ink-soft">
+            Une phrase, lue par le client sur votre carte.
+          </span>
+        </label>
+      </div>
+
+      <fieldset>
+        <legend className="mb-1.5 text-[13px] font-semibold text-navy">Durée de la carte</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {PERIODS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPeriod(p.id)}
+              aria-pressed={period === p.id}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                period === p.id
+                  ? 'bg-navy text-white'
+                  : 'bg-cream-soft text-ink-mid hover:text-navy'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <button
+        type="button"
+        onClick={() => setShoppingIncluded((v) => !v)}
+        aria-pressed={shoppingIncluded}
+        className={`flex w-full items-start gap-2.5 rounded-xl border px-3.5 py-3 text-left transition-colors ${
+          shoppingIncluded
+            ? 'border-mint-deep bg-mint/40'
+            : 'border-[rgba(31,42,55,0.12)] hover:border-mint-deep'
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+            shoppingIncluded
+              ? 'border-mint-ink bg-mint-ink text-white'
+              : 'border-ink-soft/40'
+          }`}
+        >
+          {shoppingIncluded && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+        </span>
+        <span className="text-[13px] leading-snug">
+          <span className="block font-semibold text-navy">
+            Je fais les courses pour cette carte
+          </span>
+          <span className="mt-0.5 block text-ink-mid">
+            Décoché, le client achète lui-même les ingrédients de la liste.
+          </span>
+        </span>
+      </button>
+
+      {published && (
+        <p className="rounded-xl bg-cream-soft px-3.5 py-3 text-[13px] text-ink-mid">
+          Cette carte est publiée : seuls vos plats publiés peuvent y entrer.
+          Pour y mettre un brouillon, publiez-le d’abord, ou dépubliez la carte.
+        </p>
+      )}
+
+      <DishPicker
+        dishes={published ? dishes.filter((d) => d.status === 'published') : dishes}
+        picked={picked}
+        onChange={setPicked}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() =>
+            onSubmit({
+              title: title.trim(),
+              pitch: pitch.trim() || null,
+              period,
+              shoppingIncluded,
+              dishIds: picked,
+            })
+          }
+          disabled={title.trim().length < 3 || picked.length === 0 || pending}
+          className="btn btn-primary text-xs disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {submitLabel}
+        </button>
+        <button onClick={onCancel} className="btn btn-outline text-xs">
+          Annuler
+        </button>
+        {picked.length === 0 && (
+          <p className="basis-full text-xs text-ink-soft">
+            Une carte vide ne peut pas être publiée : choisissez au moins un
+            plat.
+          </p>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -829,13 +892,15 @@ function DishPicker({
   )
 }
 
-function MenuCard({ menu }: { menu: Menu }) {
+function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
   const toast = useToast()
+  const update = useUpdateMenu()
   const publish = usePublishMenu()
   const remove = useDeleteMenu()
   const photo = useMenuPhoto()
   const removePhoto = useDeleteMenuPhoto()
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [photoError, setPhotoError] = useState<string | null>(null)
   /** Le geste qu'on s'apprête à faire, le temps de le confirmer. */
   const [geste, setGeste] = useState<'publier' | 'depublier' | 'supprimer' | null>(null)
@@ -921,6 +986,7 @@ function MenuCard({ menu }: { menu: Menu }) {
             </span>
           </p>
           <p className="mt-0.5 text-xs text-ink-soft">
+            {menu.period === 'month' ? 'Carte du mois · ' : 'Carte de la semaine · '}
             {menu.dishes.length} plat{menu.dishes.length > 1 ? 's' : ''}
             {menu.shoppingIncluded ? ' · courses incluses' : ' · sans courses'}
           </p>
@@ -945,6 +1011,13 @@ function MenuCard({ menu }: { menu: Menu }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            aria-expanded={editing}
+            className="btn btn-outline text-xs"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden /> Modifier
+          </button>
           {menu.status === 'published' ? (
             <button
               onClick={() => setGeste('depublier')}
@@ -981,6 +1054,30 @@ function MenuCard({ menu }: { menu: Menu }) {
         <p role="alert" className="px-5 pb-2 text-[13px] text-red-700">
           {photoError}
         </p>
+      )}
+
+      {editing && (
+        <div className="px-5 pb-5">
+          <MenuForm
+            initial={menu}
+            dishes={dishes}
+            submitLabel="Enregistrer"
+            pending={update.isPending}
+            onCancel={() => setEditing(false)}
+            onSubmit={(patch) =>
+              update.mutate(
+                { id: menu.id, patch },
+                {
+                  onSuccess: (saved) => {
+                    setEditing(false)
+                    toast.success(`« ${saved.title} » mise à jour`)
+                  },
+                  onError: (e) => toast.error('La carte n’a pas été modifiée', apiMessage(e)),
+                },
+              )
+            }
+          />
+        </div>
       )}
 
       {menu.dishes.length > 0 && (

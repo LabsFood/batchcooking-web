@@ -104,13 +104,15 @@ export default function ChefHomePage() {
   const prochaine = aVenir[0] ?? null
 
   const annee = maintenant.getFullYear()
-  const reglees = prestations.filter(
+  // Ce qui est entré, pas ce que la prestation rapportera une fois payée en entier.
+  const payees = prestations.filter(
     (b) => b.paidCents && new Date(b.startsAt).getFullYear() === annee,
   )
-  const netAnnee = reglees.reduce((n, b) => n + (b.netCents ?? 0), 0)
-  const netMois = reglees
+  const reglees = payees.filter((b) => b.commissionEstimated === false)
+  const netAnnee = payees.reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
+  const netMois = payees
     .filter((b) => new Date(b.startsAt).getMonth() === maintenant.getMonth())
-    .reduce((n, b) => n + (b.netCents ?? 0), 0)
+    .reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
 
   /** Les demandes qui attendent une offre de ma part. */
   const aRepondre = (quotes.data ?? []).filter((q) =>

@@ -27,6 +27,7 @@ export type ChefDocumentType =
   | 'haccp'
   | 'ddpp'
   | 'vigilance'
+  | 'sepa-mandate'
 
 export type DocumentFamily = 'blocking' | 'conditional' | 'recommended'
 
@@ -290,6 +291,12 @@ export const FAMILY_HINT: Record<DocumentFamily, string> = {
   conditional: 'Demandées d’après ce que vous avez déclaré à la candidature.',
   recommended: 'Elles renforcent votre vitrine et rassurent les clients.',
 }
+
+/**
+ * Pièces que l'API écrit elle-même et qu'on ne dépose pas : le mandat SEPA est
+ * la preuve d'une signature recueillie par Stripe. L'API refuse un dépôt (403).
+ */
+export const SYSTEM_TYPES = new Set<ChefDocumentType>(['sepa-mandate'])
 
 /** Pièces dont l'API exige une date d'expiration au dépôt. */
 export const EXPIRING_TYPES = new Set<ChefDocumentType>([

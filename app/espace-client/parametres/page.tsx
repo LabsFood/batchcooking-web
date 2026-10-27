@@ -2,112 +2,42 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
-import { Bell, Mail, Lock, Eye, EyeOff, Trash2, Download, Globe, Save, Check } from 'lucide-react'
+import { Bell, Mail, Lock, Eye, EyeOff, Trash2, Download, Globe, Save, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useApiFetch } from '@/lib/api/client'
+import { apiMessage } from '@/lib/api/messages'
+import { useMeProfile, useUpdateMeProfile } from '@/lib/api/me-profile'
+import type { ClientProfile, ClientProfilePatch, MeProfile } from '@/lib/api/types'
 import DeleteMyAccount from '@/components/client/DeleteMyAccount'
 
 export default function ParametresPage() {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
   const router = useRouter()
-  const [showPwd, setShowPwd] = useState(false)
-  const [savedAt, setSavedAt] = useState<string | null>(null)
-  const [notifs, setNotifs] = useState({
-    email: true,
-    sms: false,
-    weekly: true,
-    marketing: false,
-  })
-
-  const flash = (label: string) => {
-    setSavedAt(label)
-    setTimeout(() => setSavedAt(null), 1800)
-  }
+  const { user: clerkUser, isLoaded } = useUser()
+  const me = useMeProfile()
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Compte */}
-      <Section title="Mon compte" eyebrow="Identité" Icon={Mail}>
-        <Field label="Nom complet">
-          <input defaultValue={user?.name || ''} className="input-base" />
-        </Field>
-        <Field label="Email">
-          <input type="email" defaultValue={user?.email || ''} className="input-base" />
-        </Field>
-        <Field label="Téléphone">
-          <input type="tel" placeholder="+33 6 XX XX XX XX" className="input-base" />
-        </Field>
-        <Field label="Adresse de la session">
-          <input placeholder="15 rue de la Paix, Paris 75001" className="input-base" />
-        </Field>
-        <button onClick={() => flash('compte')} className="btn btn-primary text-xs">
-          {savedAt === 'compte' ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          {savedAt === 'compte' ? 'Enregistré' : 'Mettre à jour'}
-        </button>
-      </Section>
+      {/* Le formulaire part de ce qui est enregistré : il attend le compte et le profil. */}
+      {me.data && isLoaded ? (
+        <Compte me={me.data} firstName={clerkUser?.firstName ?? ''} lastName={clerkUser?.lastName ?? ''} />
+      ) : (
+        <Section title="Mon compte" eyebrow="Identité" Icon={Mail}>
+          {me.isError ? (
+            <p className="text-sm text-red-700">{apiMessage(me.error, 'Votre compte n’a pas pu être chargé.')}</p>
+          ) : (
+            <div className="h-64 rounded-2xl bg-cream-soft animate-pulse" />
+          )}
+        </Section>
+      )}
 
-      {/* Sécurité */}
-      <Section title="Sécurité" eyebrow="Mot de passe" Icon={Lock}>
-        <Field label="Mot de passe actuel">
-          <div className="relative">
-            <input type={showPwd ? 'text' : 'password'} className="input-base pr-12" />
-            <button
-              type="button"
-              onClick={() => setShowPwd((v) => !v)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-navy"
-            >
-              {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </Field>
-        <Field label="Nouveau mot de passe">
-          <input type="password" className="input-base" placeholder="Minimum 8 caractères" />
-        </Field>
-        <button onClick={() => flash('pwd')} className="btn btn-primary text-xs">
-          {savedAt === 'pwd' ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          Mettre à jour
-        </button>
-      </Section>
+      <Securite />
 
-      {/* Notifications */}
-      <Section title="Notifications" eyebrow="Préférences" Icon={Bell}>
-        {[
-          { key: 'email', label: 'Emails de service', sub: 'Confirmations, rappels, listes de courses.' },
-          { key: 'sms', label: 'SMS de session', sub: 'Pour le jour J, par ton chef.' },
-          { key: 'weekly', label: 'Newsletter hebdo', sub: 'Le menu de la semaine, chaque lundi.' },
-          { key: 'marketing', label: 'Offres spéciales', sub: 'Promos, événements, brunchs surprises.' },
-        ].map((row) => (
-          <div key={row.key} className="flex items-center justify-between py-2.5 border-b border-[rgba(31,42,55,0.06)] last:border-0">
-            <div>
-              <p className="text-sm font-semibold text-navy">{row.label}</p>
-              <p className="text-xs text-ink-soft mt-0.5">{row.sub}</p>
-            </div>
-            <Toggle
-              on={(notifs as any)[row.key]}
-              onChange={(v) => setNotifs({ ...notifs, [row.key]: v } as typeof notifs)}
-            />
-          </div>
-        ))}
-      </Section>
+      <Notifications prefs={me.data?.notificationPreferences} />
 
-      {/* Données + langue */}
-      <Section title="Préférences & données" eyebrow="Confort" Icon={Globe}>
-        <Field label="Langue">
-          <select className="input-base">
-            <option>Français</option>
-            <option>English</option>
-          </select>
-        </Field>
-        <Field label="Devise">
-          <select className="input-base">
-            <option>EUR (€)</option>
-            <option>USD ($)</option>
-          </select>
-        </Field>
-        <button className="inline-flex items-center gap-2 text-sm text-navy font-semibold hover:text-amber-deep transition-colors">
-          <Download className="w-4 h-4" /> Télécharger mes données
-        </button>
-      </Section>
+      <MesDonnees />
 
       {/* Danger zone */}
       <div className="lg:col-span-2 bg-red-50 border border-red-200 rounded-3xl p-6">
@@ -132,6 +62,282 @@ export default function ParametresPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/* ── Mon compte ────────────────────────────────────────────────────────────── */
+
+type CompteFields = Pick<
+  Required<ClientProfilePatch>,
+  'firstName' | 'lastName' | 'phone' | 'addressStreet' | 'addressPostalCode' | 'addressCity'
+>
+
+/**
+ * `PATCH /me/profile` : le prénom, le nom et le téléphone vont sur le compte
+ * (le nom aussi chez Clerk), l'adresse sur le profil. Seuls les champs changés
+ * partent. L'API refuse un champ vide : effacer une valeur n'est pas possible
+ * ici, et un champ vidé est simplement ignoré.
+ */
+function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string; lastName: string }) {
+  const { user: clerkUser } = useUser()
+  const update = useUpdateMeProfile()
+  const profile = me.profileType === 'client' ? (me.profile as ClientProfile) : null
+  const [initial] = useState<CompteFields>(() => ({
+    firstName,
+    lastName,
+    phone: me.user.phone ?? '',
+    addressStreet: profile?.addressStreet ?? '',
+    addressPostalCode: profile?.addressPostalCode ?? '',
+    addressCity: profile?.addressCity ?? '',
+  }))
+  const [form, setForm] = useState(initial)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const set = (key: keyof CompteFields) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  function save() {
+    setError(null)
+    const patch = Object.fromEntries(
+      (Object.keys(form) as (keyof CompteFields)[])
+        .map((k) => [k, form[k].trim()] as const)
+        .filter(([k, v]) => v !== '' && v !== initial[k]),
+    ) as Partial<CompteFields>
+    if (Object.keys(patch).length === 0) return
+    update.mutate(patch, {
+      onSuccess: () => {
+        // L'API a renommé le compte chez Clerk : l'en-tête relit le nom.
+        if (patch.firstName || patch.lastName) clerkUser?.reload()
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1800)
+      },
+      onError: (e) => setError(apiMessage(e)),
+    })
+  }
+
+  return (
+    <Section title="Mon compte" eyebrow="Identité" Icon={Mail}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Prénom">
+          <input value={form.firstName} onChange={set('firstName')} autoComplete="given-name" className="input-base" />
+        </Field>
+        <Field label="Nom">
+          <input value={form.lastName} onChange={set('lastName')} autoComplete="family-name" className="input-base" />
+        </Field>
+      </div>
+      <Field label="Email">
+        <input type="email" value={me.user.email} readOnly disabled className="input-base" />
+        <p className="text-[11px] text-ink-soft mt-1.5">C’est ton identifiant de connexion : il ne se modifie pas ici.</p>
+      </Field>
+      <Field label="Téléphone">
+        <input type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="+33 6 XX XX XX XX" className="input-base" />
+      </Field>
+      <Field label="Adresse de la session">
+        <input value={form.addressStreet} onChange={set('addressStreet')} autoComplete="street-address" placeholder="15 rue de la Paix" className="input-base" />
+      </Field>
+      <div className="grid grid-cols-[120px_1fr] gap-3">
+        <Field label="Code postal">
+          <input value={form.addressPostalCode} onChange={set('addressPostalCode')} autoComplete="postal-code" inputMode="numeric" placeholder="75001" className="input-base" />
+        </Field>
+        <Field label="Ville">
+          <input value={form.addressCity} onChange={set('addressCity')} autoComplete="address-level2" placeholder="Paris" className="input-base" />
+        </Field>
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <button onClick={save} disabled={update.isPending} className="btn btn-primary text-xs">
+        {update.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Enregistré' : 'Mettre à jour'}
+      </button>
+    </Section>
+  )
+}
+
+/* ── Sécurité ──────────────────────────────────────────────────────────────── */
+
+/** Les refus de Clerk qu'on sait dire en français ; le reste garde son texte. */
+const CLERK_ERRORS: Record<string, string> = {
+  form_password_incorrect: 'Le mot de passe actuel est incorrect.',
+  form_password_pwned: 'Ce mot de passe est apparu dans une fuite de données ailleurs : choisis-en un autre.',
+  form_password_length_too_short: '8 caractères minimum.',
+  form_password_not_strong_enough: 'Mot de passe trop faible : mélange lettres, chiffres et symboles.',
+  session_reverification_required: 'Par sécurité, reconnecte-toi puis réessaie.',
+}
+
+function clerkMessage(e: unknown): string {
+  const first = (e as { errors?: { code?: string; longMessage?: string }[] })?.errors?.[0]
+  return (first?.code && CLERK_ERRORS[first.code]) || first?.longMessage || 'Le mot de passe n’a pas été changé.'
+}
+
+/**
+ * Le mot de passe appartient à Clerk : l'API n'en voit jamais. Un compte créé
+ * avec Google n'en a pas encore, il en crée un sans donner l'ancien.
+ */
+function Securite() {
+  const { user } = useUser()
+  const [showPwd, setShowPwd] = useState(false)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [pending, setPending] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasPassword = user?.passwordEnabled ?? true
+
+  async function change() {
+    if (!user) return
+    setError(null)
+    if (next.length < 8) return setError(CLERK_ERRORS.form_password_length_too_short)
+    setPending(true)
+    try {
+      await user.updatePassword({
+        newPassword: next,
+        ...(hasPassword ? { currentPassword: current } : {}),
+        signOutOfOtherSessions: true,
+      })
+      setCurrent('')
+      setNext('')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1800)
+    } catch (e) {
+      setError(clerkMessage(e))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Section title="Sécurité" eyebrow="Mot de passe" Icon={Lock}>
+      {hasPassword && (
+        <Field label="Mot de passe actuel">
+          <div className="relative">
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              autoComplete="current-password"
+              className="input-base pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd((v) => !v)}
+              aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-navy"
+            >
+              {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </Field>
+      )}
+      <Field label={hasPassword ? 'Nouveau mot de passe' : 'Créer un mot de passe'}>
+        <input
+          type={showPwd ? 'text' : 'password'}
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          autoComplete="new-password"
+          className="input-base"
+          placeholder="Minimum 8 caractères"
+        />
+      </Field>
+      <p className="text-[11px] text-ink-soft">Tes autres appareils seront déconnectés.</p>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <button onClick={change} disabled={pending || !next || (hasPassword && !current)} className="btn btn-primary text-xs">
+        {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Mot de passe changé' : 'Mettre à jour'}
+      </button>
+    </Section>
+  )
+}
+
+/* ── Notifications ─────────────────────────────────────────────────────────── */
+
+/**
+ * Ce que l'API envoie, sans interrupteur : elle les fixe pour tout le monde.
+ * Les emails accompagnent les prestations (on ne s'en désabonne pas), et le
+ * SMS n'existe pas encore. Il n'y a ni newsletter ni offre promotionnelle.
+ */
+function Notifications({ prefs }: { prefs?: { email: boolean; sms: boolean } }) {
+  const rows = [
+    {
+      label: 'Emails de service',
+      sub: 'Confirmations, rappels, listes de courses : ils accompagnent tes prestations.',
+      on: prefs?.email ?? true,
+    },
+    { label: 'SMS de session', sub: 'Pour le jour J, par ton batch cooker.', on: prefs?.sms ?? false },
+  ]
+  return (
+    <Section title="Notifications" eyebrow="Préférences" Icon={Bell}>
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center justify-between gap-3 py-2.5 border-b border-[rgba(31,42,55,0.06)] last:border-0">
+          <div>
+            <p className="text-sm font-semibold text-navy">{row.label}</p>
+            <p className="text-xs text-ink-soft mt-0.5">{row.sub}</p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              row.on ? 'bg-mint text-mint-ink' : 'bg-cream-deep text-ink-mid'
+            }`}
+          >
+            {row.on ? 'Activés' : 'Bientôt'}
+          </span>
+        </div>
+      ))}
+    </Section>
+  )
+}
+
+/* ── Mes données ───────────────────────────────────────────────────────────── */
+
+/** `GET /me/export` : le droit d'accès et de portabilité, en un fichier JSON. */
+function MesDonnees() {
+  const apiFetch = useApiFetch()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function download() {
+    setError(null)
+    setPending(true)
+    try {
+      const data = await apiFetch<unknown>('/me/export')
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `labsfood-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError(apiMessage(e, 'Le téléchargement a échoué.'))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Section title="Préférences & données" eyebrow="Confort" Icon={Globe}>
+      <Field label="Langue">
+        <select className="input-base">
+          <option>Français</option>
+          <option>English</option>
+        </select>
+      </Field>
+      <Field label="Devise">
+        <select className="input-base">
+          <option>EUR (€)</option>
+          <option>USD ($)</option>
+        </select>
+      </Field>
+      <p className="text-sm text-ink-mid leading-relaxed">
+        Ton compte, ton profil, tes réservations, tes demandes de devis et tes messages, dans un fichier
+        que tu peux garder ou transmettre.
+      </p>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <button
+        onClick={download}
+        disabled={pending}
+        className="inline-flex items-center gap-2 text-sm text-navy font-semibold hover:text-amber-deep transition-colors disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Télécharger mes données
+      </button>
+    </Section>
   )
 }
 
@@ -174,22 +380,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
       {children}
     </div>
-  )
-}
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        on ? 'bg-amber' : 'bg-cream-deep'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-          on ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
   )
 }

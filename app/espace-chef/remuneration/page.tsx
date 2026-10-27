@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
   Building2,
@@ -22,8 +24,10 @@ import {
   statutLabel,
   useSapProfile,
   useSaveSapProfile,
+  useConfirmSepaMandate,
   useSepaMandate,
-  useSepaSetupIntent,
+  useSepaMandateCheckout,
+  useStripeDashboardLink,
   useStripeLink,
   useStripeStatus,
   type SapDeclarationType,
@@ -43,7 +47,11 @@ import {
      lui. Ce choix décide de qui facture le client et de l'ouverture du crédit
      d'impôt ;
    - **le compte Stripe** qui reçoit les virements ;
-   - **le mandat SEPA** qui autorise Lab's Food à prélever sa commission.
+   - **le mandat SEPA** qui autorise Lab's Food à prélever sa commission. Il
+     se signe sur une page Stripe (l'IBAN ne passe jamais par nous) ; au
+     retour, `?mandat=signe&session_id=…` l'active aussitôt. Sans lui, ni le
+     CESU ni l'avance immédiate ne sont proposés aux clients : leur commission
+     ne peut être que prélevée.
 
    Deux statuts sont en lecture seule parce que c'est l'équipe qui les
    instruit : l'affiliation CRCESU et l'avance immédiate URSSAF. L'écran le
@@ -66,13 +74,62 @@ const VOIES: { id: SapDeclarationType; titre: string; quoi: string; pour: string
 ]
 
 export default function ChefPayoutModePage() {
+  // `useSearchParams` (retour de la page Stripe) impose une frontière Suspense.
+  return (
+    <Suspense fallback={null}>
+      <PayoutMode />
+    </Suspense>
+  )
+}
+
+function PayoutMode() {
   const toast = useToast()
   const sap = useSapProfile()
   const save = useSaveSapProfile()
   const stripe = useStripeStatus()
   const lien = useStripeLink()
+  const tableauDeBord = useStripeDashboardLink()
   const sepa = useSepaMandate()
-  const mandat = useSepaSetupIntent()
+  const mandat = useSepaMandateCheckout()
+  const confirmer = useConfirmSepaMandate()
+  const retour = useSearchParams()
+  const router = useRouter()
+  const traite = useRef(false)
+
+  /* De retour de la page Stripe. Le webhook active aussi le mandat : confirmer
+     ici évite seulement d'attendre qu'il arrive. On nettoie l'adresse pour
+     qu'un rechargement ne rejoue rien. */
+  useEffect(() => {
+    const issue = retour.get('mandat')
+    if (!issue || traite.current) return
+    traite.current = true
+    const sessionId = retour.get('session_id')
+    router.replace('/espace-chef/remuneration', { scroll: false })
+    if (issue === 'annule') {
+      toast.info('Mandat non signé', 'Vous pourrez le signer quand vous voudrez.')
+      return
+    }
+    if (issue === 'signe' && sessionId) {
+      confirmer.mutate(sessionId, {
+        onSuccess: () =>
+          toast.success('Mandat signé', 'Il est rangé dans vos documents.'),
+        onError: (e) =>
+          toast.error('Le mandat n’a pas pu être confirmé', apiMessage(e)),
+      })
+    }
+  }, [retour, router, toast, confirmer])
+
+  function signer() {
+    // Retour par la page publique : un espace connecté renvoyait à la connexion.
+    mandat.mutate(`${window.location.origin}/retour-stripe?vers=/espace-chef/remuneration`, {
+      onSuccess: (r) => {
+        if (r?.url) window.location.href = r.url
+        else toast.error('Stripe n’a pas renvoyé de page de signature')
+      },
+      onError: (e) => toast.error('Le mandat n’a pas pu être préparé', apiMessage(e)),
+    })
+  }
+  const mandatActif = sepa.data?.status === 'active'
 
   const d = sap.data
   const [brouillon, setBrouillon] = useState<SapInput | null>(null)
@@ -208,7 +265,8 @@ export default function ChefPayoutModePage() {
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
                     Le badge « CESU accepté » apparaît alors sur votre vitrine —
-                    mais seulement une fois votre numéro d’affiliation renseigné.
+                    une fois votre numéro d’affiliation renseigné et votre mandat
+                    de prélèvement signé.
                   </span>
                 </span>
               </label>
@@ -322,6 +380,7 @@ export default function ChefPayoutModePage() {
                   </p>
                 )}
 
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={() =>
                     lien.mutate(undefined, {
@@ -334,7 +393,7 @@ export default function ChefPayoutModePage() {
                     })
                   }
                   disabled={lien.isPending}
-                  className="btn btn-outline mt-3 w-full justify-center text-xs"
+                  className="btn btn-outline flex-1 justify-center text-xs"
                 >
                   {lien.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -345,14 +404,40 @@ export default function ChefPayoutModePage() {
                     ? 'Ouvrir mon compte Stripe'
                     : 'Créer mon compte Stripe'}
                 </button>
+                {stripe.data?.detailsSubmitted && (
+                  <button
+                    onClick={() =>
+                      tableauDeBord.mutate(undefined, {
+                        onSuccess: (r) => {
+                          if (r?.url) window.location.href = r.url
+                          else toast.error('Stripe n’a pas renvoyé de lien')
+                        },
+                        onError: (e) =>
+                          toast.error('Le tableau de bord n’a pas pu s’ouvrir', apiMessage(e)),
+                      })
+                    }
+                    disabled={tableauDeBord.isPending}
+                    className="btn btn-outline flex-1 justify-center text-xs"
+                  >
+                    {tableauDeBord.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    Mon tableau de bord Stripe
+                  </button>
+                )}
+                </div>
               </>
             )}
           </Card>
 
           <Card title="Mandat de prélèvement">
             <p className="text-[13px] leading-relaxed text-ink-mid">
-              Lab’s Food prélève sa commission sur ce compte, une fois par
-              période facturée.
+              Sur les prestations réglées en CESU ou par l’avance immédiate,
+              l’argent ne passe pas par Lab’s Food : la commission est prélevée
+              sur votre compte bancaire, facture à l’appui. Sur une carte, elle
+              est retenue au paiement et ce mandat ne sert pas.
             </p>
 
             {sepa.isPending ? (
@@ -374,30 +459,40 @@ export default function ChefPayoutModePage() {
                   )}
                 </dl>
 
-                {sepa.data?.status !== 'active' && (
-                  <button
-                    onClick={() =>
-                      mandat.mutate(undefined, {
-                        onSuccess: () =>
-                          toast.info(
-                            'Mandat prêt à signer',
-                            'La signature se fait sur l’écran sécurisé de notre prestataire.',
-                          ),
-                        onError: (e) =>
-                          toast.error('Le mandat n’a pas pu être préparé', apiMessage(e)),
-                      })
-                    }
-                    disabled={mandat.isPending}
-                    className="btn btn-outline mt-3 w-full justify-center text-xs"
-                  >
-                    {mandat.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <CreditCard className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    Signer le mandat
-                  </button>
+                {!mandatActif && (
+                  <p className="mt-2 flex items-start gap-2 text-[12px] leading-relaxed text-amber-deep">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {sepa.data?.status === 'revoked'
+                      ? 'Votre mandat a été révoqué. Tant qu’il n’est pas signé à nouveau, vos clients ne peuvent plus vous régler en CESU ni par l’avance immédiate.'
+                      : 'Tant que le mandat n’est pas signé, vos clients ne peuvent pas vous régler en CESU ni par l’avance immédiate.'}
+                  </p>
                 )}
+
+                <button
+                  onClick={signer}
+                  disabled={mandat.isPending || confirmer.isPending}
+                  className={`btn ${mandatActif ? 'btn-outline' : 'btn-primary'} mt-3 w-full justify-center text-xs`}
+                >
+                  {mandat.isPending || confirmer.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <CreditCard className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  {mandatActif ? 'Changer de compte bancaire' : 'Signer le mandat'}
+                </button>
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                  La signature se fait sur la page sécurisée de Stripe.
+                  {mandatActif && (
+                    <>
+                      {' '}
+                      Le mandat signé est rangé dans{' '}
+                      <Link href="/espace-chef/dossier" className="font-semibold text-navy underline-offset-2 hover:underline">
+                        vos documents
+                      </Link>
+                      .
+                    </>
+                  )}
+                </p>
               </>
             )}
           </Card>
@@ -408,7 +503,7 @@ export default function ChefPayoutModePage() {
           Ces informations ne sortent jamais vers un client. Seul le badge
           <Wallet className="mx-1 inline h-3 w-3 align-[-1px]" aria-hidden />
           « CESU accepté » apparaît sur votre vitrine, et seulement si votre
-          affiliation est complète.
+          affiliation est complète et votre mandat signé.
         </p>
       </div>
     </ChefPage>

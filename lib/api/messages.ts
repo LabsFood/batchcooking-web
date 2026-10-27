@@ -37,6 +37,9 @@ const CHAMPS: Record<string, string> = {
   startsAt: 'la date et l’heure',
   persons: 'le nombre de personnes',
   addressLine: 'l’adresse',
+  addressStreet: 'l’adresse',
+  firstName: 'le prénom',
+  lastName: 'le nom',
   addressCity: 'la ville',
   addressPostalCode: 'le code postal',
   notes: 'les consignes',
@@ -127,6 +130,9 @@ export function apiMessage(error: unknown, repli = 'L’enregistrement a été r
       return 'Cette action demande un dossier approuvé : l’API l’a refusée.'
     }
     if (error.status === 413) return 'Le fichier est trop lourd pour l’API.'
+    if ((error.body as { code?: string } | null)?.code === 'CHEF_UNAVAILABLE') {
+      return 'Ce batch cooker ne peut pas recevoir de réservation ni de paiement pour le moment.'
+    }
     return error.message || repli
   }
   return error instanceof Error ? error.message : repli
