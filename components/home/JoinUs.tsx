@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, CalendarCheck, ChefHat, ShoppingBasket, Store, Wallet } from 'lucide-react'
+import {
+  MONTRER_CONNEXION,
+  MONTRER_RECRUTEMENT,
+  RIEN_A_REJOINDRE,
+} from '@/lib/flags'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Deux publics, deux portes.
@@ -10,6 +15,11 @@ import { ArrowRight, CalendarCheck, ChefHat, ShoppingBasket, Store, Wallet } fro
    Bas de page d'accueil : le visiteur repart soit en client qui crée son
    compte, soit en cuisinier qui candidate. Les deux colonnes sont traitées à
    égalité, sur deux fonds différents pour qu'on ne confonde pas les chemins.
+
+   Chaque colonne est une invitation à s'inscrire : quand l'inscription est
+   mise en sourdine, la colonne part avec elle. Les deux fermées, la section
+   entière disparaît — une section « deux portes » sans aucune porte serait
+   une promesse vide au bas de l'accueil.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const CLIENT_POINTS = [
@@ -25,6 +35,8 @@ const CHEF_POINTS = [
 ]
 
 export default function JoinUs() {
+  if (RIEN_A_REJOINDRE) return null
+
   return (
     <section className="bg-cream py-20 lg:py-24">
       <div className="container-xl">
@@ -41,8 +53,15 @@ export default function JoinUs() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div
+          className={
+            MONTRER_CONNEXION && MONTRER_RECRUTEMENT
+              ? 'grid grid-cols-1 gap-5 lg:grid-cols-2'
+              : 'mx-auto grid max-w-2xl grid-cols-1 gap-5'
+          }
+        >
           {/* Client */}
+          {MONTRER_CONNEXION && (
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -77,8 +96,10 @@ export default function JoinUs() {
               </Link>
             </div>
           </motion.div>
+          )}
 
           {/* Batch cooker */}
+          {MONTRER_RECRUTEMENT && (
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -120,6 +141,7 @@ export default function JoinUs() {
               </p>
             </div>
           </motion.div>
+          )}
         </div>
       </div>
     </section>

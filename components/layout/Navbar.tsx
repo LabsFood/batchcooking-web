@@ -9,20 +9,7 @@ import { cn } from '@/lib/utils'
 import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 import { useAuth } from '@/lib/auth-context'
-
-/*
- * Deux entrées masquées le temps des mises à jour, à la demande de Lab's Food.
- *
- * Elles ne sont pas supprimées : les pages `/devenir-chef` et `/auth/login`
- * restent en ligne et fonctionnelles, et quiconque a leur adresse — le lien
- * reçu après une candidature, par exemple — y accède toujours. Seule
- * l'invitation disparaît de la barre.
- *
- * Pour les faire revenir : repasser ces deux constantes à `true`. Rien
- * d'autre à toucher.
- */
-const MONTRER_RECRUTEMENT = false
-const MONTRER_CONNEXION = false
+import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
 
 const NAV_LINKS = [
   { label: 'Concept', href: '/#concept' },
