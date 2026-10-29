@@ -305,7 +305,7 @@ export default function ContactForm() {
       {/* Coordonnées et raccourcis */}
       <aside className="space-y-5">
         <div className="rounded-2xl bg-navy p-6 text-white">
-          <h2 className="font-display text-lg font-bold">Nous joindre</h2>
+          <h2 className="font-display text-lg font-bold">Nous contacter</h2>
           <ul className="mt-4 space-y-4 text-sm">
             <li>
               <a href="mailto:contact@labsfood.fr" className="group flex items-center gap-3 text-white/85 hover:text-white">
