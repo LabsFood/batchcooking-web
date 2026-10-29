@@ -74,7 +74,7 @@ export default function AProposPage() {
             <p className="mt-6 text-white/70 text-lg max-w-xl leading-relaxed">
               Lab&apos;s Food, c&apos;est l&apos;histoire d&apos;un déclic devenu service. Une cheffe à
               domicile, votre cuisine, et toute une semaine de repas préparés en une seule
-              session — sur la Côte d&apos;Azur.
+              session.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
