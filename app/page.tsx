@@ -13,9 +13,9 @@ export default function HomePage() {
   return (
     <div className="page-transition">
       <Hero />
+      <HowItWorks />
       <Concept />
       <FoodCarousel />
-      <HowItWorks />
       <FeaturedMenu />
       <TaxCreditBanner />
       <ServiceArea />
