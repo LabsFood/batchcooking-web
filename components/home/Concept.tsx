@@ -3,7 +3,6 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Leaf, Clock, Smile, TrendingDown } from 'lucide-react'
-import { ChefHatSparkle } from '@/components/shared/CookingAnimations'
 
 const PILLARS = [
   {
@@ -66,18 +65,6 @@ export default function Concept() {
                   alt="Cuisinier à domicile"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                 />
-              </div>
-            </div>
-
-            {/* Floating stat badge with chef hat animation */}
-            <div className="absolute -bottom-8 -left-6 lg:-left-10 bg-paper rounded-2xl p-5 shadow-[0_20px_50px_-15px_rgba(31,26,20,0.25)] border border-[rgba(31,26,20,0.06)] flex items-center gap-4">
-              <ChefHatSparkle size={64} />
-              <div>
-                <p className="font-display text-4xl font-bold text-terra leading-none">
-                  30+
-                </p>
-                <p className="text-ink text-sm font-semibold mt-1">Sessions réalisées</p>
-                <p className="text-ink-soft text-xs">en France entière</p>
               </div>
             </div>
           </motion.div>

@@ -2,275 +2,184 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, UtensilsCrossed } from 'lucide-react'
-import { useWeekMenus, weekLabel, type WeekCard, type WeekDish } from '@/lib/api/menus'
-import { useDiets } from '@/lib/api/referentials'
+import { ArrowRight } from 'lucide-react'
+import { useWeekMenus, type WeekCard, type WeekDish } from '@/lib/api/menus'
 import { countryLabel } from '@/lib/chef/countries'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Le menu de la semaine, sur la page d'accueil.
+   « Composez votre menu », sur la page d'accueil.
 
-   Cette section annonçait « cette semaine » en montrant quatre plats écrits en
-   dur dans `lib/mock-data.ts`. Un visiteur voyait une carte inventée ici, puis
-   la vraie sur `/menu` — et un batch cooker qui publiait ses plats ne les
-   voyait jamais apparaître. Elle lit maintenant `GET /menus/week`, la même
-   route que `/menu` et que l'étape de réservation : trois écrans, une source.
+   Il n'y a pas un menu de la semaine : chaque batch cooker tient sa propre
+   carte, et le client y compose le sien. La section ne présente donc plus un
+   menu daté, elle invite à choisir un batch cooker — et montre, en ardoise,
+   quelques plats de leurs cartes pour donner le ton.
 
-   La forme suit ce changement. Quatre cartes identiques traitaient les plats
-   comme des vignettes interchangeables ; une ardoise les traite comme un menu
-   — un plat à la une, puis les suivants en liste, **chacun avec le batch
-   cooker qui le cuisine**. C'est lui qu'on réserve, pas le plat : son nom ne
-   peut pas rester hors du cadre.
+   Les plats viennent de `GET /menus/week`, la même source que `/menu` et que
+   l'étape de réservation. Aucun changement d'API : la route rend déjà, pour
+   chaque batch cooker, sa carte ou à défaut ses plats publiés.
 
-   Quand la semaine est vide — début de saison, personne en ligne — la section
-   le dit et ouvre la demande sur-mesure. Elle ne retombe pas sur des plats
-   fictifs : une carte qui ment est pire qu'une carte vide.
+   Quand il n'y a encore aucun plat, l'ardoise reste vide et dit qu'elle est à
+   composer. Elle ne retombe pas sur des plats fictifs : une carte qui ment est
+   pire qu'une carte vide.
    ───────────────────────────────────────────────────────────────────────────── */
 
 /** Un plat et celui qui le cuisine : l'API les rend ensemble, on les garde ensemble. */
-interface PlatDeLaSemaine {
+interface PlatALaCarte {
   plat: WeekDish
   chef: WeekCard['chef']
 }
 
 const SORTIE = [0.16, 1, 0.3, 1] as const
 
+/** Ce que l'ardoise suggère tant qu'aucun batch cooker n'a publié de plat. */
+const ENVIES = ['Un plat réconfortant', 'Une saveur du monde', 'Une envie du moment']
+
 export default function FeaturedMenu() {
-  const semaine = useWeekMenus({ limit: 6 })
-  const diets = useDiets([])
-  const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
+  const carte = useWeekMenus({ limit: 6 })
 
-  const cartes = semaine.data?.data ?? []
-  const plats: PlatDeLaSemaine[] = cartes
-    .flatMap((carte) => carte.dishes.map((plat) => ({ plat, chef: carte.chef })))
+  const plats: PlatALaCarte[] = (carte.data?.data ?? [])
+    .flatMap((c) => c.dishes.map((plat) => ({ plat, chef: c.chef })))
     .slice(0, 4)
-
-  const [une, ...suite] = plats
-  const vide = !semaine.isPending && plats.length === 0
 
   return (
     <section className="section-padding section-cream relative">
       <div className="container-xl">
-        <motion.div
-          initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.8, ease: SORTIE }}
-          className="mx-auto mb-14 max-w-2xl text-center"
-        >
-          <p className="eyebrow mb-5 justify-center">
-            {semaine.data?.week ? `Semaine ${weekLabel(semaine.data.week)}` : 'Cette semaine'}
-          </p>
-          <h2 className="h-section">
-            Le menu de <span className="accent">la semaine</span>
-          </h2>
-          <p className="mt-5 leading-relaxed text-ink-mid">
-            {cartes.length > 1
-              ? `${cartes.length} batch cookers cuisinent près de chez vous cette semaine. Composez votre carte, ils s'occupent du reste.`
-              : 'Le menu est renouvelé chaque semaine. Composez votre carte, votre batch cooker s’occupe du reste.'}
-          </p>
-        </motion.div>
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
+          {/* ── L'invitation ───────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }}
+            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.8, ease: SORTIE }}
+          >
+            <h2 className="h-section">
+              Composez votre menu, <span className="accent">avec votre batch cooker.</span>
+            </h2>
+            <p className="mt-6 max-w-md leading-relaxed text-ink-mid">
+              Chaque batch cooker propose sa propre carte. Vous choisissez les plats qui vous
+              font envie, il les cuisine chez vous en une seule séance.
+            </p>
 
-        {semaine.isPending ? (
-          <Squelette />
-        ) : vide ? (
-          <Vide />
-        ) : (
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
-            <PlatALaUne entree={une} dietLabel={dietLabel} />
+            <div className="mt-9 flex flex-wrap items-center gap-x-7 gap-y-4">
+              <Link href="/menu" className="btn btn-navy">
+                Choisir mon batch cooker
+                <ArrowRight className="icon-arrow h-4 w-4" />
+              </Link>
+              <Link
+                href="/espace-client/personnalisation"
+                className="text-sm font-semibold text-navy underline decoration-[rgba(31,42,55,0.3)] underline-offset-[5px] transition-colors hover:text-terra hover:decoration-terra"
+              >
+                Une envie précise ? Faire une demande sur mesure
+              </Link>
+            </div>
+          </motion.div>
 
-            {suite.length > 0 && (
-              <ul className="flex flex-col lg:self-center">
-                {suite.map((entree, i) => (
-                  <PlatEnLigne key={entree.plat.id} entree={entree} index={i} />
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {!vide && (
-          <div className="mt-12 flex justify-center">
-            <Link href="/menu" className="btn btn-navy">
-              Voir toute la carte
-              <ArrowRight className="icon-arrow h-4 w-4" />
-            </Link>
-          </div>
-        )}
+          {/* ── L'ardoise ──────────────────────────────────────────────── */}
+          <Ardoise plats={plats} chargement={carte.isPending} />
+        </div>
       </div>
     </section>
   )
 }
 
-/* ── Le plat à la une ──────────────────────────────────────────────────────── */
+/* ── L'ardoise ─────────────────────────────────────────────────────────────── */
 
 /**
- * Le seul moment animé de la section : l'image se pose. Les entrées de droite
- * suivent en décalé, sans refaire la même entrée quatre fois.
+ * Le seul moment animé de la section : les lignes se posent l'une après l'autre,
+ * comme une carte qu'on écrit. Le texte à gauche reste sobre.
  */
-function PlatALaUne({
-  entree,
-  dietLabel,
-}: {
-  entree: PlatDeLaSemaine
-  dietLabel: (code: string) => string
-}) {
-  const { plat, chef } = entree
-  const origine = countryLabel(plat.country)
+function Ardoise({ plats, chargement }: { plats: PlatALaCarte[]; chargement: boolean }) {
+  const vide = !chargement && plats.length === 0
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 32 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.9, ease: SORTIE }}
-    >
-      <Link
-        href="/menu"
-        className="group block overflow-hidden rounded-2xl bg-paper shadow-[0_24px_60px_-32px_rgba(31,42,55,0.45)] outline-none transition-shadow duration-500 hover:shadow-[0_32px_70px_-30px_rgba(31,42,55,0.5)] focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-      >
-        <div className="relative aspect-[5/4] overflow-hidden">
-          {plat.imageUrl ? (
-            <motion.img
-              initial={{ scale: 1.08, filter: 'blur(10px)' }}
-              whileInView={{ scale: 1, filter: 'blur(0px)' }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 1.1, ease: SORTIE }}
-              src={plat.imageUrl}
-              alt={plat.name}
-              className="h-full w-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-cream-deep">
-              <UtensilsCrossed className="h-9 w-9 text-ink-soft" aria-hidden />
-            </div>
-          )}
+    <div className="rounded-2xl bg-paper px-7 py-8 shadow-[0_24px_60px_-32px_rgba(31,42,55,0.45)] lg:px-10 lg:py-10">
+      <p className="font-display text-xl font-bold text-navy">
+        {vide ? 'À composer ensemble' : 'À la carte en ce moment'}
+      </p>
+      <div aria-hidden className="mt-4 h-px bg-[rgba(31,42,55,0.14)]" />
 
-          {plat.diets.length > 0 && (
-            <div className="absolute left-4 top-4 flex flex-wrap gap-1.5">
-              {plat.diets.slice(0, 2).map((code) => (
-                <span
-                  key={code}
-                  className="rounded-full bg-paper/95 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-navy backdrop-blur-sm"
-                >
-                  {dietLabel(code)}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+      <ul>
+        {chargement
+          ? [0, 1, 2].map((i) => <LigneSquelette key={i} />)
+          : vide
+            ? ENVIES.map((envie, i) => <LigneVide key={envie} envie={envie} index={i} />)
+            : plats.map((entree, i) => <LigneDePlat key={entree.plat.id} entree={entree} index={i} />)}
+      </ul>
 
-        <div className="p-6 lg:p-7">
-          <h3 className="font-display text-2xl font-bold leading-tight text-navy transition-colors duration-300 group-hover:text-terra lg:text-[1.75rem]">
-            {plat.name}
-          </h3>
-          <p className="mt-2 text-sm text-ink-mid">
-            Par <span className="font-semibold text-navy">{chef.displayName}</span>
-            {chef.city ? ` · ${chef.city}` : ''}
-            {origine ? ` · ${origine}` : ''}
-          </p>
-          {plat.description && (
-            <p className="mt-4 line-clamp-2 text-[15px] leading-relaxed text-ink-mid">
-              {plat.description}
-            </p>
-          )}
-        </div>
-      </Link>
-    </motion.article>
+      <p className="mt-6 text-sm leading-relaxed text-ink-mid">
+        {vide
+          ? 'Les batch cookers publient leurs plats au fil de l’eau. Dites-nous ce qui vous ferait plaisir.'
+          : 'Chaque batch cooker a sa carte : ouvrez-la pour composer la vôtre.'}
+      </p>
+    </div>
   )
 }
 
-/* ── Les suivants ──────────────────────────────────────────────────────────── */
+/** Le pointillé qui relie le nom du plat à son origine, comme sur une carte de restaurant. */
+function Pointilles() {
+  return (
+    <span
+      aria-hidden
+      className="min-w-6 flex-1 translate-y-[-0.3em] self-end border-b border-dotted border-[rgba(31,42,55,0.35)]"
+    />
+  )
+}
 
-function PlatEnLigne({ entree, index }: { entree: PlatDeLaSemaine; index: number }) {
+function LigneDePlat({ entree, index }: { entree: PlatALaCarte; index: number }) {
   const { plat, chef } = entree
   const origine = countryLabel(plat.country)
 
   return (
     <motion.li
-      initial={{ opacity: 0, x: 24 }}
-      whileInView={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.7, ease: SORTIE, delay: 0.15 + index * 0.1 }}
+      transition={{ duration: 0.7, ease: SORTIE, delay: 0.1 + index * 0.1 }}
       className="border-b border-[rgba(31,42,55,0.1)] last:border-b-0"
     >
       <Link
         href="/menu"
-        className="group flex items-center gap-5 py-5 outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-4 focus-visible:ring-offset-cream"
+        className="group block py-5 outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
       >
-        <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
-          {plat.imageUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={plat.imageUrl}
-              alt=""
-              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center bg-cream-deep">
-              <UtensilsCrossed className="h-5 w-5 text-ink-soft" aria-hidden />
-            </span>
-          )}
-        </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="block font-display text-lg font-bold leading-snug text-navy transition-colors duration-300 group-hover:text-terra">
+        <span className="flex items-baseline gap-3">
+          <span className="font-display text-lg font-bold leading-snug text-navy transition-colors duration-300 group-hover:text-terra lg:text-xl">
             {plat.name}
           </span>
-          <span className="mt-1 block text-sm text-ink-mid">
-            Par <span className="font-semibold text-navy">{chef.displayName}</span>
-            {origine ? ` · ${origine}` : ''}
-          </span>
+          {origine && (
+            <>
+              <Pointilles />
+              <span className="shrink-0 text-sm text-ink-mid">{origine}</span>
+            </>
+          )}
         </span>
-
-        <ArrowRight
-          className="h-4 w-4 shrink-0 text-ink-soft/60 transition-all duration-300 group-hover:translate-x-1 group-hover:text-terra"
-          aria-hidden
-        />
+        <span className="mt-1 block text-sm text-ink-mid">
+          Par <span className="font-semibold text-navy">{chef.displayName}</span>
+        </span>
       </Link>
     </motion.li>
   )
 }
 
-/* ── Les deux autres états ─────────────────────────────────────────────────── */
-
-function Squelette() {
+function LigneVide({ envie, index }: { envie: string; index: number }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
-      <div className="aspect-[5/4] animate-pulse rounded-2xl bg-cream-deep" />
-      <ul className="flex flex-col">
-        {[0, 1, 2].map((i) => (
-          <li
-            key={i}
-            className="flex items-center gap-5 border-b border-[rgba(31,42,55,0.1)] py-5 last:border-b-0"
-          >
-            <span className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-cream-deep sm:h-24 sm:w-24" />
-            <span className="flex-1">
-              <span className="block h-4 w-2/3 animate-pulse rounded bg-cream-deep" />
-              <span className="mt-2 block h-3 w-1/3 animate-pulse rounded bg-cream-deep" />
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <motion.li
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.7, ease: SORTIE, delay: 0.1 + index * 0.1 }}
+      className="flex items-baseline gap-3 border-b border-[rgba(31,42,55,0.1)] py-5 last:border-b-0"
+    >
+      <span className="font-display text-lg italic leading-snug text-ink-mid lg:text-xl">{envie}</span>
+      <Pointilles />
+    </motion.li>
   )
 }
 
-function Vide() {
+function LigneSquelette() {
   return (
-    <div className="mx-auto max-w-xl rounded-2xl bg-paper p-10 text-center shadow-[0_24px_60px_-32px_rgba(31,42,55,0.35)]">
-      <UtensilsCrossed className="mx-auto mb-4 h-7 w-7 text-terra" aria-hidden />
-      <p className="font-display text-xl font-bold text-navy">
-        La carte de cette semaine n’est pas encore publiée
-      </p>
-      <p className="mt-2 text-sm leading-relaxed text-ink-mid">
-        Nos batch cookers la composent en début de semaine. En attendant, vous
-        pouvez décrire ce qui vous ferait plaisir : quelqu’un vous répondra.
-      </p>
-      <Link href="/espace-client/personnalisation" className="btn btn-navy mt-6">
-        Faire une demande sur mesure
-        <ArrowRight className="icon-arrow h-4 w-4" />
-      </Link>
-    </div>
+    <li className="border-b border-[rgba(31,42,55,0.1)] py-5 last:border-b-0">
+      <span className="block h-5 w-2/3 animate-pulse rounded bg-cream-deep" />
+      <span className="mt-2 block h-3.5 w-1/3 animate-pulse rounded bg-cream-deep" />
+    </li>
   )
 }
