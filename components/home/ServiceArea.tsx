@@ -5,13 +5,8 @@ import { useRef } from 'react'
 import { MapPin, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
-const CITIES = [
-  { name: 'Nice', note: 'Hyper-centre & quartier port' },
-  { name: 'Cannes', note: 'La Croisette & alentours' },
-  { name: 'Antibes', note: 'Vieille ville, Juan-les-Pins' },
-  { name: 'Monaco', note: 'Sur demande' },
-  // { name: 'Saint-Tropez', note: 'En saison' },
-]
+// En attendant de connaître les villes des batch cookers : la France entière.
+const CITIES = [{ name: 'France' }]
 
 export default function ServiceArea() {
   const ref = useRef(null)
@@ -29,7 +24,7 @@ export default function ServiceArea() {
         >
           <p className="eyebrow mb-5 justify-center">Zone d&apos;intervention</p>
           <h2 className="h-section">
-            Lab&apos;s Food intervient sur la <span className="accent">Côte d&apos;Azur.</span>
+            Lab&apos;s Food intervient <span className="accent">en France.</span>
           </h2>
           {/* <p className="text-ink-mid mt-5 leading-relaxed">
             Nous lançons d&apos;abord là où le soleil et les marchés sont les meilleurs.
@@ -47,12 +42,12 @@ export default function ServiceArea() {
           {/* Map */}
           <div className="relative rounded-3xl overflow-hidden shadow-[0_30px_70px_-30px_rgba(31,42,55,0.35)] border border-[rgba(31,42,55,0.06)] aspect-[4/3] lg:aspect-auto lg:min-h-[420px]">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d738050.2789843373!2d6.3!3d43.65!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12cdd0d62cda5f23%3A0xd14dd34ccd5cef6!2sC%C3%B4te%20d&#39;Azur!5e0!3m2!1sfr!2sfr!4v1714138932154!5m2!1sfr!2sfr"
+              src="https://www.google.com/maps?q=France&z=5&output=embed&hl=fr"
               className="w-full h-full"
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              title="Zone d'intervention Lab's Food — Côte d'Azur"
+              title="Zone d'intervention Lab's Food — France"
             />
             {/* Floating badge */}
             <div className="absolute top-4 left-4 bg-paper rounded-2xl px-3.5 py-2.5 shadow-[0_10px_30px_-10px_rgba(31,42,55,0.3)] border border-[rgba(31,42,55,0.06)] flex items-center gap-2.5 max-w-[220px]">
@@ -61,8 +56,7 @@ export default function ServiceArea() {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber" />
               </span>
               <div>
-                <p className="text-xs font-semibold text-navy leading-tight">French Riviera</p>
-                <p className="text-[10px] text-ink-soft">Cannes ↔ Monaco</p>
+                <p className="text-xs font-semibold text-navy leading-tight">France</p>
               </div>
             </div>
           </div>
@@ -79,9 +73,6 @@ export default function ServiceArea() {
               <h3 className="font-display text-2xl font-bold leading-tight">
                 Là où nous cuisinons aujourd&apos;hui.
               </h3>
-              <p className="text-white/65 text-sm mt-3">
-                Très bientôt dans toute la France.
-              </p>
 
               <ul className="mt-6 space-y-2">
                 {CITIES.map((c, i) => (
@@ -98,7 +89,6 @@ export default function ServiceArea() {
                     </span>
                     <div className="min-w-0">
                       <p className="font-semibold text-sm leading-tight">{c.name}</p>
-                      {/* <p className="text-[11px] text-white/55 mt-0.5">{c.note}</p> */}
                     </div>
                   </motion.li>
                 ))}
@@ -108,7 +98,7 @@ export default function ServiceArea() {
                 href="/faq"
                 className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-amber hover:text-white transition-colors"
               >
-                Ma ville n&apos;est pas listée — que faire ?
+                Une question sur votre zone ?
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>

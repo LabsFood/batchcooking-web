@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth-context'
 import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
 
 const NAV_LINKS = [
-  { label: 'Concept', href: '/#concept' },
+  { label: 'Accueil', href: '/' },
   { label: 'Menu', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
   { label: 'FAQ', href: '/faq' },

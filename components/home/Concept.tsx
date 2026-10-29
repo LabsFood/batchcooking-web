@@ -9,22 +9,22 @@ const PILLARS = [
   {
     icon: Clock,
     title: 'Gain de temps',
-    description: 'Une seule session de 2 à 4h remplace des heures de cuisine quotidienne.',
+    description: "Une séance de 2h en moyenne chez vous, et vous n'avez plus à cuisiner de la semaine.",
   },
   {
     icon: Leaf,
     title: 'Alimentation saine',
-    description: 'Des repas équilibrés, frais, adaptés à vos besoins, par un professionnel.',
+    description: 'Des repas adaptés à vos goûts et à vos besoins.',
   },
   {
     icon: Smile,
     title: 'Zéro stress',
-    description: 'Plus besoin de penser aux repas chaque soir. Votre semaine est organisée.',
+    description: 'Fini la question « on mange quoi ce soir ? ». Vos repas sont prêts.',
   },
   {
     icon: TrendingDown,
     title: 'Économies réelles',
-    description: 'Moins de gaspillage et 50% de crédit d\'impôt pour optimiser votre budget.',
+    description: "Moins de gaspillage, et 50 % de crédit d'impôt déduit directement grâce à l'avance immédiate.",
   },
 ]
 
@@ -63,7 +63,7 @@ export default function Concept() {
               <div className="col-span-5 row-span-2 rounded-2xl overflow-hidden">
                 <img
                   src="https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=900&auto=format&fit=crop"
-                  alt="Chef professionnel"
+                  alt="Cuisinier à domicile"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
@@ -95,13 +95,18 @@ export default function Concept() {
               <span className="accent">réinventé chez vous.</span>
             </h2>
             <p className="text-ink-mid leading-relaxed mb-5">
-              Le batch cooking consiste à préparer tous ses repas de la semaine en une seule session.
-              Lab&apos;s Food va plus loin : un(e) cuisinier(e) vient directement chez vous pour prendre
-              en charge l&apos;intégralité de la session — de la mise en place à la conservation.
+              Imaginez ouvrir votre frigo et trouver tous vos repas de la semaine, faits maison et
+              prêts à réchauffer. C&apos;est ce que fait Lab&apos;s Food : un(e) cuisinier(e) vient
+              chez vous, cuisine pour toute la semaine en une seule séance, range tout et vous
+              laisse une cuisine propre.
+            </p>
+            <p className="text-ink-mid leading-relaxed mb-5">
+              Séniors, famille avec enfants, végétarien, allergie ou régime spécifique : nos
+              cuisiniers adaptent chaque menu à votre profil et à vos goûts.
             </p>
             <p className="text-ink-mid leading-relaxed mb-10">
-              Cuisine européenne, africaine, americaine , ... notre catalogue de recettes du monde
-              garantit variété et découverte, semaine après semaine.
+              Cuisine européenne, africaine, américaine... Vous découvrez de nouvelles saveurs
+              chaque semaine, sans jamais vous lasser.
             </p>
 
             {/* Pillars */}
