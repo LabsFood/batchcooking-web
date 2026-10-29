@@ -129,7 +129,7 @@ export default function Testimonials() {
               pas encore côté API, ces deux nombres ne s'appuyaient sur rien. */}
           {[
             { value: '98%', label: 'Satisfaction' },
-            { value: '87%', label: 'Renouvellement' },
+            { value: '90%', label: 'Renouvellement' },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <p className="font-display text-4xl lg:text-5xl font-bold text-terra leading-none">
