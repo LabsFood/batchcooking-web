@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import MenuClient from './MenuClient'
 
 export const metadata: Metadata = {
-  title: 'Les menus de la semaine',
+  title: 'Les cartes de nos batch cookers',
   description:
-    "Les cartes de la semaine proposées par les batch cookers Lab's Food : choisissez votre chef, puis vos plats.",
+    "Les cartes des batch cookers Lab's Food : filtrez par dates, région ou régime, choisissez votre batch cooker, puis vos plats.",
 }
 
 export default function MenuPage() {

@@ -890,6 +890,44 @@ body {
   color: #fff;
 }
 
+/* Le choix d'une semaine (`/menu`) : la semaine retenue et celle qu'on survole
+   se lisent comme une bande d'un bout à l'autre de la ligne, arrondie aux deux
+   extrémités. Sept pastilles séparées ne diraient pas qu'il s'agit d'un seul
+   choix de sept jours. */
+.lf-rdp-week .rdp-day {
+  transition: background-color 0.12s ease-out;
+}
+
+.lf-rdp-week .lf-week-hover {
+  background: var(--cream-soft);
+}
+
+.lf-rdp-week .lf-week {
+  background: rgba(243, 156, 18, 0.18);
+}
+
+.lf-rdp-week .lf-week .rdp-day_button {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.lf-rdp-week .lf-week-start {
+  border-radius: 9999px 0 0 9999px;
+}
+
+.lf-rdp-week .lf-week-end {
+  border-radius: 0 9999px 9999px 0;
+}
+
+.lf-rdp-week .rdp-day_button:hover:not([disabled]) {
+  background: transparent;
+}
+
+/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par défaut. */
+.lf-rdp-week .rdp-chevron {
+  fill: currentColor;
+}
+
 /* ── Les pastilles d'état ── Une journée peut en porter plusieurs : elles se
    posent côte à côte sous le chiffre, et la cellule garde sa taille. */
 .lf-rdp .rdp-day {

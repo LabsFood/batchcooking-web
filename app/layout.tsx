@@ -79,7 +79,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
   },
   openGraph: {
-    title: "Lab's Food — Batch Cooking à domicile",
+    title: "LAB'S FOOD - Batch cooking à domicile",
     description: 'Un cuisinier prépare une semaine de repas chez vous.',
     type: 'website',
     locale: 'fr_FR',
