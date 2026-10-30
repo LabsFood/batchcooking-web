@@ -890,27 +890,42 @@ body {
   color: #fff;
 }
 
-/* Une période (le filtre de semaine de `/menu`) : les sept jours se lisent comme
-   une bande, les deux bouts en plein. Sans ça, sept pastilles navy identiques
-   ne disent pas qu'il s'agit d'un seul choix. */
-.lf-rdp .rdp-range_middle {
-  background: rgba(243, 156, 18, 0.14);
+/* Le choix d'une semaine (`/menu`) : la semaine retenue et celle qu'on survole
+   se lisent comme une bande d'un bout à l'autre de la ligne, arrondie aux deux
+   extrémités. Sept pastilles séparées ne diraient pas qu'il s'agit d'un seul
+   choix de sept jours. */
+.lf-rdp-week .rdp-day {
+  transition: background-color 0.12s ease-out;
 }
 
-.lf-rdp .rdp-range_middle .rdp-day_button {
-  background: transparent;
-  border-color: transparent;
+.lf-rdp-week .lf-week-hover {
+  background: var(--cream-soft);
+}
+
+.lf-rdp-week .lf-week {
+  background: rgba(243, 156, 18, 0.18);
+}
+
+.lf-rdp-week .lf-week .rdp-day_button {
   color: var(--navy);
+  font-weight: 700;
 }
 
-.lf-rdp .rdp-range_start {
+.lf-rdp-week .lf-week-start {
   border-radius: 9999px 0 0 9999px;
-  background: rgba(243, 156, 18, 0.14);
 }
 
-.lf-rdp .rdp-range_end {
+.lf-rdp-week .lf-week-end {
   border-radius: 0 9999px 9999px 0;
-  background: rgba(243, 156, 18, 0.14);
+}
+
+.lf-rdp-week .rdp-day_button:hover:not([disabled]) {
+  background: transparent;
+}
+
+/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par défaut. */
+.lf-rdp-week .rdp-chevron {
+  fill: currentColor;
 }
 
 /* ── Les pastilles d'état ── Une journée peut en porter plusieurs : elles se

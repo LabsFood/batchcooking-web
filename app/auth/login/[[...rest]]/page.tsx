@@ -64,7 +64,7 @@ function LoginInner() {
           style={{ background: 'linear-gradient(135deg, rgba(44,62,80,0.85) 0%, rgba(243,156,18,0.55) 100%)' }} />
         <div className="absolute bottom-12 left-12 right-12">
           <p className="font-display font-medium text-white text-3xl mb-6 leading-snug">
-            Deux métiers, une seule connexion.
+            Deux profils, une seule connexion.
           </p>
           <dl className="space-y-4">
             <div>

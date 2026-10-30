@@ -15,7 +15,7 @@ import {
   NoMenus,
   useMenuFilters,
 } from '@/components/menu/ChefMenuBrowser'
-import type { WeekCard } from '@/lib/api/menus'
+import { moisLabel, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -36,9 +36,9 @@ import { useDiets } from '@/lib/api/referentials'
    ───────────────────────────────────────────────────────────────────────────── */
 
 const DEMARCHE = [
-  { Icon: CalendarDays, text: 'Choisissez vos dates dans le calendrier' },
-  { Icon: SlidersHorizontal, text: 'Filtrez par région, régime ou courses incluses' },
-  { Icon: ChefHat, text: 'Ouvrez la carte du batch cooker qui vous plaît' },
+  { Icon: CalendarDays, text: 'Choisissez vos dates' },
+  { Icon: SlidersHorizontal, text: 'Filtrez par région ou régime' },
+  { Icon: ChefHat, text: 'Ouvrez la carte qui vous plaît' },
 ]
 
 export default function MenuClient() {
@@ -50,6 +50,16 @@ export default function MenuClient() {
     diets.find((d) => d.code === code)?.label ?? code
 
   const menus = filters.menus
+
+  // La période regardée, dite en tête des résultats : « Semaine du 2 au 8
+  // novembre », ou « Novembre 2026 » au mois.
+  const debut = new Date(`${filters.semaine}T00:00:00`)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + 6)
+  const periode =
+    filters.mode === 'mois'
+      ? moisLabel(filters.mois).replace(/^./, (c) => c.toUpperCase())
+      : `Semaine ${weekLabel({ start: debut.toISOString(), end: fin.toISOString() })}`
 
   return (
     <div className="page-transition min-h-screen bg-cream pt-24">
@@ -71,20 +81,20 @@ export default function MenuClient() {
               'linear-gradient(105deg, rgba(31,45,61,0.96) 0%, rgba(44,62,80,0.9) 45%, rgba(44,62,80,0.62) 100%)',
           }}
         />
-        <div className="container-xl relative">
+        <div className="container-xl relative mx-auto flex max-w-4xl flex-col items-center text-center">
           <h1
-            className="mb-5 max-w-3xl font-display font-bold leading-[1.05] text-white"
+            className="mb-5 font-display font-bold leading-[1.05] text-white [text-wrap:balance]"
             style={{ fontSize: 'clamp(2.2rem, 5.4vw, 4rem)', letterSpacing: '-0.02em' }}
           >
             Choisissez votre batch cooker,{' '}
             <span className="font-medium italic text-terra">composez votre menu.</span>
           </h1>
-          <p className="max-w-xl leading-relaxed text-white/70">
-            Chaque batch cooker propose sa propre carte. Les filtres vous montrent ceux qui sont
-            disponibles à vos dates, près de chez vous, et qui cuisinent ce que vous aimez.
+          <p className="max-w-2xl text-lg leading-relaxed text-white/75 [text-wrap:pretty]">
+            Chaque batch cooker a sa propre carte. Indiquez vos dates, votre région et vos envies :
+            vous verrez qui peut venir cuisiner chez vous.
           </p>
 
-          <ul className="mt-7 flex flex-col gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:gap-x-8">
+          <ul className="mt-8 flex flex-col items-center gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-8">
             {DEMARCHE.map(({ Icon, text }) => (
               <li key={text} className="flex items-center gap-2.5">
                 <Icon className="h-4 w-4 shrink-0 text-amber" aria-hidden />
@@ -93,7 +103,7 @@ export default function MenuClient() {
             ))}
           </ul>
 
-          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <MenuFilterButton
               filters={filters}
               onClick={() => setTiroir(true)}
@@ -103,28 +113,33 @@ export default function MenuClient() {
               Faire une demande sur mesure
               <ArrowRight className="icon-arrow h-4 w-4" />
             </ReserveButton>
-            <p className="text-sm text-white/60">
-              Une envie particulière, une allergie ? Dites-le nous.
-            </p>
           </div>
+          <p className="mt-4 text-sm text-white/60">
+            Une envie particulière, une allergie ? Dites-le nous avec une demande sur mesure.
+          </p>
         </div>
       </section>
 
       {/* ── Filtres + cartes ─────────────────────────────────────────────── */}
       <section className="py-12 lg:py-14">
         <div className="container-xl">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-10">
-            <MenuFilterSidebar filters={filters} className="lg:sticky lg:top-28 lg:self-start" />
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-12">
+            <MenuFilterSidebar filters={filters} className="lg:self-start" />
 
             <div>
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-ink-mid" aria-live="polite">
+              <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-2xl font-bold leading-tight text-navy">
+                    {periode}
+                  </h2>
+                  <p className="mt-1 text-sm text-ink-mid" aria-live="polite">
                   {filters.isPending
                     ? 'Lecture des cartes…'
                     : menus.length === 0
                       ? 'Aucune carte ne correspond à votre recherche.'
                       : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} disponible${menus.length > 1 ? 's' : ''} sur cette période`}
-                </p>
+                  </p>
+                </div>
                 <MenuFilterButton
                   filters={filters}
                   onClick={() => setTiroir(true)}

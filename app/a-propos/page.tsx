@@ -43,7 +43,7 @@ const VALUES = [
 ]
 
 const NUMBERS = [
-  { value: '21', label: 'Pays explorés' },
+  { value: '22', label: 'Pays explorés' },
   { value: '30+', label: 'Sessions à domicile' },
   { value: '2 h', label: 'Pour la semaine entière' },
   { value: '100 %', label: 'Fait maison, chez vous' },
@@ -171,7 +171,7 @@ export default function AProposPage() {
             </p>
             <p className='text-justify'>
               Mon inspiration culinaire, je la puise dans mes carnets de voyage. J&apos;ai eu la
-              chance d&apos;explorer 21 pays, et c&apos;est sur le terrain, au cœur des cuisines du
+              chance d&apos;explorer 22 pays, et c&apos;est sur le terrain, au cœur des cuisines du
               monde entier, que j&apos;ai forgé mon savoir-faire. Lors de mes longs séjours à
               l&apos;étranger, je m&apos;immerge dans la culture locale, j&apos;apprends auprès de ceux qui
               transmettent les traditions familiales, et je valide parfois ces acquis par des
@@ -200,7 +200,7 @@ export default function AProposPage() {
       <section className="section-padding section-cream-soft">
         <div className="container-xl">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <p className="eyebrow mb-4 justify-center">Ce qui nous anime</p>
+            <p className="eyebrow mb-4 justify-center">Notre love language</p>
             <h2 className="h-section">
               Une cuisine qui prend <span className="accent">soin de vous.</span>
             </h2>
