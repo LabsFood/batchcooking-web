@@ -1,48 +1,60 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowRight, ChefHat, Sparkles } from 'lucide-react'
+import { ArrowRight, CalendarDays, ChefHat, SlidersHorizontal } from 'lucide-react'
 import ReserveButton from '@/components/shared/ReserveButton'
 import EquipmentSection from '@/components/shared/EquipmentSection'
 import {
   MenuCard,
   MenuDialog,
-  MenuFilterBar,
+  MenuFilterButton,
+  MenuFilterDrawer,
+  MenuFilterSidebar,
   MenusError,
   MenusLoading,
   NoMenus,
   useMenuFilters,
 } from '@/components/menu/ChefMenuBrowser'
-import { weekLabel, type WeekCard } from '@/lib/api/menus'
+import type { WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Menus de la semaine.
+   Les cartes des batch cookers.
 
-   Le client ne choisit plus des plats dans un catalogue anonyme : il choisit
-   d'abord un batch cooker et sa carte de la semaine. La page se lit donc par
-   chef — une carte par chef, ses plats en aperçu — et la sélection des plats
-   se fait à l'intérieur du menu retenu.
+   Le client ne choisit pas des plats dans un catalogue anonyme : il choisit
+   d'abord un batch cooker et sa carte. La page se lit donc par chef — une
+   carte par chef, ses plats en aperçu — et la sélection des plats se fait à
+   l'intérieur du menu retenu.
+
+   L'en-tête dit comment s'y prendre : les filtres sont dans la colonne de
+   gauche (dans un tiroir sur mobile), et la demande sur-mesure est à portée
+   pour celui qui cherche autre chose que ce qui est proposé.
 
    Le parcours de choix vit dans `components/menu/ChefMenuBrowser` : la
    réservation de l'espace client présente exactement le même, à ceci près
    qu'elle enchaîne au lieu de demander une connexion.
    ───────────────────────────────────────────────────────────────────────────── */
 
+const DEMARCHE = [
+  { Icon: CalendarDays, text: 'Choisissez vos dates dans le calendrier' },
+  { Icon: SlidersHorizontal, text: 'Filtrez par région, régime ou courses incluses' },
+  { Icon: ChefHat, text: 'Ouvrez la carte du batch cooker qui vous plaît' },
+]
+
 export default function MenuClient() {
   const filters = useMenuFilters()
   const [open, setOpen] = useState<WeekCard | null>(null)
+  const [tiroir, setTiroir] = useState(false)
   const diets = useDiets([])
   const dietLabel = (code: string) =>
     diets.find((d) => d.code === code)?.label ?? code
 
   const menus = filters.menus
-  const totalDishes = menus.reduce((n, m) => n + m.dishes.length, 0)
 
   return (
     <div className="page-transition min-h-screen bg-cream pt-24">
       {/* ── En-tête ──────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-navy py-20 text-white lg:py-24">
+      <section className="relative overflow-hidden bg-navy py-16 text-white lg:py-20">
         {/* Image de fond : elle porte l'appétit, le voile porte la lisibilité. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -60,72 +72,88 @@ export default function MenuClient() {
           }}
         />
         <div className="container-xl relative">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-amber">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Semaine {weekLabel(filters.week)}
-          </p>
           <h1
-            className="mb-5 font-display font-bold leading-none text-white"
-            style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)', letterSpacing: '-0.02em' }}
+            className="mb-5 max-w-3xl font-display font-bold leading-[1.05] text-white"
+            style={{ fontSize: 'clamp(2.2rem, 5.4vw, 4rem)', letterSpacing: '-0.02em' }}
           >
-            Les menus de <span className="font-medium italic text-terra">vos chefs.</span>
+            Choisissez votre batch cooker,{' '}
+            <span className="font-medium italic text-terra">composez votre menu.</span>
           </h1>
           <p className="max-w-xl leading-relaxed text-white/70">
-            Chaque batch cooker compose sa carte de la semaine. Choisissez celui dont la cuisine vous parle, puis les
-            plats que vous voulez retrouver dans votre frigo.
+            Chaque batch cooker propose sa propre carte. Les filtres vous montrent ceux qui sont
+            disponibles à vos dates, près de chez vous, et qui cuisinent ce que vous aimez.
           </p>
 
-          <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4">
-            <Stat
-              value={filters.isPending ? '—' : String(menus.length)}
-              label={`chef${menus.length > 1 ? 's' : ''} cette semaine`}
+          <ul className="mt-7 flex flex-col gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:gap-x-8">
+            {DEMARCHE.map(({ Icon, text }) => (
+              <li key={text} className="flex items-center gap-2.5">
+                <Icon className="h-4 w-4 shrink-0 text-amber" aria-hidden />
+                {text}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+            <MenuFilterButton
+              filters={filters}
+              onClick={() => setTiroir(true)}
+              className="btn btn-amber lg:hidden"
             />
-            <Stat
-              value={filters.isPending ? '—' : String(totalDishes)}
-              label="plats proposés"
-            />
-            <Stat value="2 h" label="chez vous, une seule session" />
-          </dl>
+            <ReserveButton href="/espace-client/personnalisation" variant="outline-light">
+              Faire une demande sur mesure
+              <ArrowRight className="icon-arrow h-4 w-4" />
+            </ReserveButton>
+            <p className="text-sm text-white/60">
+              Une envie particulière, une allergie ? Dites-le nous.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* ── Filtres ──────────────────────────────────────────────────────── */}
-      <section className="sticky top-20 z-30 border-b border-[rgba(31,42,55,0.08)] bg-cream/95 backdrop-blur">
-        <div className="container-xl py-4">
-          <MenuFilterBar filters={filters} />
-        </div>
-      </section>
-
-      {/* ── Menus ────────────────────────────────────────────────────────── */}
-      <section className="py-14 lg:py-16">
+      {/* ── Filtres + cartes ─────────────────────────────────────────────── */}
+      <section className="py-12 lg:py-14">
         <div className="container-xl">
-          <p className="mb-6 text-sm text-ink-mid" aria-live="polite">
-            {filters.isPending
-              ? 'Lecture des cartes de la semaine…'
-              : menus.length === 0
-                ? 'Aucune carte ne correspond à votre recherche.'
-                : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} cette semaine`}
-          </p>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-10">
+            <MenuFilterSidebar filters={filters} className="lg:sticky lg:top-28 lg:self-start" />
 
-          {filters.isPending ? (
-            <MenusLoading />
-          ) : filters.isError ? (
-            <MenusError onRetry={filters.refetch} />
-          ) : menus.length === 0 ? (
-            <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
-          ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {menus.map((menu, i) => (
-                <MenuCard
-                  key={menu.chef.id}
-                  menu={menu}
-                  index={i}
-                  onOpen={() => setOpen(menu)}
-                  dietLabel={dietLabel}
+            <div>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ink-mid" aria-live="polite">
+                  {filters.isPending
+                    ? 'Lecture des cartes…'
+                    : menus.length === 0
+                      ? 'Aucune carte ne correspond à votre recherche.'
+                      : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} disponible${menus.length > 1 ? 's' : ''} sur cette période`}
+                </p>
+                <MenuFilterButton
+                  filters={filters}
+                  onClick={() => setTiroir(true)}
+                  className="btn btn-outline inline-flex items-center gap-2 px-4 py-2.5 text-xs lg:hidden"
                 />
-              ))}
+              </div>
+
+              {filters.isPending ? (
+                <MenusLoading />
+              ) : filters.isError ? (
+                <MenusError onRetry={filters.refetch} />
+              ) : menus.length === 0 ? (
+                <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
+              ) : (
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                  {menus.map((menu, i) => (
+                    <MenuCard
+                      key={menu.chef.id}
+                      menu={menu}
+                      index={i}
+                      onOpen={() => setOpen(menu)}
+                      customOrder
+                      dietLabel={dietLabel}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Demande sur-mesure */}
           <div className="mt-16 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-10 text-center">
@@ -147,6 +175,8 @@ export default function MenuClient() {
 
       <EquipmentSection variant="paper" compact />
 
+      <MenuFilterDrawer filters={filters} open={tiroir} onOpenChange={setTiroir} />
+
       <MenuDialog
         menu={open}
         onClose={() => setOpen(null)}
@@ -164,18 +194,6 @@ export default function MenuClient() {
           </ReserveButton>
         )}
       />
-    </div>
-  )
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <dt className="sr-only">{label}</dt>
-      <dd>
-        <span className="block font-display text-2xl font-bold text-amber">{value}</span>
-        <span className="block text-xs text-white/60">{label}</span>
-      </dd>
     </div>
   )
 }

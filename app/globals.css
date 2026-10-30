@@ -890,6 +890,29 @@ body {
   color: #fff;
 }
 
+/* Une période (le filtre de semaine de `/menu`) : les sept jours se lisent comme
+   une bande, les deux bouts en plein. Sans ça, sept pastilles navy identiques
+   ne disent pas qu'il s'agit d'un seul choix. */
+.lf-rdp .rdp-range_middle {
+  background: rgba(243, 156, 18, 0.14);
+}
+
+.lf-rdp .rdp-range_middle .rdp-day_button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--navy);
+}
+
+.lf-rdp .rdp-range_start {
+  border-radius: 9999px 0 0 9999px;
+  background: rgba(243, 156, 18, 0.14);
+}
+
+.lf-rdp .rdp-range_end {
+  border-radius: 0 9999px 9999px 0;
+  background: rgba(243, 156, 18, 0.14);
+}
+
 /* ── Les pastilles d'état ── Une journée peut en porter plusieurs : elles se
    posent côte à côte sous le chiffre, et la cellule garde sa taille. */
 .lf-rdp .rdp-day {

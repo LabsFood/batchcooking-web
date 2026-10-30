@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   ShoppingBasket,
+  SlidersHorizontal,
   Star,
   Users,
   UtensilsCrossed,
@@ -22,16 +23,21 @@ import {
 } from 'lucide-react'
 import {
   euros,
+  lundiDe,
   semaineCourte,
   semaineParDefaut,
   semainesAVenir,
   useChefPublic,
   useWeekMenus,
+  weekLabel,
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
 import { useDiets, useLanguages, useRegions } from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
+import { cn } from '@/lib/utils'
+import DatePicker from '@/components/shared/DatePicker'
+import ReserveButton from '@/components/shared/ReserveButton'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Choix d'un batch cooker et de sa carte de la semaine.
@@ -277,6 +283,272 @@ function SemainePicker({ filters }: { filters: MenuFilters }) {
   )
 }
 
+/* ── Filtres en colonne ────────────────────────────────────────────────────── */
+
+/** Combien de filtres sont posés — la semaine n'y compte pas, comme dans `active`. */
+function nbFiltres(f: MenuFilters): number {
+  return (f.query ? 1 : 0) + (f.region !== 'all' ? 1 : 0) + f.diets.length + (f.shoppingOnly ? 1 : 0)
+}
+
+function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="mb-2.5 text-sm font-semibold text-navy">{title}</legend>
+      {children}
+    </fieldset>
+  )
+}
+
+/**
+ * Le calendrier des dates.
+ *
+ * On ne choisit pas un jour mais une période de sept jours : un clic sur
+ * n'importe quelle date prend la semaine entière, du lundi au dimanche, et la
+ * colore. C'est la semaine que l'API sait filtrer (`week` accepte n'importe
+ * quel jour de la semaine voulue).
+ */
+function SemaineCalendrier({ filters }: { filters: MenuFilters }) {
+  const { semaine, setSemaine, semaines } = filters
+
+  const debut = new Date(`${semaine}T00:00:00`)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + 6)
+  const premier = new Date(`${semaines[0]}T00:00:00`)
+  const dernier = new Date(`${semaines[semaines.length - 1]}T00:00:00`)
+  dernier.setDate(dernier.getDate() + 6)
+
+  /* Le mois affiché suit la semaine choisie, y compris quand c'est « Cette
+     semaine » qui la change : ajustement pendant le rendu, comme la navbar. */
+  const [mois, setMois] = useState(debut)
+  const [vue, setVue] = useState(semaine)
+  if (semaine !== vue) {
+    setVue(semaine)
+    setMois(debut)
+  }
+
+  return (
+    <div>
+      <DatePicker
+        mode="range"
+        selected={{ from: debut, to: fin }}
+        onDayClick={(jour) => setSemaine(lundiDe(jour))}
+        month={mois}
+        onMonthChange={setMois}
+        startMonth={premier}
+        endMonth={dernier}
+        disabled={{ before: premier, after: dernier }}
+        className="mx-auto [--rdp-day-height:2.3rem] [--rdp-day-width:2.3rem] [--rdp-day_button-height:2.1rem] [--rdp-day_button-width:2.1rem]"
+      />
+      <p className="mt-2 text-sm font-semibold text-navy" aria-live="polite">
+        Semaine {weekLabel({ start: debut.toISOString(), end: fin.toISOString() })}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        Cliquez sur un jour : les 7 jours de sa semaine sont sélectionnés.
+      </p>
+      {semaine !== semaines[0] && (
+        <button
+          type="button"
+          onClick={() => setSemaine(semaines[0])}
+          className="mt-2 text-xs font-semibold text-terra underline underline-offset-4"
+        >
+          Revenir à cette semaine
+        </button>
+      )}
+    </div>
+  )
+}
+
+const CASE =
+  'h-4 w-4 shrink-0 rounded border-[rgba(31,42,55,0.3)] accent-terra focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber'
+
+function FilterPanel({ filters }: { filters: MenuFilters }) {
+  const { query, setQuery, region, setRegion, diets, toggleDiet, shoppingOnly, setShoppingOnly } =
+    filters
+  const { regions } = useRegions([])
+  const dietOptions = useDiets([])
+
+  return (
+    <div className="space-y-7">
+      <FilterGroup title="Dates">
+        <SemaineCalendrier filters={filters} />
+      </FilterGroup>
+
+      <FilterGroup title="Recherche">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Un chef, une ville, un plat…"
+            aria-label="Rechercher un chef, une ville ou un plat"
+            className="input-base py-3 pl-11"
+          />
+        </div>
+      </FilterGroup>
+
+      <FilterGroup title="Région">
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          aria-label="Filtrer par région"
+          className="input-base w-full py-3"
+        >
+          <option value="all">Toutes les régions</option>
+          {regions.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </FilterGroup>
+
+      {dietOptions.length > 0 && (
+        <FilterGroup title="Régime alimentaire">
+          <ul className="space-y-2.5">
+            {dietOptions.map((d) => (
+              <li key={d.code}>
+                <label className="flex cursor-pointer items-center gap-2.5 text-sm text-ink-mid hover:text-navy">
+                  <input
+                    type="checkbox"
+                    checked={diets.includes(d.code)}
+                    onChange={() => toggleDiet(d.code)}
+                    className={CASE}
+                  />
+                  {d.label}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </FilterGroup>
+      )}
+
+      <FilterGroup title="Courses">
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-ink-mid hover:text-navy">
+          <input
+            type="checkbox"
+            checked={shoppingOnly}
+            onChange={() => setShoppingOnly(!shoppingOnly)}
+            className={CASE}
+          />
+          <ShoppingBasket className="h-3.5 w-3.5" aria-hidden /> Courses incluses
+        </label>
+      </FilterGroup>
+    </div>
+  )
+}
+
+/** Les filtres en colonne, à gauche des cartes, à partir de `lg`. Dessous : le tiroir. */
+export function MenuFilterSidebar({
+  filters,
+  className,
+}: {
+  filters: MenuFilters
+  className?: string
+}) {
+  return (
+    <aside aria-label="Filtres" className={cn('hidden lg:block', className)}>
+      <div className="max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-5">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg font-bold text-navy">Filtrer les cartes</h2>
+          {filters.active && (
+            <button
+              type="button"
+              onClick={filters.reset}
+              className="text-xs font-semibold text-terra underline underline-offset-4"
+            >
+              Tout effacer
+            </button>
+          )}
+        </div>
+        <FilterPanel filters={filters} />
+      </div>
+    </aside>
+  )
+}
+
+/** Le bouton qui ouvre le tiroir de filtres sur mobile, avec le nombre de filtres posés. */
+export function MenuFilterButton({
+  filters,
+  onClick,
+  className,
+}: {
+  filters: MenuFilters
+  onClick: () => void
+  className?: string
+}) {
+  const n = nbFiltres(filters)
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      <SlidersHorizontal className="h-4 w-4" aria-hidden />
+      Filtrer les cartes
+      {n > 0 && (
+        <span className="rounded-full bg-terra px-1.5 text-[11px] font-bold text-white">{n}</span>
+      )}
+    </button>
+  )
+}
+
+/** Les mêmes filtres, dans un tiroir : sur mobile, la colonne n'a pas sa place. */
+export function MenuFilterDrawer({
+  filters,
+  open,
+  onOpenChange,
+}: {
+  filters: MenuFilters
+  open: boolean
+  onOpenChange: (v: boolean) => void
+}) {
+  const n = filters.menus.length
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,92vw)] flex-col bg-cream focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left">
+          <header className="flex items-center justify-between gap-3 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4">
+            <div>
+              <Dialog.Title className="font-display text-lg font-bold text-navy">
+                Filtrer les cartes
+              </Dialog.Title>
+              <Dialog.Description className="sr-only">
+                Dates, recherche, région, régime alimentaire et courses.
+              </Dialog.Description>
+            </div>
+            <Dialog.Close
+              aria-label="Fermer les filtres"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+            >
+              <X className="h-4 w-4" />
+            </Dialog.Close>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+            <FilterPanel filters={filters} />
+          </div>
+
+          <footer className="flex items-center gap-3 border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4">
+            {filters.active && (
+              <button type="button" onClick={filters.reset} className="btn btn-outline px-4 py-2.5 text-xs">
+                Effacer
+              </button>
+            )}
+            <Dialog.Close className="btn btn-navy flex-1 px-4 py-2.5 text-xs">
+              {filters.isPending
+                ? 'Voir les cartes'
+                : n === 0
+                  ? 'Fermer'
+                  : `Voir ${n} carte${n > 1 ? 's' : ''}`}
+            </Dialog.Close>
+          </footer>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
 /** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
 export function MenusLoading() {
   return (
@@ -418,12 +690,19 @@ export function MenuCard({
   index,
   onOpen,
   openLabel = 'Voir la carte',
+  customOrder = false,
   dietLabel,
 }: {
   menu: WeekCard
   index: number
   onOpen: () => void
   openLabel?: string
+  /**
+   * Propose la commande personnalisée à ce batch cooker : la demande sur-mesure
+   * s'ouvre déjà adressée à lui. Absent, la carte reste telle qu'elle est — la
+   * réservation de l'espace client ne la montre pas.
+   */
+  customOrder?: boolean
   /** Traduit un code de régime en libellé lisible. */
   dietLabel: (code: string) => string
 }) {
@@ -575,7 +854,7 @@ export function MenuCard({
             <p className="text-xs text-ink-soft">Tarif sur demande</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <p
             className={`text-xs ${
               menu.slotsLeft != null && menu.slotsLeft <= 2
@@ -585,6 +864,15 @@ export function MenuCard({
           >
             {placesLabel(menu.slotsLeft)}
           </p>
+          {customOrder && (
+            <ReserveButton
+              href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
+              variant="outline"
+              className="px-5 py-2.5 text-xs"
+            >
+              Commande personnalisée
+            </ReserveButton>
+          )}
           <button type="button" onClick={onOpen} className="btn btn-primary px-5 py-2.5 text-xs">
             {openLabel}
           </button>
