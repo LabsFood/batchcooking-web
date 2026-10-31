@@ -7,6 +7,7 @@ import Logo from '@/components/shared/Logo'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
 import { Hint } from '@/components/shared/Hint'
+import Image from 'next/image'
 
 function RegisterInner() {
   const params = useSearchParams()
@@ -66,11 +67,7 @@ function RegisterInner() {
 
       {/* Right — brand image */}
       <div className="hidden lg:block relative">
-        <img
-          src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&auto=format&fit=crop&q=80"
-          alt=""
-          className="w-full h-full object-cover"
-        />
+        <Image src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&auto=format&fit=crop&q=80" alt="" fill sizes="50vw" className="object-cover" />
         <div
           className="absolute inset-0"
           style={{ background: 'linear-gradient(135deg, rgba(44,62,80,0.85) 0%, rgba(243,156,18,0.55) 100%)' }}

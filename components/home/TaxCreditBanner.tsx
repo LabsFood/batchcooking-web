@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { ArrowRight, Percent } from 'lucide-react'
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState } from 'react'
@@ -61,10 +62,26 @@ export default function TaxCreditBanner() {
                 </span>
               </h2>
               <p className="text-white/70 text-base lg:text-lg leading-relaxed max-w-2xl">
-                Préparation de repas à domicile = service éligible SAP. Grâce à
-                l&apos;Avance immédiate de l&apos;Urssaf, vous ne réglez que la moitié de la
-                facture — l&apos;autre moitié est versée directement à Lab&apos;s Food.
+                Grâce à l&apos;Avance immédiate de l&apos;Urssaf, vous ne réglez que la moitié
+                de la facture.
               </p>
+              <div className="mt-7 inline-flex items-center gap-5 rounded-xl bg-white px-5 py-3">
+                <Image
+                  src="/sap-transparent-1024x754.webp"
+                  alt="Services à la personne"
+                  width={1024}
+                  height={754}
+                  className="h-12 w-auto"
+                />
+                <span aria-hidden="true" className="h-9 w-px bg-[rgba(31,42,55,0.12)]" />
+                <Image
+                  src="/logo-urssaf.png"
+                  alt="Urssaf"
+                  width={550}
+                  height={103}
+                  className="h-7 w-auto"
+                />
+              </div>
             </motion.div>
 
             <motion.div

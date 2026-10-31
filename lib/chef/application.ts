@@ -219,7 +219,7 @@ const zonesSchema = z
       if (!zone.wholeRegion && zone.cities.length === 0) {
         ctx.addIssue({
           path: ['zones'],
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: `Choisissez au moins une ville en ${regionLabel(zone.regionCode)}, ou toute la région.`,
         })
       }
@@ -229,7 +229,7 @@ const zonesSchema = z
 const statusSchema = z
   .object({
     workStatus: z.enum(['eu-citizen', 'residence-permit', 'renewal-pending', 'other'], {
-      errorMap: () => ({ message: 'Choisissez votre situation.' }),
+      error: 'Choisissez votre situation.',
     }),
     workStatusOther: z.string().trim().optional(),
   })
@@ -237,7 +237,7 @@ const statusSchema = z
     if (v.workStatus === 'other' && (v.workStatusOther ?? '').trim().length < 10) {
       ctx.addIssue({
         path: ['workStatusOther'],
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'Précisez votre situation en quelques mots (10 caractères minimum).',
       })
     }
@@ -246,7 +246,7 @@ const statusSchema = z
 const companySchema = z
   .object({
     legalForm: z.enum(['micro', 'other-company', 'not-registered'], {
-      errorMap: () => ({ message: 'Choisissez votre statut.' }),
+      error: 'Choisissez votre statut.',
     }),
     siret: z.string().optional(),
     sapTypeA: z.boolean(),
@@ -256,11 +256,11 @@ const companySchema = z
     if (v.legalForm !== 'not-registered') {
       const siret = (v.siret ?? '').replace(/\s/g, '')
       if (!siret) {
-        ctx.addIssue({ path: ['siret'], code: z.ZodIssueCode.custom, message: 'Indiquez votre numéro SIRET.' })
+        ctx.addIssue({ path: ['siret'], code: 'custom', message: 'Indiquez votre numéro SIRET.' })
       } else if (!isValidSiret(siret)) {
         ctx.addIssue({
           path: ['siret'],
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Ce SIRET n’est pas valide. Il compte 14 chiffres : vérifiez la saisie.',
         })
       }
@@ -268,7 +268,7 @@ const companySchema = z
     if (v.sapTypeA && !/^SAP\d{9}$/i.test((v.sapNumber ?? '').replace(/\s/g, ''))) {
       ctx.addIssue({
         path: ['sapNumber'],
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'Format attendu : SAP suivi des 9 chiffres du SIREN, par exemple SAP123456789.',
       })
     }
@@ -276,7 +276,7 @@ const companySchema = z
 
 const reviewSchema = z.object({
   consent: z.literal(true, {
-    errorMap: () => ({ message: 'Cochez cette case pour envoyer votre candidature.' }),
+    error: 'Cochez cette case pour envoyer votre candidature.',
   }),
 })
 
@@ -288,7 +288,7 @@ export type ApplicationValues = z.infer<typeof identitySchema> &
 export type StepId = 'identity' | 'zones' | 'status' | 'company' | 'documents' | 'review'
 
 /** Schéma de chaque étape. L'étape « Pièces » se valide au dépôt de chaque fichier. */
-export const STEP_SCHEMAS: Record<StepId, z.ZodTypeAny | null> = {
+export const STEP_SCHEMAS: Record<StepId, z.ZodType | null> = {
   identity: identitySchema,
   zones: zonesSchema,
   status: statusSchema,

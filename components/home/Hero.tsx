@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, Leaf, ChefHat } from 'lucide-react'
 import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAnimations'
 import ReserveButton from '@/components/shared/ReserveButton'
+import Image from 'next/image'
 
 const FADE = {
   hidden: { opacity: 0, y: 40, filter: 'blur(8px)' },
@@ -41,7 +42,7 @@ export default function Hero() {
           {/* ── Left text column ─────────────────────────────────────── */}
           <div className="lg:col-span-7">
             <motion.p variants={FADE} custom={0} initial="hidden" animate="show" className="eyebrow mb-6">
-              Service à la personne — Agréé SAP
+              Service à la personne
             </motion.p>
 
             <motion.h1
@@ -58,8 +59,8 @@ export default function Hero() {
               variants={FADE} custom={0.18} initial="hidden" animate="show"
               className="mt-7 text-ink-mid text-lg leading-relaxed max-w-xl"
             >
-              Un chef professionnel se déplace chez vous et prépare l&apos;ensemble de vos repas
-              de la semaine en une seule session. Sain, varié, personnalisé.
+              Un cuisinier se déplace chez vous et prépare l&apos;ensemble de vos repas
+              de la semaine en une seule session.
             </motion.p>
 
             {/* CTAs */}
@@ -85,11 +86,7 @@ export default function Hero() {
                   l'API rend `rating: null`, et une note que rien ne soutient
                   n'a pas sa place au-dessus d'un bandeau « en construction ». */}
               <p className="text-sm text-ink-mid">
-                <span className="font-semibold text-terra">−50%</span> Avance immédiate
-              </p>
-              <div className="hidden sm:block w-px h-8 bg-[rgba(31,26,20,0.1)]" />
-              <p className="text-sm text-ink-mid">
-                <span className="font-semibold text-ink">30+</span> sessions à domicile
+                <span className="font-semibold text-terra">Avance immédiate</span> acceptée
               </p>
             </motion.div>
           </div>
@@ -104,9 +101,12 @@ export default function Hero() {
             >
               {/* Main framed image — rounded shape */}
               <div className="relative">
-                <img
+                <Image
                   src="/shapeIvy_transparent.png"
                   alt="Chef cuisinier à domicile"
+                  width={1122}
+                  height={1402}
+                  preload
                   className="w-full h-full object-cover"
                 />
                 {/* <img

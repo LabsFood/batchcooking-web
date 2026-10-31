@@ -29,7 +29,7 @@ const STEPS = [
     Anim: ShoppingBag,
     title: 'Recevez la liste de courses',
     description:
-      'Vous recevez la liste de courses, classée par rayons, au moins 3 jours avant la prestation.',
+      'Vous recevez la liste de courses, classée par rayons.',
   },
   {
     number: '04',

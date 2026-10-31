@@ -3,28 +3,28 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Leaf, Clock, Smile, TrendingDown } from 'lucide-react'
-import { ChefHatSparkle } from '@/components/shared/CookingAnimations'
+import Image from 'next/image'
 
 const PILLARS = [
   {
     icon: Clock,
     title: 'Gain de temps',
-    description: 'Une seule session de 2 à 4h remplace des heures de cuisine quotidienne.',
+    description: "Une séance de 2h en moyenne chez vous, et vous n'avez plus à cuisiner de la semaine.",
   },
   {
     icon: Leaf,
     title: 'Alimentation saine',
-    description: 'Des repas équilibrés, frais, adaptés à vos besoins, par un professionnel.',
+    description: 'Des repas adaptés à vos goûts et à vos besoins.',
   },
   {
     icon: Smile,
     title: 'Zéro stress',
-    description: 'Plus besoin de penser aux repas chaque soir. Votre semaine est organisée.',
+    description: 'Fini la question « on mange quoi ce soir ? ». Vos repas sont prêts.',
   },
   {
     icon: TrendingDown,
     title: 'Économies réelles',
-    description: 'Moins de gaspillage et 50% de crédit d\'impôt pour optimiser votre budget.',
+    description: "Moins de gaspillage, et 50 % de crédit d'impôt déduit directement grâce à l'avance immédiate.",
   },
 ]
 
@@ -46,38 +46,32 @@ export default function Concept() {
             className="relative"
           >
             <div className="grid grid-cols-5 grid-rows-5 gap-3 h-[520px]">
-              <div className="col-span-3 row-span-3 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-3 row-span-3 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900&auto=format&fit=crop"
                   alt="Batch cooking — préparation des repas"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  fill
+                  sizes="(min-width: 1024px) 360px, 60vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
-              <div className="col-span-2 row-span-3 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-2 row-span-3 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=600&auto=format&fit=crop"
                   alt="Ingrédients frais"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  fill
+                  sizes="(min-width: 1024px) 240px, 40vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
-              <div className="col-span-5 row-span-2 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-5 row-span-2 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=900&auto=format&fit=crop"
-                  alt="Chef professionnel"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  alt="Cuisinier à domicile"
+                  fill
+                  sizes="(min-width: 1024px) 600px, 100vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
-              </div>
-            </div>
-
-            {/* Floating stat badge with chef hat animation */}
-            <div className="absolute -bottom-8 -left-6 lg:-left-10 bg-paper rounded-2xl p-5 shadow-[0_20px_50px_-15px_rgba(31,26,20,0.25)] border border-[rgba(31,26,20,0.06)] flex items-center gap-4">
-              <ChefHatSparkle size={64} />
-              <div>
-                <p className="font-display text-4xl font-bold text-terra leading-none">
-                  30+
-                </p>
-                <p className="text-ink text-sm font-semibold mt-1">Sessions réalisées</p>
-                <p className="text-ink-soft text-xs">en France entière</p>
               </div>
             </div>
           </motion.div>
@@ -95,13 +89,18 @@ export default function Concept() {
               <span className="accent">réinventé chez vous.</span>
             </h2>
             <p className="text-ink-mid leading-relaxed mb-5">
-              Le batch cooking consiste à préparer tous ses repas de la semaine en une seule session.
-              Lab&apos;s Food va plus loin : un(e) cuisinier(e) vient directement chez vous pour prendre
-              en charge l&apos;intégralité de la session — de la mise en place à la conservation.
+              Imaginez ouvrir votre frigo et trouver tous vos repas de la semaine, faits maison et
+              prêts à réchauffer. C&apos;est ce que fait Lab&apos;s Food : un(e) cuisinier(e) vient
+              chez vous, cuisine pour toute la semaine en une seule séance, range tout et vous
+              laisse une cuisine propre.
+            </p>
+            <p className="text-ink-mid leading-relaxed mb-5">
+              Séniors, famille avec enfants, végétarien, allergie ou régime spécifique : nos
+              cuisiniers adaptent chaque menu à votre profil et à vos goûts.
             </p>
             <p className="text-ink-mid leading-relaxed mb-10">
-              Cuisine européenne, africaine, americaine , ... notre catalogue de recettes du monde
-              garantit variété et découverte, semaine après semaine.
+              Cuisine européenne, africaine, américaine... Vous découvrez de nouvelles saveurs
+              chaque semaine, sans jamais vous lasser.
             </p>
 
             {/* Pillars */}

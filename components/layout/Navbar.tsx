@@ -9,15 +9,18 @@ import { cn } from '@/lib/utils'
 import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 import { useAuth } from '@/lib/auth-context'
+import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
 
 const NAV_LINKS = [
-  { label: 'Concept', href: '/#concept' },
-  { label: 'Menu', href: '/menu' },
+  { label: 'Accueil', href: '/' },
+  { label: 'Menu et Tarifs', href: '/menu' },
   { label: 'À propos', href: '/a-propos' },
   { label: 'FAQ', href: '/faq' },
   // Entrée de recrutement : elle ne s'adresse pas aux clients, d'où le
   // traitement visuel distinct (encadré discret) et sa place en fin de liste.
-  { label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const },
+  ...(MONTRER_RECRUTEMENT
+    ? [{ label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const }]
+    : []),
   { label: 'Contact', href: '/contact' },
 ]
 
@@ -82,9 +85,9 @@ export default function Navbar() {
                     'rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200',
                     link.kind === 'recruit'
                       ? cn(
-                          'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
-                          pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-terra' : 'text-navy hover:text-terra',
-                        )
+                        'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
+                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-terra' : 'text-navy hover:text-terra',
+                      )
                       : pathname === link.href
                         ? 'text-terra'
                         : 'text-ink-mid hover:text-terra',
@@ -107,40 +110,42 @@ export default function Navbar() {
                 bouton restait absent. Un bref « Connexion » chez un visiteur
                 déjà connecté est très préférable à un bouton manquant. */}
             {isReady && isAuthenticated ? (
-                <Link
-                  href={spaceHref}
-                  className="flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full border border-[rgba(31,42,55,0.10)] hover:border-amber transition-colors"
-                >
-                  {user?.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={user.avatar}
-                      alt=""
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="w-7 h-7 rounded-full bg-navy text-amber font-bold text-[11px] flex items-center justify-center">
-                      {initial}
+              <Link
+                href={spaceHref}
+                className="flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full border border-[rgba(31,42,55,0.10)] hover:border-amber transition-colors"
+              >
+                {user?.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatar}
+                    alt=""
+                    className="w-7 h-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="w-7 h-7 rounded-full bg-navy text-amber font-bold text-[11px] flex items-center justify-center">
+                    {initial}
+                  </span>
+                )}
+                <span className="flex flex-col leading-none">
+                  <span className="text-sm font-semibold text-navy max-w-[110px] truncate">
+                    {firstName}
+                  </span>
+                  {roleLabel && (
+                    <span className="text-[9px] uppercase tracking-[0.12em] text-terra font-semibold mt-0.5">
+                      {roleLabel}
                     </span>
                   )}
-                  <span className="flex flex-col leading-none">
-                    <span className="text-sm font-semibold text-navy max-w-[110px] truncate">
-                      {firstName}
-                    </span>
-                    {roleLabel && (
-                      <span className="text-[9px] uppercase tracking-[0.12em] text-terra font-semibold mt-0.5">
-                        {roleLabel}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
-              >
-                Connexion
+                </span>
               </Link>
+            ) : (
+              MONTRER_CONNEXION && (
+                <Link
+                  href="/auth/login"
+                  className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+                >
+                  Connexion
+                </Link>
+              )
             )}
             <ReserveButton className="text-xs px-5 py-3">
               Réserver
@@ -203,9 +208,11 @@ export default function Navbar() {
                   {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
                 </Link>
               ) : (
-                <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
-                  Connexion
-                </Link>
+                MONTRER_CONNEXION && (
+                  <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
+                    Connexion
+                  </Link>
+                )
               )}
               <ReserveButton className="justify-center w-full">
                 Réserver ma session

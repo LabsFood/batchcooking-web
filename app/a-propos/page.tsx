@@ -14,6 +14,7 @@ import {
   Salad,
 } from 'lucide-react'
 import ReserveButton from '@/components/shared/ReserveButton'
+import Image from 'next/image'
 
 const VALUES = [
   {
@@ -43,7 +44,7 @@ const VALUES = [
 ]
 
 const NUMBERS = [
-  { value: '21', label: 'Pays explorés' },
+  { value: '22', label: 'Pays explorés' },
   { value: '30+', label: 'Sessions à domicile' },
   { value: '2 h', label: 'Pour la semaine entière' },
   { value: '100 %', label: 'Fait maison, chez vous' },
@@ -74,7 +75,7 @@ export default function AProposPage() {
             <p className="mt-6 text-white/70 text-lg max-w-xl leading-relaxed">
               Lab&apos;s Food, c&apos;est l&apos;histoire d&apos;un déclic devenu service. Une cheffe à
               domicile, votre cuisine, et toute une semaine de repas préparés en une seule
-              session — sur la Côte d&apos;Azur.
+              session.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
@@ -95,10 +96,13 @@ export default function AProposPage() {
             className="lg:col-span-5 relative"
           >
             <div className="relative overflow-hidden aspect-[4/5] rounded-lg">
-              <img
+              <Image
                 src="/IvyOfficielle.png"
                 alt="Ivy Siyaptze, cheffe et fondatrice de Lab's Food"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 40vw, 100vw"
+                preload
+                className="object-cover"
               />
             </div>
             <div className="absolute -bottom-4 -left-4 md:-bottom-6 md:-left-6 bg-paper text-navy rounded-2xl p-4 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.35)] flex items-center gap-3 max-w-[260px]">
@@ -171,7 +175,7 @@ export default function AProposPage() {
             </p>
             <p className='text-justify'>
               Mon inspiration culinaire, je la puise dans mes carnets de voyage. J&apos;ai eu la
-              chance d&apos;explorer 21 pays, et c&apos;est sur le terrain, au cœur des cuisines du
+              chance d&apos;explorer 22 pays, et c&apos;est sur le terrain, au cœur des cuisines du
               monde entier, que j&apos;ai forgé mon savoir-faire. Lors de mes longs séjours à
               l&apos;étranger, je m&apos;immerge dans la culture locale, j&apos;apprends auprès de ceux qui
               transmettent les traditions familiales, et je valide parfois ces acquis par des
@@ -200,7 +204,7 @@ export default function AProposPage() {
       <section className="section-padding section-cream-soft">
         <div className="container-xl">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <p className="eyebrow mb-4 justify-center">Ce qui nous anime</p>
+            <p className="eyebrow mb-4 justify-center">Notre love language</p>
             <h2 className="h-section">
               Une cuisine qui prend <span className="accent">soin de vous.</span>
             </h2>

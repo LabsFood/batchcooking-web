@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import {
-  Instagram, Facebook, Youtube,
+  Instagram, Linkedin,
   Mail, Phone, MapPin, ArrowRight, ArrowUpRight,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
@@ -10,12 +10,9 @@ const LINKS = {
   service: [
     { label: 'Notre concept', href: '/#concept' },
     { label: 'Comment ça marche', href: '/#how-it-works' },
-    { label: 'Nos formules', href: '/#pricing' },
-    { label: 'Menu de la semaine', href: '/menu' },
   ],
   about: [
     { label: 'À propos', href: '/a-propos' },
-    { label: 'Notre histoire', href: '/a-propos#histoire' },
     { label: 'Témoignages', href: '/#testimonials' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Contact', href: '/contact' },
@@ -24,14 +21,22 @@ const LINKS = {
     { label: 'Mentions légales', href: '/mentions-legales' },
     { label: 'CGV', href: '/cgv' },
     { label: 'Confidentialité', href: '/confidentialite' },
-    { label: 'Cookies', href: '/confidentialite#cookies' },
   ],
 }
 
+/** lucide-react n'a pas d'icône TikTok : le logo est tracé ici, au même gabarit. */
+function TikTok({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19.6 6.7a5.3 5.3 0 0 1-3.2-1.1 5.3 5.3 0 0 1-2-3.6h-3.3v12.6a2.4 2.4 0 1 1-1.7-2.3V8.9a5.7 5.7 0 1 0 5 5.7V9.2a8.6 8.6 0 0 0 5.2 1.7V7.6a5.3 5.3 0 0 1-.1-.9Z" />
+    </svg>
+  )
+}
+
 const SOCIAL = [
-  { Icon: Instagram, label: 'Instagram', href: '#' },
-  { Icon: Facebook, label: 'Facebook', href: '#' },
-  { Icon: Youtube, label: 'YouTube', href: '#' },
+  { Icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/labs_food' },
+  { Icon: TikTok, label: 'TikTok', href: 'https://www.tiktok.com/@labs_food' },
+  { Icon: Linkedin, label: 'LinkedIn', href: 'https://www.linkedin.com/company/labs-food' },
 ]
 
 export default function Footer() {
@@ -111,21 +116,21 @@ export default function Footer() {
                 <span className="text-terra italic font-medium">à votre porte.</span>
               </p>
               <p className="mt-6 text-cream-soft/65 max-w-md text-base leading-relaxed">
-                Un chef professionnel vient cuisiner une semaine entière de repas chez vous,
-                en une seule session. Sain, varié, sans effort.
+                Un cuisinier vient préparer une semaine entière de repas chez vous,
+                en une seule session.
               </p>
             </div>
 
             {/* Newsletter */}
             <div className="lg:col-span-5 lg:pl-10 lg:border-l lg:border-white/10">
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terra mb-4">
-                Newsletter hebdo
+                Newsletter
               </p>
               <h4 className="font-display text-2xl text-white font-bold mb-3 leading-tight">
-                Recevez le menu de la semaine
+                Restez informé de nos nouveautés
               </h4>
               <p className="text-sm text-cream-soft/65 mb-6">
-                Inspirations culinaires & offres exclusives, chaque lundi matin.
+                Nouveaux batch cookers, nouveaux plats et actualités de Lab&apos;s Food, directement dans votre boîte mail.
               </p>
               <form className="flex flex-col sm:flex-row gap-2 mb-4">
                 <input
@@ -189,6 +194,8 @@ export default function Footer() {
                     <a
                       key={label}
                       href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       aria-label={label}
                       className="group w-11 h-11 rounded-full bg-white/[0.06] border border-white/15 flex items-center justify-center text-cream-soft hover:bg-terra hover:border-terra hover:text-white transition-all duration-300 hover:-translate-y-1"
                     >

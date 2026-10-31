@@ -1,0 +1,82 @@
+name: Batch cooking web image
+
+# Build the production image (Dockerfile, same as Railway) and boot it on a
+# standard GitHub runner to prove the standalone server starts and answers
+# HTTP. Lint, typecheck, SAST and the dependency audit (ci.yml) gate the build;
+# a green build on main cuts the release.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Local tag used only for the runner smoke test.
+  TEST_IMAGE: batchcooking-web:ci
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  build-run:
+    needs: checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      # GitHub Actions cache (type=gha) keeps rebuilds fast.
+      - name: Build image (load for testing)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          load: true
+          tags: ${{ env.TEST_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test — boot + HTTP answer
+        run: |
+          set -euo pipefail
+          docker run -d --name web -p 3000:3000 "${TEST_IMAGE}"
+          code=000
+          for i in $(seq 1 20); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ || true)"
+            [ "$code" != "000" ] && break
+            [ "$(docker inspect -f '{{.State.Running}}' web)" = "true" ] || { echo "Container exited early."; break; }
+            sleep 2
+          done
+          echo "::group::Server logs"
+          docker logs web || true
+          echo "::endgroup::"
+          # ponytail: any HTTP status passes (CI has no Clerk or API keys); assert 200 on a public page once it does.
+          [ "$code" != "000" ] || { echo "::error::server never answered on :3000"; exit 1; }
+          echo "GET / -> $code"
+
+      - name: Teardown smoke test
+        if: always()
+        run: docker rm -f web >/dev/null 2>&1 || true
+
+  # Pushes to main only (not develop or PRs). SemRelease tags the commit and
+  # publishes the GitHub Release.
+  release:
+    needs: build-run
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/release.yml

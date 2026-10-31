@@ -14,6 +14,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { ApiError, apiFetch } from '@/lib/api/client'
+import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Formulaire de contact.
@@ -304,7 +305,7 @@ export default function ContactForm() {
       {/* Coordonnées et raccourcis */}
       <aside className="space-y-5">
         <div className="rounded-2xl bg-navy p-6 text-white">
-          <h2 className="font-display text-lg font-bold">Nous joindre</h2>
+          <h2 className="font-display text-lg font-bold">Nous contacter</h2>
           <ul className="mt-4 space-y-4 text-sm">
             <li>
               <a href="mailto:contact@labsfood.fr" className="group flex items-center gap-3 text-white/85 hover:text-white">
@@ -337,8 +338,12 @@ export default function ContactForm() {
           <ul className="mt-4 space-y-2">
             <Shortcut href="/faq" label="Questions fréquentes" detail="Tarifs, déroulé, matériel" />
             <Shortcut href="/avantage-fiscal" label="Crédit d’impôt" detail="Ce qu’il reste à votre charge" />
-            <Shortcut href="/devenir-chef" label="Devenir batch cooker" detail="Candidater en quelques minutes" />
-            <Shortcut href="/espace-client" label="Mon espace client" detail="Sessions, messages, factures" />
+            {MONTRER_RECRUTEMENT && (
+              <Shortcut href="/devenir-chef" label="Devenir batch cooker" detail="Candidater en quelques minutes" />
+            )}
+            {MONTRER_CONNEXION && (
+              <Shortcut href="/espace-client" label="Mon espace client" detail="Sessions, messages, factures" />
+            )}
           </ul>
         </div>
 

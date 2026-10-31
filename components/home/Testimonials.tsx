@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { Star, Quote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TESTIMONIALS } from '@/lib/mock-data'
+import Image from 'next/image'
 
 export default function Testimonials() {
   const ref = useRef(null)
@@ -65,9 +66,13 @@ export default function Testimonials() {
               {/* Author */}
               <div className="flex items-center gap-4 pt-8 border-t border-[rgba(31,26,20,0.08)]">
                 {t.clientAvatar ? (
-                  <img
+                  // Avatar issu des données : hôte inconnu d'avance, donc sans optimiseur.
+                  <Image
                     src={t.clientAvatar}
                     alt={t.clientName}
+                    width={56}
+                    height={56}
+                    unoptimized
                     className="w-14 h-14 rounded-full object-cover border-2 border-cream"
                   />
                 ) : (
@@ -129,7 +134,7 @@ export default function Testimonials() {
               pas encore côté API, ces deux nombres ne s'appuyaient sur rien. */}
           {[
             { value: '98%', label: 'Satisfaction' },
-            { value: '87%', label: 'Renouvellement' },
+            { value: '90%', label: 'Renouvellement' },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <p className="font-display text-4xl lg:text-5xl font-bold text-terra leading-none">
