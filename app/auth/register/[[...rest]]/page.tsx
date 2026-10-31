@@ -6,6 +6,7 @@ import { SignUp } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
+import { Hint } from '@/components/shared/Hint'
 
 function RegisterInner() {
   const params = useSearchParams()
@@ -24,6 +25,13 @@ function RegisterInner() {
             Bienvenue chez <span className="text-terra italic font-medium">Lab&apos;s Food.</span>
           </h1>
           <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes</p>
+          <div className="mb-6">
+            <Hint id="inscription-un-seul-role">
+              Ce compte sert à réserver comme client. Un compte ne sert qu&apos;à un
+              rôle : pour cuisiner aussi pour Lab&apos;s Food, il te faudra une autre
+              adresse e-mail.
+            </Hint>
+          </div>
 
           <ClerkWidgetGate>
             <SignUp

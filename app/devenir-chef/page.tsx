@@ -20,6 +20,7 @@ import Logo from '@/components/shared/Logo'
 import ZonePicker from '@/components/chef/application/ZonePicker'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
+import { Hint } from '@/components/shared/Hint'
 import { formatE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
 import {
@@ -377,6 +378,11 @@ function ApplicationForm({
                 title="Vos coordonnées"
                 lead="Elles nous servent à étudier votre candidature et à créer votre espace batch cooker."
               >
+                <Hint id="candidature-un-seul-role">
+                  Votre espace batch cooker est créé avec l’adresse e-mail saisie ici. Un
+                  compte ne sert qu’à un rôle : pour réserver aussi comme client, il vous
+                  faudra une autre adresse.
+                </Hint>
                 <Group legend="Vous">
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <TextField
@@ -463,6 +469,11 @@ function ApplicationForm({
                 title="Où intervenez-vous ?"
                 lead="Cochez une région entière, ou dépliez-la pour choisir des villes précises. La recherche couvre toutes les communes de France métropolitaine."
               >
+                <Hint id="candidature-zones-definitives">
+                  Vos zones sont vérifiées avec vos justificatifs. Une fois votre
+                  candidature approuvée, seule l’équipe Lab’s Food peut les modifier :
+                  choisissez-les avec soin.
+                </Hint>
                 <ZonePicker
                   value={values.zones}
                   onChange={(z) => set('zones', z)}
