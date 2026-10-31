@@ -31,7 +31,7 @@ Le repo couvre trois surfaces :
 ## Démarrage rapide
 
 ```bash
-nvm use            # Node 20
+nvm use            # Node 24.22.1 (.nvmrc)
 npm install        # installe aussi les hooks Husky (scripts.prepare)
 cp .env.example .env.local
 # renseigner au minimum les clés Clerk et NEXT_PUBLIC_API_URL
@@ -186,7 +186,7 @@ Hooks Husky, installés automatiquement par `npm install` :
 
 ## Déploiement
 
-Image Docker multi-stage ([Dockerfile](Dockerfile)) basée sur `node:20-alpine`,
+Image Docker multi-stage ([Dockerfile](Dockerfile)) basée sur `node:24.22.1-alpine3.24`,
 exploitant la sortie `standalone` de Next.js, exécutée par un utilisateur non
 root et exposant le **port 3000**.
 

@@ -6,6 +6,7 @@ import { SignIn } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
+import Image from 'next/image'
 
 function LoginInner() {
   const params = useSearchParams()
@@ -55,11 +56,7 @@ function LoginInner() {
       </div>
 
       <div className="hidden lg:block relative">
-        <img
-          src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900&auto=format&fit=crop&q=80"
-          alt=""
-          className="w-full h-full object-cover"
-        />
+        <Image src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900&auto=format&fit=crop&q=80" alt="" fill sizes="50vw" className="object-cover" />
         <div className="absolute inset-0"
           style={{ background: 'linear-gradient(135deg, rgba(44,62,80,0.85) 0%, rgba(243,156,18,0.55) 100%)' }} />
         <div className="absolute bottom-12 left-12 right-12">

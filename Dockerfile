@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-alpine AS deps
+FROM node:24.22.1-alpine3.24 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine3.24 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -30,8 +30,23 @@ ENV NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_F
 
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:24.22.1-alpine3.24 AS runtime
 WORKDIR /app
+
+# Racines eMudhra (emSign) retirées (compromission de l'AC, 31/10/2026). Le serveur
+# filtre déjà le magasin de Node au démarrage (instrumentation.ts) ; ceci les retire
+# aussi du bundle système.
+RUN node <<'EOF'
+const fs = require('fs');
+const { X509Certificate } = require('crypto');
+const file = '/etc/ssl/certs/ca-certificates.crt';
+if (fs.existsSync(file)) {
+  const pems = fs.readFileSync(file, 'utf8').match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? [];
+  const kept = pems.filter((pem) => !/eMudhra|emSign/i.test(new X509Certificate(pem).subject));
+  fs.writeFileSync(file, kept.join('\n') + '\n');
+  console.log(`${file}: ${pems.length - kept.length} emSign roots removed`);
+}
+EOF
 
 ENV NODE_ENV=production \
     PORT=3000

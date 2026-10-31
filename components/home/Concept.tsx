@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Leaf, Clock, Smile, TrendingDown } from 'lucide-react'
+import Image from 'next/image'
 
 const PILLARS = [
   {
@@ -45,25 +46,31 @@ export default function Concept() {
             className="relative"
           >
             <div className="grid grid-cols-5 grid-rows-5 gap-3 h-[520px]">
-              <div className="col-span-3 row-span-3 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-3 row-span-3 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900&auto=format&fit=crop"
                   alt="Batch cooking — préparation des repas"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  fill
+                  sizes="(min-width: 1024px) 360px, 60vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
-              <div className="col-span-2 row-span-3 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-2 row-span-3 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=600&auto=format&fit=crop"
                   alt="Ingrédients frais"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  fill
+                  sizes="(min-width: 1024px) 240px, 40vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
-              <div className="col-span-5 row-span-2 rounded-2xl overflow-hidden">
-                <img
+              <div className="relative col-span-5 row-span-2 rounded-2xl overflow-hidden">
+                <Image
                   src="https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=900&auto=format&fit=crop"
                   alt="Cuisinier à domicile"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  fill
+                  sizes="(min-width: 1024px) 600px, 100vw"
+                  className="object-cover hover:scale-105 transition-transform duration-700"
                 />
               </div>
             </div>

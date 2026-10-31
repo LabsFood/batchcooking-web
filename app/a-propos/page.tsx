@@ -14,6 +14,7 @@ import {
   Salad,
 } from 'lucide-react'
 import ReserveButton from '@/components/shared/ReserveButton'
+import Image from 'next/image'
 
 const VALUES = [
   {
@@ -95,10 +96,13 @@ export default function AProposPage() {
             className="lg:col-span-5 relative"
           >
             <div className="relative overflow-hidden aspect-[4/5] rounded-lg">
-              <img
+              <Image
                 src="/IvyOfficielle.png"
                 alt="Ivy Siyaptze, cheffe et fondatrice de Lab's Food"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 40vw, 100vw"
+                preload
+                className="object-cover"
               />
             </div>
             <div className="absolute -bottom-4 -left-4 md:-bottom-6 md:-left-6 bg-paper text-navy rounded-2xl p-4 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.35)] flex items-center gap-3 max-w-[260px]">

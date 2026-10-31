@@ -3,6 +3,7 @@
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import { Globe2 } from 'lucide-react'
+import Image from 'next/image'
 
 type Dish = {
   name: string
@@ -195,11 +196,12 @@ function Row({
 function DishCard({ dish }: { dish: Dish }) {
   return (
     <figure className="relative flex-shrink-0 w-[260px] lg:w-[340px] aspect-[4/5] rounded-3xl overflow-hidden bg-paper shadow-[0_18px_36px_-18px_rgba(31,42,55,0.25)]">
-      <img
+      <Image
         src={dish.img}
         alt={dish.name}
-        loading="lazy"
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+        fill
+        sizes="(min-width: 1024px) 340px, 260px"
+        className="object-cover transition-transform duration-700 hover:scale-105"
       />
       {/* Dark gradient bottom for legibility */}
       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
