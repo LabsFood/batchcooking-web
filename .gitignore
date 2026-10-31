@@ -32,3 +32,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local editor/agent tooling (personal machine paths, never shared config)
+.claude/
+*.local.json
+brag-output/

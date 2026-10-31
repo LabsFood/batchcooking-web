@@ -4,274 +4,468 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  CalendarRange,
-  Clock,
-  Sparkles,
-  ShoppingBasket,
+  CheckCircle2,
   ChefHat,
-  Trophy,
+  Circle,
   MessageCircle,
-  Flame,
+  ShoppingBasket,
+  Sparkles,
+  Trophy,
 } from 'lucide-react'
 import {
-  DASHBOARD_ORDERS,
-  DASHBOARD_STATS,
-  CHAT_MESSAGES,
-  CUSTOM_REQUESTS,
-  ORDER_STATUS_LABEL,
-} from '@/lib/dashboard-mock'
+  bookingMealNames,
+  bookingPortions,
+  bookingStatusText,
+  euros,
+  hour,
+  isBookingOpen,
+  longDate,
+  useMyBookings,
+  type Booking,
+} from '@/lib/api/bookings'
+import { useMyQuotes } from '@/lib/api/quotes'
+import { useConversations } from '@/lib/api/messaging'
+import { previewOf } from '@/components/messaging/format'
+import CulinaryMap from '@/components/dashboard/CulinaryMap'
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+/* ─────────────────────────────────────────────────────────────────────────────
+   Accueil client.
+
+   Ordre de lecture : ce qui arrive et où ça en est, puis la carte culinaire,
+   puis ce qui s'est passé. Le bilan chiffré est une ligne de texte et non une
+   rangée de tuiles : quatre nombres du même poids ne font pas une hiérarchie,
+   ils font un décor.
+
+   Tout vient de l'API depuis le 21/10 — `GET /me/bookings` et `GET /me/quotes`.
+   Jusque-là cet écran lisait `lib/dashboard-mock.ts`, et se contredisait
+   lui-même : la barre de signaux, en haut, disait vrai pendant que les cartes
+   du dessous annonçaient une session qui n'existait pas.
+
+   Le bilan se calcule sur les prestations **terminées**, parce que c'est la
+   seule définition qu'un client reconnaîtra : une session annulée n'a fait
+   gagner de temps à personne.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/** Les étapes que l'API fait parcourir à une prestation, dans l'ordre. */
+const FLOW = ['pending', 'confirmed', 'shopping', 'cooking', 'delivered'] as const
+
+const STEP_LABEL: Record<(typeof FLOW)[number], string> = {
+  pending: 'Reçue',
+  confirmed: 'Confirmée',
+  shopping: 'Courses',
+  cooking: 'En cuisine',
+  delivered: 'Livrée',
 }
 
+const STATUS_DOT: Record<string, string> = {
+  pending: 'bg-amber',
+  confirmed: 'bg-mint-deep',
+  shopping: 'bg-mint-deep',
+  cooking: 'bg-terra',
+  delivered: 'bg-ink-soft',
+  completed: 'bg-ink-soft',
+  cancelled: 'bg-red-400',
+  disputed: 'bg-red-400',
+}
+
+/** Deux heures gagnées par prestation : l'hypothèse est dite, pas cachée. */
+const HEURES_PAR_SESSION = 2
+
 export default function DashboardOverviewPage() {
-  const upcoming = DASHBOARD_ORDERS.find((o) => ['pending', 'confirmed'].includes(o.status))
-  const lastMessage = CHAT_MESSAGES[CHAT_MESSAGES.length - 1]
-  const pendingCustom = CUSTOM_REQUESTS[0]
+  const query = useMyBookings({ limit: 50 })
+  const devis = useMyQuotes()
+  const toutes = query.data?.data ?? []
+
+  /* La prochaine : la première encore ouverte, dans l'ordre du temps. */
+  const aVenir = [...toutes]
+    .filter(isBookingOpen)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  const prochaine = aVenir[0] ?? null
+  const etape = prochaine
+    ? FLOW.indexOf(prochaine.status as (typeof FLOW)[number])
+    : -1
+
+  /** Une prestation `pending` non réglée tient son créneau 72 h, puis tombe. */
+  const aRegler = toutes.find((b) => b.status === 'pending' && !b.paidCents) ?? null
+
+  const terminees = toutes.filter(
+    (b) => b.status === 'completed' || b.status === 'delivered',
+  )
+  const platsCuisines = terminees.reduce((n, b) => n + bookingPortions(b), 0)
+  const creditCumule = terminees.reduce(
+    (n, b) =>
+      n + (b.amountTtc != null && b.amountAfterTax != null ? b.amountTtc - b.amountAfterTax : 0),
+    0,
+  )
+
+  // La conversation la plus récemment active : la liste arrive déjà triée.
+  const lastThread = useConversations().data?.find((c) => c.lastMessage)
+  /** Une demande sur-mesure qui attend encore quelque chose. */
+  const demande =
+    (devis.data ?? []).find(
+      (q) => !['accepted', 'cancelled', 'closed'].includes(q.status),
+    ) ?? null
 
   return (
-    <div className="space-y-6">
-      {/* ── Hero card ─────────────────────────────────────────────────── */}
+    <div className="space-y-8">
+      {/* ── Ce qui arrive ─────────────────────────────────────────────── */}
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-navy-mid to-navy text-white p-6 lg:p-8"
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="overflow-hidden rounded-3xl bg-navy text-white"
       >
-        {/* <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/30 blur-3xl pointer-events-none" /> */}
-        {/* <div className="absolute -bottom-24 -left-12 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" /> */}
-
-        <div className="relative grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 items-end">
-          <div>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber/20 text-amber text-[10px] font-mono uppercase tracking-[0.2em]">
-              <Flame className="w-3 h-3" /> Prochaine session
-            </span>
-            {upcoming ? (
+        <div className="grid grid-cols-1 gap-px bg-white/10 lg:grid-cols-[1.7fr_1fr]">
+          <div className="bg-navy p-6 lg:p-8">
+            {query.isPending ? (
+              <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+            ) : prochaine ? (
               <>
-                <h2 className="font-display text-3xl lg:text-4xl font-bold mt-4 leading-tight">
-                  {formatDate(upcoming.date)}
+                <p className="text-sm text-amber">Prochaine session</p>
+                <h2 className="mt-2 font-display text-3xl font-bold capitalize leading-tight lg:text-[2.5rem]">
+                  {longDate(prochaine.startsAt) ?? 'Date à confirmer'}
                 </h2>
-                <p className="text-white/65 mt-2 text-sm">
-                  {upcoming.timeSlot} · Avec <span className="text-amber font-semibold">{upcoming.chef}</span> · Formule {upcoming.formula}
-                </p>
-
-                <div className="mt-5 flex flex-wrap items-center gap-2">
-                  {upcoming.meals.slice(0, 3).map((m) => (
-                    <span key={m.name} className="text-xs px-3 py-1 rounded-full bg-white/10 border border-white/15">
-                      {m.name}
-                    </span>
-                  ))}
-                  {upcoming.meals.length > 3 && (
-                    <span className="text-xs px-3 py-1 rounded-full bg-white/5 text-white/60">
-                      +{upcoming.meals.length - 3} autres
+                <p className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-white/70">
+                  {hour(prochaine.startsAt) && (
+                    <span>
+                      {hour(prochaine.startsAt)}
+                      {hour(prochaine.endsAt) ? ` → ${hour(prochaine.endsAt)}` : ''}
                     </span>
                   )}
-                </div>
+                  {prochaine.chef?.displayName && <span>{prochaine.chef.displayName}</span>}
+                  <span>
+                    {bookingMealNames(prochaine).length} plats ·{' '}
+                    {prochaine.persons ?? bookingPortions(prochaine)} personnes
+                  </span>
+                </p>
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                {bookingMealNames(prochaine).length > 0 && (
+                  <p className="mt-5 text-sm leading-relaxed text-white/60">
+                    {bookingMealNames(prochaine).join(' · ')}
+                  </p>
+                )}
+
+                <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
                   <Link
-                    href={`/espace-client/commandes/${upcoming.id}`}
-                    className="inline-flex items-center gap-2 bg-amber hover:bg-amber-deep text-navy font-semibold rounded-full px-5 py-2.5 text-sm transition-colors"
+                    href={`/espace-client/commandes/${prochaine.id}`}
+                    className="inline-flex items-center gap-2 bg-amber px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-amber-deep"
                   >
                     Voir le détail
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                   <Link
                     href="/espace-client/messages"
-                    className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white rounded-full px-5 py-2.5 text-sm transition-colors"
+                    className="text-sm text-white/70 underline-offset-4 hover:text-white hover:underline"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                    Écrire à Ivy
+                    Écrire à mon chef
                   </Link>
                 </div>
               </>
             ) : (
               <>
-                <h2 className="font-display text-3xl font-bold mt-4">Pas de session prévue</h2>
-                <p className="text-white/65 mt-2 text-sm">Lance ta prochaine session de batch cooking.</p>
+                <p className="text-sm text-amber">Aucune session prévue</p>
+                <h2 className="mt-2 font-display text-3xl font-bold leading-tight lg:text-[2.5rem]">
+                  Votre frigo va finir par s’en apercevoir
+                </h2>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-white/65">
+                  Choisissez un batch cooker et calez une date : le reste se prépare tout seul.
+                </p>
+                <Link
+                  href="/espace-client/reservation"
+                  className="mt-7 inline-flex items-center gap-2 bg-amber px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-amber-deep"
+                >
+                  Trouver un batch cooker
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
               </>
             )}
           </div>
 
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-5 backdrop-blur-sm">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber font-mono mb-3">
-              Cette saison chez Lab&apos;s Food
-            </p>
-            <Stat label="Sessions réalisées" value={DASHBOARD_STATS.sessionsTotal} accent="amber" />
-            <Stat label="Plats cuisinés" value={DASHBOARD_STATS.mealsCooked} />
-            <Stat label="Heures gagnées" value={`${DASHBOARD_STATS.hoursSaved} h`} />
-            <Stat label="Crédit d'impôt cumulé" value={`${DASHBOARD_STATS.moneySaved} €`} accent="mint" />
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ── Quick actions ─────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <QuickAction
-          href="/espace-client/menus"
-          Icon={ChefHat}
-          title="Menus"
-          subtitle="Découvrir cette semaine"
-          accent="amber"
-        />
-        <QuickAction
-          href="/espace-client/personnalisation"
-          Icon={Sparkles}
-          title="Personnaliser"
-          subtitle="Brunch, régime, événement…"
-          accent="mint"
-        />
-        <QuickAction
-          href="/espace-client/commandes"
-          Icon={CalendarRange}
-          title="Commandes"
-          subtitle="Suivi & historique"
-          accent="navy"
-        />
-        <QuickAction
-          href="/espace-client/statistiques"
-          Icon={Trophy}
-          title="Statistiques"
-          subtitle="Tes plats, ton temps gagné"
-          accent="amber"
-        />
-      </section>
-
-      {/* ── 2-column row ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent orders */}
-        <div className="lg:col-span-2 bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
-            <Link href="/espace-client/commandes" className="text-xs font-semibold text-amber hover:underline inline-flex items-center gap-1">
-              Tout voir <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <ul className="divide-y divide-[rgba(31,42,55,0.06)]">
-            {DASHBOARD_ORDERS.slice(0, 3).map((o) => (
-              <li key={o.id} className="py-3 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-soft text-amber-deep flex items-center justify-center flex-shrink-0">
-                  <CalendarRange className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-navy truncate">
-                    {o.formula} · {o.meals.length} plats
-                  </p>
-                  <p className="text-xs text-ink-soft truncate">
-                    {formatDate(o.date)} · {o.amountTTC}€ TTC
-                  </p>
-                </div>
-                <span
-                  className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${o.status === 'delivered'
-                      ? 'bg-mint text-mint-ink'
-                      : o.status === 'pending'
-                        ? 'bg-amber-soft text-amber-deep'
-                        : 'bg-cream-deep text-navy'
-                    }`}
-                >
-                  {ORDER_STATUS_LABEL[o.status]}
-                </span>
-                <Link
-                  href={`/espace-client/commandes/${o.id}`}
-                  className="text-ink-soft hover:text-navy"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Activity */}
-        <div className="space-y-6">
-          {/* Last message */}
-          <div className="bg-mint/40 border border-mint-deep/40 rounded-3xl p-5">
-            <div className="flex items-center gap-2 text-mint-ink text-[10px] uppercase tracking-[0.2em] font-mono mb-3">
-              <MessageCircle className="w-3.5 h-3.5" /> Dernier message
-            </div>
-            <p className="text-sm font-semibold text-navy mb-1">{lastMessage.author}</p>
-            <p className="text-sm text-ink-mid leading-relaxed line-clamp-3">{lastMessage.text}</p>
-            <Link
-              href="/espace-client/messages"
-              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-mint-ink hover:underline"
-            >
-              Répondre <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {/* Custom request */}
-          {pendingCustom && (
-            <div className="bg-paper border border-[rgba(31,42,55,0.06)] rounded-3xl p-5">
-              <div className="flex items-center gap-2 text-amber text-[10px] uppercase tracking-[0.2em] font-mono mb-3">
-                <Sparkles className="w-3.5 h-3.5" /> Demande perso
-              </div>
-              <p className="text-sm font-semibold text-navy mb-1">{pendingCustom.title}</p>
-              <p className="text-xs text-ink-soft mb-3">
-                Statut : <span className="text-navy font-semibold">{pendingCustom.status}</span>
-                {pendingCustom.quote && ` · ${pendingCustom.quote.amountTTC}€ proposés`}
+          {/* Où en est la session : la question qu'on se pose vraiment. */}
+          {prochaine && (
+            <div className="bg-navy p-6 lg:p-7">
+              <p className="mb-4 text-sm text-white/50">Où en est ma session</p>
+              <ol className="space-y-3">
+                {FLOW.map((step, i) => {
+                  const done = i < etape
+                  const now = i === etape
+                  return (
+                    <li key={step} className="flex items-center gap-3">
+                      {done ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-mint-deep" aria-hidden />
+                      ) : (
+                        <Circle
+                          className={`h-4 w-4 shrink-0 ${now ? 'text-amber' : 'text-white/25'}`}
+                          strokeWidth={now ? 3 : 2}
+                          aria-hidden
+                        />
+                      )}
+                      <span
+                        className={
+                          now
+                            ? 'text-sm font-semibold text-white'
+                            : done
+                              ? 'text-sm text-white/65'
+                              : 'text-sm text-white/35'
+                        }
+                      >
+                        {STEP_LABEL[step]}
+                      </span>
+                      {now && <span className="ml-auto text-xs text-amber">en cours</span>}
+                    </li>
+                  )
+                })}
+              </ol>
+              <p className="mt-5 border-t border-white/10 pt-4 text-xs leading-relaxed text-white/45">
+                {prochaine.status === 'pending'
+                  ? 'C’est le paiement qui confirme la session. Le créneau est tenu 72 heures.'
+                  : 'Vous réglez à l’issue de la prestation, et choisissez votre moyen de paiement à ce moment-là.'}
               </p>
-              <Link
-                href="/espace-client/personnalisation"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber hover:underline"
-              >
-                Voir la demande <ArrowRight className="w-3 h-3" />
-              </Link>
             </div>
           )}
         </div>
+      </motion.section>
+
+      {/* ── Une prestation attend son règlement ───────────────────────── */}
+      {aRegler && (
+        <Link
+          href={`/espace-client/commandes/${aRegler.id}/paiement`}
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 border-l-2 border-terra bg-paper py-4 pl-5 pr-4 transition-colors hover:bg-cream-soft"
+        >
+          <span className="text-sm text-navy">
+            <span className="font-semibold">
+              {aRegler.chef?.displayName?.split(' ')[0] ?? 'Votre batch cooker'} vous attend{' '}
+            </span>
+            le {longDate(aRegler.startsAt)}. Cette réservation n’est pas encore réglée.
+          </span>
+          <span className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-terra">
+            Régler {euros(aRegler.amountAfterTax ?? aRegler.amountTtc) ?? ''}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </span>
+        </Link>
+      )}
+
+      {/* ── Bilan ─────────────────────────────────────────────────────── */}
+      <section>
+        <dl className="flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-[rgba(31,42,55,0.1)] py-5">
+          <Figure value={String(terminees.length)} label="sessions réalisées" />
+          <Figure value={String(platsCuisines)} label="portions cuisinées" />
+          <Figure
+            value={`${terminees.length * HEURES_PAR_SESSION} h`}
+            label="passées à autre chose"
+          />
+          <Figure
+            value={euros(creditCumule) ?? '0 €'}
+            label="de crédit d’impôt cumulé"
+            accent
+          />
+        </dl>
+      </section>
+
+      {/* ── Carte culinaire : une tuile, la carte s'ouvre en grand ────── */}
+      <CulinaryMap />
+
+      {/* ── Sessions et activité ──────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <section className="lg:col-span-2">
+          <div className="mb-3 flex items-baseline justify-between gap-4">
+            <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
+            <Link
+              href="/espace-client/commandes"
+              className="text-xs font-semibold text-terra underline-offset-4 hover:underline"
+            >
+              Tout voir
+            </Link>
+          </div>
+
+          {query.isPending ? (
+            <div className="h-32 animate-pulse rounded-2xl bg-paper" />
+          ) : toutes.length === 0 ? (
+            <p className="border-t border-[rgba(31,42,55,0.08)] py-6 text-sm text-ink-soft">
+              Aucune session pour l’instant.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-t border-[rgba(31,42,55,0.08)]">
+              {[...toutes]
+                .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+                .slice(0, 4)
+                .map((o) => (
+                  <li key={o.id}>
+                    <Link
+                      href={`/espace-client/commandes/${o.id}`}
+                      className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-paper"
+                    >
+                      <span
+                        aria-hidden
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          STATUS_DOT[o.status] ?? 'bg-ink-soft'
+                        }`}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold capitalize text-navy">
+                          {longDate(o.startsAt)}
+                          {o.chef?.displayName
+                            ? ` · ${o.chef.displayName.split(' ')[0]}`
+                            : ''}
+                        </span>
+                        <span className="block truncate text-xs text-ink-soft">
+                          {bookingMealNames(o).length} plats ·{' '}
+                          {euros(o.amountTtc ?? o.priceCents) ?? '—'} ·{' '}
+                          {bookingStatusText(o.status)}
+                        </span>
+                      </span>
+                      {o.status === 'pending' && !o.paidCents && (
+                        <span className="whitespace-nowrap text-xs font-semibold text-terra">
+                          À régler
+                        </span>
+                      )}
+                      <ArrowRight
+                        className="h-4 w-4 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
+                        aria-hidden
+                      />
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </section>
+
+        <div className="space-y-8">
+          <section>
+            <h3 className="mb-3 font-display text-lg font-bold text-navy">Dernier message</h3>
+            <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
+              {lastThread?.lastMessage ? (
+                <>
+                  <p className="text-sm font-semibold text-navy">
+                    {lastThread.lastMessage.senderRole === lastThread.viewerRole
+                      ? `Vous, à ${lastThread.counterpart.name}`
+                      : lastThread.counterpart.name}
+                  </p>
+                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-ink-mid">
+                    {previewOf(lastThread.lastMessage)}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm leading-relaxed text-ink-mid">
+                  Aucun message pour le moment.
+                </p>
+              )}
+              <Link
+                href={
+                  lastThread
+                    ? `/espace-client/messages?c=${lastThread.id}`
+                    : '/espace-client/messages'
+                }
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-terra underline-offset-4 hover:underline"
+              >
+                {lastThread ? 'Répondre' : 'Ouvrir la messagerie'}
+                <ArrowRight className="h-3 w-3" aria-hidden />
+              </Link>
+            </div>
+          </section>
+
+          {demande && (
+            <section>
+              <h3 className="mb-3 font-display text-lg font-bold text-navy">Demande sur-mesure</h3>
+              <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
+                <p className="text-sm font-semibold text-navy">{demande.title}</p>
+                <p className="mt-1 text-xs text-ink-soft">
+                  {demande.activeOffer
+                    ? `Offre reçue · ${euros(demande.activeOffer.clientPriceCents) ?? ''}`
+                    : 'En attente d’une offre'}
+                </p>
+                <Link
+                  href="/espace-client/personnalisation"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-terra underline-offset-4 hover:underline"
+                >
+                  Voir la demande
+                  <ArrowRight className="h-3 w-3" aria-hidden />
+                </Link>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
+
+      {/* ── Aller ailleurs ────────────────────────────────────────────── */}
+      <section>
+        <h3 className="mb-3 font-display text-lg font-bold text-navy">Aller à</h3>
+        <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-y border-[rgba(31,42,55,0.08)]">
+          <Shortcut
+            href="/espace-client/menus"
+            Icon={ChefHat}
+            title="Menus et plats"
+            subtitle="Les cartes de la semaine, chef par chef"
+          />
+          <Shortcut
+            href="/espace-client/courses"
+            Icon={ShoppingBasket}
+            title="Ma liste de courses"
+            subtitle="Rangée par rayon, prête à emporter"
+          />
+          <Shortcut
+            href="/espace-client/personnalisation"
+            Icon={Sparkles}
+            title="Demande sur-mesure"
+            subtitle="Brunch, régime particulier, événement"
+          />
+          <Shortcut
+            href="/espace-client/statistiques"
+            Icon={Trophy}
+            title="Mes statistiques"
+            subtitle="Vos plats, votre temps gagné"
+          />
+        </ul>
+      </section>
     </div>
   )
 }
 
-function Stat({ label, value, accent }: { label: string; value: string | number; accent?: 'amber' | 'mint' }) {
-  const accentClass =
-    accent === 'amber' ? 'text-amber' : accent === 'mint' ? 'text-mint-deep' : 'text-white'
+function Figure({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between py-1.5 border-b border-white/5 last:border-0">
-      <span className="text-[11px] text-white/55 uppercase tracking-[0.12em]">{label}</span>
-      <span className={`font-display text-xl font-bold ${accentClass}`}>{value}</span>
+    <div>
+      <dt className="sr-only">{label}</dt>
+      <dd>
+        <span
+          className={`font-display text-3xl font-bold leading-none ${
+            accent ? 'text-terra' : 'text-navy'
+          }`}
+        >
+          {value}
+        </span>
+        <span className="ml-2 text-sm text-ink-soft">{label}</span>
+      </dd>
     </div>
   )
 }
 
-function QuickAction({
+function Shortcut({
   href,
   Icon,
   title,
   subtitle,
-  accent,
 }: {
   href: string
-  Icon: any
+  Icon: typeof ChefHat
   title: string
   subtitle: string
-  accent: 'amber' | 'mint' | 'navy'
 }) {
-  const styles =
-    accent === 'amber'
-      ? 'bg-amber-soft text-amber-deep'
-      : accent === 'mint'
-        ? 'bg-mint text-mint-ink'
-        : 'bg-navy text-amber'
   return (
-    <Link
-      href={href}
-      className="group rounded-2xl bg-paper border border-[rgba(31,42,55,0.06)] p-4 hover:border-amber transition-colors flex items-center gap-3"
-    >
-      <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${styles}`}>
-        <Icon className="w-4 h-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-navy leading-tight truncate">{title}</p>
-        <p className="text-[11px] text-ink-soft mt-0.5 truncate">{subtitle}</p>
-      </div>
-    </Link>
+    <li>
+      <Link
+        href={href}
+        className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-paper"
+      >
+        <Icon className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-navy">{title}</span>
+          <span className="block truncate text-xs text-ink-soft">{subtitle}</span>
+        </span>
+        <ArrowRight
+          className="h-4 w-4 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
+          aria-hidden
+        />
+      </Link>
+    </li>
   )
 }

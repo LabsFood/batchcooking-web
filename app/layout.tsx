@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Montserrat, DM_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
+import { ClerkProvider } from '@clerk/nextjs'
+import { frFR } from '@clerk/localizations'
 import './globals.css'
 import Providers from '@/components/layout/Providers'
 import PublicChrome from '@/components/layout/PublicChrome'
@@ -40,6 +42,13 @@ const dmMono = DM_Mono({
   display: 'swap',
 })
 
+// Le pack frFR de Clerk laisse cette clé à undefined : sans override, le champ
+// mot de passe de l'inscription retombe sur l'anglais « Create a password ».
+const clerkLocalization = {
+  ...frFR,
+  formFieldInputPlaceholder__signUpPassword: 'Choisissez un mot de passe',
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://labsfood.fr'),
   title: {
@@ -47,9 +56,9 @@ export const metadata: Metadata = {
     template: "%s | Lab's Food",
   },
   description:
-    "Un chef professionnel vient cuisiner une semaine entière de repas chez vous en 2h minimum. Découvrez le batch cooking sur-mesure avec Lab's Food.",
+    "Un cuisinier vient préparer une semaine entière de repas chez vous, en une seule session. Découvrez le batch cooking sur-mesure avec Lab's Food.",
   applicationName: "Lab's Food",
-  keywords: ['batch cooking', 'chef à domicile', 'service à la personne', 'meal prep', 'Côte d\'Azur'],
+  keywords: ['batch cooking', 'chef à domicile', 'service à la personne', 'meal prep'],
   authors: [{ name: "Lab's Food" }],
   manifest: '/site.webmanifest',
   icons: {
@@ -70,8 +79,8 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
   },
   openGraph: {
-    title: "Lab's Food — Batch Cooking à domicile",
-    description: 'Un chef professionnel cuisine une semaine de repas chez vous.',
+    title: "LAB'S FOOD - Batch cooking à domicile",
+    description: 'Un cuisinier prépare une semaine de repas chez vous.',
     type: 'website',
     locale: 'fr_FR',
     siteName: "Lab's Food",
@@ -95,12 +104,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="fr"
+      // globals.css définit scroll-behavior: smooth — Next 16 ne neutralise plus
+      // le smooth scroll pendant les navigations sans cet attribut.
+      data-scroll-behavior="smooth"
       className={`${fraunces.variable} ${montserrat.variable} ${dmMono.variable}`}
     >
       <body className="bg-cream text-ink font-body antialiased">
-        <Providers>
-          <PublicChrome>{children}</PublicChrome>
-        </Providers>
+        <ClerkProvider localization={clerkLocalization}>
+          <Providers>
+            <PublicChrome>{children}</PublicChrome>
+          </Providers>
+        </ClerkProvider>
         <PWARegister />
       </body>
     </html>

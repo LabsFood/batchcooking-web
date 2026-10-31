@@ -1,140 +1,214 @@
 'use client'
+
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import { ArrowRight, ShoppingCart, Plus, Check, ChefHat, Clock, Users, Flame } from 'lucide-react'
-import type { Meal } from '@/types'
+import { ArrowRight, CalendarDays, ChefHat, SlidersHorizontal } from 'lucide-react'
 import ReserveButton from '@/components/shared/ReserveButton'
 import EquipmentSection from '@/components/shared/EquipmentSection'
+import {
+  MenuCard,
+  MenuDialog,
+  MenuFilterButton,
+  MenuFilterDrawer,
+  MenuFilterSidebar,
+  MenusError,
+  MenusLoading,
+  NoMenus,
+  useMenuFilters,
+} from '@/components/menu/ChefMenuBrowser'
+import { moisLabel, weekLabel, type WeekCard } from '@/lib/api/menus'
+import { useDiets } from '@/lib/api/referentials'
 
-export default function MenuClient({ meals }: { meals: Meal[] }) {
-  const [selected, setSelected] = useState<string[]>([])
-  const MAX = 7
+/* ─────────────────────────────────────────────────────────────────────────────
+   Les cartes des batch cookers.
 
-  const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id)
-      : prev.length < MAX ? [...prev, id] : prev
-    )
-  }
+   Le client ne choisit pas des plats dans un catalogue anonyme : il choisit
+   d'abord un batch cooker et sa carte. La page se lit donc par chef — une
+   carte par chef, ses plats en aperçu — et la sélection des plats se fait à
+   l'intérieur du menu retenu.
+
+   L'en-tête dit comment s'y prendre : les filtres sont dans la colonne de
+   gauche (dans un tiroir sur mobile), et la demande sur-mesure est à portée
+   pour celui qui cherche autre chose que ce qui est proposé.
+
+   Le parcours de choix vit dans `components/menu/ChefMenuBrowser` : la
+   réservation de l'espace client présente exactement le même, à ceci près
+   qu'elle enchaîne au lieu de demander une connexion.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const DEMARCHE = [
+  { Icon: CalendarDays, text: 'Choisissez vos dates' },
+  { Icon: SlidersHorizontal, text: 'Filtrez par région ou régime' },
+  { Icon: ChefHat, text: 'Ouvrez la carte qui vous plaît' },
+]
+
+export default function MenuClient() {
+  const filters = useMenuFilters()
+  const [open, setOpen] = useState<WeekCard | null>(null)
+  const [tiroir, setTiroir] = useState(false)
+  const diets = useDiets([])
+  const dietLabel = (code: string) =>
+    diets.find((d) => d.code === code)?.label ?? code
+
+  const menus = filters.menus
+
+  // La période regardée, dite en tête des résultats : « Semaine du 2 au 8
+  // novembre », ou « Novembre 2026 » au mois.
+  const debut = new Date(`${filters.semaine}T00:00:00`)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + 6)
+  const periode =
+    filters.mode === 'mois'
+      ? moisLabel(filters.mois).replace(/^./, (c) => c.toUpperCase())
+      : `Semaine ${weekLabel({ start: debut.toISOString(), end: fin.toISOString() })}`
 
   return (
-    <div className="page-transition pt-24 bg-cream min-h-screen">
-      {/* Header */}
-      <section className="bg-navy text-white py-20 lg:py-24 relative overflow-hidden">
-        <div className="container-xl relative">
-          <p className="eyebrow mb-5" style={{ color: '#F39C12' }}>Cette semaine</p>
+    <div className="page-transition min-h-screen bg-cream pt-24">
+      {/* ── En-tête ──────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-navy py-16 text-white lg:py-20">
+        {/* Image de fond : elle porte l'appétit, le voile porte la lisibilité. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1600&auto=format&fit=crop&q=80"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(105deg, rgba(31,45,61,0.96) 0%, rgba(44,62,80,0.9) 45%, rgba(44,62,80,0.62) 100%)',
+          }}
+        />
+        <div className="container-xl relative mx-auto flex max-w-4xl flex-col items-center text-center">
           <h1
-            className="font-display font-bold text-white leading-none mb-5"
-            style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)', letterSpacing: '-0.02em' }}
+            className="mb-5 font-display font-bold leading-[1.05] text-white [text-wrap:balance]"
+            style={{ fontSize: 'clamp(2.2rem, 5.4vw, 4rem)', letterSpacing: '-0.02em' }}
           >
-            Menu de <span className="text-terra italic font-medium">la semaine.</span>
+            Choisissez votre batch cooker,{' '}
+            <span className="font-medium italic text-terra">composez votre menu.</span>
           </h1>
-          <p className="text-white/70 max-w-xl leading-relaxed">
-            Sélectionnez jusqu&apos;à 7 plats selon votre formule. Le menu est renouvelé
-            chaque semaine par nos chefs.
+          <p className="max-w-2xl text-lg leading-relaxed text-white/75 [text-wrap:pretty]">
+            Chaque batch cooker a sa propre carte. Indiquez vos dates, votre région et vos envies :
+            vous verrez qui peut venir cuisiner chez vous.
+          </p>
+
+          <ul className="mt-8 flex flex-col items-center gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-8">
+            {DEMARCHE.map(({ Icon, text }) => (
+              <li key={text} className="flex items-center gap-2.5">
+                <Icon className="h-4 w-4 shrink-0 text-amber" aria-hidden />
+                {text}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <MenuFilterButton
+              filters={filters}
+              onClick={() => setTiroir(true)}
+              className="btn btn-amber lg:hidden"
+            />
+            <ReserveButton href="/espace-client/personnalisation" variant="outline-light">
+              Faire une demande sur mesure
+              <ArrowRight className="icon-arrow h-4 w-4" />
+            </ReserveButton>
+          </div>
+          <p className="mt-4 text-sm text-white/60">
+            Une envie particulière, une allergie ? Dites-le nous avec une demande sur mesure.
           </p>
         </div>
       </section>
 
-      {/* Sticky selection bar */}
-      {selected.length > 0 && (
-        <div className="sticky top-20 z-30 bg-terra py-3 shadow-[0_8px_24px_rgba(217,105,65,0.35)]">
-          <div className="container-xl flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-white">
-              <ShoppingCart className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                {selected.length} plat{selected.length > 1 ? 's' : ''} sélectionné{selected.length > 1 ? 's' : ''}
-                <span className="text-white/70 ml-2">/ {MAX} max</span>
-              </span>
-            </div>
-            <ReserveButton
-              meals={selected.join(',')}
-              variant="navy"
-              className="text-xs px-5 py-2.5"
-            >
-              Réserver ma session
-              <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-            </ReserveButton>
-          </div>
-        </div>
-      )}
-
-      <section className="py-16 lg:py-20">
+      {/* ── Filtres + cartes ─────────────────────────────────────────────── */}
+      <section className="py-12 lg:py-14">
         <div className="container-xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {meals.map((meal, i) => {
-              const isSelected = selected.includes(meal.id)
-              const isFull = selected.length >= MAX && !isSelected
-              return (
-                <motion.div
-                  key={meal.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, duration: 0.5 }}
-                  className={`card-base overflow-hidden group flex flex-col ${isFull ? 'opacity-50 pointer-events-none' : ''}`}
-                >
-                  <div className="relative h-52 overflow-hidden">
-                    <img
-                      src={meal.image}
-                      alt={meal.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <button
-                      onClick={() => toggle(meal.id)}
-                      aria-label={isSelected ? 'Retirer' : 'Ajouter'}
-                      className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-md ${
-                        isSelected
-                          ? 'bg-terra text-white'
-                          : 'bg-white text-navy hover:bg-terra hover:text-white'
-                      }`}
-                    >
-                      {isSelected ? <Check className="w-4 h-4" strokeWidth={3} /> : <Plus className="w-4 h-4" />}
-                    </button>
-                    {meal.dietaryTags.length > 0 && (
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                        {meal.dietaryTags.slice(0, 2).map((tag) => (
-                          <span key={tag} className="chip chip-cream bg-white/95 backdrop-blur-sm text-[10px]">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-12">
+            <MenuFilterSidebar filters={filters} className="lg:self-start" />
 
-                  <div className="p-5 flex flex-col flex-1">
-                    <h3 className="font-display text-lg font-bold text-navy mb-2 leading-tight">
-                      {meal.name}
-                    </h3>
-                    <p className="text-ink-mid text-sm leading-relaxed line-clamp-3 flex-1">
-                      {meal.description}
-                    </p>
-                  </div>
-                </motion.div>
-              )
-            })}
+            <div>
+              <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-2xl font-bold leading-tight text-navy">
+                    {periode}
+                  </h2>
+                  <p className="mt-1 text-sm text-ink-mid" aria-live="polite">
+                  {filters.isPending
+                    ? 'Lecture des cartes…'
+                    : menus.length === 0
+                      ? 'Aucune carte ne correspond à votre recherche.'
+                      : `${menus.length} batch cooker${menus.length > 1 ? 's' : ''} disponible${menus.length > 1 ? 's' : ''} sur cette période`}
+                  </p>
+                </div>
+                <MenuFilterButton
+                  filters={filters}
+                  onClick={() => setTiroir(true)}
+                  className="btn btn-outline inline-flex items-center gap-2 px-4 py-2.5 text-xs lg:hidden"
+                />
+              </div>
+
+              {filters.isPending ? (
+                <MenusLoading />
+              ) : filters.isError ? (
+                <MenusError onRetry={filters.refetch} />
+              ) : menus.length === 0 ? (
+                <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
+              ) : (
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                  {menus.map((menu, i) => (
+                    <MenuCard
+                      key={menu.chef.id}
+                      menu={menu}
+                      index={i}
+                      onOpen={() => setOpen(menu)}
+                      customOrder
+                      dietLabel={dietLabel}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Personalization CTA */}
-          <div className="mt-16 p-10 bg-paper rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] text-center">
-            <div className="inline-flex w-14 h-14 rounded-full bg-[rgba(217,105,65,0.1)] items-center justify-center mb-4">
-              <ChefHat className="w-7 h-7 text-terra" />
-            </div>
-            <h3 className="font-display font-bold text-navy text-2xl mb-3">
-              Vous ne trouvez pas votre bonheur ?
-            </h3>
-            <p className="text-ink-mid mb-6 max-w-md mx-auto leading-relaxed">
-              Soumettez une demande personnalisée. Notre chef vous fera une proposition tarifaire adaptée.
+          {/* Demande sur-mesure */}
+          <div className="mt-16 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-10 text-center">
+            <span className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
+              <ChefHat className="h-7 w-7 text-terra" aria-hidden />
+            </span>
+            <h2 className="mb-3 font-display text-2xl font-bold text-navy">Aucune carte ne vous ressemble ?</h2>
+            <p className="mx-auto mb-6 max-w-md leading-relaxed text-ink-mid">
+              Décrivez vos envies, vos allergies et votre budget : les batch cookers disponibles vous répondent avec
+              une proposition chiffrée.
             </p>
             <ReserveButton href="/espace-client/personnalisation">
-              Faire une demande personnalisée
-              <ArrowRight className="w-4 h-4 icon-arrow" />
+              Faire une demande sur mesure
+              <ArrowRight className="icon-arrow h-4 w-4" />
             </ReserveButton>
           </div>
         </div>
       </section>
 
       <EquipmentSection variant="paper" compact />
+
+      <MenuFilterDrawer filters={filters} open={tiroir} onOpenChange={setTiroir} />
+
+      <MenuDialog
+        menu={open}
+        onClose={() => setOpen(null)}
+        dietLabel={dietLabel}
+        renderAction={({ menu, selected, close }) => (
+          // La carte se referme : sinon le dialog Radix bloque la modale de connexion.
+          <ReserveButton
+            meals={selected.join(',')}
+            chef={menu.chef.id}
+            className="text-xs"
+            onClick={close}
+          >
+            Réserver cette session
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+          </ReserveButton>
+        )}
+      />
     </div>
   )
 }

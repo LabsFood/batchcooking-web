@@ -1,99 +1,44 @@
 'use client'
 
-import { useRef } from 'react'
-import { motion, useInView } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, Clock, Users, Flame } from 'lucide-react'
-import { WEEKLY_MEALS } from '@/lib/mock-data'
+import { ArrowRight } from 'lucide-react'
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   « Composez votre menu », sur la page d'accueil.
+
+   Chaque batch cooker tient sa propre carte, et le client y compose le sien :
+   il n'y a pas de menu à annoncer ici. La section ne montre donc aucun plat et
+   n'appelle pas l'API — elle dit comment ça marche et envoie vers `/menu`, où
+   se font le choix du batch cooker, les filtres et la sélection des plats.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const SORTIE = [0.16, 1, 0.3, 1] as const
 
 export default function FeaturedMenu() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-80px' })
-  const featured = WEEKLY_MEALS.slice(0, 4)
-
   return (
-    <section className="section-padding section-cream relative" ref={ref}>
+    <section className="section-padding section-cream relative">
       <div className="container-xl">
-        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
+          initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }}
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          transition={{ duration: 0.8, ease: SORTIE }}
+          className="mx-auto max-w-2xl text-center"
         >
-          <p className="eyebrow mb-5 justify-center">Cette semaine</p>
           <h2 className="h-section">
-            Le menu de <span className="accent">la semaine</span>
+            Composez votre menu, <span className="accent">avec votre batch cooker.</span>
           </h2>
-          <p className="text-ink-mid mt-5 leading-relaxed">
-            Le menu est renouvelé chaque semaine. Sélectionnez jusqu&apos;à 7 plats selon votre formule.
+          <p className="mx-auto mt-6 max-w-xl leading-relaxed text-ink-mid">
+            Chaque batch cooker propose sa propre carte. Rendez-vous sur la page Menu : filtrez par
+            dates, région ou régime alimentaire, choisissez celui qui vous plaît, puis les plats que
+            vous voulez retrouver dans votre frigo.
           </p>
-        </motion.div>
-
-        {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featured.map((meal, i) => (
-            <motion.div
-              key={meal.id}
-              initial={{ opacity: 0, y: 40, filter: 'blur(8px)', scale: 0.95 }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.15 }}
-              className="card-base overflow-hidden group flex flex-col hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
-            >
-              {/* Image */}
-              <div className="relative h-56 overflow-hidden">
-                <img
-                  src={meal.image}
-                  alt={meal.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                {meal.dietaryTags.length > 0 && (
-                  <div className="absolute top-4 left-4 flex flex-wrap gap-1.5">
-                    {meal.dietaryTags.slice(0, 2).map((tag) => (
-                      <span key={tag} className="chip chip-cream bg-white/90 backdrop-blur-sm">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="p-6 flex flex-col flex-1">
-                <h3 className="font-display text-xl font-bold text-navy mb-2 group-hover:text-terra transition-colors leading-tight">
-                  {meal.name}
-                </h3>
-                <p className="text-ink-mid text-sm leading-relaxed line-clamp-2 mb-5 flex-1">
-                  {meal.description}
-                </p>
-                {/* <div className="flex items-center gap-4 text-xs text-ink-soft pt-4 border-t border-[rgba(31,26,20,0.06)]">
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-terra" /> {meal.portions}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-terra" />
-                    {meal.prepTime >= 60 ? `${Math.floor(meal.prepTime / 60)}h` : `${meal.prepTime}min`}
-                  </span>
-                  {meal.calories && (
-                    <span className="flex items-center gap-1.5">
-                      <Flame className="w-3.5 h-3.5 text-terra" /> {meal.calories}
-                    </span>
-                  )}
-                </div> */}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* CTA */}
-        <div className="mt-14 flex justify-center">
-          <Link href="/menu" className="btn btn-navy">
-            Voir tout le menu
-            <ArrowRight className="w-4 h-4 icon-arrow" />
+          <Link href="/menu" className="btn btn-navy mt-9">
+            Découvrir les menus
+            <ArrowRight className="icon-arrow h-4 w-4" />
           </Link>
-        </div>
+        </motion.div>
       </div>
     </section>
   )

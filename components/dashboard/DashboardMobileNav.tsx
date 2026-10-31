@@ -5,18 +5,19 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   CalendarRange,
-  MessageCircle,
+  ChefHat,
+  ShoppingBasket,
   UserCircle2,
-  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/* Les 5 entrées les plus utilisées, alignées sur la navigation principale. */
 const ITEMS = [
-  { href: '/espace-client',              label: 'Aperçu',     Icon: LayoutDashboard },
-  { href: '/espace-client/commandes',    label: 'Commandes',  Icon: CalendarRange },
-  { href: '/espace-client/messages',     label: 'Messages',   Icon: MessageCircle },
-  { href: '/espace-client/statistiques', label: 'Stats',      Icon: BarChart3 },
-  { href: '/espace-client/profil',       label: 'Profil',     Icon: UserCircle2 },
+  { href: '/espace-client',           label: 'Accueil',  Icon: LayoutDashboard },
+  { href: '/espace-client/menus',     label: 'Réserver', Icon: ChefHat },
+  { href: '/espace-client/commandes', label: 'Sessions', Icon: CalendarRange },
+  { href: '/espace-client/courses',   label: 'Courses',  Icon: ShoppingBasket },
+  { href: '/espace-client/compte',    label: 'Compte',   Icon: UserCircle2 },
 ]
 
 export default function DashboardMobileNav() {

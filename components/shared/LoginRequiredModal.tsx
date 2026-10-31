@@ -17,8 +17,8 @@ import { useReservationGate } from '@/lib/reservation-gate-context'
 const PERKS = [
   {
     Icon: Sparkles,
-    title: 'Ivy te reconnaît',
-    text: 'Ta cheffe garde tes goûts, allergies et envies — fini de tout réexpliquer chaque semaine.',
+    title: 'Ton chef te reconnaît',
+    text: 'Ton batch cooker garde tes goûts, allergies et envies — fini de tout réexpliquer chaque semaine.',
   },
   {
     Icon: Heart,
@@ -33,7 +33,7 @@ const PERKS = [
   {
     Icon: Bell,
     title: 'Tu suis ta commande',
-    text: 'Du paiement à la dernière touche d’Ivy : statut, liste de courses, notes du chef.',
+    text: 'De la confirmation à la dernière touche du chef : statut, liste de courses, notes de cuisine.',
   },
 ] as const
 
@@ -65,14 +65,27 @@ export default function LoginRequiredModal() {
   }
 
   return (
-    <AnimatePresence>
-      {isOpen && (
+    /*
+     * L'interactivité est portée par ce conteneur, pas par le voile animé :
+     * pendant la sortie, AnimatePresence garde l'ancien nœud avec ses anciennes
+     * props. Si l'animation ne s'achève pas (onglet en arrière-plan), un voile
+     * invisible resterait sinon à avaler les clics de la page.
+     *
+     * `pointer-events-auto` sert aussi à rester cliquable lorsqu'un dialog
+     * Radix, qui pose `pointer-events: none` sur le body, est ouvert derrière.
+     */
+    <div
+      className={`fixed inset-0 z-[110] ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      aria-hidden={!isOpen}
+    >
+      <AnimatePresence>
+        {isOpen && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/70 backdrop-blur-sm"
+          className="absolute inset-0 flex items-center justify-center p-4 bg-navy/70 backdrop-blur-sm"
           onClick={close}
         >
           <motion.div
@@ -107,8 +120,8 @@ export default function LoginRequiredModal() {
                 <span className="text-amber italic font-medium">débloquer ta cuisine.</span>
               </h2>
               <p className="text-white/70 text-sm leading-relaxed mb-6">
-                La réservation est réservée aux comptes Lab&apos;s Food — pour qu&apos;Ivy
-                cuisine vraiment <em>pour toi</em>.
+                La réservation demande un compte Lab&apos;s Food — c&apos;est ce qui permet à ton
+                batch cooker de cuisiner vraiment <em>pour toi</em>.
               </p>
 
               <ul className="space-y-3 mb-7">
@@ -159,7 +172,8 @@ export default function LoginRequiredModal() {
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

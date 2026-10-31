@@ -1,88 +1,81 @@
 'use client'
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useMemo } from 'react'
+import { useClerk, useUser } from '@clerk/nextjs'
+import { useMe } from './api/me'
+import type { Role } from './api/types'
 
-export type MockUser = {
+/** Libellés des rôles applicatifs, affichés dans les dashboards. */
+export const ROLE_LABEL: Record<Role, string> = {
+  client: 'Client',
+  chef: 'Batch cooker',
+  admin: 'Administrateur',
+}
+
+/**
+ * Adaptateur au-dessus de Clerk.
+ *
+ * Conserve volontairement la signature de l'ancien contexte mock pour que les
+ * consommateurs (ReserveButton, DashboardSidebar/Topbar, layout espace-client,
+ * profil, paramètres, réservation) n'aient pas à changer.
+ */
+export type AppUser = {
   id: string
   name: string
   email: string
+  username: string | null
   avatar?: string
   joinedAt: string
 }
 
-type AuthContextValue = {
-  user: MockUser | null
+type AuthValue = {
+  user: AppUser | null
   isAuthenticated: boolean
   isReady: boolean
-  signIn: (email: string, name?: string) => MockUser
+  /** Rôle applicatif issu de `GET /me` — `null` tant qu'il n'est pas résolu. */
+  role: Role | null
+  /** Libellé français du rôle, prêt à afficher. */
+  roleLabel: string | null
   signOut: () => void
 }
 
-const STORAGE_KEY = 'labsfood.user.v1'
-
-const AuthContext = createContext<AuthContextValue | null>(null)
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser | null>(null)
-  const [isReady, setIsReady] = useState(false)
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (raw) setUser(JSON.parse(raw) as MockUser)
-    } catch {
-      // ignore corrupted storage
-    } finally {
-      setIsReady(true)
-    }
-  }, [])
-
-  const signIn = useCallback((email: string, name?: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    const fallbackName =
-      name?.trim() ||
-      cleanEmail.split('@')[0]?.replace(/[._-]+/g, ' ') ||
-      'Gourmand·e'
-    const next: MockUser = {
-      id: `usr_${Math.random().toString(36).slice(2, 10)}`,
-      name: fallbackName.replace(/\b\w/g, (c) => c.toUpperCase()),
-      email: cleanEmail,
-      joinedAt: new Date().toISOString(),
-    }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setUser(next)
-    return next
-  }, [])
+export function useAuth(): AuthValue {
+  const { user, isLoaded, isSignedIn } = useUser()
+  const clerk = useClerk()
+  const me = useMe()
+  const role = me.data?.role ?? null
 
   const signOut = useCallback(() => {
-    window.localStorage.removeItem(STORAGE_KEY)
-    setUser(null)
-  }, [])
+    void clerk.signOut({ redirectUrl: '/' })
+  }, [clerk])
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      isAuthenticated: !!user,
-      isReady,
-      signIn,
+  return useMemo<AuthValue>(() => {
+    const email = user?.primaryEmailAddress?.emailAddress ?? ''
+
+    return {
+      user: user
+        ? {
+            id: user.id,
+            // Aucun de ces champs n'est garanti par Clerk : selon la config de
+            // l'instance, un compte peut n'avoir qu'un username, ou qu'un
+            // email. On descend la chaîne jusqu'à un libellé affichable.
+            name:
+              user.fullName?.trim() ||
+              user.firstName?.trim() ||
+              user.username?.trim() ||
+              email.split('@')[0] ||
+              'Gourmand·e',
+            email,
+            username: user.username,
+            avatar: user.hasImage ? user.imageUrl : undefined,
+            joinedAt: (user.createdAt ?? new Date()).toISOString(),
+          }
+        : null,
+      isAuthenticated: !!isSignedIn,
+      isReady: isLoaded,
+      role,
+      roleLabel: role ? ROLE_LABEL[role] : null,
       signOut,
-    }),
-    [user, isReady, signIn, signOut],
-  )
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
-  return ctx
+    }
+  }, [user, isLoaded, isSignedIn, role, signOut])
 }

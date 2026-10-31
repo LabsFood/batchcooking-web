@@ -1,3 +1,19 @@
+/* Hauteur du bandeau « site en construction » (components/shared/DevBanner).
+   La passer à `0px` le fait disparaître et rend sa place à chaque en-tête. */
+:root {
+  --lf-dev-banner: 3.25rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --lf-dev-banner: 2.25rem;
+  }
+}
+
+body {
+  padding-top: var(--lf-dev-banner);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -131,14 +147,6 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--terra);
-  }
-
-  .eyebrow::before {
-    content: '';
-    width: 28px;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.8;
   }
 
   .label-brand {
@@ -570,6 +578,28 @@
     box-shadow: 0 0 0 4px rgba(243, 156, 18, 0.12);
   }
 
+  /* Un <select> natif dessine sa fleche dans le padding droit : sans place
+     reservee, elle recouvre la fin de l'option choisie. On la remplace par la
+     notre pour que tous les champs se ressemblent. */
+  select.input-base {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238A94A0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.1rem center;
+  }
+
+  textarea.input-base {
+    line-height: 1.6;
+    resize: vertical;
+  }
+
+  .input-base:disabled {
+    background: var(--cream-soft);
+    color: var(--ink-soft);
+    cursor: not-allowed;
+  }
+
   .input-pill {
     width: 100%;
     padding: 0.95rem 1.5rem;
@@ -733,4 +763,234 @@
   .text-peach {
     color: var(--peach);
   }
+}
+
+/* ── Intégration des composants Clerk (<SignIn> / <SignUp>) ───────────────────
+   Clerk applique ses propres styles avec une spécificité élevée : les classes
+   utilitaires passées via `appearance` (shadow-none, hidden…) ne suffisent pas
+   à les neutraliser. On fond donc la carte Clerk dans la mise en page de la
+   page (sinon on voit deux cartes superposées) et on masque son pied
+   « Secured by / Development mode ». Le !important est nécessaire ici. */
+.cl-cardBox,
+.cl-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 3px !important;
+}
+
+.cl-footer {
+  display: none !important;
+}
+
+/* Connexions sociales desactivees : email + mot de passe uniquement.
+   (A desactiver aussi cote dashboard Clerk pour couper les endpoints OAuth.) */
+.cl-socialButtons,
+.cl-socialButtonsBlockButton,
+.cl-dividerRow {
+  display: none !important;
+}
+
+/* Boutons principaux en pilule, comme le reste du design system. */
+.cl-formButtonPrimary {
+  border-radius: 9999px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 600 !important;
+}
+
+
+/* Les rangees de champs Clerk ne s'etirent pas toujours a la largeur du
+   formulaire (champ mot de passe + bouton oeil) : on force l'alignement. */
+.cl-formFieldRow {
+  width: 100% !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Le calendrier partagé (`components/shared/DatePicker.tsx`).
+
+   `react-day-picker` apporte sa feuille de base ; ici on ne fait que
+   l'habiller aux couleurs de la maison. Les variables `--rdp-*` suffisent pour
+   l'essentiel — la sélection, l'aujourd'hui, les tailles — et les quelques
+   règles qui suivent servent ce que les variables ne couvrent pas : la barre
+   de titre, et les pastilles qui disent l'état d'une journée avant le clic.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.lf-rdp {
+  --rdp-accent-color: var(--terra);
+  --rdp-accent-background-color: rgba(243, 156, 18, 0.14);
+  --rdp-today-color: var(--terra);
+  --rdp-day-height: 2.5rem;
+  --rdp-day-width: 2.5rem;
+  --rdp-day_button-height: 2.25rem;
+  --rdp-day_button-width: 2.25rem;
+  --rdp-day_button-border-radius: 9999px;
+  --rdp-day_button-border: 1.5px solid transparent;
+  --rdp-selected-border: 1.5px solid var(--terra);
+  --rdp-nav_button-height: 2rem;
+  --rdp-nav_button-width: 2rem;
+  --rdp-outside-opacity: 0.35;
+  --rdp-disabled-opacity: 0.4;
+  --rdp-weekday-opacity: 1;
+  --rdp-weekday-text-transform: uppercase;
+  --rdp-months-gap: 1.5rem;
+  --rdp-animation_duration: 0.18s;
+  font-family: var(--font-montserrat), sans-serif;
+  color: var(--ink);
+}
+
+.lf-rdp .rdp-month_caption {
+  justify-content: center;
+}
+
+.lf-rdp .rdp-caption_label {
+  font-family: var(--font-fraunces), serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: capitalize;
+}
+
+.lf-rdp .rdp-weekday {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.lf-rdp .rdp-button_previous,
+.lf-rdp .rdp-button_next {
+  border-radius: 9999px;
+  color: var(--ink-mid);
+}
+
+.lf-rdp .rdp-button_previous:hover,
+.lf-rdp .rdp-button_next:hover {
+  background: var(--cream-soft);
+  color: var(--navy);
+}
+
+.lf-rdp .rdp-day_button {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-rdp .rdp-day_button:hover:not([disabled]) {
+  background: var(--cream-soft);
+}
+
+.lf-rdp .rdp-today:not(.rdp-selected) .rdp-day_button {
+  border-color: rgba(243, 156, 18, 0.45);
+}
+
+.lf-rdp .rdp-selected .rdp-day_button {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* Le choix d'une semaine (`/menu`) : la semaine retenue et celle qu'on survole
+   se lisent comme une bande d'un bout à l'autre de la ligne, arrondie aux deux
+   extrémités. Sept pastilles séparées ne diraient pas qu'il s'agit d'un seul
+   choix de sept jours. */
+.lf-rdp-week .rdp-day {
+  transition: background-color 0.12s ease-out;
+}
+
+.lf-rdp-week .lf-week-hover {
+  background: var(--cream-soft);
+}
+
+.lf-rdp-week .lf-week {
+  background: rgba(243, 156, 18, 0.18);
+}
+
+.lf-rdp-week .lf-week .rdp-day_button {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.lf-rdp-week .lf-week-start {
+  border-radius: 9999px 0 0 9999px;
+}
+
+.lf-rdp-week .lf-week-end {
+  border-radius: 0 9999px 9999px 0;
+}
+
+.lf-rdp-week .rdp-day_button:hover:not([disabled]) {
+  background: transparent;
+}
+
+/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par défaut. */
+.lf-rdp-week .rdp-chevron {
+  fill: currentColor;
+}
+
+/* ── Les pastilles d'état ── Une journée peut en porter plusieurs : elles se
+   posent côte à côte sous le chiffre, et la cellule garde sa taille. */
+.lf-rdp .rdp-day {
+  position: relative;
+}
+
+.lf-rdp .rdp-day::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0.3rem;
+  transform: translateX(-50%);
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.lf-rdp .lf-day-free::after {
+  background: var(--mint-deep, #a7e0d0);
+}
+
+.lf-rdp .lf-day-blocked::after {
+  background: var(--ink-soft);
+}
+
+.lf-rdp .lf-day-pending::after {
+  background: var(--terra);
+}
+
+.lf-rdp .lf-day-booked::after {
+  background: var(--navy);
+}
+
+.lf-rdp .lf-day-booked.rdp-selected::after,
+.lf-rdp .lf-day-pending.rdp-selected::after,
+.lf-rdp .lf-day-free.rdp-selected::after,
+.lf-rdp .lf-day-blocked.rdp-selected::after {
+  background: #fff;
+}
+
+/* Une journée fermée se barre : l'absence de pastille ne suffit pas à dire
+   « on ne travaille pas », elle pourrait passer pour une journée vide. */
+.lf-rdp .lf-day-closed .rdp-day_button {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* Le calendrier d'un mois plein (vue « Mois » de l'agenda) prend la largeur
+   qu'on lui donne : les jours s'y répartissent au lieu de rester collés à
+   gauche dans une colonne de 340 px. */
+.lf-rdp-wide .rdp-months,
+.lf-rdp-wide .rdp-month,
+.lf-rdp-wide .rdp-month_grid {
+  width: 100%;
+}
+
+.lf-rdp-wide .rdp-day,
+.lf-rdp-wide .rdp-weekday {
+  width: auto;
+}
+
+.lf-rdp-wide {
+  --rdp-day-height: 3rem;
 }

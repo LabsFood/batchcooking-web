@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
-import { WEEKLY_MEALS } from '@/lib/mock-data'
 import MenuClient from './MenuClient'
-export const metadata: Metadata = { title: 'Menu de la semaine' }
+
+export const metadata: Metadata = {
+  title: 'Les cartes de nos batch cookers',
+  description:
+    "Les cartes des batch cookers Lab's Food : filtrez par dates, région ou régime, choisissez votre batch cooker, puis vos plats.",
+}
+
 export default function MenuPage() {
-  return <MenuClient meals={WEEKLY_MEALS} />
+  return <MenuClient />
 }

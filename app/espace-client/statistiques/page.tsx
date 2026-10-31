@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ChefHat,
@@ -14,7 +15,49 @@ import {
   Sprout,
 } from 'lucide-react'
 import Link from 'next/link'
-import { DASHBOARD_STATS } from '@/lib/dashboard-mock'
+import {
+  bookingPortions,
+  euros,
+  useMyBookings,
+  type Booking,
+} from '@/lib/api/bookings'
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Mes statistiques — `GET /me/bookings`.
+
+   Cet écran lisait quatre nombres écrits en dur, dont un histogramme de sept
+   semaines qui ne bougeait jamais. Tout se calcule maintenant sur les
+   prestations réellement **terminées** : une session annulée n'a fait gagner
+   de temps à personne, et un plat non cuisiné ne se compte pas.
+
+   Deux hypothèses restent, et elles sont dites à l'écran plutôt que glissées
+   dans le calcul : deux heures gagnées par session, et le crédit d'impôt
+   cumulé tel que l'API le rend (`amountTtc − amountAfterTax`).
+   ────────────────────────────────────────────────────────────────────────────── */
+
+const HEURES_PAR_SESSION = 2
+
+/** Les sept dernières semaines ISO, et ce qui y a été cuisiné. */
+function parSemaine(prestations: Booking[], depuis: Date) {
+  const semaines: { week: string; meals: number }[] = []
+  for (let i = 6; i >= 0; i -= 1) {
+    const fin = new Date(depuis)
+    fin.setDate(depuis.getDate() - i * 7)
+    const debut = new Date(fin)
+    debut.setDate(fin.getDate() - 6)
+    const meals = prestations
+      .filter((b) => {
+        const d = new Date(b.startsAt)
+        return d >= debut && d <= fin
+      })
+      .reduce((n, b) => n + bookingPortions(b), 0)
+    semaines.push({
+      week: fin.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      meals,
+    })
+  }
+  return semaines
+}
 
 const HIGHLIGHTS = [
   {
@@ -35,7 +78,24 @@ const HIGHLIGHTS = [
 ] as const
 
 export default function StatistiquesPage() {
-  const max = Math.max(...DASHBOARD_STATS.weeklyMealMix.map((w) => w.meals)) || 1
+  const query = useMyBookings({ limit: 100 })
+  const toutes = query.data?.data ?? []
+  const terminees = toutes.filter(
+    (b) => b.status === 'completed' || b.status === 'delivered',
+  )
+
+  const portions = terminees.reduce((n, b) => n + bookingPortions(b), 0)
+  const credit = terminees.reduce(
+    (n, b) =>
+      n + (b.amountTtc != null && b.amountAfterTax != null ? b.amountTtc - b.amountAfterTax : 0),
+    0,
+  )
+
+  /* Une seule lecture de l'heure : comparer des dates pendant le rendu avec
+     `Date.now()` rendrait l'écran impur. */
+  const [aujourdhui] = useState(() => new Date())
+  const semaines = parSemaine(terminees, aujourdhui)
+  const max = Math.max(...semaines.map((w) => w.meals)) || 1
 
   return (
     <div className="space-y-6">
@@ -44,29 +104,29 @@ export default function StatistiquesPage() {
         <KpiTile
           Icon={ChefHat}
           label="Sessions"
-          value={DASHBOARD_STATS.sessionsTotal}
-          sub="depuis ton inscription"
+          value={query.isPending ? '…' : terminees.length}
+          sub="réalisées depuis ton inscription"
           tone="amber"
         />
         <KpiTile
           Icon={Sparkles}
-          label="Plats cuisinés"
-          value={DASHBOARD_STATS.mealsCooked}
-          sub="frais & maison"
+          label="Portions cuisinées"
+          value={query.isPending ? '…' : portions}
+          sub="fraîches & maison"
           tone="mint"
         />
         <KpiTile
           Icon={Clock}
           label="Heures gagnées"
-          value={`${DASHBOARD_STATS.hoursSaved} h`}
-          sub="à faire autre chose"
+          value={`${terminees.length * HEURES_PAR_SESSION} h`}
+          sub={`à faire autre chose · ${HEURES_PAR_SESSION} h par session`}
           tone="navy"
         />
         <KpiTile
           Icon={Wallet}
-          label="Avance immédiate"
-          value={`${DASHBOARD_STATS.moneySaved} €`}
-          sub="cumulé"
+          label="Crédit d’impôt"
+          value={euros(credit) ?? '0 €'}
+          sub="cumulé sur vos prestations"
           tone="amber"
         />
       </section>
@@ -86,16 +146,16 @@ export default function StatistiquesPage() {
                 Plats / semaine
               </h3>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-mint-ink bg-mint/40 rounded-full px-3 py-1">
-              <TrendingUp className="w-3.5 h-3.5" /> 7 dernières semaines
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-mint/40 px-3 py-1 text-xs font-semibold text-mint-ink">
+              <TrendingUp className="h-3.5 w-3.5" /> 7 dernières semaines
             </span>
           </div>
 
           <div className="h-44 flex items-end gap-2 lg:gap-3">
-            {DASHBOARD_STATS.weeklyMealMix.map((w) => {
+            {semaines.map((w) => {
               const h = Math.round((w.meals / max) * 100)
               return (
-                <div key={w.week} className="flex-1 flex flex-col items-center gap-2">
+                <div key={w.week} className="flex flex-1 flex-col items-center gap-2">
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${h}%` }}

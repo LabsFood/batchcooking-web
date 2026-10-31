@@ -1,0 +1,48 @@
+name: SemRelease
+
+# Called by "Batch cooking web image" (docker.yml) once the image has built and
+# booted for a push to main. It must run inside that run, not from a
+# workflow_run trigger: workflow_run sets GITHUB_REF to the default branch
+# (develop) and semantic-release would publish nothing. The version comes from
+# Conventional Commit messages since the last v*.*.* tag; CHANGELOG.md and
+# package.json are committed back to main as "chore(release): x.y.z [skip ci]".
+
+on:
+  workflow_call:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # tag, GitHub Release, release commit
+  issues: write # "released in vX" comments, failure issue
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # The commit that passed the smoke test. If main has moved since,
+      # semantic-release skips and the newer commit's run releases instead.
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          npx --yes
+          -p semantic-release@24
+          -p @semantic-release/changelog@6
+          -p @semantic-release/git@10
+          -p conventional-changelog-conventionalcommits@8
+          semantic-release

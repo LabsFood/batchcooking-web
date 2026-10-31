@@ -1,0 +1,38 @@
+﻿Espace;Module;MVP;Propriétaire;Design;Intégration API;État global;Échéance visée;Ce qui manque
+Public;Accueil;Oui;Amir;Terminé;À faire;Écran livré, contenus en dur;2026-11-07;Endpoint de contenu éditorial
+Public;Menu de la semaine;Oui;Amir;Terminé;À faire;Écran livré, encore sur mocks;2026-10-10;GET /menus/week et la fiche chef
+Public;Devenir chef;Oui;Amir;Terminé;Terminé;Bout en bout vérifié;2026-10-02;Rien : candidature déposée et mail reçu
+Public;Contact;Non;Amir;Terminé;Bloqué;Écran livré, sans destinataire;2026-10-24;Un endpoint de contact
+Public;Pages d'information;Oui;Amir;Terminé;;Livré;2026-09-18;Rien
+Client;Tableau de bord;Oui;Amir;Terminé;À faire;Écran livré, chiffres simulés;2026-10-17;Brancher GET /me/dashboard — l’endpoint existe
+Client;Réservation;Oui;Amir;Terminé;Bloqué;Parcours dessiné, rien ne part;2026-10-17;Module bookings
+Client;Paiement;Oui;Amir;Terminé;Bloqué;Parcours dessiné sur contrat simulé;2026-10-17;Endpoint de paiement + Stripe
+Client;Commandes;Oui;Amir;Terminé;Bloqué;Écrans livrés;2026-10-17;Module bookings
+Client;Profil et personnalisation;Oui;Amir;Terminé;À tester;Profil branché, goûts à brancher;2026-10-17;PATCH /me/client-profile dans l'écran
+Client;Mes menus, courses, conservation;Non;Amir;Terminé;À faire;Écrans livrés;2026-10-31;Endpoints
+Client;Messages;Non;Amir;Terminé;Bloqué;Écran livré;2026-10-31;Module messagerie
+Client;Statistiques;Non;Amir;Terminé;À faire;Écran livré;2026-11-07;Endpoints
+Batch cooker;Accueil;Oui;Amir;Terminé;Terminé;État du dossier réel;2026-10-02;Les chiffres secondaires
+Batch cooker;Mon dossier;Oui;Amir;Terminé;Terminé;Dépôt, relecture et correction branchés;2026-10-04;Rien : tout est livré et branché sur develop
+Batch cooker;Mes plats;Oui;Amir;Terminé;Terminé;Bout en bout branché;2026-10-03;Essayer la photo avec un vrai fichier
+Batch cooker;Mes menus;Oui;Amir;Terminé;À tester;Branché, non vérifié;2026-10-10;Une vérification en session réelle
+Batch cooker;Propositions;Oui;Amir;Terminé;À tester;Branché, aucune proposition en base;2026-10-10;Des données pour essayer
+Batch cooker;Vitrine et page publique;Oui;Amir;Terminé;À tester;"Page publique branchée ; programmation par semaine à faire";2026-10-17;L'écran de programmation par semaine, et le champ des moyens de paiement
+Batch cooker;Offres;Non;Amir;À faire;À faire;Hooks écrits, écran à faire;2026-10-24;L'écran
+Batch cooker;Prestations et agenda;Oui;Amir;Terminé;Bloqué;Écrans livrés;2026-10-17;Module bookings
+Batch cooker;Tarifs et paramètres;Oui;Amir;Terminé;À faire;Écrans livrés;2026-10-17;PATCH /me/chef-profile dans l'écran
+Batch cooker;Rémunération et revenus;Non;Amir;Terminé;Bloqué;Écrans livrés;2026-10-31;Module versements
+Batch cooker;Avis, litiges, messagerie;Non;Amir;Terminé;Bloqué;Écrans livrés;2026-10-31;Endpoints
+Admin;Console et accès;Oui;Amir;Terminé;Terminé;Garde par rôle, recherche et files en place;2026-09-26;Le souci des deux onglets
+Admin;Utilisateurs;Oui;Amir;Terminé;À tester;Branché, non vérifié;2026-10-10;Un compte admin pour tester
+Admin;Clients;Oui;Amir;Terminé;À tester;Branché, non vérifié;2026-10-10;Un compte admin pour tester
+Admin;Batch cookers et candidatures;Oui;Amir;Terminé;À tester;Lecture et décisions branchées;2026-10-10;L'annuaire des approuvés, et un compte pour tester
+Admin;Catalogue Lab's Food;Oui;Amir;Terminé;À tester;Plats, menus et semaines branchés;2026-10-06;Une vérification, et le PATCH des semaines
+Admin;Modération batch cookers;Oui;Amir;Terminé;À tester;Écran neuf, branché;2026-10-06;Une vérification en session réelle
+Admin;Réservations et demandes;Oui;Amir;Terminé;Bloqué;Écrans livrés;2026-10-17;bookings et quotes
+Admin;Transactions;Non;Amir;Terminé;Bloqué;Écran livré;2026-10-31;Module versements
+Admin;Kossam, contact, avis, équipe, formules;Non;Amir;Terminé;À faire;Écrans livrés;2026-11-07;Endpoints
+Transverse;Plateforme API;Oui;Daniel;;À tester;CORS réglé, doc toujours sans schémas;2026-10-14;Schémas de réponse, erreurs par champ, et fermer GET /bookings
+Transverse;Environnements et accès;Oui;Emmanuel;;En cours;URL stable sur develop, qui porte tout;2026-10-06;Un compte admin de test (BLK-08)
+Transverse;Pilotage;Oui;Emmanuel;;En cours;Ce classeur;2026-10-10;Le tenir à jour
+Transverse;Barres du haut;Non;Amir;Terminé;Terminé;Recherche et tiroir d’alertes sur les trois espaces;2026-10-04;Rien : les sources suivront les écrans
