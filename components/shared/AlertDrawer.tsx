@@ -13,19 +13,23 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  notificationTitle,
+  useMarkNotificationRead,
+  useNotifications,
+} from '@/lib/api/notifications'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le tiroir de la cloche.
 
-   Il n'y a pas encore de flux de notifications côté API, et on n'en invente
-   pas : ce tiroir montre ce que l'écran **sait déjà** et qui demande une
+   En tête, les notifications de l'API (`GET /me/notifications`) : ce qui s'est
+   passé, lu ou non lu. Dessous, ce que l'écran **sait déjà** et qui demande une
    action — une pièce qui expire, un plat qu'on ne peut pas publier, une offre
-   sans réponse. Rien n'est stocké, rien n'est « lu » ou « non lu » : ce sont
-   des faits recalculés à chaque ouverture, donc toujours justes.
+   sans réponse. Ces alertes-là ne sont pas stockées : ce sont des faits
+   recalculés à chaque ouverture, donc toujours justes.
 
-   Quand le flux existera, il s'ajoutera en tête, et ces alertes resteront : les
-   deux ne disent pas la même chose. L'une raconte ce qui s'est passé, l'autre
-   ce qu'il reste à faire.
+   Les deux restent : l'une raconte ce qui s'est passé, l'autre ce qu'il reste
+   à faire.
    ───────────────────────────────────────────────────────────────────────────── */
 
 export type AlertTone = 'urgent' | 'todo' | 'info'
@@ -80,7 +84,11 @@ export function AlertBell({
   children?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const n = countActionable(alerts)
+  // Une API sans le flux (404) ou en panne laisse la cloche à ses seules alertes.
+  const flux = useNotifications()
+  const lire = useMarkNotificationRead()
+  const notifications = flux.data?.data ?? []
+  const n = countActionable(alerts) + (flux.data?.unreadCount ?? 0)
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -130,6 +138,57 @@ export function AlertBell({
           </header>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
+            {notifications.length > 0 && (
+              <section aria-label="Notifications" className="mb-4">
+                <p className="mb-2 px-1 text-[11px] leading-relaxed text-ink-soft">
+                  Vos notifications s’affichent ici, dans l’application. Aucun e-mail
+                  n’est envoyé pour l’instant.
+                </p>
+                <ul className="space-y-2">
+                  {notifications.map((notif) => (
+                    <li key={notif.id}>
+                      <button
+                        type="button"
+                        onClick={() => !notif.readAt && lire.mutate(notif.id)}
+                        className={cn(
+                          'flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left',
+                          notif.readAt
+                            ? 'border-[rgba(31,42,55,0.08)] bg-paper'
+                            : 'border-amber/30 bg-amber/8',
+                        )}
+                      >
+                        <Bell
+                          className={cn(
+                            'mt-0.5 h-4 w-4 shrink-0',
+                            notif.readAt ? 'text-ink-soft' : 'text-amber-deep',
+                          )}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={cn(
+                              'block text-sm leading-snug text-navy',
+                              !notif.readAt && 'font-semibold',
+                            )}
+                          >
+                            {notificationTitle(notif.type)}
+                            {!notif.readAt && <span className="sr-only"> (non lue)</span>}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-ink-mid">
+                            {new Date(notif.createdAt).toLocaleString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {loading ? (
               <div className="space-y-2">
                 {[0, 1, 2].map((i) => (
@@ -137,18 +196,20 @@ export function AlertBell({
                 ))}
               </div>
             ) : alerts.length === 0 ? (
-              <div className="flex flex-col items-center px-4 py-12 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10 text-success">
-                  <CheckCircle2 className="h-6 w-6" aria-hidden />
-                </span>
-                <p className="mt-4 font-display text-base font-bold text-navy">
-                  Tout est à jour
-                </p>
-                <p className="mt-1 max-w-xs text-sm leading-relaxed text-ink-soft">
-                  Rien n&apos;expire, rien n&apos;attend de réponse. Cette liste
-                  se recalcule à chaque ouverture.
-                </p>
-              </div>
+              notifications.length === 0 && (
+                <div className="flex flex-col items-center px-4 py-12 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10 text-success">
+                    <CheckCircle2 className="h-6 w-6" aria-hidden />
+                  </span>
+                  <p className="mt-4 font-display text-base font-bold text-navy">
+                    Tout est à jour
+                  </p>
+                  <p className="mt-1 max-w-xs text-sm leading-relaxed text-ink-soft">
+                    Rien n&apos;expire, rien n&apos;attend de réponse. Cette liste
+                    se recalcule à chaque ouverture.
+                  </p>
+                </div>
+              )
             ) : (
               <ul className="space-y-2">
                 {alerts.map((a) => {
