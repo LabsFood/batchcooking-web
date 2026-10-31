@@ -288,7 +288,7 @@ export type ApplicationValues = z.infer<typeof identitySchema> &
 export type StepId = 'identity' | 'zones' | 'status' | 'company' | 'documents' | 'review'
 
 /** Schéma de chaque étape. L'étape « Pièces » se valide au dépôt de chaque fichier. */
-export const STEP_SCHEMAS: Record<StepId, z.ZodTypeAny | null> = {
+export const STEP_SCHEMAS: Record<StepId, z.ZodType | null> = {
   identity: identitySchema,
   zones: zonesSchema,
   status: statusSchema,
