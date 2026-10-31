@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-alpine AS deps
+FROM node:24.22.1-alpine3.24 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine3.24 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -30,7 +30,7 @@ ENV NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_F
 
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:24.22.1-alpine3.24 AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \
