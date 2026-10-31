@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, Leaf, ChefHat } from 'lucide-react'
 import { FloatingIngredients, SteamingPot } from '@/components/shared/CookingAnimations'
 import ReserveButton from '@/components/shared/ReserveButton'
+import Image from 'next/image'
 
 const FADE = {
   hidden: { opacity: 0, y: 40, filter: 'blur(8px)' },
@@ -100,9 +101,12 @@ export default function Hero() {
             >
               {/* Main framed image — rounded shape */}
               <div className="relative">
-                <img
+                <Image
                   src="/shapeIvy_transparent.png"
                   alt="Chef cuisinier à domicile"
+                  width={1122}
+                  height={1402}
+                  preload
                   className="w-full h-full object-cover"
                 />
                 {/* <img
