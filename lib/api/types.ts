@@ -45,6 +45,10 @@ export interface ChefProfile {
   /** Toujours `false` à l'auto-inscription — seul un admin peut l'activer. */
   isActive: boolean
   isVerified: boolean
+  /** Fixé par un admin (`tier_1` d'office). Aucune facturation n'en dépend. */
+  tier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4'
+  /** Le nom du palier, réglé dans la console : sur `GET /me/profile`. */
+  tierLabel?: string
 }
 
 /**

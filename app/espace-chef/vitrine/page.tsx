@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import { useToast } from '@/components/shared/Toaster'
+import { InfoPopover } from '@/components/shared/InfoPopover'
 import { TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
 import { isValidE164 } from '@/lib/phone'
@@ -355,6 +356,15 @@ export default function ChefShowcasePage() {
               Ce nom et ce numéro servent à notre équipe et aux clients qui ont réservé
               chez vous. Ils ne figurent pas sur votre page publique.
             </p>
+            {chef?.tierLabel && (
+              <p className="mb-4 flex items-center gap-1.5 text-[13px] text-ink-mid">
+                Palier :<span className="font-semibold text-navy">{chef.tierLabel}</span>
+                <InfoPopover label="Qu’est-ce que le palier ?">
+                  Attribué par l’équipe Lab’s Food. Il servira à définir vos droits de
+                  publication.
+                </InfoPopover>
+              </p>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 label="Prénom"

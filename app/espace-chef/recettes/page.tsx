@@ -21,6 +21,7 @@ import {
 import ChefPage from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
 import { refLabel, useAllergens, useDiets, useDishCategories } from '@/lib/api/referentials'
@@ -1605,10 +1606,11 @@ function SuggestionDialog({
 
           <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
             <Stat label="portions" value={String(dish.portions)} />
-            <Stat label="préparation" value={`${dish.prepMinutes} min`} />
+            <Stat label="préparation" value={`${dish.prepMinutes} min`} prive />
             <Stat
               label="cuisson"
               value={dish.cookMinutes ? `${dish.cookMinutes} min` : '—'}
+              prive
             />
           </dl>
 
@@ -1702,10 +1704,26 @@ function SuggestionDialog({
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  prive,
+}: {
+  label: string
+  value: string
+  /** Absent de la vitrine publique : on le dit (temps et calories). */
+  prive?: boolean
+}) {
   return (
     <div className="rounded-xl bg-cream-soft p-2.5">
-      <dt className="text-[10px] uppercase tracking-wide text-ink-soft">{label}</dt>
+      <dt className="flex items-center justify-center gap-0.5 text-[10px] uppercase tracking-wide text-ink-soft">
+        {label}
+        {prive && (
+          <InfoPopover label={`Qui voit la ${label} ?`}>
+            Visible par vous seulement, pas par les clients.
+          </InfoPopover>
+        )}
+      </dt>
       <dd className="font-display text-base font-bold text-navy">{value}</dd>
     </div>
   )

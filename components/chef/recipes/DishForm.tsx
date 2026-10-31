@@ -296,7 +296,7 @@ export default function DishForm({
                   className="input-base"
                 />
               </Field>
-              <Field label="Prépa (min)" required>
+              <Field label="Prépa (min)" required hint="Non visible des clients.">
                 <input
                   type="number"
                   min={1}
@@ -305,7 +305,7 @@ export default function DishForm({
                   className="input-base"
                 />
               </Field>
-              <Field label="Cuisson (min)">
+              <Field label="Cuisson (min)" hint="Non visible des clients.">
                 <input
                   type="number"
                   min={0}
