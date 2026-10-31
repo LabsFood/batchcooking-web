@@ -30,11 +30,8 @@ export interface WeekDish {
   continent: string | null
   category: string | null
   imageUrl: string | null
+  /** Les temps et les calories ne sont pas publics : réservés au batch cooker. */
   portions: number
-  /** Minutes. */
-  prepMinutes: number | null
-  cookMinutes: number | null
-  calories: number | null
   difficulty: string | null
   diets: string[]
   customDiets: string[]
