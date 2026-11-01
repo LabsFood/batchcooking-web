@@ -18,6 +18,10 @@ export const REASON_TEXT = {
   MENU_FROZEN: 'À 3 jours de la prestation, le menu est figé.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
+  SHOPPING_LIST_UPDATED:
+    'Le batch cooker vient de mettre la liste à jour : vérifiez-la, puis renvoyez-la.',
+  SHOPPING_BY_CLIENT:
+    'Vous faites les courses vous-même pour cette prestation : la liste ne s’envoie pas.',
   LIMIT_REACHED: 'Limite atteinte.',
   AI_FORMAT_INVALID:
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',

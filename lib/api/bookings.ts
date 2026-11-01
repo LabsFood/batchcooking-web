@@ -512,7 +512,24 @@ export interface MissionLine {
   unit: string
   /** `true` quand le batch cooker a corrigé ou ajouté la ligne. */
   edited?: boolean
+  /** Réponse du client : il l'a déjà, le batch cooker ne l'achète pas. */
+  alreadyHave?: boolean
+  /** Réponse du client : son commentaire sur la ligne. */
+  comment?: string | null
 }
+
+/**
+ * L'échange autour de la liste (Recettes §10.7, quand le batch cooker fait les
+ * courses). Calculé par l'API, jamais par nous : `preparing` (pas encore
+ * envoyée), `sent`, `update_sent` (renvoyée depuis la dernière réponse du
+ * client), `final_received`, `frozen` (après `deadline`, midi la veille).
+ */
+export type ShoppingListStatus =
+  | 'preparing'
+  | 'sent'
+  | 'update_sent'
+  | 'final_received'
+  | 'frozen'
 
 export interface MissionGroup {
   aisle: string
@@ -524,6 +541,14 @@ export interface MissionShoppingList {
   persons: number | null
   generatedAt: string | null
   groups: MissionGroup[]
+  /** Le client fait les courses lui-même : pas d'aller-retour de la liste. */
+  shoppingByClient?: boolean
+  deadline?: string
+  status?: ShoppingListStatus
+  /** Nombre d'envois par le batch cooker. Renvoyé avec la réponse du client. */
+  version?: number
+  sentAt?: string | null
+  finalReceivedAt?: string | null
 }
 
 /**
@@ -574,6 +599,37 @@ export const useSaveMissionShoppingList = () =>
 export const useResetMissionShoppingList = () =>
   useMissionMutation<string>((f, id) =>
     f<MissionShoppingList>(`/chef-missions/${id}/shopping-list/reset`, { method: 'POST' }),
+  )
+
+/**
+ * `POST /chef-missions/{id}/shopping-list/send` — envoie la liste au client, ou
+ * la renvoie après une correction qu'il doit voir. Jusqu'à midi la veille.
+ */
+export const useSendMissionShoppingList = () =>
+  useMissionMutation<string>((f, id) =>
+    f<MissionShoppingList>(`/chef-missions/${id}/shopping-list/send`, { method: 'POST' }),
+  )
+
+export interface ShoppingMark {
+  name: string
+  unit: string
+  alreadyHave: boolean
+  comment?: string
+}
+
+/**
+ * `POST /me/bookings/{id}/shopping-list/submit` — la liste finale du client :
+ * ce qu'il a déjà et ses commentaires, pour la `version` qu'il a sous les yeux.
+ * Renvoyable jusqu'à midi la veille. `SHOPPING_LIST_UPDATED` : le batch cooker
+ * l'a renvoyée entre-temps, il faut la relire.
+ */
+export const useSubmitShoppingList = () =>
+  useMissionMutation<{ id: string; version: number; marks: ShoppingMark[] }>(
+    (f, { id, version, marks }) =>
+      f<MissionShoppingList>(`/me/bookings/${id}/shopping-list/submit`, {
+        method: 'POST',
+        body: { version, marks },
+      }),
   )
 
 export interface RecipeSheetDish {
