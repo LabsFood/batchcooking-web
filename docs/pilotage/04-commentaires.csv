@@ -24,3 +24,5 @@
 2026-10-06;Amir;BLK-13;Les photos de plats et de menus sont livrées. Le dernier manque du catalogue tombe.
 2026-10-06;Amir;LF-0178;Demande : laisser saisir un numéro étranger. Vérifié par sonde — l'API accepte +34, +1 et +237, c'était ma regex qui bloquait.
 2026-10-06;Amir;BLK-17;Les langues ne sont pas dans le patch de candidature : elles n'existent nulle part dans l'API.
+2026-10-31;Daniel;Recettes;Plan des trois équipes : https://claude.ai/artifact/K36fF8PqaDzxtXsqTbyZsG . Écarts avec le PRD, pour le produit : https://claude.ai/artifact/BXSKZDbRRgRuqZAviJ3G6g . Pages privées tant qu'elles ne sont pas partagées.
+2026-10-31;Daniel;Recettes;Lignes créées sans date ni sprint, en Après MVP, MVP à Non : le plan n'est pas validé (BLK-24). À planifier par Emmanuel après la validation.
