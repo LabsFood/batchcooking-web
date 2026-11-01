@@ -196,51 +196,6 @@ export const DASHBOARD_ORDERS: DashboardOrder[] = [
   },
 ]
 
-// ─── Personalisation requests ────────────────────────────────────────────────
-
-export type CustomRequestStatus = 'draft' | 'submitted' | 'in-review' | 'quoted' | 'accepted' | 'declined'
-
-export type CustomRequest = {
-  id: string
-  title: string
-  createdAt: string
-  status: CustomRequestStatus
-  persons: number
-  meals: number
-  cuisine?: string
-  diet?: string[]
-  brief: string
-  quote?: { amountTTC: number; amountAfterTax: number; note?: string }
-}
-
-export const CUSTOM_REQUESTS: CustomRequest[] = [
-  {
-    id: 'req_001',
-    title: 'Brunch d’anniversaire — 8 personnes',
-    createdAt: '2026-04-22T14:30:00.000Z',
-    status: 'quoted',
-    persons: 8,
-    meals: 6,
-    cuisine: 'Méditerranéen',
-    diet: ['Végétarien', 'Sans-gluten'],
-    brief:
-      'Un brunch dimanche pour mes 30 ans, autour de 8 personnes, ambiance méditerranéenne, deux convives sans gluten et une végétarienne stricte.',
-    quote: { amountTTC: 320, amountAfterTax: 160, note: 'Inclut 1h de service supplémentaire.' },
-  },
-  {
-    id: 'req_002',
-    title: 'Régime sportif — 2 semaines',
-    createdAt: '2026-04-10T09:10:00.000Z',
-    status: 'in-review',
-    persons: 2,
-    meals: 14,
-    cuisine: 'Cuisine du monde',
-    diet: ['High-protein'],
-    brief:
-      'Programme musculation phase de prise. 2200 kcal/jour, 180g de protéines. Variété de cuisines (asiatique, mexicain, libanais).',
-  },
-]
-
 // ─── Chat with admin ─────────────────────────────────────────────────────────
 
 // ─── Profile preferences ────────────────────────────────────────────────────

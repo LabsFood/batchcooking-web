@@ -456,7 +456,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 />
                 <Info2
                   icon={<Users className="h-4 w-4" />}
-                  label="Convives"
+                  label="Portions"
                   value={portions > 0 ? `${portions} portions` : 'Non précisé'}
                 />
                 <Info2

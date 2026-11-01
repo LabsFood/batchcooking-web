@@ -407,7 +407,7 @@ export default function DashboardOverviewPage() {
             href="/espace-client/personnalisation"
             Icon={Sparkles}
             title="Demande sur-mesure"
-            subtitle="Brunch, régime particulier, événement"
+            subtitle="Régime particulier, menu de la semaine"
           />
           <Shortcut
             href="/espace-client/statistiques"

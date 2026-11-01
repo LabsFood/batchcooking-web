@@ -26,3 +26,5 @@
 2026-10-06;Amir;BLK-17;Les langues ne sont pas dans le patch de candidature : elles n'existent nulle part dans l'API.
 2026-10-31;Daniel;Recettes;Plan des trois équipes : https://claude.ai/artifact/K36fF8PqaDzxtXsqTbyZsG . Écarts avec le PRD, pour le produit : https://claude.ai/artifact/BXSKZDbRRgRuqZAviJ3G6g . Pages privées tant qu'elles ne sont pas partagées.
 2026-10-31;Daniel;Recettes;Lignes créées sans date ni sprint, en Après MVP, MVP à Non : le plan n'est pas validé (BLK-24). À planifier par Emmanuel après la validation.
+2026-11-01;Daniel;Recettes;Lot 0 et partie client du lot 4 écrits et poussés dans les trois dépôts (feat/recettes-lot-0, feat/recettes-lot-4-client) : lignes passées À tester. Migrations non appliquées, aucun écran vu contre l'API réelle. Le lot 0 se fusionne en premier.
+2026-11-01;Daniel;Bugs et blocages;Toutes les fiches BUG, DEM et BLK d'avant le module Recettes passent en Résolu. BLK-34 aussi : la bêta Clerk est acceptée depuis le 28/10. Restent ouvertes : BLK-24 à BLK-33, BLK-35 et BLK-36.

@@ -81,7 +81,8 @@ export const formatSize = (bytes: number) =>
 export function requiredDocuments(v: {
   workStatus?: WorkStatus
   legalForm?: LegalForm
-  sapTypeA?: boolean
+  sapDeclared?: string
+  sapCooperative?: string
 }): DocRequirement[] {
   const docs: DocRequirement[] = [
     {
@@ -124,11 +125,19 @@ export function requiredDocuments(v: {
       required: true,
     })
   }
-  if (v.sapTypeA) {
+  if (v.sapDeclared === 'yes') {
     docs.push({
       id: 'sap-declaration',
       label: 'Récépissé de déclaration SAP',
       hint: 'Délivré par la DREETS via NOVA, à votre nom ou à celui de votre entreprise.',
+      required: true,
+    })
+  }
+  if (v.sapDeclared === 'no' && v.sapCooperative === 'yes') {
+    docs.push({
+      id: 'sap-cooperative',
+      label: 'Attestation d’adhésion à une coopérative SAP',
+      hint: 'Délivrée par votre coopérative, à votre nom, pour l’année en cours.',
       required: true,
     })
   }
@@ -243,13 +252,23 @@ const statusSchema = z
     }
   })
 
+/**
+ * Ni déclaration SAP ni coopérative : pas d'embarquement. Lab’s Food n'est pas
+ * une coopérative et ne porte la déclaration de personne (exigence URSSAF).
+ */
+export const NO_SAP_MESSAGE =
+  'Sans déclaration de services à la personne ni adhésion à une coopérative SAP, nous ne pouvons pas vous embarquer : Lab’s Food n’est pas une coopérative. Revenez vers nous dès que vous avez l’une ou l’autre.'
+
 const companySchema = z
   .object({
     legalForm: z.enum(['micro', 'other-company', 'not-registered'], {
       error: 'Choisissez votre statut.',
     }),
     siret: z.string().optional(),
-    sapTypeA: z.boolean(),
+    /** « Avez-vous une déclaration SAP ? » : 'yes' | 'no', '' sans réponse. */
+    sapDeclared: z.string(),
+    /** Si non : « Avez-vous adhéré à une coopérative SAP ? » */
+    sapCooperative: z.string(),
     sapNumber: z.string().optional(),
   })
   .superRefine((v, ctx) => {
@@ -265,11 +284,21 @@ const companySchema = z
         })
       }
     }
-    if (v.sapTypeA && !/^SAP\d{9}$/i.test((v.sapNumber ?? '').replace(/\s/g, ''))) {
+    if (v.sapDeclared !== 'yes' && v.sapDeclared !== 'no') {
+      ctx.addIssue({ path: ['sapDeclared'], code: 'custom', message: 'Répondez à cette question.' })
+    }
+    if (v.sapDeclared === 'yes' && !/^SAP\d{9}$/i.test((v.sapNumber ?? '').replace(/\s/g, ''))) {
       ctx.addIssue({
         path: ['sapNumber'],
         code: 'custom',
         message: 'Format attendu : SAP suivi des 9 chiffres du SIREN, par exemple SAP123456789.',
+      })
+    }
+    if (v.sapDeclared === 'no' && v.sapCooperative !== 'yes') {
+      ctx.addIssue({
+        path: ['sapCooperative'],
+        code: 'custom',
+        message: v.sapCooperative === 'no' ? NO_SAP_MESSAGE : 'Répondez à cette question.',
       })
     }
   })
@@ -327,7 +356,8 @@ export const DEFAULT_VALUES: ApplicationValues = {
   workStatusOther: '',
   legalForm: undefined as unknown as LegalForm,
   siret: '',
-  sapTypeA: false,
+  sapDeclared: '',
+  sapCooperative: '',
   sapNumber: '',
   consent: false,
 }
@@ -389,9 +419,12 @@ export function buildPayload(v: ApplicationValues, acceptedAt: string): Applicat
     company: {
       legalForm: v.legalForm,
       siret: registered ? (v.siret ?? '').replace(/\s/g, '') : null,
+      // Type B = la coopérative du candidat porte la déclaration ; l'étape
+      // bloque le cas « ni l'une ni l'autre » avant l'envoi.
       sap: {
-        path: v.sapTypeA ? 'type-a' : 'type-b',
-        declarationNumber: v.sapTypeA ? (v.sapNumber ?? '').replace(/\s/g, '').toUpperCase() : null,
+        path: v.sapDeclared === 'yes' ? 'type-a' : 'type-b',
+        declarationNumber:
+          v.sapDeclared === 'yes' ? (v.sapNumber ?? '').replace(/\s/g, '').toUpperCase() : null,
       },
     },
     consent: { privacyPolicy: true, terms: true, acceptedAt },
@@ -420,7 +453,7 @@ export function valuesFromAnswers(a: ApplicationAnswersLike): ApplicationValues 
     ),
   }))
 
-  const sapTypeA = a.company?.sap?.path === 'type-a'
+  const sapPath = a.company?.sap?.path
 
   return {
     ...DEFAULT_VALUES,
@@ -437,8 +470,9 @@ export function valuesFromAnswers(a: ApplicationAnswersLike): ApplicationValues 
     workStatusOther: a.workAuthorization?.details ?? '',
     legalForm: (a.company?.legalForm ?? undefined) as LegalForm,
     siret: a.company?.siret ?? '',
-    sapTypeA,
-    sapNumber: sapTypeA ? (a.company?.sap?.declarationNumber ?? '') : '',
+    sapDeclared: sapPath === 'type-a' ? 'yes' : sapPath === 'type-b' ? 'no' : '',
+    sapCooperative: sapPath === 'type-b' ? 'yes' : '',
+    sapNumber: sapPath === 'type-a' ? (a.company?.sap?.declarationNumber ?? '') : '',
     consent: false,
   }
 }
@@ -545,7 +579,10 @@ function validationMessage(message: string): string {
 
 /** Étape à rouvrir après un refus, ou null si l'API ne nomme aucun champ. */
 export function applicationErrorStep(e: unknown): StepId | null {
-  if (!(e instanceof ApplicationError) || e.code !== 'VALIDATION_FAILED') return null
+  if (!(e instanceof ApplicationError)) return null
+  if (e.code === 'ADDRESS_CITY_MISMATCH') return 'identity'
+  if (e.code === 'ZONE_CITY_UNKNOWN') return 'zones'
+  if (e.code !== 'VALIDATION_FAILED') return null
   const root = fieldOf(e.message).split('.')[0]
   return FIELD_STEP[root] ?? null
 }
@@ -599,6 +636,13 @@ export function applicationErrorMessage(e: unknown): string {
       return 'Cette adresse a déjà un compte Lab’s Food. Connectez-vous pour reprendre votre dossier, ou candidatez avec une autre adresse.'
     case 'VALIDATION_FAILED':
       return validationMessage(e.message)
+    // Vérifiés par l'API contre la base officielle des communes (geo.api.gouv.fr).
+    case 'ADDRESS_CITY_MISMATCH':
+      return 'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste proposée.'
+    case 'ZONE_CITY_UNKNOWN':
+      return 'Une ville de vos zones n’est pas reconnue dans sa région. Retirez-la, puis retrouvez-la avec la recherche.'
+    case 'GEO_UNAVAILABLE':
+      return 'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes : vos réponses sont conservées.'
     case 'NETWORK':
       return 'L’envoi n’a pas abouti. Vérifiez votre connexion puis réessayez : vos réponses sont conservées.'
     case 'NO_API_URL':
