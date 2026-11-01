@@ -22,8 +22,9 @@ import {
   Menu,
   X,
   ChevronDown,
+  Lock,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Logo from '@/components/shared/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
@@ -35,6 +36,7 @@ import { useMe } from '@/lib/api/me'
 import { Avatar, AvatarEditor } from '@/components/shared/Avatar'
 import { useChefQuotes } from '@/lib/api/quotes'
 import { useUnreadCount } from '@/lib/api/messaging'
+import { openToCandidate, useChefApproved } from '@/lib/chef/approval'
 
 /**
  * Navigation en 5 groupes (cf. architecture cible § 4.1 du brief).
@@ -89,6 +91,56 @@ function isActive(pathname: string, href: string) {
   return href === '/espace-chef' ? pathname === href : pathname.startsWith(href)
 }
 
+/** Vrai pour une entrée fermée tant que le dossier n'est pas validé. */
+function useLocked(): (href: string) => boolean {
+  const { candidate } = useChefApproved()
+  return (href) => candidate && !openToCandidate(href)
+}
+
+/**
+ * Une entrée du menu, ou sa version grisée : pas de lien, et un lecteur
+ * d'écran entend pourquoi.
+ */
+function Entry({
+  href,
+  locked,
+  className,
+  onClick,
+  children,
+}: {
+  href: string
+  locked: boolean
+  className: string
+  onClick?: () => void
+  children: ReactNode
+}) {
+  if (locked) {
+    return (
+      <span aria-disabled="true" className={cn(className, 'pointer-events-none opacity-40')}>
+        {children}
+        <span className="sr-only">, disponible après validation de votre dossier</span>
+      </span>
+    )
+  }
+  return (
+    <Link href={href} onClick={onClick} className={className}>
+      {children}
+    </Link>
+  )
+}
+
+/** Ce que le menu grisé veut dire, au-dessus des entrées. */
+function LockedNote() {
+  const { candidate } = useChefApproved()
+  if (!candidate) return null
+  return (
+    <p className="mb-4 flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-relaxed text-white/70">
+      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+      Le reste de votre espace s’ouvre dès que l’équipe a validé votre dossier.
+    </p>
+  )
+}
+
 /**
  * Ce qui attend vraiment, par entrée de menu. Seules deux entrées ont de quoi
  * compter aujourd'hui : les propositions de Lab's Food, et les pièces du
@@ -128,6 +180,7 @@ export function ChefSidebar() {
   const router = useRouter()
   const counts = useNavCounts()
   const unread = useUnreadCount().data ?? 0
+  const locked = useLocked()
 
   const initials =
     user?.name
@@ -148,6 +201,7 @@ export function ChefSidebar() {
         </div>
 
         <nav className="px-3 flex-1 overflow-y-auto">
+          <LockedNote />
           {CHEF_NAV.map(({ group, items }) => (
             <div key={group} className="mb-4">
               <p className="px-3 mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
@@ -160,10 +214,12 @@ export function ChefSidebar() {
                   const n = href === MESSAGING_HREF ? unread : (counts[href] ?? 0)
                   const badge = n > 0 ? String(n) : null
                   const active = isActive(pathname, href)
+                  const ferme = locked(href)
                   return (
                     <li key={href}>
-                      <Link
+                      <Entry
                         href={href}
+                        locked={ferme}
                         className={cn(
                           'flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors',
                           active
@@ -173,7 +229,8 @@ export function ChefSidebar() {
                       >
                         <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2.4 : 2} />
                         <span className="flex-1">{label}</span>
-                        {badge && (
+                        {ferme && <Lock className="h-3.5 w-3.5" aria-hidden />}
+                        {!ferme && badge && (
                           <span
                             className={cn(
                               'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
@@ -183,7 +240,7 @@ export function ChefSidebar() {
                             {badge}
                           </span>
                         )}
-                      </Link>
+                      </Entry>
                     </li>
                   )
                 })}
@@ -221,6 +278,7 @@ const MOBILE_ITEMS = [
 export function ChefMobileNav() {
   const pathname = usePathname()
   const unread = useUnreadCount().data ?? 0
+  const locked = useLocked()
   return (
     <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 bg-navy text-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(31,42,55,0.5)] px-2 py-2">
       <ul className="grid grid-cols-5">
@@ -228,8 +286,9 @@ export function ChefMobileNav() {
           const active = isActive(pathname, href)
           return (
             <li key={href}>
-              <Link
+              <Entry
                 href={href}
+                locked={locked(href)}
                 className={cn(
                   'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[10px] font-medium transition-colors',
                   active ? 'text-amber' : 'text-white/55 hover:text-white',
@@ -242,7 +301,7 @@ export function ChefMobileNav() {
                   )}
                 </span>
                 {label}
-              </Link>
+              </Entry>
             </li>
           )
         })}
@@ -261,6 +320,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
   const { user, roleLabel, signOut } = useAuth()
   const { alerts, loading } = useChefAlerts()
   const me = useMe()
+  const locked = useLocked()
 
   const initial = user?.name?.[0]?.toUpperCase() ?? 'C'
   const firstName = user?.name?.split(' ')[0] ?? 'Chef'
@@ -383,6 +443,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                 <X className="w-5 h-5" />
               </button>
             </div>
+            <LockedNote />
             {CHEF_NAV.map(({ group, items }) => (
               <div key={group} className="mb-5">
                 <p className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
@@ -391,8 +452,9 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                 <ul className="space-y-0.5">
                   {items.map(({ href, label, Icon }) => (
                     <li key={href}>
-                      <Link
+                      <Entry
                         href={href}
+                        locked={locked(href)}
                         onClick={() => setOpen(false)}
                         className={cn(
                           'flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors',
@@ -402,8 +464,9 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                         )}
                       >
                         <Icon className="w-4 h-4" />
-                        {label}
-                      </Link>
+                        <span className="flex-1">{label}</span>
+                        {locked(href) && <Lock className="h-3.5 w-3.5" aria-hidden />}
+                      </Entry>
                     </li>
                   ))}
                 </ul>
