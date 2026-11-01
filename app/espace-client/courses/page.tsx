@@ -7,7 +7,9 @@ import {
   ClipboardCopy,
   Download,
   Loader2,
+  MessageSquare,
   Pencil,
+  Send,
   ShoppingBasket,
   Store,
 } from 'lucide-react'
@@ -16,11 +18,20 @@ import {
   hour,
   useMissionShoppingList,
   useMyBookings,
+  useSubmitShoppingList,
   type Booking,
   type MissionLine,
+  type MissionShoppingList,
+  type ShoppingListStatus,
+  type ShoppingMark,
 } from '@/lib/api/bookings'
+import { ApiError } from '@/lib/api/client'
 import { aisleLabel } from '@/lib/recipe-fields'
+import { reasonText } from '@/lib/reason-codes'
 import { STORES } from '@/lib/client/mock'
+import { Hint } from '@/components/shared/Hint'
+import { InfoPopover } from '@/components/shared/InfoPopover'
+import { useToast } from '@/components/shared/Toaster'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Ma liste de courses.
@@ -36,9 +47,14 @@ import { STORES } from '@/lib/client/mock'
    La prestation affichée est la prochaine qui demande des courses. On peut en
    choisir une autre quand il y en a plusieurs ; on ne devine pas.
 
-   Ce qui reste local l'est honnêtement : « j'ai déjà » vit dans la page, le
-   temps de faire ses courses, et les enseignes sont des liens vers des drives,
-   pas des données prétendues.
+   Qui fait les courses décide de l'écran (Recettes §10.7) :
+
+   - le batch cooker (cas 1) : il envoie la liste, le client coche ce qu'il a
+     déjà, commente une ligne et lui renvoie sa liste finale, autant de fois
+     qu'il veut jusqu'à midi la veille. Tout part à l'API ;
+   - le client lui-même (cas 2) : la liste est son outil. « J'ai déjà » vit
+     dans la page, le temps de faire ses courses, et les enseignes sont des
+     liens vers des drives, pas des données prétendues.
    ───────────────────────────────────────────────────────────────────────────── */
 
 /** Les étapes où une liste de courses sert encore à quelque chose. */
@@ -95,15 +111,33 @@ export default function ShoppingListPage() {
 
 /* ── La liste d'une prestation ─────────────────────────────────────────────── */
 
-function Liste({
-  booking,
-  autres,
-  onChoisir,
-}: {
+type ListeProps = {
   booking: Booking
   autres: Booking[]
   onChoisir: (id: string) => void
-}) {
+}
+
+/** Le batch cooker fait les courses : on lui répond. Sinon, la liste est à soi. */
+function Liste(props: ListeProps) {
+  const courses = useMissionShoppingList(props.booking.id)
+  const liste = courses.data
+  if (liste && liste.shoppingByClient === false) {
+    return (
+      <Reponse
+        // Une nouvelle version, un envoi ou le passage à « figée » repartent du serveur.
+        key={`${liste.version ?? 0}:${liste.finalReceivedAt ?? ''}:${liste.status}`}
+        {...props}
+        liste={liste}
+        onRecharger={() => courses.refetch()}
+      />
+    )
+  }
+  return <ListeLibre {...props} />
+}
+
+/* ── Cas 2 : le client fait ses courses ────────────────────────────────────── */
+
+function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
   const courses = useMissionShoppingList(booking.id)
   const [possedes, setPossedes] = useState<string[]>([])
   const [storeId, setStoreId] = useState(STORES[0].id)
@@ -195,26 +229,7 @@ function Liste({
           </div>
         </div>
 
-        {autres.length > 1 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.06)] pt-4">
-            <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft">
-              Autre session
-            </span>
-            {autres.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => onChoisir(b.id)}
-                className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  b.id === booking.id
-                    ? 'bg-navy text-white'
-                    : 'bg-cream-soft text-navy hover:bg-cream-deep'
-                }`}
-              >
-                {sessionLabel(b)}
-              </button>
-            ))}
-          </div>
-        )}
+        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
 
         <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
           « Faire mes courses » copie la liste restante dans le presse-papier puis
@@ -308,6 +323,293 @@ function Liste({
       <p className="text-center text-xs text-ink-soft">
         Cochez « j’ai déjà » pour retirer un article de l’export.
       </p>
+    </div>
+  )
+}
+
+/* ── Cas 1 : le batch cooker fait les courses, le client répond ─────────────── */
+
+type Marque = { alreadyHave: boolean; comment: string }
+
+/** Une ligne par ingrédient et par unité : c'est ainsi que l'API les reconnaît. */
+const cle = (l: MissionLine) => `${l.name}|${l.unit}`
+
+const TITRE: Record<ShoppingListStatus, string> = {
+  preparing: 'Votre batch cooker prépare la liste',
+  sent: 'Vérifiez votre liste de courses',
+  update_sent: 'Votre liste a été mise à jour',
+  final_received: 'Liste envoyée à votre batch cooker',
+  frozen: 'Liste figée',
+}
+
+function Reponse({
+  booking,
+  autres,
+  onChoisir,
+  liste,
+  onRecharger,
+}: ListeProps & { liste: MissionShoppingList; onRecharger: () => void }) {
+  const toast = useToast()
+  const envoyer = useSubmitShoppingList()
+  const status = liste.status ?? 'preparing'
+  const modifiable =
+    status === 'sent' || status === 'update_sent' || status === 'final_received'
+  const groupes = liste.groups
+  const lignes = groupes.flatMap((g) => g.lines)
+
+  // La réponse telle que l'API la connaît : le point de départ, et la référence
+  // pour savoir s'il reste des modifications à envoyer.
+  const depart = useMemo(
+    () =>
+      Object.fromEntries(
+        groupes
+          .flatMap((g) => g.lines)
+          .map((l) => [cle(l), { alreadyHave: !!l.alreadyHave, comment: l.comment ?? '' }]),
+      ) as Record<string, Marque>,
+    [groupes],
+  )
+  const [marques, setMarques] = useState(depart)
+  const [ouverts, setOuverts] = useState<string[]>([])
+
+  const changer = (k: string, patch: Partial<Marque>) =>
+    setMarques((m) => ({ ...m, [k]: { ...m[k], ...patch } }))
+
+  const possedes = Object.values(marques).filter((m) => m.alreadyHave).length
+  const commentes = Object.values(marques).filter((m) => m.comment.trim()).length
+  const modifie = JSON.stringify(marques) !== JSON.stringify(depart)
+
+  const envoi = () => {
+    const marks: ShoppingMark[] = lignes.flatMap((l) => {
+      const m = marques[cle(l)]
+      const comment = m.comment.trim()
+      if (!m.alreadyHave && !comment) return []
+      return [{ name: l.name, unit: l.unit, alreadyHave: m.alreadyHave, ...(comment && { comment }) }]
+    })
+    envoyer.mutate(
+      { id: booking.id, version: liste.version ?? 0, marks },
+      {
+        onSuccess: () =>
+          toast.success('Liste envoyée', 'Votre batch cooker la reçoit tout de suite.'),
+        onError: (e) => {
+          const body = e instanceof ApiError ? e.body : null
+          toast.error('La liste n’a pas été envoyée', reasonText(body) ?? undefined)
+          if ((body as { code?: string } | null)?.code === 'SHOPPING_LIST_UPDATED') onRecharger()
+        },
+      },
+    )
+  }
+
+  const limite = liste.deadline
+    ? `${new Date(liste.deadline).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      })} à ${hour(liste.deadline)}`
+    : null
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="eyebrow mb-2">
+              {booking.startsAt ? sessionLabel(booking) : 'Prochaine session'}
+            </p>
+            <p className="font-display text-2xl font-bold text-navy">{TITRE[status]}</p>
+            {status === 'preparing' ? (
+              <p className="mt-1 text-xs text-ink-soft">
+                Vous pourrez la vérifier dès qu’il vous l’aura envoyée.
+              </p>
+            ) : (
+              <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-ink-soft">
+                {possedes} déjà chez vous · {commentes} commentaire{commentes > 1 ? 's' : ''} ·{' '}
+                {lignes.length} au total
+                <InfoPopover label="Que veut dire « j’ai déjà » ?">
+                  Cochez ce que vous avez chez vous en quantité suffisante : votre batch
+                  cooker ne l’achète pas. Si la quantité change dans une mise à jour de
+                  la liste, la case se décoche : vérifiez-la.
+                </InfoPopover>
+              </p>
+            )}
+            {limite && (
+              <p className="mt-2 flex flex-wrap items-center gap-1 text-[13px] font-semibold text-navy">
+                {status === 'frozen' ? `Figée depuis ${limite}` : `À renvoyer au plus tard ${limite}`}
+                <InfoPopover label="Pourquoi cette date limite ?">
+                  Jusqu’à midi la veille de la prestation, vous pouvez renvoyer votre
+                  liste autant de fois que vous voulez. Ensuite, elle est figée : votre
+                  batch cooker achète ce qu’elle contient. Si vous ne l’avez jamais
+                  renvoyée, il achète toute la liste.
+                </InfoPopover>
+              </p>
+            )}
+          </div>
+
+          {modifiable && (
+            <button
+              onClick={envoi}
+              disabled={envoyer.isPending}
+              className="btn btn-primary text-sm disabled:opacity-50"
+            >
+              {envoyer.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Send className="h-4 w-4" aria-hidden />
+              )}
+              {status === 'final_received'
+                ? 'Renvoyer ma liste'
+                : 'Envoyer ma liste finale au batch cooker'}
+            </button>
+          )}
+        </div>
+
+        {modifiable && modifie && (
+          <p className="mt-3 text-[12px] font-semibold text-amber-deep">
+            Modifications non envoyées : votre batch cooker voit encore la version
+            précédente.
+          </p>
+        )}
+
+        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
+      </div>
+
+      {modifiable && (
+        <Hint id="courses-liste-finale">
+          Cochez ce que vous avez déjà, commentez une ligne si besoin, puis envoyez votre
+          liste finale. Sans envoi avant midi la veille, votre batch cooker achète toute
+          la liste.
+        </Hint>
+      )}
+
+      {status === 'update_sent' && (
+        <p className="rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
+          Votre batch cooker a modifié la liste depuis votre dernier envoi. Les lignes
+          dont la quantité a changé ont été décochées : vérifiez-les, puis renvoyez
+          votre liste.
+        </p>
+      )}
+
+      {groupes.length === 0 ? (
+        <p className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center text-sm text-ink-mid">
+          Aucun ingrédient pour l’instant : les recettes de cette session ne sont
+          pas encore détaillées.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {groupes.map(({ aisle, lines }) => (
+            <section
+              key={aisle}
+              className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
+                  <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
+                </span>
+                <h3 className="font-display text-base font-bold text-navy">
+                  {aisleLabel(aisle) ?? aisle}
+                </h3>
+                <span className="text-[11px] text-ink-soft">({lines.length})</span>
+              </div>
+
+              <ul className="space-y-1.5">
+                {lines.map((l) => {
+                  const k = cle(l)
+                  const m = marques[k]
+                  const ouvert = ouverts.includes(k) || m.comment !== ''
+                  return (
+                    <li key={k}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => changer(k, { alreadyHave: !m.alreadyHave })}
+                          disabled={!modifiable}
+                          aria-pressed={m.alreadyHave}
+                          className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors disabled:cursor-default ${
+                            m.alreadyHave ? 'bg-mint/40' : modifiable ? 'hover:bg-cream-soft' : ''
+                          }`}
+                        >
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                              m.alreadyHave
+                                ? 'border-mint-deep bg-mint-deep'
+                                : 'border-[rgba(31,42,55,0.2)]'
+                            }`}
+                          >
+                            {m.alreadyHave && (
+                              <Check className="h-3 w-3 text-mint-ink" aria-hidden />
+                            )}
+                          </span>
+                          <span
+                            className={`min-w-0 flex-1 text-sm ${
+                              m.alreadyHave
+                                ? 'text-ink-soft line-through'
+                                : 'font-medium text-navy'
+                            }`}
+                          >
+                            {l.name}
+                            {m.alreadyHave && <span className="sr-only"> (j’ai déjà)</span>}
+                          </span>
+                          <span className="shrink-0 font-mono text-xs text-ink-soft">
+                            {quantite(l)}
+                          </span>
+                        </button>
+                        {modifiable && !ouvert && (
+                          <button
+                            type="button"
+                            onClick={() => setOuverts((o) => [...o, k])}
+                            aria-label={`Commenter ${l.name}`}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+                          >
+                            <MessageSquare className="h-4 w-4" aria-hidden />
+                          </button>
+                        )}
+                      </div>
+                      {ouvert &&
+                        (modifiable ? (
+                          <input
+                            value={m.comment}
+                            onChange={(e) => changer(k, { comment: e.target.value })}
+                            maxLength={280}
+                            placeholder="Votre commentaire : marque, variété, quantité…"
+                            aria-label={`Commentaire sur ${l.name}`}
+                            className="input-base mt-1 w-full py-1.5 text-[13px]"
+                          />
+                        ) : (
+                          <p className="ml-11 mt-0.5 text-[12px] italic text-ink-mid">
+                            « {m.comment} »
+                          </p>
+                        ))}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Plusieurs sessions à venir ────────────────────────────────────────────── */
+
+function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
+  if (autres.length < 2) return null
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.06)] pt-4">
+      <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft">
+        Autre session
+      </span>
+      {autres.map((b) => (
+        <button
+          key={b.id}
+          onClick={() => onChoisir(b.id)}
+          className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+            b.id === booking.id ? 'bg-navy text-white' : 'bg-cream-soft text-navy hover:bg-cream-deep'
+          }`}
+        >
+          {sessionLabel(b)}
+        </button>
+      ))}
     </div>
   )
 }
