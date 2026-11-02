@@ -138,6 +138,10 @@ export function apiMessage(error: unknown, repli = 'L’enregistrement a été r
     if (code === 'ADDRESS_CITY_MISMATCH') {
       return 'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste proposée.'
     }
+    if (code === 'INVOICE_NOT_FOUND') return 'Cette facture est introuvable sur votre compte.'
+    if (code === 'DOCUMENT_STORAGE_UNAVAILABLE') {
+      return 'Le document est momentanément indisponible. Réessayez dans un instant.'
+    }
     if (code === 'GEO_UNAVAILABLE') {
       return 'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.'
     }

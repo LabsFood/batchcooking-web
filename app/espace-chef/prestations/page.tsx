@@ -74,6 +74,7 @@ import { apiMessage } from '@/lib/api/messages'
 import { reasonText } from '@/lib/reason-codes'
 import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
+import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { useDishes } from '@/lib/api/chef-catalog'
 
@@ -622,6 +623,9 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   />
                 ))}
               </ul>
+              <div className="mt-3 empty:hidden">
+                <PaymentInvoiceList side="chef" bookingId={m.id} heading="Factures" />
+              </div>
             </Card>
 
             {/* Déplacer la prestation */}
