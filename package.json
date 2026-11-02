@@ -1,6 +1,6 @@
 {
   "name": "labs-food-batch-cooking",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
@@ -43,12 +43,12 @@
     "tailwindcss-animate": "^1.0.7",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2",
-    "zod": "^3.23.8",
+    "zod": "^4.6.7",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@types/d3-geo": "^3.1.1",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/topojson-client": "^3.1.5",

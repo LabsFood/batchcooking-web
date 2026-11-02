@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
+import { Globe2 } from 'lucide-react'
 
 type Photo = {
   src: string

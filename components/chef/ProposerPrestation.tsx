@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import CityField from '@/components/chef/application/CityField'
 import { CalendarPlus, Loader2, X } from 'lucide-react'
 import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
@@ -229,36 +230,27 @@ function Formulaire({ onClose }: { onClose: () => void }) {
                 className="input-base mt-1.5"
               />
             </label>
-            <label className="block text-sm font-semibold text-navy sm:col-span-2">
-              Ville
-              <input
-                value={ville}
-                onChange={(e) => setVille(e.target.value)}
-                placeholder="Là où vous cuisinerez"
-                className="input-base mt-1.5"
-              />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr]">
-            <label className="block text-sm font-semibold text-navy">
-              Adresse
-              <input
-                value={adresse}
-                onChange={(e) => setAdresse(e.target.value)}
-                className="input-base mt-1.5"
-              />
-            </label>
             <label className="block text-sm font-semibold text-navy">
               Code postal
               <input
                 value={codePostal}
                 onChange={(e) => setCodePostal(e.target.value.replace(/\D/g, '').slice(0, 5))}
                 inputMode="numeric"
+                placeholder="Là où vous cuisinerez"
                 className="input-base mt-1.5"
               />
             </label>
+            <CityField id="prestation-city" postcode={codePostal} value={ville} onChange={setVille} />
           </div>
+
+          <label className="block text-sm font-semibold text-navy">
+            Adresse
+            <input
+              value={adresse}
+              onChange={(e) => setAdresse(e.target.value)}
+              className="input-base mt-1.5"
+            />
+          </label>
 
           <label className="block text-sm font-semibold text-navy">
             Note pour votre client

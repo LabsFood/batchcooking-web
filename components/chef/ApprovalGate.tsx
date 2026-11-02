@@ -3,9 +3,7 @@
 import Link from 'next/link'
 import { Lock } from 'lucide-react'
 import { Card } from './ChefPage'
-import { useChefApplication } from '@/lib/api/chef-documents'
-import { useMeProfile } from '@/lib/api/me-profile'
-import type { ChefProfile } from '@/lib/api/types'
+import { useChefApproved } from '@/lib/chef/approval'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Lecture seule avant approbation.
@@ -21,23 +19,10 @@ import type { ChefProfile } from '@/lib/api/types'
    illisible. Cette bannière le dit **avant**, et les boutons concernés se
    désactivent.
 
-   La vérité vient de deux endroits qui disent la même chose : `isVerified` sur
-   le profil, et le statut de la candidature. On attend les deux avant de
-   conclure — annoncer « pas encore approuvé » à quelqu'un qui vient de l'être
-   serait la pire des erreurs.
+   Depuis que l'espace d'un candidat se limite à son dossier (voir
+   `lib/chef/approval.ts`), il n'arrive plus jusqu'à ces pages : la bannière ne
+   sert plus qu'en filet, si le profil répond après l'écran.
    ───────────────────────────────────────────────────────────────────────────── */
-
-export function useChefApproved(): { approved: boolean; known: boolean } {
-  const profil = useMeProfile()
-  const application = useChefApplication()
-
-  const moi =
-    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
-  const known = !profil.isPending || !application.isPending
-  const approved = moi?.isVerified === true || application.data?.status === 'approved'
-
-  return { approved, known }
-}
 
 /**
  * La bannière. Elle ne s'affiche que lorsqu'on **sait** que le dossier n'est

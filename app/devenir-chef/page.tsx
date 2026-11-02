@@ -18,6 +18,8 @@ import {
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
 import ZonePicker from '@/components/chef/application/ZonePicker'
+import CityField from '@/components/chef/application/CityField'
+import { useCommunes } from '@/lib/api/referentials'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
 import { formatE164 } from '@/lib/phone'
@@ -25,6 +27,7 @@ import { regionLabel } from '@/lib/chef/regions'
 import {
   DEFAULT_VALUES,
   LEGAL_FORMS,
+  NO_SAP_MESSAGE,
   WORK_STATUSES,
   buildPayload,
   labelOf,
@@ -186,6 +189,17 @@ function ApplicationForm({
   // sert à l'annoncer avant l'envoi, pas à la décider.
   const requirements = requiredDocuments(values)
 
+  // La ville doit être une commune du code postal ; liste indisponible → l'API tranchera.
+  const communes = useCommunes(values.postcode)
+  const check = (s: StepId, v: ApplicationValues): FieldErrors => {
+    const e = validateStep(s, v)
+    const list = communes.data
+    if (s !== 'identity' || !list || v.postcode !== values.postcode) return e
+    if (!e.postcode && list.length === 0) e.postcode = 'Ce code postal ne correspond à aucune commune.'
+    else if (!e.city && !list.includes(v.city)) e.city = 'Choisissez votre commune dans la liste.'
+    return e
+  }
+
   // ── Saisie ───────────────────────────────────────────────────────────────
   function set<K extends keyof ApplicationValues>(key: K, v: ApplicationValues[K]) {
     const next = { ...values, [key]: v }
@@ -193,7 +207,7 @@ function ApplicationForm({
     writeDraft({ values: next, step, furthest })
     // Une étape déjà tentée se revalide à chaque frappe ; sinon on efface
     // seulement l'erreur du champ modifié.
-    if (attempted.has(step)) setErrors(validateStep(step, next))
+    if (attempted.has(step)) setErrors(check(step, next))
     else if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
@@ -217,7 +231,7 @@ function ApplicationForm({
   }
 
   const next = () => {
-    const stepErrors = validateStep(step, values)
+    const stepErrors = check(step, values)
     setAttempted((a) => new Set(a).add(step))
     setErrors(stepErrors)
     if (Object.keys(stepErrors).length) {
@@ -230,7 +244,7 @@ function ApplicationForm({
   const submit = async () => {
     // Revalide tout : une modification a pu invalider une étape déjà passée.
     for (const [i, s] of STEPS.entries()) {
-      const stepErrors = validateStep(s.id, values)
+      const stepErrors = check(s.id, values)
       if (Object.keys(stepErrors).length) {
         setAttempted((a) => new Set(a).add(s.id))
         setErrors(stepErrors)
@@ -445,11 +459,10 @@ function ApplicationForm({
                       onChange={(e) => set('postcode', e.target.value.replace(/\D/g, ''))}
                       error={errors.postcode}
                     />
-                    <TextField
-                      label="Ville"
-                      autoComplete="address-level2"
+                    <CityField
+                      postcode={values.postcode}
                       value={values.city}
-                      onChange={(e) => set('city', e.target.value)}
+                      onChange={(city) => set('city', city)}
                       error={errors.city}
                     />
                   </div>
@@ -583,30 +596,39 @@ function ApplicationForm({
                   )}
                 </Group>
 
-                <Group legend="Services à la personne">
-                  <label
-                    className={`flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber has-[:focus-visible]:ring-offset-2 ${
-                      values.sapTypeA ? 'border-navy bg-cream-soft' : 'border-[rgba(31,42,55,0.1)] hover:border-[rgba(31,42,55,0.24)]'
-                    }`}
-                  >
-                    <CheckBox
-                      className="mt-0.5"
-                      label="J’ai déjà ma propre déclaration de services à la personne"
-                      checked={values.sapTypeA}
-                      onChange={(v) => set('sapTypeA', v)}
-                    />
-                    <span>
-                      <span className="block text-sm font-semibold text-navy">
-                        J’ai déjà ma propre déclaration de services à la personne
-                      </span>
-                      <span className="mt-0.5 block text-[13px] leading-snug text-ink-mid">
-                        Déclaration NOVA à votre nom (Type A). Sinon, rien à faire : la coopérative porte la
-                        déclaration pour vous.
-                      </span>
-                    </span>
-                  </label>
+                <Group
+                  legend="Services à la personne"
+                  hint="Toute personne embarquée sur Lab’s Food doit être déclarée en services à la personne, à son nom ou par sa coopérative."
+                >
+                  <fieldset>
+                    <legend className="mb-2.5 text-sm font-semibold text-navy">
+                      Avez-vous une déclaration de services à la personne (SAP) ?
+                    </legend>
+                    <div
+                      className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                      aria-invalid={errors.sapDeclared ? true : undefined}
+                      tabIndex={errors.sapDeclared ? -1 : undefined}
+                    >
+                      <RadioCard
+                        name="sapDeclared"
+                        value="yes"
+                        checked={values.sapDeclared === 'yes'}
+                        onChange={(v) => set('sapDeclared', v)}
+                        title="Oui"
+                        description="Déclaration NOVA à votre nom ou à celui de votre entreprise."
+                      />
+                      <RadioCard
+                        name="sapDeclared"
+                        value="no"
+                        checked={values.sapDeclared === 'no'}
+                        onChange={(v) => set('sapDeclared', v)}
+                        title="Non"
+                      />
+                    </div>
+                    <FieldError id="sapDeclared-error" message={errors.sapDeclared} />
+                  </fieldset>
 
-                  {values.sapTypeA && (
+                  {values.sapDeclared === 'yes' && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -627,6 +649,54 @@ function ApplicationForm({
                           Le récépissé de déclaration vous sera demandé à l’étape suivante.
                         </Note>
                       </div>
+                    </motion.div>
+                  )}
+
+                  {values.sapDeclared === 'no' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <fieldset className="space-y-4 pt-5">
+                        <legend className="mb-2.5 text-sm font-semibold text-navy">
+                          Avez-vous adhéré à une coopérative SAP ?
+                        </legend>
+                        <div
+                          className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                          aria-invalid={errors.sapCooperative ? true : undefined}
+                          tabIndex={errors.sapCooperative ? -1 : undefined}
+                        >
+                          <RadioCard
+                            name="sapCooperative"
+                            value="yes"
+                            checked={values.sapCooperative === 'yes'}
+                            onChange={(v) => set('sapCooperative', v)}
+                            title="Oui"
+                            description="Votre coopérative porte la déclaration pour vous."
+                          />
+                          <RadioCard
+                            name="sapCooperative"
+                            value="no"
+                            checked={values.sapCooperative === 'no'}
+                            onChange={(v) => set('sapCooperative', v)}
+                            title="Non"
+                          />
+                        </div>
+                        {values.sapCooperative === 'no' ? (
+                          <Note tone="amber" icon={<AlertCircle className="h-4 w-4" />}>
+                            {NO_SAP_MESSAGE}
+                          </Note>
+                        ) : (
+                          <FieldError id="sapCooperative-error" message={errors.sapCooperative} />
+                        )}
+                        {values.sapCooperative === 'yes' && (
+                          <Note icon={<FileText className="h-4 w-4" />}>
+                            L’attestation d’adhésion à votre coopérative vous sera demandée à l’étape suivante.
+                          </Note>
+                        )}
+                      </fieldset>
                     </motion.div>
                   )}
                 </Group>
@@ -702,7 +772,11 @@ function ApplicationForm({
                     {values.legalForm !== 'not-registered' && <Row label="SIRET" value={formatSiret(values.siret ?? '')} />}
                     <Row
                       label="Services à la personne"
-                      value={values.sapTypeA ? `Déclaration propre · ${values.sapNumber}` : 'Portés par la coopérative'}
+                      value={
+                        values.sapDeclared === 'yes'
+                          ? `Déclaration propre · ${values.sapNumber}`
+                          : 'Déclaration portée par votre coopérative SAP'
+                      }
                     />
                   </Review>
 

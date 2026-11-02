@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import CityField from '@/components/chef/application/CityField'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
@@ -141,7 +142,13 @@ function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string;
           <input value={form.addressPostalCode} onChange={set('addressPostalCode')} autoComplete="postal-code" inputMode="numeric" placeholder="75001" className="input-base" />
         </Field>
         <Field label="Ville">
-          <input value={form.addressCity} onChange={set('addressCity')} autoComplete="address-level2" placeholder="Paris" className="input-base" />
+          <CityField
+            bare
+            id="profile-city"
+            postcode={form.addressPostalCode}
+            value={form.addressCity}
+            onChange={(addressCity) => setForm((f) => ({ ...f, addressCity }))}
+          />
         </Field>
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}

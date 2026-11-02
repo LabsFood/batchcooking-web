@@ -31,6 +31,9 @@ import {
 import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 import { useChefSlots, useCreateBooking } from '@/lib/api/bookings'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ClientProfile } from '@/lib/api/types'
+import CityField from '@/components/chef/application/CityField'
 import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
 import { dayKey } from '@/lib/time'
@@ -113,7 +116,16 @@ function ReservationFlow() {
   const [offerId, setOfferId] = useState<string>('')
   /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
   const [coursesParMoi, setCoursesParMoi] = useState(false)
-  const [address, setAddress] = useState('')
+  // Préremplie depuis le profil tant que le client n'y touche pas.
+  const profil = useMeProfile().data
+  const surFiche = profil?.profileType === 'client' ? (profil.profile as ClientProfile | null) : null
+  const [rue, setRue] = useState<string | null>(null)
+  const [cp, setCp] = useState<string | null>(null)
+  const [ville, setVille] = useState<string | null>(null)
+  const address = rue ?? surFiche?.addressStreet ?? ''
+  const postcode = cp ?? surFiche?.addressPostalCode ?? ''
+  const city = ville ?? surFiche?.addressCity ?? ''
+  const adresseComplete = !!address.trim() && /^\d{5}$/.test(postcode) && !!city
   const [notes, setNotes] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -200,6 +212,8 @@ function ReservationFlow() {
         persons,
         ...(extraMeals > 0 ? { extraMeals } : {}),
         addressLine: address.trim(),
+        addressPostalCode: postcode,
+        addressCity: city,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
         ...(selectedMeals.length > 0
@@ -416,11 +430,27 @@ function ReservationFlow() {
                 <Field label="Adresse">
                   <input
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="15 rue de la Paix, 06000 Nice"
+                    onChange={(e) => setRue(e.target.value)}
+                    autoComplete="street-address"
+                    placeholder="15 rue de la Paix"
                     className="input-base"
                   />
                 </Field>
+                <div className="grid grid-cols-[120px_1fr] gap-3">
+                  <Field label="Code postal">
+                    <input
+                      value={postcode}
+                      onChange={(e) => setCp(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      placeholder="06000"
+                      className="input-base"
+                    />
+                  </Field>
+                  <Field label="Ville">
+                    <CityField bare id="booking-city" postcode={postcode} value={city} onChange={setVille} />
+                  </Field>
+                </div>
 
                 {/*
                   * Les deux compteurs qui font bouger le prix. Combien ils le
@@ -545,7 +575,7 @@ function ReservationFlow() {
               </button>
               <button
                 onClick={next}
-                disabled={!offre || !creneauIso || !address.trim()}
+                disabled={!offre || !creneauIso || !adresseComplete}
                 className="btn btn-primary disabled:opacity-50"
               >
                 {/* Un bouton gris sans raison est une impasse : il dit ce qui
@@ -554,8 +584,8 @@ function ReservationFlow() {
                   ? 'Choisissez une formule'
                   : !creneauIso
                     ? 'Choisissez un créneau'
-                    : !address.trim()
-                      ? 'Indiquez une adresse'
+                    : !adresseComplete
+                      ? 'Indiquez l’adresse complète'
                       : 'Vérifier et réserver'}
                 <ArrowRight className="w-4 h-4 icon-arrow" />
               </button>
@@ -643,7 +673,7 @@ function ReservationFlow() {
                 offre={offre}
                 coursesParMoi={coursesParMoi}
                 prix={prix}
-                address={address}
+                address={[address.trim(), `${postcode} ${city}`.trim()].filter(Boolean).join(', ')}
               />
             </div>
           </StepCard>

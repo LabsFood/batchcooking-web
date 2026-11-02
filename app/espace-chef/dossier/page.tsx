@@ -25,6 +25,7 @@ import DocumentPreviewDialog, {
 } from '@/components/chef/DocumentPreviewDialog'
 import { cn } from '@/lib/utils'
 import { useMeProfile } from '@/lib/api/me-profile'
+import { useChefApproved } from '@/lib/chef/approval'
 import type { ChefProfile } from '@/lib/api/types'
 import {
   DOC_STATUS_LABEL,
@@ -524,6 +525,7 @@ function DocumentCard({
 }) {
   const toast = useToast()
   const upload = useUploadDocument()
+  const { candidate } = useChefApproved()
   const inputRef = useRef<HTMLInputElement>(null)
   const [localError, setLocalError] = useState<string | null>(null)
   const [expiresOn, setExpiresOn] = useState('')
@@ -788,12 +790,16 @@ function DocumentCard({
        */}
       <div className={cn('mt-auto flex flex-wrap items-center gap-2 pt-4', !aDeposer && 'pl-2.5')}>
         {systeme ? (
-          <Link
-            href="/espace-chef/remuneration"
-            className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
-          >
-            Changer de compte bancaire
-          </Link>
+          // La rémunération se règle après validation : avant, le lien mènerait
+          // à une page fermée.
+          !candidate && (
+            <Link
+              href="/espace-chef/remuneration"
+              className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
+            >
+              Changer de compte bancaire
+            </Link>
+          )
         ) : (
           <input
             ref={inputRef}

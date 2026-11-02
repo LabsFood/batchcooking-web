@@ -98,3 +98,22 @@ export function useDishCategories(fallback: RefItem[] = []) {
   })
   return q.data ?? fallback
 }
+
+/**
+ * Communes d'un code postal, d'après la base officielle (geo.api.gouv.fr) : la
+ * ville d'une adresse se choisit dans cette liste, et l'API refait la
+ * vérification (`ADDRESS_CITY_MISMATCH`).
+ */
+export function useCommunes(postcode: string) {
+  return useQuery({
+    queryKey: ['communes', postcode],
+    enabled: /^\d{5}$/.test(postcode),
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`https://geo.api.gouv.fr/communes?codePostal=${postcode}&fields=nom`, { signal })
+      if (!res.ok) throw new Error(`geo.api.gouv.fr ${res.status}`)
+      return ((await res.json()) as { nom: string }[]).map((c) => c.nom)
+    },
+  })
+}

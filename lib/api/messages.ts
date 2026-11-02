@@ -130,8 +130,16 @@ export function apiMessage(error: unknown, repli = 'L’enregistrement a été r
       return 'Cette action demande un dossier approuvé : l’API l’a refusée.'
     }
     if (error.status === 413) return 'Le fichier est trop lourd pour l’API.'
-    if ((error.body as { code?: string } | null)?.code === 'CHEF_UNAVAILABLE') {
+    const code = (error.body as { code?: string } | null)?.code
+    if (code === 'CHEF_UNAVAILABLE') {
       return 'Ce batch cooker ne peut pas recevoir de réservation ni de paiement pour le moment.'
+    }
+    // Vérifiés contre la base officielle des communes (geo.api.gouv.fr).
+    if (code === 'ADDRESS_CITY_MISMATCH') {
+      return 'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste proposée.'
+    }
+    if (code === 'GEO_UNAVAILABLE') {
+      return 'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.'
     }
     return error.message || repli
   }

@@ -36,6 +36,7 @@ import {
   useOffers,
 } from '@/lib/api/chef-catalog'
 import { countryLabel } from '@/lib/chef/countries'
+import { openToCandidate, useChefApproved } from '@/lib/chef/approval'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Ce que la barre du haut de l'espace batch cooker sait dire.
@@ -75,6 +76,7 @@ export function useChefPaletteItems(): PaletteItem[] {
   const dishes = useDishes()
   const menus = useMenus()
   const docs = useChefDocuments()
+  const { candidate } = useChefApproved()
 
   return useMemo(() => {
     const out: PaletteItem[] = PAGES.map((p) => ({
@@ -122,8 +124,9 @@ export function useChefPaletteItems(): PaletteItem[] {
       })
     }
 
-    return out
-  }, [dishes.data, menus.data, docs.data])
+    // Avant validation, la recherche ne propose que ce qui s'ouvre.
+    return candidate ? out.filter((i) => openToCandidate(i.href ?? '')) : out
+  }, [dishes.data, menus.data, docs.data, candidate])
 }
 
 export function useChefAlerts(): { alerts: Alert[]; loading: boolean } {
@@ -132,6 +135,7 @@ export function useChefAlerts(): { alerts: Alert[]; loading: boolean } {
   const dishes = useDishes()
   const menus = useMenus()
   const offers = useOffers()
+  const { candidate } = useChefApproved()
 
   const alerts = useMemo(() => {
     const out: Alert[] = []
@@ -305,8 +309,9 @@ export function useChefAlerts(): { alerts: Alert[]; loading: boolean } {
       })
     }
 
-    return out
-  }, [app.data, docs.data, dishes.data, menus.data, offers.data])
+    // Une alerte qui mène à une page fermée ne ferait que renvoyer au dossier.
+    return candidate ? out.filter((a) => !a.href || openToCandidate(a.href)) : out
+  }, [app.data, docs.data, dishes.data, menus.data, offers.data, candidate])
 
   return {
     alerts,

@@ -36,3 +36,11 @@ Transverse;Plateforme API;Oui;Daniel;;À tester;CORS réglé, doc toujours sans 
 Transverse;Environnements et accès;Oui;Emmanuel;;En cours;URL stable sur develop, qui porte tout;2026-10-06;Un compte admin de test (BLK-08)
 Transverse;Pilotage;Oui;Emmanuel;;En cours;Ce classeur;2026-10-10;Le tenir à jour
 Transverse;Barres du haut;Non;Amir;Terminé;Terminé;Recherche et tiroir d’alertes sur les trois espaces;2026-10-04;Rien : les sources suivront les écrans
+Transverse;Fondations Recettes;Non;Daniel;À tester;À tester;Poussé sur feat/recettes-lot-0 dans les trois dépôts, migrations non appliquées;;Appliquer les migrations, recette (LF-0204), filtre par palier (BLK-26)
+Transverse;Allergies du client;Non;Duval;À faire;À faire;Plan à valider, rien n'est commencé;;Texte du consentement (BLK-25), tout le lot
+Transverse;Fiche recette;Non;Daniel;À faire;À faire;Plan à valider, rien n'est commencé;;Liste commune d'ingrédients à remplir (BLK-33), tout le lot
+Transverse;Menu figé et conservation;Non;Duval;;À faire;Plan à valider, rien n'est commencé;;Figement à J-3, dates à manger avant, fiche de conservation
+Transverse;Liste de courses;Non;Duval;En cours;En cours;Échange de la liste (cas 1) poussé sur feat/recettes-lot-4-client, à tester;;Courses faites, rappels, rayons (BLK-29), renvoi automatique si le menu change
+Transverse;Recettes par IA;Non;Daniel;À faire;Bloqué;Attend le fournisseur d'IA (BLK-30);;Fournisseur, contrat, tout le lot
+Transverse;Paiement des courses;Non;Duval;À faire;À faire;Release suivante;;Tout le lot (revérification Clerk en bêta, BLK-34)
+Transverse;Livraison Recettes;Non;Daniel;;À faire;Changements cassants et migrations;;Annonces aux fronts, migrations, relecture des textes
