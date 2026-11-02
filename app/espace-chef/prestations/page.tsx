@@ -36,11 +36,18 @@ import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
   AISLES,
+  REHEAT_MODES,
   UNITS,
   reheatingLine,
   storageLine,
 } from '@/lib/recipe-fields'
-import { refLabel, useAllergens, useDiets } from '@/lib/api/referentials'
+import {
+  refLabel,
+  useAllergens,
+  useDiets,
+  useReheatModes,
+  useStepTypes,
+} from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
@@ -1455,6 +1462,8 @@ function RecipeSheetDialog({
   const repin = useRepinMissionRecipes()
   const diets = useDiets()
   const allergens = useAllergens()
+  const stepTypes = useStepTypes()
+  const reheatModes = useReheatModes(REHEAT_MODES)
   const [aBasculer, setABasculer] = useState(false)
 
   const f = query.data
@@ -1604,18 +1613,31 @@ function RecipeSheetDialog({
                         >
                           {i + 1}
                         </span>
-                        <span className="text-ink-mid">{s}</span>
+                        <span className="text-ink-mid">
+                          {(s.type || s.durationMinutes) && (
+                            <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                              {[
+                                s.type ? refLabel(stepTypes, s.type) : null,
+                                s.durationMinutes ? `${s.durationMinutes} min` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          )}
+                          {s.text}
+                        </span>
                       </li>
                     ))}
                   </ol>
                 )}
               </Section>
 
-              {(reheatingLine(f.recipe.reheating) || storageLine(f.recipe.storage)) && (
+              {(reheatingLine(f.recipe.reheating, reheatModes) ||
+                storageLine(f.recipe.storage)) && (
                 <Section titre="Après la session">
                   <ul className="space-y-1 text-[13px] text-ink-mid">
-                    {reheatingLine(f.recipe.reheating) && (
-                      <li>Réchauffage · {reheatingLine(f.recipe.reheating)}</li>
+                    {reheatingLine(f.recipe.reheating, reheatModes) && (
+                      <li>Réchauffage · {reheatingLine(f.recipe.reheating, reheatModes)}</li>
                     )}
                     {storageLine(f.recipe.storage) && (
                       <li>Conservation · {storageLine(f.recipe.storage)}</li>

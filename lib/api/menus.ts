@@ -38,6 +38,13 @@ export interface WeekDish {
   allergens: string[]
   allergensNone: boolean
   customAllergens: string[]
+  /** §4.8 : calculés d'après les ingrédients ; null tant que le calcul ne se fait pas. */
+  computedDiets?: string[] | null
+  /** Halal, casher : déclarés par le batch cooker. */
+  declaredDiets?: string[]
+  /** null : inconnues. */
+  seasonMonths?: number[] | null
+  profiles?: string[]
 }
 
 export interface WeekChef {
