@@ -31,9 +31,27 @@ interface NotificationPage {
  * Le titre d'une notification d'après son `type`. Chaque lot Recettes ajoute
  * les siens ici (conflit d'allergie, liste de courses…).
  */
-const TITRES: Record<string, string> = {}
+const TITRES: Record<string, string> = {
+  'shopping_list.sent': 'Votre liste de courses est prête à vérifier',
+  'shopping_list.updated': 'Votre liste de courses a été mise à jour',
+  'shopping_list.final_received': 'Un client a renvoyé sa liste de courses',
+  'allergy.conflict': 'Un plat de votre commande est à remplacer (allergie)',
+  'mission.allergy_conflict': 'Un plat d’une prestation est à remplacer (allergie du client)',
+}
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
+
+/** Où mène une notification : la page où l'on agit. */
+const LIENS: Record<string, (subjectId: string) => string> = {
+  'shopping_list.sent': () => '/espace-client/courses',
+  'shopping_list.updated': () => '/espace-client/courses',
+  'shopping_list.final_received': () => '/espace-chef/prestations',
+  'allergy.conflict': (id) => `/espace-client/commandes/${id}`,
+  'mission.allergy_conflict': () => '/espace-chef/prestations',
+}
+
+export const notificationHref = (type: string, subjectId = ''): string | undefined =>
+  LIENS[type]?.(subjectId)
 
 export function useNotifications() {
   const apiFetch = useApiFetch()

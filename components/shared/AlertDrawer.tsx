@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
+  notificationHref,
   notificationTitle,
   useMarkNotificationRead,
   useNotifications,
@@ -87,6 +89,7 @@ export function AlertBell({
   // Une API sans le flux (404) ou en panne laisse la cloche à ses seules alertes.
   const flux = useNotifications()
   const lire = useMarkNotificationRead()
+  const router = useRouter()
   const notifications = flux.data?.data ?? []
   const n = countActionable(alerts) + (flux.data?.unreadCount ?? 0)
 
@@ -149,7 +152,14 @@ export function AlertBell({
                     <li key={notif.id}>
                       <button
                         type="button"
-                        onClick={() => !notif.readAt && lire.mutate(notif.id)}
+                        onClick={() => {
+                          if (!notif.readAt) lire.mutate(notif.id)
+                          const href = notificationHref(notif.type, notif.subjectId)
+                          if (href) {
+                            setOpen(false)
+                            router.push(href)
+                          }
+                        }}
                         className={cn(
                           'flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left',
                           notif.readAt

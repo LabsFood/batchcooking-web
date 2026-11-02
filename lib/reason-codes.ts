@@ -14,10 +14,18 @@ export const REASON_TEXT = {
     'Ce plat contient un allergène que vous avez déclaré : il ne peut pas être ajouté.',
   ALLERGENS_UNVERIFIED:
     'Les allergènes de ce plat ne sont pas encore vérifiés : il ne peut pas être choisi pour l’instant.',
+  HEALTH_CONSENT_REQUIRED:
+    'Pour enregistrer vos allergies, acceptez le texte de consentement tel qu’il est affiché.',
+  CUSTOM_ALLERGIES:
+    'Une allergie écrite en toutes lettres ne se vérifie pas automatiquement : le batch cooker la lit et en tient compte lui-même.',
   RECIPE_NOT_READY: 'La fiche n’est pas prête : les éléments manquants sont listés un par un.',
   MENU_FROZEN: 'À 3 jours de la prestation, le menu est figé.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
+  SHOPPING_LIST_UPDATED:
+    'Le batch cooker vient de mettre la liste à jour : vérifiez-la, puis renvoyez-la.',
+  SHOPPING_BY_CLIENT:
+    'Vous faites les courses vous-même pour cette prestation : la liste ne s’envoie pas.',
   LIMIT_REACHED: 'Limite atteinte.',
   AI_FORMAT_INVALID:
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',

@@ -19,7 +19,19 @@ export interface ClientProfile {
   id: string
   userId: string
   dietaryPreferences: string[]
+  /** Les 14 allergènes réglementaires, par code. Déclarés par `PUT /me/profile/allergies` seulement. */
   allergies: string[]
+  /** Ce que les 14 ne couvrent pas, avec les mots du client. */
+  customAllergies?: string[]
+  /** « Aucune allergie », dit explicitement. */
+  allergiesNone?: boolean
+  /** `null` : jamais répondu, aucun menu ne se valide (`ALLERGIES_NOT_DECLARED`). */
+  allergiesDeclaredAt?: string | null
+  healthConsentAt?: string | null
+  healthConsentVersion?: string | null
+  /** `verified` seulement quand plus rien n'est à vérifier à la main. */
+  allergyCheck?: AllergyCheck
+  allergyCheckReasons?: AllergyReason[]
   dislikes: string[]
   favorites: string[]
   spiceLevel: number
@@ -51,6 +63,16 @@ export interface ChefProfile {
   tierLabel?: string
 }
 
+/** Recettes lot 1 : jamais « OK » tant que rien n'a été vérifié. */
+export type AllergyCheck = 'verified' | 'unverified'
+
+/** Pourquoi ce n'est pas vérifié, un code par raison (textes dans `lib/reason-codes.ts`). */
+export type AllergyReason =
+  | 'ALLERGIES_NOT_DECLARED'
+  | 'ALLERGENS_UNVERIFIED'
+  | 'ALLERGEN_CONFLICT'
+  | 'CUSTOM_ALLERGIES'
+
 /**
  * Réponse de `GET /me/profile` — user + le profil correspondant à `users.role`.
  * `profileType` indique lequel des deux profils est renvoyé.
@@ -59,6 +81,8 @@ export interface MeProfile {
   user: Me
   profileType: 'client' | 'chef' | 'none'
   profile: ClientProfile | ChefProfile | null
+  /** Le texte à accepter avant de lister des allergies, et sa version à renvoyer. */
+  healthConsent?: { version: string; text: string }
   /** Fixé par l'API pour tout le monde : les emails sont transactionnels, le SMS n'existe pas encore. */
   notificationPreferences?: { email: boolean; sms: boolean }
 }
@@ -92,7 +116,6 @@ export interface ChefProfilePatch {
 /** Corps de `PATCH /me/profile` (mise à jour partielle). */
 export interface ClientProfilePatch {
   dietaryPreferences?: string[]
-  allergies?: string[]
   dislikes?: string[]
   favorites?: string[]
   spiceLevel?: number

@@ -10,10 +10,10 @@ import { useMeProfile, useUpdateMeProfile } from '@/lib/api/me-profile'
 import { AvatarButtons, AvatarPending } from '@/components/shared/Avatar'
 import { ApiError } from '@/lib/api/client'
 import type { ClientProfile, ClientProfilePatch } from '@/lib/api/types'
+import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
 
 const SUGGEST = {
   diets: ['Végétarien', 'Vegan', 'Sans-porc', 'Sans-bœuf', 'Halal', 'Casher', 'Sans-gluten', 'Sans-lactose'],
-  allergies: ['Fruits à coque', 'Arachides', 'Œufs', 'Poisson', 'Crustacés', 'Soja', 'Sésame'],
   favorites: ['Risotto', 'Curry', 'Lasagnes', 'Tajine', 'Wok', 'Saumon', 'Pad thaï'],
 }
 
@@ -94,27 +94,40 @@ export default function ProfilPage() {
 
   // Monté une fois la donnée résolue → l'état local s'initialise proprement
   // depuis le serveur, sans synchronisation par effet.
-  return <ProfileForm initial={toPrefs(clientProfile)} />
+  return (
+    <ProfileForm
+      initial={toPrefs(clientProfile)}
+      profile={clientProfile}
+      consent={data.healthConsent}
+    />
+  )
 }
 
-function ProfileForm({ initial }: { initial: ProfilePrefs }) {
+function ProfileForm({
+  initial,
+  profile,
+  consent,
+}: {
+  initial: ProfilePrefs
+  profile: ClientProfile | null
+  consent?: { version: string; text: string }
+}) {
   const { user } = useAuth()
   const me = useMe()
   const update = useUpdateMeProfile()
   const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
 
-  const addTo = (key: 'diets' | 'allergies' | 'dislikes' | 'favorites', value: string) => {
+  const addTo = (key: 'diets' | 'dislikes' | 'favorites', value: string) => {
     if (!value.trim()) return
     setPrefs((p) => ({ ...p, [key]: Array.from(new Set([...p[key], value.trim()])) }))
   }
-  const removeFrom = (key: 'diets' | 'allergies' | 'dislikes' | 'favorites', value: string) => {
+  const removeFrom = (key: 'diets' | 'dislikes' | 'favorites', value: string) => {
     setPrefs((p) => ({ ...p, [key]: p[key].filter((x) => x !== value) }))
   }
 
   const save = () => {
     const patch: ClientProfilePatch = {
       dietaryPreferences: prefs.diets,
-      allergies: prefs.allergies,
       dislikes: prefs.dislikes,
       favorites: prefs.favorites,
       spiceLevel: prefs.spiceLevel,
@@ -202,15 +215,13 @@ function ProfileForm({ initial }: { initial: ProfilePrefs }) {
           />
         </Card>
 
-        <Card title="Allergies" eyebrow="Pas touche !" Icon={Flame} accent="red">
-          <Tags
-            items={prefs.allergies}
-            onRemove={(v) => removeFrom('allergies', v)}
-            suggest={SUGGEST.allergies}
-            onAdd={(v) => addTo('allergies', v)}
-            tone="red"
-          />
-        </Card>
+        {/* Enregistrées à part, avec consentement : le bouton « Enregistrer » du
+            profil ne les envoie pas. Ancre visée par une réservation bloquée. */}
+        <div id="allergies" className="scroll-mt-24">
+          <Card title="Allergies" eyebrow="Pas touche !" Icon={Flame} accent="red">
+            <AllergyDeclaration profile={profile} consent={consent} />
+          </Card>
+        </div>
 
         <Card title="Plats préférés" eyebrow="Hall of fame" Icon={Sparkles}>
           <Tags
