@@ -35,6 +35,11 @@ import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
 import { dayKey } from '@/lib/time'
 import { apiMessage } from '@/lib/api/messages'
+import { ApiError } from '@/lib/api/client'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ClientProfile } from '@/lib/api/types'
+import { reasonText } from '@/lib/reason-codes'
+import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
 import {
   offerDuration,
   offerEuros,
@@ -116,6 +121,14 @@ function ReservationFlow() {
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
+  /** Plats refusés par l'API (allergène déclaré, ou allergènes non vérifiés). */
+  const [refuses, setRefuses] = useState<string[]>([])
+  // Recettes lot 1 : sans réponse sur les allergies, aucun menu ne se valide.
+  const profil = useMeProfile()
+  const clientProfile =
+    profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile) : null
+  const allergiesADeclarer =
+    !!profil.data && profil.data.profileType !== 'chef' && !clientProfile?.allergiesDeclaredAt
 
   const stepIndex = STEPS.findIndex((s) => s.id === step)
 
@@ -193,6 +206,7 @@ function ReservationFlow() {
   function reserver() {
     if (!offre || !date || !creneauIso) return
     setErreur(null)
+    setRefuses([])
     creer.mutate(
       {
         serviceOfferId: offre.id,
@@ -211,7 +225,17 @@ function ReservationFlow() {
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
-          setErreur(apiMessage(e, 'La réservation n’a pas pu être enregistrée.'))
+          const body = (e instanceof ApiError ? e.body : null) as {
+            code?: string
+            conflicts?: { mealId: string }[]
+            mealIds?: string[]
+          } | null
+          if (body?.code === 'ALLERGEN_CONFLICT') setRefuses(body.conflicts?.map((c) => c.mealId) ?? [])
+          if (body?.code === 'ALLERGENS_UNVERIFIED') setRefuses(body.mealIds ?? [])
+          if (body?.code === 'ALLERGIES_NOT_DECLARED') profil.refetch()
+          setErreur(
+            reasonText(body) ?? apiMessage(e, 'La réservation n’a pas pu être enregistrée.'),
+          )
         },
       },
     )
@@ -615,10 +639,48 @@ function ReservationFlow() {
                   </p>
                 )}
 
+                {refuses.length > 0 && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-900">
+                    <p className="font-semibold">
+                      {meals.filter((m) => refuses.includes(m.id)).map((m) => m.name).join(', ') ||
+                        'Un plat choisi'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedMeals((ids) => ids.filter((id) => !refuses.includes(id)))
+                        setRefuses([])
+                        setErreur(null)
+                      }}
+                      className="mt-2 text-[12px] font-semibold underline underline-offset-2"
+                    >
+                      Retirer {refuses.length > 1 ? 'ces plats' : 'ce plat'} de ma sélection
+                    </button>
+                  </div>
+                )}
+
+                {selectedMeals.length > 0 && allergiesADeclarer && (
+                  <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-4">
+                    <p className="mb-3 text-sm font-semibold text-navy">
+                      Vos allergies, avant de valider ce menu
+                    </p>
+                    <AllergyDeclaration
+                      key={clientProfile?.allergiesDeclaredAt ?? 'jamais'}
+                      profile={clientProfile}
+                      consent={profil.data?.healthConsent}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={reserver}
-                  disabled={creer.isPending || !offre || !creneauIso}
+                  disabled={
+                    creer.isPending ||
+                    !offre ||
+                    !creneauIso ||
+                    (selectedMeals.length > 0 && allergiesADeclarer)
+                  }
                   className="btn btn-primary w-full justify-center disabled:opacity-60"
                 >
                   {creer.isPending ? 'Enregistrement…' : 'Réserver et payer'}
