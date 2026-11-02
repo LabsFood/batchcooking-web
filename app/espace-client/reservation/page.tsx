@@ -39,8 +39,6 @@ import { SlotPicker } from '@/components/shared/TimeField'
 import { dayKey } from '@/lib/time'
 import { apiMessage } from '@/lib/api/messages'
 import { ApiError } from '@/lib/api/client'
-import { useMeProfile } from '@/lib/api/me-profile'
-import type { ClientProfile } from '@/lib/api/types'
 import { reasonText } from '@/lib/reason-codes'
 import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
 import {
@@ -122,8 +120,9 @@ function ReservationFlow() {
   /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
   const [coursesParMoi, setCoursesParMoi] = useState(false)
   // Préremplie depuis le profil tant que le client n'y touche pas.
-  const profil = useMeProfile().data
-  const surFiche = profil?.profileType === 'client' ? (profil.profile as ClientProfile | null) : null
+  const profil = useMeProfile()
+  const surFiche =
+    profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile | null) : null
   const [rue, setRue] = useState<string | null>(null)
   const [cp, setCp] = useState<string | null>(null)
   const [ville, setVille] = useState<string | null>(null)
@@ -136,7 +135,6 @@ function ReservationFlow() {
   /** Plats refusés par l'API (allergène déclaré, ou allergènes non vérifiés). */
   const [refuses, setRefuses] = useState<string[]>([])
   // Recettes lot 1 : sans réponse sur les allergies, aucun menu ne se valide.
-  const profil = useMeProfile()
   const clientProfile =
     profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile) : null
   const allergiesADeclarer =
