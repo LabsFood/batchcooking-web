@@ -16,6 +16,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { Hint } from '@/components/shared/Hint'
 import { COUNTRIES } from '@/lib/chef/countries'
 import { useAllergens, useDiets, useDishCategories } from '@/lib/api/referentials'
 import {
@@ -286,6 +287,10 @@ export default function DishForm({
                 </select>
               </Field>
             </div>
+            <Hint id="recette-temps-prives">
+              Les temps de préparation et de cuisson ne sont pas montrés aux clients :
+              ils restent dans votre espace.
+            </Hint>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Field label="Portions">
                 <input
