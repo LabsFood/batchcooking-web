@@ -617,6 +617,24 @@ function ApplicationForm({
                     </span>
                   </label>
 
+                  {/* Impasse : sans entreprise ni déclaration propre, seule la coopérative
+                      pouvait porter le dossier. Si elle refuse, on ne ferme pas la porte. */}
+                  {values.legalForm === 'not-registered' && !values.sapTypeA && (
+                    <div className="mt-4">
+                      <Note tone="amber" icon={<Mail className="h-4 w-4" />}>
+                        Ni entreprise, ni déclaration propre, et votre coopérative ne prend pas votre situation en
+                        charge ? Votre candidature n’est pas pour autant refusée :{' '}
+                        <a
+                          href={`mailto:contact@labsfood.fr?subject=${encodeURIComponent('Candidature batch cooker : sans entreprise ni coopérative')}`}
+                          className="font-semibold underline underline-offset-2 hover:text-navy"
+                        >
+                          écrivez-nous
+                        </a>
+                        , nous regarderons votre cas.
+                      </Note>
+                    </div>
+                  )}
+
                   {values.sapTypeA && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
