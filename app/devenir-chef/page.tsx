@@ -687,20 +687,6 @@ function ApplicationForm({
                         {values.sapCooperative === 'no' ? (
                           <Note tone="amber" icon={<AlertCircle className="h-4 w-4" />}>
                             {NO_SAP_MESSAGE}
-                            {/* Impasse complet : ni entreprise, ni SAP, ni coopérative. On ne ferme pas la porte. */}
-                            {values.legalForm === 'not-registered' && (
-                              <p className="mt-2">
-                                Pas d’entreprise, pas de SAP, et aucune coopérative qui vous prenne en charge ? Votre
-                                candidature n’est pas pour autant refusée :{' '}
-                                <a
-                                  href={`mailto:contact@labsfood.fr?subject=${encodeURIComponent('Candidature batch cooker : sans entreprise ni coopérative')}`}
-                                  className="font-semibold underline underline-offset-2 hover:text-navy"
-                                >
-                                  écrivez-nous
-                                </a>
-                                , nous regarderons votre cas.
-                              </p>
-                            )}
                           </Note>
                         ) : (
                           <FieldError id="sapCooperative-error" message={errors.sapCooperative} />
