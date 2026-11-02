@@ -14,11 +14,13 @@ import {
   FileText,
   IdCard,
   Loader2,
+  Receipt,
   RotateCw,
   Upload,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import AnswerSections from '@/components/chef/dossier/AnswerSections'
+import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import DocumentPreviewDialog, {
   type PreviewSource,
@@ -116,7 +118,7 @@ const formatSize = (b: number) =>
     ? `${Math.max(1, Math.round(b / 1024))} Ko`
     : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
 
-type Onglet = 'pieces' | 'infos'
+type Onglet = 'pieces' | 'infos' | 'factures'
 
 /** Les sections de réponses, telles qu'on peut y arriver depuis un lien. */
 const SECTIONS = ['identity', 'address', 'work', 'company', 'zones'] as const
@@ -367,6 +369,7 @@ function Dossier() {
             [
               { id: 'pieces', Icon: FileText, label: 'Mes pièces', n: aTraiter },
               { id: 'infos', Icon: IdCard, label: 'Mes informations', n: 0 },
+              { id: 'factures', Icon: Receipt, label: 'Mes factures', n: 0 },
             ] as const
           ).map(({ id, Icon, label, n }) => (
             <button
@@ -432,6 +435,16 @@ function Dossier() {
                 Aucun fichier déposé pour cette pièce — il n’y a donc rien à relire.
               </p>
             )}
+          </section>
+        ) : onglet === 'factures' ? (
+          <section>
+            <p className="flex max-w-prose items-start gap-1 text-sm leading-relaxed text-ink-mid">
+              Les factures émises en votre nom pour les paiements par carte de vos clients.
+              <PaymentInvoicesInfo side="chef" />
+            </p>
+            <div className="mt-4">
+              <PaymentInvoiceList side="chef" emptyText="Aucune facture pour l’instant." />
+            </div>
           </section>
         ) : (
           <AnswerSections app={app} section={section} />

@@ -16,6 +16,7 @@ import {
   ChefHat,
   Circle,
   Clock,
+  FileText,
   Info,
   MapPin,
   MessageCircle,
@@ -28,6 +29,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import {
   bookingPortions,
@@ -574,7 +576,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </h4>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
                 {b.paidCents && b.amountTtc && b.paidCents >= b.amountTtc
-                  ? 'Réglée. Votre reçu est dans votre espace.'
+                  ? 'Réglée.'
                   : 'Il reste une part à régler sur cette prestation.'}
               </p>
               <Link
@@ -586,6 +588,22 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </Link>
             </div>
           )}
+
+          {/* Les documents de la réservation : la facture de chaque paiement par
+              carte, demain le mandat de débours. Hors de « Règlement » : une
+              commande partagée CESU + carte reste `pending`, et sa part carte a
+              déjà sa facture. */}
+          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
+              <FileText className="h-4 w-4 text-amber" aria-hidden /> Documents
+              <PaymentInvoicesInfo side="client" />
+            </h4>
+            <PaymentInvoiceList
+              side="client"
+              bookingId={b.id}
+              emptyText="Aucun document pour l’instant. La facture s’ajoute ici dès qu’elle est émise."
+            />
+          </div>
 
           <Link
             href="/espace-client/messages"
@@ -680,8 +698,9 @@ function CheckoutOutcome() {
       <span>
         {ok ? (
           <>
-            <strong className="font-semibold">Paiement enregistré.</strong> Votre
-            prestation est confirmée, et votre reçu arrive par email.
+            <strong className="font-semibold">Paiement enregistré.</strong> Sa
+            facture s’ajoute aux documents de la réservation dès que la banque
+            l’a confirmé.
           </>
         ) : (
           <>
