@@ -74,6 +74,7 @@ import { apiMessage } from '@/lib/api/messages'
 import { reasonText } from '@/lib/reason-codes'
 import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
+import { AllergyBadge } from '@/components/shared/AllergyStatus'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -495,8 +496,16 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </Card>
 
             {/* ── Consignes et allergies ─────────────────────────────── */}
-            {(m.notes || (m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+            {(m.notes ||
+              m.allergyCheck ||
+              (m.allergies?.length ?? 0) > 0 ||
+              (m.diets?.length ?? 0) > 0) && (
               <Card title="Ce qu’il faut savoir">
+                {m.allergyCheck && (
+                  <p className="mb-3">
+                    <AllergyBadge check={m.allergyCheck} reasons={m.allergyCheckReasons} />
+                  </p>
+                )}
                 {m.notes ? (
                   <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
                     {m.notes}

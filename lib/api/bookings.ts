@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
 import { useMeKey } from './keys'
 import { pushPhoto } from './photos'
+import type { AllergyCheck, AllergyReason } from './types'
 
 export { PHOTO_MIME, checkPhoto, photoMessage } from './photos'
 
@@ -122,6 +123,9 @@ export interface Booking {
   /** Vue batch cooker : ce que le client ne peut pas manger. */
   allergies?: string[] | null
   diets?: string[] | null
+  /** Recettes lot 1 : `verified` seulement quand plus rien n'est à vérifier à la main. */
+  allergyCheck?: AllergyCheck
+  allergyCheckReasons?: AllergyReason[]
 }
 
 export interface PageMeta {

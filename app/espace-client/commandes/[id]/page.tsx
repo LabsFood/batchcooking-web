@@ -43,6 +43,7 @@ import {
   type BookingPhoto,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
+import { AllergyBadge } from '@/components/shared/AllergyStatus'
 import { apiMessage } from '@/lib/api/messages'
 import { usePaymentStatus } from '@/lib/api/payments'
 
@@ -423,6 +424,9 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
+              <span className="ml-auto">
+                <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
+              </span>
             </h3>
             {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
