@@ -160,11 +160,10 @@ export default function ChefMissionsPage() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setFilter(f.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
                         ? 'bg-navy text-white'
                         : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
-                    }`}
+                      }`}
                   >
                     {f.label}
                     {!query.isPending && (
@@ -501,46 +500,46 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
               m.allergyCheck ||
               (m.allergies?.length ?? 0) > 0 ||
               (m.diets?.length ?? 0) > 0) && (
-              <Card title="Ce qu’il faut savoir">
-                {m.allergyCheck && (
-                  <p className="mb-3">
-                    <AllergyBadge check={m.allergyCheck} reasons={m.allergyCheckReasons} />
+                <Card title="Ce qu’il faut savoir">
+                  {m.allergyCheck && (
+                    <p className="mb-3">
+                      <AllergyBadge check={m.allergyCheck} reasons={m.allergyCheckReasons} />
+                    </p>
+                  )}
+                  {m.notes ? (
+                    <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
+                      {m.notes}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
+                  )}
+                  {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(m.allergies ?? []).map((a) => (
+                        <span
+                          key={a}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
+                        >
+                          <AlertTriangle className="h-3 w-3" aria-hidden />
+                          {refLabel(allergens, a)}
+                        </span>
+                      ))}
+                      {(m.diets ?? []).map((d) => (
+                        <span
+                          key={d}
+                          className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
+                        >
+                          {refLabel(diets, d)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                    Lues au moment où vous ouvrez cette fiche : le client peut les
+                    changer dans son profil.
                   </p>
-                )}
-                {m.notes ? (
-                  <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
-                    {m.notes}
-                  </p>
-                ) : (
-                  <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
-                )}
-                {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(m.allergies ?? []).map((a) => (
-                      <span
-                        key={a}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
-                      >
-                        <AlertTriangle className="h-3 w-3" aria-hidden />
-                        {refLabel(allergens, a)}
-                      </span>
-                    ))}
-                    {(m.diets ?? []).map((d) => (
-                      <span
-                        key={d}
-                        className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
-                      >
-                        {refLabel(diets, d)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
-                  Lues au moment où vous ouvrez cette fiche : le client peut les
-                  changer dans son profil.
-                </p>
-              </Card>
-            )}
+                </Card>
+              )}
 
             {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
@@ -772,11 +771,11 @@ function RescheduleCard({
   const duree =
     m.endsAt && m.startsAt
       ? Math.max(
-          30,
-          Math.round(
-            (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
-          ),
-        )
+        30,
+        Math.round(
+          (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
+        ),
+      )
       : 180
 
   const slots = useOwnSlots(
@@ -916,9 +915,9 @@ function RescheduleCard({
         {proposer.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
         {horaire
           ? `Proposer le ${new Date(horaire).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-            })} à ${hour(horaire)}`
+            day: 'numeric',
+            month: 'long',
+          })} à ${hour(horaire)}`
           : 'Choisissez une date et un créneau'}
       </button>
     </Card>
