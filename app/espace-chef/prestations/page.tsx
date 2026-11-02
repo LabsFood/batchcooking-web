@@ -74,7 +74,8 @@ import { apiMessage } from '@/lib/api/messages'
 import { reasonText } from '@/lib/reason-codes'
 import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
-import { AllergyBadge } from '@/components/shared/AllergyStatus'
+import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { useDishes } from '@/lib/api/chef-catalog'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -540,6 +541,8 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </p>
               </Card>
             )}
+
+            {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
             <Card title="Plats de la prestation">
@@ -1724,4 +1727,11 @@ function DocRow({
       </button>
     </li>
   )
+}
+
+/** Les plats de remplacement : mes plats publiés, lus seulement quand il en faut. */
+function ChefConflicts({ booking }: { booking: Booking }) {
+  const dishes = useDishes()
+  const published = (dishes.data ?? []).filter((d) => d.status === 'published')
+  return <AllergyConflicts booking={booking} side="chef" candidates={published} />
 }

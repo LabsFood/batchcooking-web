@@ -126,6 +126,8 @@ export interface Booking {
   /** Recettes lot 1 : `verified` seulement quand plus rien n'est à vérifier à la main. */
   allergyCheck?: AllergyCheck
   allergyCheckReasons?: AllergyReason[]
+  /** Détail seulement : les plats qui contiennent un allergène du client, à remplacer. */
+  allergyConflicts?: { mealId: string; allergens: string[] }[]
 }
 
 export interface PageMeta {
@@ -288,6 +290,28 @@ export type ChefTransition =
   | 'delivered'
   | 'completed'
   | 'cancelled'
+
+/**
+ * `POST /{me|chef}/bookings/{id}/meals/replace` — remplace un plat en conflit
+ * avec une allergie déclarée après la validation du menu. Seulement ce plat-là,
+ * et même sur un menu figé.
+ */
+export function useReplaceConflictingMeal(side: 'client' | 'chef') {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, from, to }: { id: string; from: string; to: string }) =>
+      apiFetch<Booking>(`/${side === 'client' ? 'me' : 'chef'}/bookings/${id}/meals/replace`, {
+        method: 'POST',
+        body: { from, to },
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, side === 'client' ? 'booking' : 'chef-booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, side === 'client' ? 'bookings' : 'chef-bookings'] })
+    },
+  })
+}
 
 /**
  * `PATCH /chef/bookings/{id}` — faire avancer la prestation.
