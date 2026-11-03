@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
   Check,
   ChevronDown,
   Clock,
+  Copy,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -34,6 +36,8 @@ import {
   useCreateMenu,
   useDeleteDish,
   useDeleteMenu,
+  useDuplicateDish,
+  useDuplicateMenu,
   useDeleteMenuPhoto,
   useDishPhoto,
   useDishes,
@@ -166,7 +170,11 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {dishes.map((dish) => (
-            <DishCard key={dish.id} dish={dish} />
+            <DishCard
+              key={dish.id}
+              dish={dish}
+              variantOfName={dishes.find((x) => x.id === dish.variantOfId)?.name ?? null}
+            />
           ))}
         </ul>
       )}
@@ -174,10 +182,12 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   )
 }
 
-function DishCard({ dish }: { dish: Dish }) {
+function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string | null }) {
   const toast = useToast()
+  const router = useRouter()
   const publish = usePublishDish()
   const remove = useDeleteDish()
+  const duplicate = useDuplicateDish()
   const photo = useDishPhoto()
   const diets = useDiets()
   const allergens = useAllergens()
@@ -242,6 +252,35 @@ function DishCard({ dish }: { dish: Dish }) {
             </span>
           </p>
 
+          <p className="mt-1 flex flex-wrap items-center gap-1.5">
+            {dish.readiness?.ready ? (
+              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[11px] font-semibold text-mint-ink">
+                Prête · version {dish.recipeVersion}
+              </span>
+            ) : (
+              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[11px] font-semibold text-ink-mid">
+                Pas encore Prête
+              </span>
+            )}
+            {dish.readiness?.problems.some((p) => p.code === 'ALLERGENS_UNVERIFIED') && (
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
+                Allergènes à confirmer
+              </span>
+            )}
+            <InfoPopover label="Que veut dire « Prête » ?">
+              Une fiche est Prête quand tout ce qui sert à cuisiner et à faire les courses
+              est rempli, et ses allergènes confirmés. Un plat publié dont un ingrédient a
+              changé reste en ligne, mais ne peut plus être réservé avant la confirmation
+              de ses allergènes.
+            </InfoPopover>
+          </p>
+
+          {dish.variantOfId && (
+            <p className="mt-0.5 text-[11px] italic text-ink-soft">
+              {variantOfName ? `Variante de « ${variantOfName} »` : 'Variante d’un autre plat'}
+            </p>
+          )}
+
           <p className="mt-0.5 text-xs text-ink-soft">
             {[
               countryLabel(dish.country) || null,
@@ -301,8 +340,8 @@ function DishCard({ dish }: { dish: Dish }) {
         </p>
       )}
 
-      {/* Ce qui manque pour publier, dit avant d'être refusé. */}
-      {dish.status === 'draft' && blockers.length > 0 && (
+      {/* Ce qui manque pour publier, dit avant d'être refusé (§4.11). */}
+      {dish.status !== 'published' && blockers.length > 0 && (
         <p className="flex items-start gap-2 bg-cream-soft px-4 py-2.5 text-[13px] leading-relaxed text-ink-mid">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-deep" aria-hidden />
           Pour publier, il manque {blockers.join(', ')}.
@@ -313,6 +352,33 @@ function DishCard({ dish }: { dish: Dish }) {
         <Link href={`/espace-chef/recettes/${dish.id}`} className="btn btn-outline text-xs">
           Modifier
         </Link>
+        <span className="inline-flex items-center gap-0.5">
+          <button
+            onClick={() =>
+              duplicate.mutate(dish.id, {
+                onSuccess: (copy) => {
+                  toast.success(`« ${copy.name} » créé en brouillon`)
+                  router.push(`/espace-chef/recettes/${copy.id}`)
+                },
+                onError: (e) => toast.error('La copie a échoué', apiMessage(e)),
+              })
+            }
+            disabled={busy || duplicate.isPending}
+            className="btn btn-outline text-xs"
+          >
+            {duplicate.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Dupliquer
+          </button>
+          <InfoPopover label="Que fait « Dupliquer » ?">
+            Une copie en brouillon, « (copie) », pour écrire une variante. Elle n’est
+            jamais publiée d’office ; ses allergènes sont à confirmer à nouveau et sa
+            photo est une copie indépendante.
+          </InfoPopover>
+        </span>
 
         {dish.status === 'published' ? (
           <button
@@ -898,6 +964,7 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
   const update = useUpdateMenu()
   const publish = usePublishMenu()
   const remove = useDeleteMenu()
+  const duplicate = useDuplicateMenu()
   const photo = useMenuPhoto()
   const removePhoto = useDeleteMenuPhoto()
   const [open, setOpen] = useState(false)
@@ -908,7 +975,8 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
 
   const style = STATUS_STYLE[menu.status]
   const brouillons = menu.dishes.filter((d) => d.status !== 'published')
-  const incompletes = menu.dishes.filter((d) => !d.recipeComplete)
+  // Publier la carte publie ses brouillons : chacun doit être Prête et publiable.
+  const incompletes = brouillons.filter((d) => publishBlockers(d).length > 0)
 
   function pickPhoto(file: File | null) {
     setPhotoError(null)
@@ -1042,6 +1110,27 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
             </button>
           )}
           <button
+            onClick={() =>
+              duplicate.mutate(menu.id, {
+                onSuccess: (copy) =>
+                  toast.success(
+                    `« ${copy.title} » créée en brouillon`,
+                    'Les mêmes plats, dans le même ordre : aucun plat n’est copié.',
+                  ),
+                onError: (e) => toast.error('La copie a échoué', apiMessage(e)),
+              })
+            }
+            disabled={duplicate.isPending}
+            className="btn btn-outline text-xs"
+          >
+            {duplicate.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Dupliquer
+          </button>
+          <button
             onClick={() => setGeste('supprimer')}
             aria-label={`Supprimer ${menu.title}`}
             className="text-ink-soft hover:text-red-700"
@@ -1120,8 +1209,8 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
           <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#8B6200]">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             {incompletes.length === 1
-              ? 'Un plat n’a pas de recette complète : sa liste de courses et sa fiche seront vides.'
-              : `${incompletes.length} plats n’ont pas de recette complète : leur liste de courses et leur fiche seront vides.`}
+              ? `« ${incompletes[0].name} » n’est pas encore Prête : la carte sera refusée tant qu’il ne l’est pas.`
+              : `${incompletes.length} plats ne sont pas encore Prêts : la carte sera refusée tant qu’ils ne le sont pas.`}
           </p>
         )}
       </ConfirmDialog>
@@ -1210,9 +1299,9 @@ function MenuDishRow({ dish }: { dish: MenuDish }) {
           </p>
         )}
       </div>
-      {!dish.recipeComplete && (
+      {!dish.readiness?.ready && (
         <span className="shrink-0 text-[10px] font-semibold text-amber-deep">
-          recette incomplète
+          pas encore Prête
         </span>
       )}
     </li>

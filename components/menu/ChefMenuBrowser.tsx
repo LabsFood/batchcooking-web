@@ -39,7 +39,26 @@ import {
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
-import { useDiets, useLanguages, useRegions } from '@/lib/api/referentials'
+import {
+  refLabel,
+  useDiets,
+  useLanguages,
+  useRecipeProfiles,
+  useRegions,
+} from '@/lib/api/referentials'
+import { seasonsLine } from '@/lib/recipe-fields'
+
+/** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
+const DIET_LABEL: Record<string, string> = {
+  vegetarian: 'Végétarien',
+  vegan: 'Végétalien',
+  'no-pork': 'Sans porc',
+  pescetarian: 'Pescétarien',
+  'gluten-free': 'Sans gluten',
+  'lactose-free': 'Sans lactose',
+  halal: 'Halal',
+  kosher: 'Casher',
+}
 import { countryLabel } from '@/lib/chef/countries'
 import { cn } from '@/lib/utils'
 import DatePicker, { DAY_MODIFIERS } from '@/components/shared/DatePicker'
@@ -1450,6 +1469,7 @@ function DishRow({
   onToggle: () => void
   dietLabel: (code: string) => string
 }) {
+  const profiles = useRecipeProfiles()
   return (
     <li>
       <button
@@ -1490,14 +1510,38 @@ function DishRow({
               .join(' · ')}
           </span>
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {dish.diets.slice(0, 2).map((tag) => (
+            {/* Recettes §4.8 : les régimes calculés d'après les ingrédients quand
+                le calcul se fait, sinon ceux indiqués par le batch cooker ; puis
+                ceux qu'il déclare (halal, casher), les saisons et les profils. */}
+            {[...(dish.computedDiets ?? dish.diets), ...(dish.declaredDiets ?? [])]
+              .slice(0, 3)
+              .map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] text-navy"
+                >
+                  {DIET_LABEL[tag] ?? dietLabel(tag)}
+                </span>
+              ))}
+            {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
+              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-[10px] text-mint-ink">
+                {seasonsLine(dish.seasonMonths ?? null)}
+              </span>
+            )}
+            {(dish.profiles ?? []).slice(0, 2).map((p) => (
               <span
-                key={tag}
-                className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] text-navy"
+                key={p}
+                className="rounded-full bg-amber-soft/60 px-2 py-0.5 text-[10px] text-[#8B6200]"
               >
-                {dietLabel(tag)}
+                {refLabel(profiles, p)}
               </span>
             ))}
+            {/* Toute la ligne est un bouton : pas de popover à l'intérieur. */}
+            {dish.computedDiets && dish.computedDiets.length > 0 && (
+              <span className="text-[10px] italic text-ink-soft">
+                régimes selon les produits achetés
+              </span>
+            )}
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
             {dish.allergens.length > 0 ? (

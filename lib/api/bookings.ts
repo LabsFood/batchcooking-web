@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
 import { useMeKey } from './keys'
 import { pushPhoto } from './photos'
+import type { Reheating } from './chef-catalog'
 import type { AllergyCheck, AllergyReason } from './types'
 
 export { PHOTO_MIME, checkPhoto, photoMessage } from './photos'
@@ -678,9 +679,11 @@ export interface MissionRecipeSheet {
   portions: number
   recipe: {
     ingredients: { name: string; qty: number; unit: string; aisle: string }[]
-    steps: string[]
-    reheating?: { mode?: string; temperature?: number; minutes?: number; note?: string } | null
-    storage?: { method?: string; days?: number; container?: string } | null
+    /** §4.5 : `type` est un code de `GET /referentials/step-types`, ou null. */
+    steps: { order: number; text: string; type: string | null; durationMinutes: number | null }[]
+    /** Les consignes du jour : le réchauffage ne fait pas partie de la version. */
+    reheating?: Reheating | null
+    storage?: { method?: string; days?: number; container?: string | null } | null
   }
   /**
    * La prestation cuisine la version épinglée à la réservation.
