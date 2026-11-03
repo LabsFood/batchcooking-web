@@ -129,7 +129,18 @@ export function useClientAlerts(): { alerts: Alert[]; loading: boolean } {
       profil.data?.profileType === 'client'
         ? (profil.data.profile as ClientProfile | null)
         : null
-    if (p && p.allergies.length === 0 && p.dietaryPreferences.length === 0) {
+    // Recettes lot 1 : sans réponse, aucun menu ne se valide. Vaut aussi sans profil.
+    if (profil.data && profil.data.profileType !== 'chef' && !p?.allergiesDeclaredAt) {
+      out.push({
+        id: 'allergies:undeclared',
+        tone: 'todo',
+        title: 'Vos allergies ne sont pas déclarées',
+        detail: 'Indiquez vos allergies, ou « aucune » : sans réponse, aucun menu ne peut être validé.',
+        href: '/espace-client/profil#allergies',
+        cta: 'Déclarer mes allergies',
+      })
+    }
+    if (p && p.dislikes.length === 0 && p.dietaryPreferences.length === 0) {
       out.push({
         id: 'profile:empty',
         tone: 'todo',

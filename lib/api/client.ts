@@ -130,6 +130,35 @@ export function useApiFetch() {
   )
 }
 
+/**
+ * Un fichier binaire (un PDF) avec le jeton : `apiFetch` lit du texte, ce qui
+ * abîmerait les octets. Lève une `ApiError` sur échec, comme lui.
+ */
+export function useApiBlob() {
+  const { getToken } = useAuth()
+  return useCallback(
+    async (path: string): Promise<Blob> => {
+      if (!BASE_URL) throw new ApiError(0, "NEXT_PUBLIC_API_URL n'est pas configurée.")
+      const token = await getToken()
+      let res: Response
+      try {
+        res = await fetch(`${BASE_URL}${path}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+        })
+      } catch (cause) {
+        throw new ApiError(0, "Impossible de joindre l'API.", cause)
+      }
+      if (!res.ok) {
+        const data = safeJson(await res.text())
+        throw new ApiError(res.status, `Requête ${path} échouée (${res.status}).`, data)
+      }
+      return res.blob()
+    },
+    [getToken],
+  )
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    Le détail d'un refus de validation.
 

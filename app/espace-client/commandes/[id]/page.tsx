@@ -43,6 +43,8 @@ import {
   type BookingPhoto,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
+import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { useChefPublic } from '@/lib/api/menus'
 import { apiMessage } from '@/lib/api/messages'
 import { usePaymentStatus } from '@/lib/api/payments'
 
@@ -423,6 +425,9 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
+              <span className="ml-auto">
+                <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
+              </span>
             </h3>
             {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
@@ -445,6 +450,9 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 ))}
               </ul>
             )}
+            <div className="mt-4 empty:hidden">
+              <ClientConflicts booking={b} />
+            </div>
           </div>
 
           {/* ── Les photos de la session ───────────────────────────────── */}
@@ -787,5 +795,13 @@ function ResteAPayer({ bookingId }: { bookingId: string }) {
         l’a confirmé.
       </span>
     </p>
+  )
+}
+
+/** Les plats de remplacement : la carte publiée du batch cooker, lue seulement s'il en faut. */
+function ClientConflicts({ booking }: { booking: Booking }) {
+  const chef = useChefPublic(booking.allergyConflicts?.length ? booking.chef?.id : undefined)
+  return (
+    <AllergyConflicts booking={booking} side="client" candidates={chef.data?.dishes ?? []} />
   )
 }

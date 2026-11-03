@@ -36,11 +36,18 @@ import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
   AISLES,
+  REHEAT_MODES,
   UNITS,
   reheatingLine,
   storageLine,
 } from '@/lib/recipe-fields'
-import { refLabel, useAllergens, useDiets } from '@/lib/api/referentials'
+import {
+  refLabel,
+  useAllergens,
+  useDiets,
+  useReheatModes,
+  useStepTypes,
+} from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
@@ -74,6 +81,8 @@ import { apiMessage } from '@/lib/api/messages'
 import { reasonText } from '@/lib/reason-codes'
 import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
+import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { useDishes } from '@/lib/api/chef-catalog'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -158,11 +167,10 @@ export default function ChefMissionsPage() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setFilter(f.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
                         ? 'bg-navy text-white'
                         : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
-                    }`}
+                      }`}
                   >
                     {f.label}
                     {!query.isPending && (
@@ -495,42 +503,52 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </Card>
 
             {/* ── Consignes et allergies ─────────────────────────────── */}
-            {(m.notes || (m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
-              <Card title="Ce qu’il faut savoir">
-                {m.notes ? (
-                  <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
-                    {m.notes}
+            {(m.notes ||
+              m.allergyCheck ||
+              (m.allergies?.length ?? 0) > 0 ||
+              (m.diets?.length ?? 0) > 0) && (
+                <Card title="Ce qu’il faut savoir">
+                  {m.allergyCheck && (
+                    <p className="mb-3">
+                      <AllergyBadge check={m.allergyCheck} reasons={m.allergyCheckReasons} />
+                    </p>
+                  )}
+                  {m.notes ? (
+                    <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
+                      {m.notes}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
+                  )}
+                  {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(m.allergies ?? []).map((a) => (
+                        <span
+                          key={a}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
+                        >
+                          <AlertTriangle className="h-3 w-3" aria-hidden />
+                          {refLabel(allergens, a)}
+                        </span>
+                      ))}
+                      {(m.diets ?? []).map((d) => (
+                        <span
+                          key={d}
+                          className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
+                        >
+                          {refLabel(diets, d)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                    Lues au moment où vous ouvrez cette fiche : le client peut les
+                    changer dans son profil.
                   </p>
-                ) : (
-                  <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
-                )}
-                {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(m.allergies ?? []).map((a) => (
-                      <span
-                        key={a}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
-                      >
-                        <AlertTriangle className="h-3 w-3" aria-hidden />
-                        {refLabel(allergens, a)}
-                      </span>
-                    ))}
-                    {(m.diets ?? []).map((d) => (
-                      <span
-                        key={d}
-                        className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
-                      >
-                        {refLabel(diets, d)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
-                  Lues au moment où vous ouvrez cette fiche : le client peut les
-                  changer dans son profil.
-                </p>
-              </Card>
-            )}
+                </Card>
+              )}
+
+            {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
             <Card title="Plats de la prestation">
@@ -760,11 +778,11 @@ function RescheduleCard({
   const duree =
     m.endsAt && m.startsAt
       ? Math.max(
-          30,
-          Math.round(
-            (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
-          ),
-        )
+        30,
+        Math.round(
+          (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
+        ),
+      )
       : 180
 
   const slots = useOwnSlots(
@@ -904,9 +922,9 @@ function RescheduleCard({
         {proposer.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
         {horaire
           ? `Proposer le ${new Date(horaire).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-            })} à ${hour(horaire)}`
+            day: 'numeric',
+            month: 'long',
+          })} à ${hour(horaire)}`
           : 'Choisissez une date et un créneau'}
       </button>
     </Card>
@@ -1443,6 +1461,8 @@ function RecipeSheetDialog({
   const repin = useRepinMissionRecipes()
   const diets = useDiets()
   const allergens = useAllergens()
+  const stepTypes = useStepTypes()
+  const reheatModes = useReheatModes(REHEAT_MODES)
   const [aBasculer, setABasculer] = useState(false)
 
   const f = query.data
@@ -1592,30 +1612,43 @@ function RecipeSheetDialog({
                         >
                           {i + 1}
                         </span>
-                        <span className="text-ink-mid">{s}</span>
+                        <span className="text-ink-mid">
+                          {(s.type || s.durationMinutes) && (
+                            <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                              {[
+                                s.type ? refLabel(stepTypes, s.type) : null,
+                                s.durationMinutes ? `${s.durationMinutes} min` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          )}
+                          {s.text}
+                        </span>
                       </li>
                     ))}
                   </ol>
                 )}
               </Section>
 
-              {(reheatingLine(f.recipe.reheating) || storageLine(f.recipe.storage)) && (
-                <Section titre="Après la session">
-                  <ul className="space-y-1 text-[13px] text-ink-mid">
-                    {reheatingLine(f.recipe.reheating) && (
-                      <li>Réchauffage · {reheatingLine(f.recipe.reheating)}</li>
+              {(reheatingLine(f.recipe.reheating, reheatModes) ||
+                storageLine(f.recipe.storage)) && (
+                  <Section titre="Après la session">
+                    <ul className="space-y-1 text-[13px] text-ink-mid">
+                      {reheatingLine(f.recipe.reheating, reheatModes) && (
+                        <li>Réchauffage · {reheatingLine(f.recipe.reheating, reheatModes)}</li>
+                      )}
+                      {storageLine(f.recipe.storage) && (
+                        <li>Conservation · {storageLine(f.recipe.storage)}</li>
+                      )}
+                    </ul>
+                    {f.recipe.reheating?.note && (
+                      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+                        {f.recipe.reheating.note}
+                      </p>
                     )}
-                    {storageLine(f.recipe.storage) && (
-                      <li>Conservation · {storageLine(f.recipe.storage)}</li>
-                    )}
-                  </ul>
-                  {f.recipe.reheating?.note && (
-                    <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
-                      {f.recipe.reheating.note}
-                    </p>
-                  )}
-                </Section>
-              )}
+                  </Section>
+                )}
             </div>
           )}
         </div>
@@ -1715,4 +1748,11 @@ function DocRow({
       </button>
     </li>
   )
+}
+
+/** Les plats de remplacement : mes plats publiés, lus seulement quand il en faut. */
+function ChefConflicts({ booking }: { booking: Booking }) {
+  const dishes = useDishes()
+  const published = (dishes.data ?? []).filter((d) => d.status === 'published')
+  return <AllergyConflicts booking={booking} side="chef" candidates={published} />
 }

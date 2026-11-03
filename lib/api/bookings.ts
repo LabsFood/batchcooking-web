@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiFetch } from './client'
 import { useMeKey } from './keys'
 import { pushPhoto } from './photos'
+import type { Reheating } from './chef-catalog'
+import type { AllergyCheck, AllergyReason } from './types'
 
 export { PHOTO_MIME, checkPhoto, photoMessage } from './photos'
 
@@ -122,6 +124,11 @@ export interface Booking {
   /** Vue batch cooker : ce que le client ne peut pas manger. */
   allergies?: string[] | null
   diets?: string[] | null
+  /** Recettes lot 1 : `verified` seulement quand plus rien n'est à vérifier à la main. */
+  allergyCheck?: AllergyCheck
+  allergyCheckReasons?: AllergyReason[]
+  /** Détail seulement : les plats qui contiennent un allergène du client, à remplacer. */
+  allergyConflicts?: { mealId: string; allergens: string[] }[]
 }
 
 export interface PageMeta {
@@ -284,6 +291,28 @@ export type ChefTransition =
   | 'delivered'
   | 'completed'
   | 'cancelled'
+
+/**
+ * `POST /{me|chef}/bookings/{id}/meals/replace` — remplace un plat en conflit
+ * avec une allergie déclarée après la validation du menu. Seulement ce plat-là,
+ * et même sur un menu figé.
+ */
+export function useReplaceConflictingMeal(side: 'client' | 'chef') {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, from, to }: { id: string; from: string; to: string }) =>
+      apiFetch<Booking>(`/${side === 'client' ? 'me' : 'chef'}/bookings/${id}/meals/replace`, {
+        method: 'POST',
+        body: { from, to },
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, side === 'client' ? 'booking' : 'chef-booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, side === 'client' ? 'bookings' : 'chef-bookings'] })
+    },
+  })
+}
 
 /**
  * `PATCH /chef/bookings/{id}` — faire avancer la prestation.
@@ -650,9 +679,11 @@ export interface MissionRecipeSheet {
   portions: number
   recipe: {
     ingredients: { name: string; qty: number; unit: string; aisle: string }[]
-    steps: string[]
-    reheating?: { mode?: string; temperature?: number; minutes?: number; note?: string } | null
-    storage?: { method?: string; days?: number; container?: string } | null
+    /** §4.5 : `type` est un code de `GET /referentials/step-types`, ou null. */
+    steps: { order: number; text: string; type: string | null; durationMinutes: number | null }[]
+    /** Les consignes du jour : le réchauffage ne fait pas partie de la version. */
+    reheating?: Reheating | null
+    storage?: { method?: string; days?: number; container?: string | null } | null
   }
   /**
    * La prestation cuisine la version épinglée à la réservation.

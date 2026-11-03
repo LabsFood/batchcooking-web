@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { AllergyBadge } from '@/components/shared/AllergyStatus'
 import {
   AlertTriangle,
   ArrowRight,
@@ -193,6 +194,12 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
           {bookingStatusText(b.status)}
         </span>
       </div>
+
+      {b.allergyCheck === 'unverified' && (
+        <div className="mb-3">
+          <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
+        </div>
+      )}
 
       <ul className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-ink-mid">
         {slot(b) && (

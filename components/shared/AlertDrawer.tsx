@@ -154,7 +154,7 @@ export function AlertBell({
                         type="button"
                         onClick={() => {
                           if (!notif.readAt) lire.mutate(notif.id)
-                          const href = notificationHref(notif.type)
+                          const href = notificationHref(notif.type, notif.subjectId)
                           if (href) {
                             setOpen(false)
                             router.push(href)

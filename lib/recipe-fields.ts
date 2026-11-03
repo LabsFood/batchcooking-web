@@ -9,14 +9,14 @@
    (`admin-labsfood/lib/recipe-fields.ts`). C'est nécessaire : adopter un plat
    de la maison recopie sa recette telle quelle chez le batch cooker.
 
-   Enfin, trois contraintes de l'API qu'aucun écran ne devinerait :
-   `IngredientDto` exige ses quatre champs, `ReheatingDto` exige `mode` **et**
-   `minutes`, `StorageDto` exige `method` **et** `days`. Un couple incomplet
-   fait échouer l'enregistrement du plat entier — d'où les gardes ici, plutôt
-   qu'un 422 opaque devant un formulaire rempli.
+   Enfin, deux contraintes de l'API qu'aucun écran ne devinerait :
+   `IngredientDto` exige ses quatre champs et `StorageDto` exige `method` **et**
+   `days`. Un couple incomplet fait échouer l'enregistrement du plat entier —
+   d'où les gardes ici, plutôt qu'un 422 opaque devant un formulaire rempli.
+   Le réchauffage se dit par ses modes, cochés dans la liste de la console.
    ───────────────────────────────────────────────────────────────────────────── */
 
-import type { Ingredient, Recipe } from '@/lib/api/chef-catalog'
+import type { Ingredient, Recipe, Step } from '@/lib/api/chef-catalog'
 
 export { UNITS } from '@/lib/chef/recipes'
 
@@ -77,13 +77,22 @@ const labelOf = (liste: { code: string; label: string }[], valeur?: string | nul
 export const reheatModeLabel = (mode?: string | null) => labelOf(REHEAT_MODES, mode)
 export const storageMethodLabel = (m?: string | null) => labelOf(STORAGE_METHODS, m)
 
-/** « Four · 160 °C · 15 min », ou `null` s'il n'y a rien à dire. */
-export function reheatingLine(r?: Recipe['reheating']): string | null {
-  if (!r?.mode) return null
+/** Les modes d'une fiche : la liste, ou le mode unique d'avant (§4.6). */
+export const reheatModesOf = (r?: Recipe['reheating']): string[] =>
+  r?.modes?.length ? r.modes : r?.mode ? [r.mode] : []
+
+/** « Four ou Micro-ondes · 160 °C · 15 min », ou `null` s'il n'y a rien à dire. */
+export function reheatingLine(
+  r?: Recipe['reheating'],
+  modes: { code: string; label: string }[] = REHEAT_MODES,
+): string | null {
+  const codes = reheatModesOf(r)
+  if (codes.length === 0) return null
   return [
-    reheatModeLabel(r.mode),
-    r.temperature != null ? `${r.temperature} °C` : null,
-    r.minutes != null ? `${r.minutes} min` : null,
+    codes.map((c) => labelOf(modes, c)).join(' ou '),
+    r?.temperature != null ? `${r.temperature} °C` : null,
+    r?.minutes != null ? `${r.minutes} min` : null,
+    r?.container ? `dans ${r.container}` : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -115,6 +124,10 @@ export interface IngredientRow {
   qty: string
   unit: string
   aisle: string
+  link: string
+  toVerify: boolean
+  fixedQuantity: boolean
+  catalogIngredientId: string | null
 }
 
 /** La ligne telle qu'elle existe déjà sur un plat, prête à être éditée. */
@@ -124,8 +137,25 @@ export function toRow(i: Ingredient): IngredientRow {
     qty: i.qty == null ? '' : String(i.qty),
     unit: i.unit ?? '',
     aisle: i.aisle ?? '',
+    link: i.link ?? '',
+    toVerify: i.toVerify ?? false,
+    fixedQuantity: i.fixedQuantity ?? false,
+    catalogIngredientId: i.catalogIngredientId ?? null,
   }
 }
+
+export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle'> = {
+  name: '',
+  qty: '',
+  unit: 'g',
+  link: '',
+  toVerify: false,
+  fixedQuantity: false,
+  catalogIngredientId: null,
+}
+
+/** Une adresse que l'API acceptera : `http` ou `https`, rien d'autre. */
+export const linkValid = (link: string) => !link.trim() || /^https?:\/\/\S+$/i.test(link.trim())
 
 /** Les quatre champs tenus : c'est ce que l'API exige d'une ligne. */
 export function ingredientReady(i: IngredientRow): boolean {
@@ -148,22 +178,99 @@ export function cleanIngredients(list: IngredientRow[]): Ingredient[] {
     qty: Number(i.qty),
     unit: i.unit.trim(),
     aisle: i.aisle.trim(),
+    link: linkValid(i.link) && i.link.trim() ? i.link.trim() : null,
+    toVerify: i.toVerify,
+    fixedQuantity: i.fixedQuantity,
+    catalogIngredientId: i.catalogIngredientId,
   }))
 }
 
+/* ── Saisons (§4.8) ────────────────────────────────────────────────────────── */
+
+export const MONTHS = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+]
+
+/** « Toute l'année », « juin à sept. », ou les mois un à un quand ils se suivent mal. */
+export function seasonsLine(months: number[] | null): string | null {
+  if (!months) return null
+  if (months.length === 0) return 'Hors saison'
+  if (months.length === 12) return 'Toute l’année'
+  const sorted = [...months].sort((a, b) => a - b)
+  const suivis = sorted.every((m, i) => i === 0 || m === sorted[i - 1] + 1)
+  return suivis && sorted.length > 2
+    ? `${MONTHS[sorted[0] - 1]} à ${MONTHS[sorted[sorted.length - 1] - 1]}`
+    : sorted.map((m) => MONTHS[m - 1]).join(', ')
+}
+
+/** Une étape en cours de saisie : la durée reste une chaîne, comme une quantité. */
+export interface StepRow {
+  text: string
+  type: string
+  minutes: string
+}
+
+export const toStepRow = (s: Step | string): StepRow =>
+  typeof s === 'string'
+    ? { text: s, type: '', minutes: '' }
+    : { text: s.text, type: s.type ?? '', minutes: s.durationMinutes?.toString() ?? '' }
+
+/** Les étapes écrites, dans l'ordre ; l'API les numérote. */
+export const cleanSteps = (list: StepRow[]): Step[] =>
+  list
+    .filter((s) => s.text.trim())
+    .map((s) => ({
+      text: s.text.trim(),
+      type: s.type || null,
+      durationMinutes: s.minutes.trim() ? Number(s.minutes) : null,
+    }))
+
+/** Le réchauffage s'enregistre dès qu'un mode est coché : le reste est facultatif. */
 export function cleanReheating(r: {
-  mode: string
+  modes: string[]
   temperature: string
   minutes: string
   note: string
+  container: string
 }): NonNullable<Recipe['reheating']> | null {
-  if (!r.mode || !r.minutes.trim()) return null
+  if (r.modes.length === 0) return null
   return {
-    mode: r.mode,
-    minutes: Number(r.minutes),
+    modes: r.modes,
+    ...(r.minutes.trim() ? { minutes: Number(r.minutes) } : {}),
     ...(r.temperature.trim() ? { temperature: Number(r.temperature) } : {}),
     ...(r.note.trim() ? { note: r.note.trim() } : {}),
+    ...(r.container.trim() ? { container: r.container.trim() } : {}),
   }
+}
+
+/* ── Adapter les quantités (§4.12) ─────────────────────────────────────────── */
+
+/** Les unités qui se comptent en pièces : arrondies à l'unité supérieure. */
+const PIECES = new Set(['', 'pièce', 'pièces', 'piece', 'pc', 'u'])
+
+/**
+ * Une quantité pour `to` portions, d'une recette écrite pour `from`. Les
+ * quantités fixes ne bougent pas ; rien n'est arrondi avant l'affichage.
+ */
+export function scaledQty(i: Ingredient, from: number, to: number): number {
+  return i.fixedQuantity ? i.qty : (i.qty * to) / (from || 1)
+}
+
+/** L'affichage, seul endroit où l'on arrondit : pièces au-dessus, sinon deux décimales. */
+export function displayQty(qty: number, unit: string): string {
+  const n = PIECES.has(unit.trim().toLowerCase()) ? Math.ceil(qty - 1e-9) : qty
+  return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 }
 
 export function cleanStorage(s: {

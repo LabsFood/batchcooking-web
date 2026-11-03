@@ -112,7 +112,7 @@ function writeDraft(d: Draft | null) {
   }
 }
 
-const noopSubscribe = () => () => {}
+const noopSubscribe = () => () => { }
 
 /** SIRET affiché par groupes : 123 456 789 00012. */
 const formatSiret = (raw: string) => {
@@ -318,9 +318,8 @@ function ApplicationForm({
               {STEPS.map((s, i) => (
                 <span
                   key={s.id}
-                  className={`h-1 rounded-full transition-colors duration-300 ${
-                    i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
-                  }`}
+                  className={`h-1 rounded-full transition-colors duration-300 ${i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
+                    }`}
                 />
               ))}
             </div>
@@ -338,20 +337,18 @@ function ApplicationForm({
                     {i < STEPS.length - 1 && (
                       <span
                         aria-hidden
-                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-300 ${
-                          i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
-                        }`}
+                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-300 ${i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
+                          }`}
                       />
                     )}
                     <span
                       aria-hidden
-                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-300 ${
-                        current
+                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-300 ${current
                           ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
                           : isDone
                             ? 'bg-navy text-white'
                             : 'border-[1.5px] border-[rgba(31,42,55,0.18)] bg-paper text-ink-soft'
-                      }`}
+                        }`}
                     >
                       {isDone && !current ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
                     </span>
@@ -363,9 +360,8 @@ function ApplicationForm({
                       className="block rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:ring-offset-4 disabled:cursor-default"
                     >
                       <span
-                        className={`block text-sm font-semibold leading-7 transition-colors ${
-                          current ? 'text-navy' : reachable ? 'text-navy/80 hover:text-navy' : 'text-ink-soft'
-                        }`}
+                        className={`block text-sm font-semibold leading-7 transition-colors ${current ? 'text-navy' : reachable ? 'text-navy/80 hover:text-navy' : 'text-ink-soft'
+                          }`}
                       >
                         {s.label}
                       </span>
@@ -639,7 +635,25 @@ function ApplicationForm({
                     <FieldError id="sapDeclared-error" message={errors.sapDeclared} />
                   </fieldset>
 
-                  {values.sapDeclared === 'yes' && (
+                  {/* Impasse : sans entreprise ni déclaration propre, seule la coopérative
+                      pouvait porter le dossier. Si elle refuse, on ne ferme pas la porte. */}
+                  {values.legalForm === 'not-registered' && !values.sapTypeA && (
+                    <div className="mt-4">
+                      <Note tone="amber" icon={<Mail className="h-4 w-4" />}>
+                        Ni entreprise, ni déclaration propre, et votre coopérative ne prend pas votre situation en
+                        charge ? Votre candidature n’est pas pour autant refusée :{' '}
+                        <a
+                          href={`mailto:contact@labsfood.fr?subject=${encodeURIComponent('Candidature batch cooker : sans entreprise ni coopérative')}`}
+                          className="font-semibold underline underline-offset-2 hover:text-navy"
+                        >
+                          écrivez-nous
+                        </a>
+                        , nous regarderons votre cas.
+                      </Note>
+                    </div>
+                  )}
+
+                  {values.sapTypeA && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -812,9 +826,8 @@ function ApplicationForm({
 
                 <div className="mt-6">
                   <label
-                    className={`flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber has-[:focus-visible]:ring-offset-2 ${
-                      errors.consent ? 'border-red-600' : values.consent ? 'border-navy bg-cream-soft' : 'border-[rgba(31,42,55,0.1)]'
-                    }`}
+                    className={`flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber has-[:focus-visible]:ring-offset-2 ${errors.consent ? 'border-red-600' : values.consent ? 'border-navy bg-cream-soft' : 'border-[rgba(31,42,55,0.1)]'
+                      }`}
                     aria-invalid={errors.consent ? true : undefined}
                     tabIndex={errors.consent ? -1 : undefined}
                   >

@@ -14,7 +14,19 @@ export const REASON_TEXT = {
     'Ce plat contient un allergène que vous avez déclaré : il ne peut pas être ajouté.',
   ALLERGENS_UNVERIFIED:
     'Les allergènes de ce plat ne sont pas encore vérifiés : il ne peut pas être choisi pour l’instant.',
+  HEALTH_CONSENT_REQUIRED:
+    'Pour enregistrer vos allergies, acceptez le texte de consentement tel qu’il est affiché.',
+  CUSTOM_ALLERGIES:
+    'Une allergie écrite en toutes lettres ne se vérifie pas automatiquement : le batch cooker la lit et en tient compte lui-même.',
   RECIPE_NOT_READY: 'La fiche n’est pas prête : les éléments manquants sont listés un par un.',
+  INGREDIENT_TO_VERIFY:
+    'Cet ingrédient est encore à vérifier : relisez-le, puis indiquez qu’il est vérifié.',
+  STEP_TYPE_MISSING:
+    'Chaque étape a un type : préparation, cuisson, refroidissement ou mise en boîte.',
+  ALLERGENS_REQUIRED:
+    'Déclarez les allergènes du plat, ou la mention « aucun des 14 allergènes ».',
+  PHOTO_MISSING:
+    'Une vraie photo du plat est demandée, pas une image générée. Elle ne bloque pas encore la publication.',
   MENU_FROZEN: 'À 3 jours de la prestation, le menu est figé.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
