@@ -119,7 +119,7 @@ export default function AProposPage() {
       </section>
 
       {/* ─── NUMBERS ──────────────────────────────────────────────────── */}
-      <section className="bg-paper border-y border-[rgba(31,42,55,0.06)]">
+      {/* <section className="bg-paper border-y border-[rgba(31,42,55,0.06)]">
         <div className="container-xl grid grid-cols-2 lg:grid-cols-4 divide-x divide-[rgba(31,42,55,0.06)]">
           {NUMBERS.map((n, i) => (
             <div key={n.label} className="px-4 py-8 lg:py-10 text-center">
@@ -132,7 +132,7 @@ export default function AProposPage() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ─── STORY ────────────────────────────────────────────────────── */}
       <section className="section-padding">
