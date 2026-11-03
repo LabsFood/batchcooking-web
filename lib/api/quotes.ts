@@ -61,7 +61,6 @@ export interface Quote {
   reference: string
   status: QuoteStatus
   title: string
-  occasion: string | null
   persons: number
   mealsCount: number
   cuisine: string
@@ -93,7 +92,6 @@ export interface Quote {
 export interface CreateQuoteInput {
   title: string
   chefProfileId?: string
-  occasion?: string
   desiredDate: string
   timeSlot: TimeSlot
   persons: number

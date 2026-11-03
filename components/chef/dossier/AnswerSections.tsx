@@ -12,9 +12,10 @@ import {
   X,
 } from 'lucide-react'
 import { useToast } from '@/components/shared/Toaster'
-import { RadioCard, TextField } from '@/components/chef/application/fields'
+import { Note, RadioCard, TextField } from '@/components/chef/application/fields'
+import CityField from '@/components/chef/application/CityField'
 import ZonePicker from '@/components/chef/application/ZonePicker'
-import { isValidSiret, type Zone } from '@/lib/chef/application'
+import { NO_SAP_MESSAGE, isValidSiret, type Zone } from '@/lib/chef/application'
 import PhoneField from '@/components/shared/PhoneField'
 import { formatE164, isValidE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
@@ -52,9 +53,10 @@ export const LEGAL_FORM_LABEL: Record<string, string> = {
   'not-registered': 'Je n’ai pas encore d’entreprise',
 }
 
+/** Lab’s Food n'est pas une coopérative : la déclaration est la sienne, ou celle de sa coopérative. */
 const SAP_LABEL: Record<string, string> = {
-  'type-b': 'Par Lab’s Food (déclaration mandataire)',
-  'type-a': 'Par moi-même (déclaration à mon nom)',
+  'type-a': 'Déclaration SAP à mon nom',
+  'type-b': 'Par ma coopérative SAP',
 }
 
 /* ── La coquille d'une section ─────────────────────────────────────────────── */
@@ -243,6 +245,8 @@ export default function AnswerSections({
   const [siret, setSiret] = useState(a.company?.siret ?? '')
   const [sap, setSap] = useState(a.company?.sap?.path ?? 'type-b')
   const [numSap, setNumSap] = useState(a.company?.sap?.declarationNumber ?? '')
+  // Type B enregistré = adhérent d'une coopérative SAP. « Non » bloque l'enregistrement.
+  const [coop, setCoop] = useState('yes')
 
   // ── Zones ─────────────────────────────────────────────────────────────────
   const [zones, setZones] = useState<Zone[]>(() =>
@@ -278,6 +282,7 @@ export default function AnswerSections({
       setSiret(r.company?.siret ?? '')
       setSap(r.company?.sap?.path ?? 'type-b')
       setNumSap(r.company?.sap?.declarationNumber ?? '')
+      setCoop('yes')
     } else {
       setZones(
         (r.interventionZones ?? []).map((z) => ({
@@ -421,7 +426,7 @@ export default function AnswerSections({
             maxLength={5}
             onChange={(e) => setCp(e.target.value.replace(/\D/g, ''))}
           />
-          <TextField label="Ville" value={ville} onChange={(e) => setVille(e.target.value)} />
+          <CityField postcode={cp} value={ville} onChange={setVille} />
         </div>
       </Section>
 
@@ -506,6 +511,10 @@ export default function AnswerSections({
             setErreur('Le numéro de déclaration s’écrit SAP suivi de neuf chiffres.')
             return
           }
+          if (sap === 'type-b' && coop !== 'yes') {
+            setErreur(NO_SAP_MESSAGE)
+            return
+          }
           envoyer(
             {
               company: {
@@ -574,25 +583,19 @@ export default function AnswerSections({
           />
         )}
 
-        <div className="space-y-2.5">
-          <p className="text-sm font-semibold text-navy">
-            Déclaration « services à la personne »
-          </p>
-          {Object.entries(SAP_LABEL).map(([v, l]) => (
-            <RadioCard
-              key={v}
-              name="dossier-sap"
-              value={v}
-              checked={sap === v}
-              onChange={setSap}
-              title={l}
-              description={
-                v === 'type-b'
-                  ? 'Le cas habituel : vos clients obtiennent le crédit d’impôt par notre déclaration.'
-                  : 'Vous détenez votre propre déclaration.'
-              }
-            />
-          ))}
+        <fieldset className="space-y-2.5">
+          <legend className="mb-2.5 text-sm font-semibold text-navy">
+            Avez-vous une déclaration de services à la personne (SAP) ?
+          </legend>
+          <RadioCard
+            name="dossier-sap"
+            value="type-a"
+            checked={sap === 'type-a'}
+            onChange={setSap}
+            title="Oui"
+            description="Déclaration NOVA à votre nom ou à celui de votre entreprise."
+          />
+          <RadioCard name="dossier-sap" value="type-b" checked={sap === 'type-b'} onChange={setSap} title="Non" />
           {sap === 'type-a' && (
             <TextField
               label="N° de déclaration"
@@ -601,7 +604,29 @@ export default function AnswerSections({
               onChange={(e) => setNumSap(e.target.value.toUpperCase())}
             />
           )}
-        </div>
+        </fieldset>
+
+        {sap === 'type-b' && (
+          <fieldset className="space-y-2.5">
+            <legend className="mb-2.5 text-sm font-semibold text-navy">
+              Avez-vous adhéré à une coopérative SAP ?
+            </legend>
+            <RadioCard
+              name="dossier-coop"
+              value="yes"
+              checked={coop === 'yes'}
+              onChange={setCoop}
+              title="Oui"
+              description="Votre coopérative porte la déclaration ; son attestation d’adhésion vous est demandée."
+            />
+            <RadioCard name="dossier-coop" value="no" checked={coop === 'no'} onChange={setCoop} title="Non" />
+            {coop === 'no' && (
+              <Note tone="amber" icon={<AlertTriangle className="h-4 w-4" />}>
+                {NO_SAP_MESSAGE}
+              </Note>
+            )}
+          </fieldset>
+        )}
       </Section>
 
       <Section

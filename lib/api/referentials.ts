@@ -43,6 +43,21 @@ export function useRegions(fallback: RefItem[]) {
   return { regions: q.data ?? fallback, fromApi: q.isSuccess, isPending: q.isPending }
 }
 
+/** Communes correspondant à un code postal, selon la base officielle. */
+export function useCommunes(postcode: string) {
+  return useQuery({
+    queryKey: ['communes', postcode],
+    enabled: /^\d{5}$/.test(postcode),
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`https://geo.api.gouv.fr/communes?codePostal=${postcode}&fields=nom`, { signal })
+      if (!res.ok) throw new Error(`geo.api.gouv.fr ${res.status}`)
+      return ((await res.json()) as { nom: string }[]).map((commune) => commune.nom)
+    },
+  })
+}
+
 export function useDiets(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'diets'],
@@ -98,3 +113,67 @@ export function useDishCategories(fallback: RefItem[] = []) {
   })
   return q.data ?? fallback
 }
+
+/** §4.5 : ce qu'est une étape. Sans type, la fiche n'est pas « Prête ». */
+export function useStepTypes() {
+  const q = useQuery({
+    queryKey: ['referentials', 'step-types'],
+    queryFn: () => fetchRef('step-types', 'stepTypes'),
+    staleTime: HOUR,
+  })
+  return q.data ?? STEP_TYPES
+}
+
+/** Le repli si l'API ne répond pas : la liste figée du plan (§4.5). */
+const STEP_TYPES: RefItem[] = [
+  { code: 'preparation', label: 'Préparation' },
+  { code: 'cuisson', label: 'Cuisson' },
+  { code: 'refroidissement', label: 'Refroidissement' },
+  { code: 'mise_en_boite', label: 'Mise en boîte' },
+]
+
+/** §4.6 : les modes de réchauffage, réglés dans la console. */
+export function useReheatModes(fallback: RefItem[] = []) {
+  const q = useQuery({
+    queryKey: ['referentials', 'reheat-modes'],
+    queryFn: () => fetchRef('reheat-modes', 'modes'),
+    // Une liste que la console modifie : pas d'une heure ici.
+    staleTime: 5 * 60 * 1000,
+  })
+  return q.data ?? fallback
+}
+
+/** §4.8 : les profils d'une recette, réglés dans la console. */
+export function useRecipeProfiles() {
+  const q = useQuery({
+    queryKey: ['referentials', 'recipe-profiles'],
+    queryFn: () => fetchRef('recipe-profiles', 'profiles'),
+    staleTime: 5 * 60 * 1000,
+  })
+  return q.data ?? []
+}
+
+/** §4.8 : les régimes que calcule la liste commune. */
+export function useComputedDiets() {
+  const q = useQuery({
+    queryKey: ['referentials', 'computed-diets'],
+    queryFn: () => fetchRef('computed-diets', 'diets'),
+    staleTime: HOUR,
+  })
+  return q.data ?? COMPUTED_DIETS
+}
+
+const COMPUTED_DIETS: RefItem[] = [
+  { code: 'vegetarian', label: 'Végétarien' },
+  { code: 'vegan', label: 'Végétalien' },
+  { code: 'no-pork', label: 'Sans porc' },
+  { code: 'pescetarian', label: 'Pescétarien' },
+  { code: 'gluten-free', label: 'Sans gluten' },
+  { code: 'lactose-free', label: 'Sans lactose' },
+]
+
+/** Les régimes qu'on déclare : aucun ingrédient ne les prouve (§4.8). */
+export const DECLARED_DIETS: RefItem[] = [
+  { code: 'halal', label: 'Halal' },
+  { code: 'kosher', label: 'Casher' },
+]

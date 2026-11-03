@@ -35,8 +35,9 @@ export const DOC_DEFINITIONS: DocDefinition[] = [
   { id: 'renewal-receipt', label: 'Récépissé de renouvellement', family: 'conditional', hint: 'Délivré par la préfecture, avec l’autorisation de travail', condition: { workStatus: 'renewal-pending' }, expires: true },
   { id: 'status-proof', label: 'Justificatif de situation', family: 'conditional', hint: 'Document permettant d’étudier la situation déclarée', condition: { workStatus: 'other' } },
 
-  // Services à la personne : seulement en déclaration propre (Type A)
+  // Services à la personne : sa propre déclaration (Type A), ou sa coopérative (Type B)
   { id: 'sap-declaration', label: 'Récépissé de déclaration SAP', family: 'conditional', hint: 'Délivré par la DREETS via NOVA', condition: { sapPath: 'type-a' }, expires: true },
+  { id: 'sap-cooperative', label: 'Attestation d’adhésion à une coopérative SAP', family: 'conditional', hint: 'Délivrée par votre coopérative, à votre nom', condition: { sapPath: 'type-b' } },
 
   // Publics fragiles
   { id: 'approval', label: 'Agrément publics fragiles', family: 'conditional', condition: { vulnerablePublics: true }, expires: true },

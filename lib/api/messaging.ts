@@ -351,6 +351,33 @@ export function useOpenSupport() {
   })
 }
 
+/**
+ * Écrit à l'équipe Lab's Food depuis un formulaire : ouvre (ou retrouve) le fil
+ * support, puis y poste le message. La réponse arrive dans la messagerie.
+ */
+export function useWriteToSupport() {
+  const apiFetch = useApiFetch()
+  const queryClient = useQueryClient()
+  const keys = useMessagingKeys()
+
+  return useMutation({
+    mutationFn: async (body: string) => {
+      const conversation = await apiFetch<ConversationDetail>('/me/conversations/support', {
+        method: 'POST',
+      })
+      await apiFetch<Message>(`/me/conversations/${conversation.id}/messages`, {
+        method: 'POST',
+        body: { body, clientMessageId: crypto.randomUUID() },
+      })
+      return conversation
+    },
+    onSuccess: (conversation) => {
+      void queryClient.invalidateQueries({ queryKey: keys.conversations })
+      void queryClient.invalidateQueries({ queryKey: keys.messages(conversation.id) })
+    },
+  })
+}
+
 /** Ouvre (ou retrouve) le fil entre le client et le chef d'une réservation. */
 export function useOpenForBooking() {
   const apiFetch = useApiFetch()

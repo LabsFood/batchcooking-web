@@ -133,7 +133,9 @@ function Settlement({ id }: { id: string }) {
 
   const data = options.data
   if (data.status === 'paid') return <Settled data={data} />
-  if (data.status === 'not-due') return <TooEarly date={longDate(data.startsAt)} />
+  if (data.status === 'not-due') {
+    return <TooEarly date={longDate(data.startsAt)} bookingId={data.bookingId} />
+  }
   if (data.status === 'processing') return <Processing data={data} />
   if (back === 'succes') return <Confirming />
   return <Form data={data} cancelled={back === 'annule'} />
@@ -241,11 +243,11 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
   return (
     <div className="space-y-6">
       <Link
-        href="/espace-client/personnalisation"
+        href={`/espace-client/commandes/${data.bookingId}`}
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Retour à mes demandes
+        Ma réservation
       </Link>
 
       <header>
@@ -560,10 +562,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
-const BackLink = () => (
-  <Link href="/espace-client/personnalisation" className="btn btn-primary mt-6 text-xs">
+/** Vers la réservation quand elle existe ; sinon, faute de mieux, vers les demandes. */
+const BackLink = ({ bookingId }: { bookingId?: string }) => (
+  <Link
+    href={bookingId ? `/espace-client/commandes/${bookingId}` : '/espace-client/personnalisation'}
+    className="btn btn-primary mt-6 text-xs"
+  >
     <ArrowLeft className="h-4 w-4" />
-    Mes demandes
+    {bookingId ? 'Ma réservation' : 'Mes demandes'}
   </Link>
 )
 
@@ -579,14 +585,14 @@ function NotFound() {
   )
 }
 
-function TooEarly({ date }: { date: string }) {
+function TooEarly({ date, bookingId }: { date: string; bookingId: string }) {
   return (
     <Shell>
       <h1 className="font-display text-2xl font-bold text-navy">La prestation n’a pas eu lieu</h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-mid">
         Le règlement s’ouvre une fois votre batch cooker passé, le {date}. Rien ne vous est demandé avant.
       </p>
-      <BackLink />
+      <BackLink bookingId={bookingId} />
     </Shell>
   )
 }
@@ -618,7 +624,7 @@ function Processing({ data }: { data: PaymentOptions }) {
         {data.chef.displayName.split(' ')[0]} pour des titres CESU, celle de l’URSSAF pour une avance immédiate.
         Rien d’autre à faire : cette page se met à jour toute seule.
       </p>
-      <BackLink />
+      <BackLink bookingId={data.bookingId} />
     </Shell>
   )
 }
@@ -629,11 +635,11 @@ function Settled({ data }: { data: PaymentOptions }) {
       <span aria-hidden className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-mint text-mint-ink">
         <ShieldCheck className="h-6 w-6" />
       </span>
-      <h1 className="mt-4 font-display text-2xl font-bold text-navy">Cette prestation est réglée</h1>
+      <h1 className="mt-4 font-display text-2xl font-bold text-navy">Réglée.</h1>
       <p className="mt-2 text-sm text-ink-mid">
         {euros(data.amounts.paidCents)} réglés sur {data.reference}.
       </p>
-      <BackLink />
+      <BackLink bookingId={data.bookingId} />
     </Shell>
   )
 }

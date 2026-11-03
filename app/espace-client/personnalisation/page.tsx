@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import CityField from '@/components/chef/application/CityField'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -96,6 +97,7 @@ const MESSAGES: Record<string, string> = {
   OFFER_EXPIRED: 'Cette offre a expiré. Le batch cooker peut t’en proposer une nouvelle.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
   QUOTE_ALREADY_ACCEPTED: 'Cette demande est déjà confirmée.',
+  ADDRESS_CITY_MISMATCH: 'Cette ville ne correspond pas au code postal. Choisis la commune dans la liste.',
 }
 
 export default function PersonnalisationPage() {
@@ -127,7 +129,6 @@ function RequestForm() {
 
   const [chefId, setChefId] = useState(preselected)
   const [title, setTitle] = useState('')
-  const [occasion, setOccasion] = useState('')
   const [date, setDate] = useState('')
   const [slot, setSlot] = useState<TimeSlot>('evening')
   const [persons, setPersons] = useState(3)
@@ -210,7 +211,6 @@ function RequestForm() {
       {
         title: title.trim(),
         chefProfileId: chefId || undefined,
-        occasion: occasion.trim() || undefined,
         desiredDate: date,
         timeSlot: slot,
         persons,
@@ -228,7 +228,6 @@ function RequestForm() {
         onSuccess: () => {
           setSent(true)
           setTitle('')
-          setOccasion('')
           setBrief('')
           setBudget('')
           setTimeout(() => setSent(false), 5000)
@@ -259,7 +258,7 @@ function RequestForm() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
-            placeholder="Ex. Dîner d’anniversaire pour 12"
+            placeholder="Ex. Repas de la semaine pour 4"
             className="input-base"
           />
         </Field>
@@ -305,26 +304,15 @@ function RequestForm() {
           <Counter label="Plats" value={meals} onChange={setMeals} min={1} max={50} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Style culinaire">
-            <input
-              value={cuisine}
-              onChange={(e) => setCuisine(e.target.value)}
-              maxLength={120}
-              placeholder="Ex. Méditerranéen, asiatique…"
-              className="input-base"
-            />
-          </Field>
-          <Field label="Occasion (facultatif)">
-            <input
-              value={occasion}
-              onChange={(e) => setOccasion(e.target.value)}
-              maxLength={160}
-              placeholder="Ex. Anniversaire, brunch…"
-              className="input-base"
-            />
-          </Field>
-        </div>
+        <Field label="Style culinaire">
+          <input
+            value={cuisine}
+            onChange={(e) => setCuisine(e.target.value)}
+            maxLength={120}
+            placeholder="Ex. Méditerranéen, asiatique…"
+            className="input-base"
+          />
+        </Field>
 
         <Field label="Régimes">
           <div className="flex flex-wrap gap-2">
@@ -365,7 +353,7 @@ function RequestForm() {
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             maxLength={4000}
-            placeholder="Ex. Brunch des 30 ans, ambiance Méditerranée. 2 sans gluten, une végétarienne stricte. Un dessert wow attendu."
+            placeholder="Ex. Les repas de la semaine, plutôt méditerranéens. 2 sans gluten, une végétarienne stricte. Des portions faciles à emporter le midi."
             className="input-base resize-none"
           />
         </Field>
@@ -389,14 +377,7 @@ function RequestForm() {
               placeholder="Code postal"
               className="input-base"
             />
-            <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              maxLength={120}
-              autoComplete="address-level2"
-              placeholder="Ville"
-              className="input-base"
-            />
+            <CityField bare id="request-city" postcode={postalCode} value={city} onChange={setCity} />
           </div>
           <p className="text-[11px] text-ink-soft mt-1.5">
             Ton batch cooker ne voit que la ville tant que tu n’as pas accepté son offre.
@@ -473,7 +454,7 @@ function MyRequests() {
         <p className="font-semibold text-navy mb-1 inline-flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber" /> Astuce
         </p>
-        Plus le brief est précis (cuisson, événement, allergies), plus l’offre arrive vite.
+        Plus le brief est précis (cuisson, régimes, allergies), plus l’offre arrive vite.
       </div>
     </section>
   )

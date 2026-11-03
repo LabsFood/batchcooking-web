@@ -30,17 +30,21 @@ export interface WeekDish {
   continent: string | null
   category: string | null
   imageUrl: string | null
+  /** Les temps et les calories ne sont pas publics : réservés au batch cooker. */
   portions: number
-  /** Minutes. */
-  prepMinutes: number | null
-  cookMinutes: number | null
-  calories: number | null
   difficulty: string | null
   diets: string[]
   customDiets: string[]
   allergens: string[]
   allergensNone: boolean
   customAllergens: string[]
+  /** §4.8 : calculés d'après les ingrédients ; null tant que le calcul ne se fait pas. */
+  computedDiets?: string[] | null
+  /** Halal, casher : déclarés par le batch cooker. */
+  declaredDiets?: string[]
+  /** null : inconnues. */
+  seasonMonths?: number[] | null
+  profiles?: string[]
 }
 
 export interface WeekChef {

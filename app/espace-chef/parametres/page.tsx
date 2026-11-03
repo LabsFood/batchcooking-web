@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Globe2, LogOut, ShieldCheck, Trash2 } from 'lucide-react'
+import { Bell, Globe2, LogOut, ShieldCheck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
+import DeleteMyAccount from '@/components/client/DeleteMyAccount'
+import ChangePassword from '@/components/shared/ChangePassword'
 import { useAuth } from '@/lib/auth-context'
 import { CHEF_PROFILE } from '@/lib/chef/mock'
 import { SAP_PATH_LABEL } from '@/lib/chef/states'
@@ -20,6 +22,7 @@ export default function ChefSettingsPage() {
   const { user, signOut } = useAuth()
   const router = useRouter()
   const [enabled, setEnabled] = useState<string[]>(NOTIFICATIONS.map((n) => n.id))
+  const [changingPassword, setChangingPassword] = useState(false)
 
   const toggle = (id: string) =>
     setEnabled((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -86,9 +89,18 @@ export default function ChefSettingsPage() {
 
         <Card title="Sécurité & données">
           <div className="space-y-3">
-            <button className="btn btn-outline w-full justify-start text-sm">
+            <button
+              onClick={() => setChangingPassword((v) => !v)}
+              aria-expanded={changingPassword}
+              className="btn btn-outline w-full justify-start text-sm"
+            >
               <ShieldCheck className="w-4 h-4" /> Changer mon mot de passe
             </button>
+            {changingPassword && (
+              <div className="space-y-3 rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
+                <ChangePassword />
+              </div>
+            )}
             <button
               onClick={() => {
                 signOut()
@@ -98,9 +110,9 @@ export default function ChefSettingsPage() {
             >
               <LogOut className="w-4 h-4" /> Me déconnecter
             </button>
-            <button className="w-full flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors">
-              <Trash2 className="w-4 h-4" /> Supprimer mon compte
-            </button>
+            <div className="flex flex-wrap items-start gap-3">
+              <DeleteMyAccount />
+            </div>
             <p className="text-xs text-ink-soft leading-relaxed">
               La suppression est définitive. Vos prestations passées sont conservées de
               façon anonymisée pour des raisons comptables et légales.

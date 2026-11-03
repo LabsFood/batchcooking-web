@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
 import { useAuth } from '@/lib/auth-context'
-import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
 
 const NAV_LINKS = [
   { label: 'Accueil', href: '/' },
@@ -18,9 +17,7 @@ const NAV_LINKS = [
   { label: 'FAQ', href: '/faq' },
   // Entrée de recrutement : elle ne s'adresse pas aux clients, d'où le
   // traitement visuel distinct (encadré discret) et sa place en fin de liste.
-  ...(MONTRER_RECRUTEMENT
-    ? [{ label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const }]
-    : []),
+  { label: 'Nous rejoindre', href: '/devenir-chef', kind: 'recruit' as const },
   { label: 'Contact', href: '/contact' },
 ]
 
@@ -52,7 +49,15 @@ export default function Navbar() {
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
+    if (!mobileOpen) return () => { document.body.style.overflow = '' }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', closeOnEscape)
+    }
   }, [mobileOpen])
 
   return (
@@ -62,13 +67,13 @@ export default function Navbar() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
-          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 transition-all duration-300',
+          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 h-[72px] transition-all duration-300 lg:h-auto',
           scrolled
-            ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-3'
-            : 'bg-cream py-5'
+            ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-0 lg:py-3'
+            : 'bg-cream py-0 lg:py-5'
         )}
       >
-        <div className="container-xl flex items-center justify-between">
+        <div className="container-xl flex h-full items-center justify-between lg:h-auto">
 
           {/* ── Logo ─────────────────────────────────────────────────────── */}
           <Logo size="md" />
@@ -138,14 +143,12 @@ export default function Navbar() {
                 </span>
               </Link>
             ) : (
-              MONTRER_CONNEXION && (
-                <Link
-                  href="/auth/login"
-                  className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
-                >
-                  Connexion
-                </Link>
-              )
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+              >
+                Connexion
+              </Link>
             )}
             <ReserveButton className="text-xs px-5 py-3">
               Réserver
@@ -156,8 +159,10 @@ export default function Navbar() {
           {/* ── Mobile burger ────────────────────────────────────────────── */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 text-navy hover:text-terra transition-colors"
-            aria-label="Toggle menu"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-terra focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra lg:hidden"
+            aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation"
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -168,61 +173,60 @@ export default function Navbar() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, x: '100%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '100%' }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-40 bg-navy flex flex-col pt-24 px-8 pb-10"
+            id="mobile-navigation"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-x-0 bottom-0 top-[calc(var(--lf-dev-banner)+72px)] z-40 flex flex-col bg-cream shadow-[0_18px_36px_rgba(31,42,55,0.14)] lg:hidden"
           >
-            <nav className="flex flex-col gap-1 mb-auto">
-              {NAV_LINKS.map((link, i) => (
-                <motion.div
+            <nav aria-label="Navigation mobile" className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 sm:px-8">
+              {NAV_LINKS.filter((link) => link.kind !== 'recruit').map((link) => (
+                <Link
                   key={link.href}
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  aria-current={pathname === link.href ? 'page' : undefined}
+                  className={cn(
+                    'flex min-h-14 items-center justify-between border-b border-navy/10 px-1 font-display text-[22px] font-semibold leading-tight text-navy transition-colors hover:bg-cream-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-terra',
+                    pathname === link.href && 'bg-amber-soft/50 font-bold',
+                  )}
                 >
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      'block border-b border-white/10 py-4 font-display text-3xl font-bold transition-colors hover:text-terra',
-                      link.kind === 'recruit' ? 'text-terra' : 'text-white',
-                    )}
-                  >
-                    {link.label}
-                    {link.kind === 'recruit' && (
-                      <span className="mt-1 block font-sans text-xs font-medium tracking-wide text-white/50">
-                        Vous cuisinez ? Rejoignez les batch cookers.
-                      </span>
-                    )}
-                  </Link>
-                </motion.div>
+                  {link.label}
+                  <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-navy/60" />
+                </Link>
               ))}
+              <Link
+                href="/devenir-chef"
+                onClick={() => setMobileOpen(false)}
+                aria-current={pathname === '/devenir-chef' ? 'page' : undefined}
+                className="mt-5 mb-6 flex min-h-20 items-center justify-between gap-3 rounded-2xl bg-navy px-5 py-4 text-white transition-colors hover:bg-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra"
+              >
+                <span>
+                  <span className="block font-display text-xl font-semibold">Nous rejoindre</span>
+                  <span className="mt-1 block text-sm text-white/75">Vous aimez cuisiner ?</span>
+                </span>
+                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber" />
+              </Link>
             </nav>
 
-            <div className="flex flex-col gap-3 pt-8">
+            <div className="flex shrink-0 flex-col gap-3 border-t border-navy/10 bg-cream px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-8">
               {/* Même règle que sur desktop : jamais de trou à la place du CTA. */}
               {isReady && isAuthenticated ? (
-                <Link href={spaceHref} className="btn btn-outline-light justify-center w-full">
+                <Link href={spaceHref} onClick={() => setMobileOpen(false)} className="btn btn-outline justify-center w-full">
                   <LayoutDashboard className="w-4 h-4" />
                   {role === 'chef' ? 'Mon espace chef' : 'Mon espace client'}
                 </Link>
               ) : (
-                MONTRER_CONNEXION && (
-                  <Link href="/auth/login" className="btn btn-outline-light justify-center w-full">
-                    Connexion
-                  </Link>
-                )
+                <Link href="/auth/login" onClick={() => setMobileOpen(false)} className="btn btn-outline justify-center w-full">
+                  Connexion
+                </Link>
               )}
-              <ReserveButton className="justify-center w-full">
+              <ReserveButton onClick={() => setMobileOpen(false)} className="justify-center w-full">
                 Réserver ma session
                 <ArrowRight className="w-4 h-4 icon-arrow" />
               </ReserveButton>
             </div>
-
-            <p className="mt-6 text-center text-xs text-white/40">
-              Lun–Ven · 9h–17h
-            </p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -18,6 +18,7 @@ import {
   Plus,
   RotateCcw,
   RotateCw,
+  Send,
   Trash2,
   UserRound,
   Users,
@@ -35,11 +36,18 @@ import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
   AISLES,
+  REHEAT_MODES,
   UNITS,
   reheatingLine,
   storageLine,
 } from '@/lib/recipe-fields'
-import { refLabel, useAllergens, useDiets } from '@/lib/api/referentials'
+import {
+  refLabel,
+  useAllergens,
+  useDiets,
+  useReheatModes,
+  useStepTypes,
+} from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
@@ -64,10 +72,18 @@ import {
   useRepinMissionRecipes,
   useResetMissionShoppingList,
   useSaveMissionShoppingList,
+  useSendMissionShoppingList,
   type Booking,
   type MissionLine,
+  type ShoppingListStatus,
 } from '@/lib/api/bookings'
 import { apiMessage } from '@/lib/api/messages'
+import { reasonText } from '@/lib/reason-codes'
+import { ApiError } from '@/lib/api/client'
+import { InfoPopover } from '@/components/shared/InfoPopover'
+import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
+import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { useDishes } from '@/lib/api/chef-catalog'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -152,11 +168,10 @@ export default function ChefMissionsPage() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setFilter(f.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
                         ? 'bg-navy text-white'
                         : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
-                    }`}
+                      }`}
                   >
                     {f.label}
                     {!query.isPending && (
@@ -456,7 +471,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 />
                 <Info2
                   icon={<Users className="h-4 w-4" />}
-                  label="Convives"
+                  label="Portions"
                   value={portions > 0 ? `${portions} portions` : 'Non précisé'}
                 />
                 <Info2
@@ -489,42 +504,52 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </Card>
 
             {/* ── Consignes et allergies ─────────────────────────────── */}
-            {(m.notes || (m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
-              <Card title="Ce qu’il faut savoir">
-                {m.notes ? (
-                  <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
-                    {m.notes}
+            {(m.notes ||
+              m.allergyCheck ||
+              (m.allergies?.length ?? 0) > 0 ||
+              (m.diets?.length ?? 0) > 0) && (
+                <Card title="Ce qu’il faut savoir">
+                  {m.allergyCheck && (
+                    <p className="mb-3">
+                      <AllergyBadge check={m.allergyCheck} reasons={m.allergyCheckReasons} />
+                    </p>
+                  )}
+                  {m.notes ? (
+                    <p className="rounded-xl bg-cream-soft px-4 py-3 text-sm leading-relaxed text-ink">
+                      {m.notes}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
+                  )}
+                  {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(m.allergies ?? []).map((a) => (
+                        <span
+                          key={a}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
+                        >
+                          <AlertTriangle className="h-3 w-3" aria-hidden />
+                          {refLabel(allergens, a)}
+                        </span>
+                      ))}
+                      {(m.diets ?? []).map((d) => (
+                        <span
+                          key={d}
+                          className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
+                        >
+                          {refLabel(diets, d)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
+                    Lues au moment où vous ouvrez cette fiche : le client peut les
+                    changer dans son profil.
                   </p>
-                ) : (
-                  <p className="text-sm text-ink-soft">Aucune consigne particulière.</p>
-                )}
-                {((m.allergies?.length ?? 0) > 0 || (m.diets?.length ?? 0) > 0) && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(m.allergies ?? []).map((a) => (
-                      <span
-                        key={a}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700"
-                      >
-                        <AlertTriangle className="h-3 w-3" aria-hidden />
-                        {refLabel(allergens, a)}
-                      </span>
-                    ))}
-                    {(m.diets ?? []).map((d) => (
-                      <span
-                        key={d}
-                        className="rounded-full bg-mint/50 px-3 py-1 text-[12px] text-mint-ink"
-                      >
-                        {refLabel(diets, d)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft">
-                  Lues au moment où vous ouvrez cette fiche : le client peut les
-                  changer dans son profil.
-                </p>
-              </Card>
-            )}
+                </Card>
+              )}
+
+            {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
             <Card title="Plats de la prestation">
@@ -605,6 +630,9 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   />
                 ))}
               </ul>
+              <div className="mt-3 empty:hidden">
+                <PaymentInvoiceList side="chef" bookingId={m.id} heading="Factures" />
+              </div>
             </Card>
 
             {/* Déplacer la prestation */}
@@ -754,11 +782,11 @@ function RescheduleCard({
   const duree =
     m.endsAt && m.startsAt
       ? Math.max(
-          30,
-          Math.round(
-            (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
-          ),
-        )
+        30,
+        Math.round(
+          (new Date(m.endsAt).getTime() - new Date(m.startsAt).getTime()) / 60_000,
+        ),
+      )
       : 180
 
   const slots = useOwnSlots(
@@ -898,9 +926,9 @@ function RescheduleCard({
         {proposer.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
         {horaire
           ? `Proposer le ${new Date(horaire).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-            })} à ${hour(horaire)}`
+            day: 'numeric',
+            month: 'long',
+          })} à ${hour(horaire)}`
           : 'Choisissez une date et un créneau'}
       </button>
     </Card>
@@ -1043,6 +1071,15 @@ function PhotosCard({ booking: m }: { booking: Booking }) {
 
 // ── Liste de courses ────────────────────────────────────────────────────────
 
+/** Où en est l'échange avec le client (Recettes §10.7), vu du batch cooker. */
+const ETAT_LISTE: Record<ShoppingListStatus, string> = {
+  preparing: 'Pas encore envoyée au client',
+  sent: 'Envoyée, en attente de la réponse du client',
+  update_sent: 'Mise à jour envoyée, en attente de la réponse du client',
+  final_received: 'Liste finale reçue du client',
+  frozen: 'Figée : achetez ce qu’elle contient',
+}
+
 function ShoppingCard({
   missionId,
   onOpenFull,
@@ -1050,10 +1087,29 @@ function ShoppingCard({
   missionId: string
   onOpenFull: () => void
 }) {
+  const toast = useToast()
   const query = useMissionShoppingList(missionId)
+  const envoyer = useSendMissionShoppingList()
   const groupes = query.data?.groups ?? []
   const lignes = groupes.reduce((n, g) => n + g.lines.length, 0)
   const corrigees = groupes.reduce((n, g) => n + g.lines.filter((l) => l.edited).length, 0)
+  const liste = query.data
+  const status = liste?.status ?? 'preparing'
+  // L'API ne rend la réponse du client que si elle porte sur la dernière liste envoyée.
+  const toutes = groupes.flatMap((g) => g.lines)
+  const dejaLa = toutes.filter((l) => l.alreadyHave)
+  const commentees = toutes.filter((l) => l.comment)
+
+  const envoi = () =>
+    envoyer.mutate(missionId, {
+      onSuccess: () =>
+        toast.success('Liste envoyée', 'Le client est prévenu dans l’application.'),
+      onError: (e) =>
+        toast.error(
+          'La liste n’a pas été envoyée',
+          reasonText(e instanceof ApiError ? e.body : null) ?? apiMessage(e),
+        ),
+    })
 
   return (
     <Card
@@ -1085,6 +1141,65 @@ function ShoppingCard({
             {groupes.length > 1 ? 's' : ''}
             {corrigees > 0 && ` · ${corrigees} corrigée${corrigees > 1 ? 's' : ''} par vous`}
           </p>
+
+          {liste?.shoppingByClient ? (
+            <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
+              Le client fait les courses lui-même : la liste ne lui est pas envoyée.
+            </p>
+          ) : (
+            <div className="mb-3 rounded-xl bg-cream-soft px-3 py-2.5">
+              <p className="flex flex-wrap items-center gap-1 text-[13px] font-semibold text-navy">
+                {ETAT_LISTE[status]}
+                <InfoPopover label="Comment marche l’envoi de la liste ?">
+                  Le client coche ce qu’il a déjà, commente une ligne et vous renvoie sa
+                  liste finale, autant de fois qu’il veut jusqu’à midi la veille. Ensuite
+                  elle est figée : achetez ce qu’elle contient. S’il n’a rien renvoyé,
+                  achetez toute la liste. Vos corrections n’arrivent chez lui qu’avec
+                  « Envoyer la mise à jour ».
+                </InfoPopover>
+              </p>
+              {liste?.deadline && (
+                <p className="mt-0.5 text-[12px] text-ink-soft">
+                  Date limite : {longDate(liste.deadline)} à {hour(liste.deadline)}
+                </p>
+              )}
+              {status !== 'frozen' && (
+                <button
+                  type="button"
+                  onClick={envoi}
+                  disabled={envoyer.isPending}
+                  className="btn btn-primary mt-2.5 px-3 py-1.5 text-xs disabled:opacity-50"
+                >
+                  {envoyer.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  {(liste?.version ?? 0) > 0 ? 'Envoyer la mise à jour' : 'Envoyer la liste au client'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {(dejaLa.length > 0 || commentees.length > 0) && (
+            <div className="mb-3 space-y-2 text-[12px] leading-relaxed">
+              {dejaLa.length > 0 && (
+                <p className="text-ink-mid">
+                  <span className="font-semibold text-navy">Déjà chez le client, à ne pas acheter :</span>{' '}
+                  {dejaLa.map((l) => l.name).join(', ')}
+                </p>
+              )}
+              {commentees.length > 0 && (
+                <ul className="space-y-1">
+                  {commentees.map((l) => (
+                    <li key={`${l.name}|${l.unit}`} className="text-ink-mid">
+                      <span className="font-semibold text-navy">{l.name}</span> : « {l.comment} »
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <ul className="flex flex-wrap gap-1.5">
             {groupes.map((g) => (
               <li
@@ -1161,7 +1276,8 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
           <strong className="font-semibold text-navy">
             Vos corrections survivent aux recalculs
           </strong>{' '}
-          — une ligne retirée reste retirée.
+          — une ligne retirée reste retirée. Si la liste est déjà envoyée, le client
+          ne voit vos corrections qu’après « Envoyer la mise à jour ».
         </p>
         {query.data?.persons != null && (
           <span className="shrink-0 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-mid">
@@ -1349,6 +1465,8 @@ function RecipeSheetDialog({
   const repin = useRepinMissionRecipes()
   const diets = useDiets()
   const allergens = useAllergens()
+  const stepTypes = useStepTypes()
+  const reheatModes = useReheatModes(REHEAT_MODES)
   const [aBasculer, setABasculer] = useState(false)
 
   const f = query.data
@@ -1498,18 +1616,31 @@ function RecipeSheetDialog({
                         >
                           {i + 1}
                         </span>
-                        <span className="text-ink-mid">{s}</span>
+                        <span className="text-ink-mid">
+                          {(s.type || s.durationMinutes) && (
+                            <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                              {[
+                                s.type ? refLabel(stepTypes, s.type) : null,
+                                s.durationMinutes ? `${s.durationMinutes} min` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          )}
+                          {s.text}
+                        </span>
                       </li>
                     ))}
                   </ol>
                 )}
               </Section>
 
-              {(reheatingLine(f.recipe.reheating) || storageLine(f.recipe.storage)) && (
+              {(reheatingLine(f.recipe.reheating, reheatModes) ||
+                storageLine(f.recipe.storage)) && (
                 <Section titre="Après la session">
                   <ul className="space-y-1 text-[13px] text-ink-mid">
-                    {reheatingLine(f.recipe.reheating) && (
-                      <li>Réchauffage · {reheatingLine(f.recipe.reheating)}</li>
+                    {reheatingLine(f.recipe.reheating, reheatModes) && (
+                      <li>Réchauffage · {reheatingLine(f.recipe.reheating, reheatModes)}</li>
                     )}
                     {storageLine(f.recipe.storage) && (
                       <li>Conservation · {storageLine(f.recipe.storage)}</li>
@@ -1621,4 +1752,11 @@ function DocRow({
       </button>
     </li>
   )
+}
+
+/** Les plats de remplacement : mes plats publiés, lus seulement quand il en faut. */
+function ChefConflicts({ booking }: { booking: Booking }) {
+  const dishes = useDishes()
+  const published = (dishes.data ?? []).filter((d) => d.status === 'published')
+  return <AllergyConflicts booking={booking} side="chef" candidates={published} />
 }

@@ -14,17 +14,20 @@ import {
   FileText,
   IdCard,
   Loader2,
+  Receipt,
   RotateCw,
   Upload,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import AnswerSections from '@/components/chef/dossier/AnswerSections'
+import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import DocumentPreviewDialog, {
   type PreviewSource,
 } from '@/components/chef/DocumentPreviewDialog'
 import { cn } from '@/lib/utils'
 import { useMeProfile } from '@/lib/api/me-profile'
+import { useChefApproved } from '@/lib/chef/approval'
 import type { ChefProfile } from '@/lib/api/types'
 import {
   DOC_STATUS_LABEL,
@@ -115,7 +118,7 @@ const formatSize = (b: number) =>
     ? `${Math.max(1, Math.round(b / 1024))} Ko`
     : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
 
-type Onglet = 'pieces' | 'infos'
+type Onglet = 'pieces' | 'infos' | 'factures'
 
 /** Les sections de réponses, telles qu'on peut y arriver depuis un lien. */
 const SECTIONS = ['identity', 'address', 'work', 'company', 'zones'] as const
@@ -366,6 +369,7 @@ function Dossier() {
             [
               { id: 'pieces', Icon: FileText, label: 'Mes pièces', n: aTraiter },
               { id: 'infos', Icon: IdCard, label: 'Mes informations', n: 0 },
+              { id: 'factures', Icon: Receipt, label: 'Mes factures', n: 0 },
             ] as const
           ).map(({ id, Icon, label, n }) => (
             <button
@@ -431,6 +435,16 @@ function Dossier() {
                 Aucun fichier déposé pour cette pièce — il n’y a donc rien à relire.
               </p>
             )}
+          </section>
+        ) : onglet === 'factures' ? (
+          <section>
+            <p className="flex max-w-prose items-start gap-1 text-sm leading-relaxed text-ink-mid">
+              Les factures émises en votre nom pour les paiements par carte de vos clients.
+              <PaymentInvoicesInfo side="chef" />
+            </p>
+            <div className="mt-4">
+              <PaymentInvoiceList side="chef" emptyText="Aucune facture pour l’instant." />
+            </div>
           </section>
         ) : (
           <AnswerSections app={app} section={section} />
@@ -524,6 +538,7 @@ function DocumentCard({
 }) {
   const toast = useToast()
   const upload = useUploadDocument()
+  const { candidate } = useChefApproved()
   const inputRef = useRef<HTMLInputElement>(null)
   const [localError, setLocalError] = useState<string | null>(null)
   const [expiresOn, setExpiresOn] = useState('')
@@ -788,12 +803,16 @@ function DocumentCard({
        */}
       <div className={cn('mt-auto flex flex-wrap items-center gap-2 pt-4', !aDeposer && 'pl-2.5')}>
         {systeme ? (
-          <Link
-            href="/espace-chef/remuneration"
-            className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
-          >
-            Changer de compte bancaire
-          </Link>
+          // La rémunération se règle après validation : avant, le lien mènerait
+          // à une page fermée.
+          !candidate && (
+            <Link
+              href="/espace-chef/remuneration"
+              className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
+            >
+              Changer de compte bancaire
+            </Link>
+          )
         ) : (
           <input
             ref={inputRef}

@@ -23,6 +23,7 @@ export type ChefDocumentType =
   | 'renewal-receipt'
   | 'status-proof'
   | 'sap-declaration'
+  | 'sap-cooperative'
   | 'rc-pro'
   | 'haccp'
   | 'ddpp'
@@ -428,7 +429,17 @@ export function applicationPatchMessage(error: unknown): string {
     return e?.message || 'Cette modification n’est plus possible.'
   }
   if (e?.status === 422) {
+    // Vérifiés contre la base officielle des communes (geo.api.gouv.fr).
+    if (code === 'ADDRESS_CITY_MISMATCH') {
+      return 'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste proposée.'
+    }
+    if (code === 'ZONE_CITY_UNKNOWN') {
+      return 'Une ville de vos zones n’est pas reconnue dans sa région. Retirez-la, puis retrouvez-la avec la recherche.'
+    }
     return corps.message || e?.message || 'Une réponse est refusée : vérifiez les champs.'
+  }
+  if (code === 'GEO_UNAVAILABLE') {
+    return 'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.'
   }
   if (e?.status === 404) {
     return 'Ce compte n’a pas de candidature.'

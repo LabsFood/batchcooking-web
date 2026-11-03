@@ -1,16 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, LifeBuoy, Paperclip, PhoneCall, Plus, X } from 'lucide-react'
-import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
-import StatusBadge from '@/components/chef/StatusBadge'
-import {
-  CHEF_DISPUTES,
-  CHEF_MISSIONS,
-  DISPUTE_STATUS_LABEL,
-  DISPUTE_SUBJECTS,
-  type DisputeSubject,
-} from '@/lib/chef/mock'
+import Link from 'next/link'
+import { CheckCircle2, MessageCircle, PhoneCall, Plus, X } from 'lucide-react'
+import ChefPage, { Card } from '@/components/chef/ChefPage'
+import { DISPUTE_SUBJECTS, type DisputeSubject } from '@/lib/chef/mock'
+import { MAX_BODY_LENGTH, messagingErrorText, useWriteToSupport } from '@/lib/api/messaging'
+import { useChefApproved } from '@/lib/chef/approval'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Litiges et support.
@@ -19,9 +15,15 @@ import {
    d'abord, et la prestation n'est demandée que lorsqu'elle a du sens. Pour une
    question rapide, le batch cooker demande à être rappelé plutôt que d'ouvrir
    un dossier.
-   ───────────────────────────────────────────────────────────────────────────── */
 
-const TONE = { open: 'warning', processing: 'info', resolved: 'success' } as const
+   Les deux formulaires écrivent dans le fil support de la messagerie (`POST
+   /me/conversations/support`) : l'équipe les lit et y répond là. Il n'existe
+   pas d'endpoint de litiges, donc pas de liste de dossiers ici : le fil en
+   tient lieu.
+
+   Un candidat n'a pas encore de prestation : les sujets qui en demandent une
+   ne lui sont pas proposés.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 const CALLBACK_SLOTS = [
   { id: 'asap', label: 'Dès que possible' },
@@ -29,79 +31,76 @@ const CALLBACK_SLOTS = [
   { id: 'afternoon', label: "L'après-midi (14h – 18h)" },
 ]
 
+/** La place de l'en-tête du message, sous la limite de l'API. */
+const MAX_DESCRIPTION = MAX_BODY_LENGTH - 200
+
 export default function ChefDisputesPage() {
+  const { candidate } = useChefApproved()
+  const subjects = DISPUTE_SUBJECTS.filter((s) => !candidate || !s.needsMission)
+
   const [form, setForm] = useState<'none' | 'dispute' | 'callback'>('none')
   const [subject, setSubject] = useState<DisputeSubject>('mission')
-  const [missionRef, setMissionRef] = useState(CHEF_MISSIONS[0]?.reference ?? '')
+  const [missionRef, setMissionRef] = useState('')
   const [description, setDescription] = useState('')
   const [slot, setSlot] = useState(CALLBACK_SLOTS[0].id)
-  const [sent, setSent] = useState<'dispute' | 'callback' | null>(null)
+  const write = useWriteToSupport()
 
-  const needsMission = DISPUTE_SUBJECTS.find((s) => s.id === subject)?.needsMission ?? false
-  const canSend = description.trim().length >= 10
+  const current = subjects.find((s) => s.id === subject) ?? subjects[0]
+  const canSend = description.trim().length >= 10 && !write.isPending
 
   const reset = () => {
     setForm('none')
-    setSent(null)
+    write.reset()
     setDescription('')
+    setMissionRef('')
   }
+
+  const toggle = (next: 'dispute' | 'callback') => {
+    setForm(form === next ? 'none' : next)
+    write.reset()
+  }
+
+  const sendCallback = () => {
+    const quand = CALLBACK_SLOTS.find((s) => s.id === slot)?.label
+    write.mutate(`Demande de rappel — ${quand}\n\n${description.trim()}`)
+  }
+
+  const sendDispute = () => {
+    const ref =
+      current.needsMission && missionRef.trim() ? ` — prestation n° ${missionRef.trim()}` : ''
+    write.mutate(`Nouveau dossier — ${current.label}${ref}\n\n${description.trim()}`)
+  }
+
+  const error = write.isError && (
+    <p role="alert" className="text-[13px] text-terra">
+      {messagingErrorText(write.error)}
+    </p>
+  )
 
   return (
     <ChefPage title="Litiges & support" subtitle="Ouvrez un dossier ou demandez à être rappelé.">
       <div className="space-y-5">
         <Card
-          title={`Mes dossiers (${CHEF_DISPUTES.length})`}
+          title="Écrire à l’équipe"
           action={
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  setForm(form === 'callback' ? 'none' : 'callback')
-                  setSent(null)
-                }}
-                className="btn btn-outline px-4 py-2 text-xs"
-              >
+              <button onClick={() => toggle('callback')} className="btn btn-outline px-4 py-2 text-xs">
                 <PhoneCall className="h-3.5 w-3.5" aria-hidden /> Être rappelé
               </button>
-              <button
-                onClick={() => {
-                  setForm(form === 'dispute' ? 'none' : 'dispute')
-                  setSent(null)
-                }}
-                className="btn btn-primary px-4 py-2 text-xs"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden /> Ouvrir un litige
+              <button onClick={() => toggle('dispute')} className="btn btn-primary px-4 py-2 text-xs">
+                <Plus className="h-3.5 w-3.5" aria-hidden />{' '}
+                {candidate ? 'Écrire au support' : 'Ouvrir un litige'}
               </button>
             </div>
           }
         >
-          {CHEF_DISPUTES.length === 0 ? (
-            <Empty text="Aucun dossier en cours." />
-          ) : (
-            <ul className="space-y-2.5">
-              {CHEF_DISPUTES.map((d) => (
-                <li
-                  key={d.id}
-                  className="flex items-center gap-4 rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cream-soft">
-                    <LifeBuoy className="h-4 w-4 text-terra" aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-navy">{d.category}</p>
-                    <p className="text-xs text-ink-soft">
-                      {DISPUTE_SUBJECTS.find((s) => s.id === d.subject)?.label}
-                      {d.missionRef && ` · prestation n° ${d.missionRef}`}
-                      {d.client && ` · ${d.client}`} · ouvert le{' '}
-                      {new Date(d.openedAt).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                  <StatusBadge tone={TONE[d.status]} dot>
-                    {DISPUTE_STATUS_LABEL[d.status]}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="max-w-prose text-[13px] leading-relaxed text-ink-mid">
+            Vos demandes arrivent dans le fil du support, dans votre messagerie : l’équipe y
+            répond, et vous y retrouvez tout l’historique.
+          </p>
+          <Link href="/espace-chef/messagerie" className="btn btn-outline mt-3 text-xs">
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden /> Ouvrir la messagerie
+          </Link>
         </Card>
 
         {/* Demande de rappel */}
@@ -118,10 +117,11 @@ export default function ChefDisputesPage() {
               </button>
             }
           >
-            {sent === 'callback' ? (
+            {write.isSuccess ? (
               <Sent
                 title="Demande de rappel envoyée"
                 text="Nous vous appelons au numéro de votre compte, sur le créneau choisi."
+                conversationId={write.data.id}
                 onDone={reset}
               />
             ) : (
@@ -154,18 +154,20 @@ export default function ChefDisputesPage() {
                   <textarea
                     id="callback-reason"
                     rows={3}
+                    maxLength={MAX_DESCRIPTION}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="En deux mots, pour préparer l’appel…"
                     className="input-base resize-none"
                   />
                 </div>
+                {error}
                 <button
-                  onClick={() => setSent('callback')}
+                  onClick={sendCallback}
                   disabled={!canSend}
                   className="btn btn-primary w-full justify-center text-sm disabled:opacity-50"
                 >
-                  Demander un rappel
+                  {write.isPending ? 'Envoi…' : 'Demander un rappel'}
                 </button>
               </div>
             )}
@@ -186,10 +188,11 @@ export default function ChefDisputesPage() {
               </button>
             }
           >
-            {sent === 'dispute' ? (
+            {write.isSuccess ? (
               <Sent
                 title="Dossier ouvert"
                 text="Le support revient vers vous sous 48 h ouvrées, dans la messagerie."
+                conversationId={write.data.id}
                 onDone={reset}
               />
             ) : (
@@ -197,13 +200,13 @@ export default function ChefDisputesPage() {
                 <div>
                   <p className="mb-2 text-sm font-semibold text-navy">Sur quoi porte votre demande ?</p>
                   <div className="flex flex-wrap gap-2">
-                    {DISPUTE_SUBJECTS.map((s) => (
+                    {subjects.map((s) => (
                       <button
                         key={s.id}
                         onClick={() => setSubject(s.id)}
-                        aria-pressed={subject === s.id}
+                        aria-pressed={current.id === s.id}
                         className={`rounded-full px-3.5 py-2 text-xs font-semibold transition-colors ${
-                          subject === s.id ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
+                          current.id === s.id ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
                         }`}
                       >
                         {s.label}
@@ -212,24 +215,19 @@ export default function ChefDisputesPage() {
                   </div>
                 </div>
 
-                {needsMission && (
+                {current.needsMission && (
                   <div>
                     <label htmlFor="dispute-mission" className="mb-1.5 block text-sm font-semibold text-navy">
                       Prestation concernée
                     </label>
-                    <select
+                    <input
                       id="dispute-mission"
                       value={missionRef}
                       onChange={(e) => setMissionRef(e.target.value)}
+                      maxLength={40}
+                      placeholder="Sa référence, par exemple LF-2026-0042"
                       className="input-base"
-                    >
-                      {CHEF_MISSIONS.map((m) => (
-                        <option key={m.id} value={m.reference}>
-                          n° {m.reference} — {m.client} ·{' '}
-                          {new Date(m.date).toLocaleDateString('fr-FR')}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 )}
 
@@ -240,26 +238,24 @@ export default function ChefDisputesPage() {
                   <textarea
                     id="dispute-description"
                     rows={4}
+                    maxLength={MAX_DESCRIPTION}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Décrivez la situation, les dates et ce que vous attendez de nous…"
                     className="input-base resize-none"
                   />
-                  {description.trim().length > 0 && !canSend && (
+                  {description.trim().length > 0 && description.trim().length < 10 && (
                     <p className="mt-1.5 text-[13px] text-ink-soft">Encore quelques mots pour que nous puissions agir.</p>
                   )}
                 </div>
 
-                <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-terra">
-                  <Paperclip className="h-3.5 w-3.5" aria-hidden /> Joindre une pièce
-                </button>
-
+                {error}
                 <button
-                  onClick={() => setSent('dispute')}
+                  onClick={sendDispute}
                   disabled={!canSend}
                   className="btn btn-primary w-full justify-center text-sm disabled:opacity-50"
                 >
-                  Ouvrir le dossier
+                  {write.isPending ? 'Envoi…' : 'Ouvrir le dossier'}
                 </button>
               </div>
             )}
@@ -270,7 +266,17 @@ export default function ChefDisputesPage() {
   )
 }
 
-function Sent({ title, text, onDone }: { title: string; text: string; onDone: () => void }) {
+function Sent({
+  title,
+  text,
+  conversationId,
+  onDone,
+}: {
+  title: string
+  text: string
+  conversationId: string
+  onDone: () => void
+}) {
   return (
     <div className="py-6 text-center">
       <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-mint-ink">
@@ -278,9 +284,14 @@ function Sent({ title, text, onDone }: { title: string; text: string; onDone: ()
       </span>
       <p className="font-display text-lg font-bold text-navy">{title}</p>
       <p className="mx-auto mt-1 max-w-sm text-sm text-ink-mid">{text}</p>
-      <button onClick={onDone} className="btn btn-outline mt-4 text-xs">
-        Fermer
-      </button>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Link href={`/espace-chef/messagerie?c=${conversationId}`} className="btn btn-primary text-xs">
+          Voir le fil
+        </Link>
+        <button onClick={onDone} className="btn btn-outline text-xs">
+          Fermer
+        </button>
+      </div>
     </div>
   )
 }

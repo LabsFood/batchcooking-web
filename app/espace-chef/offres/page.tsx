@@ -157,7 +157,6 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
           <p className="font-display text-base font-bold text-navy">{quote.title}</p>
           <p className="text-xs text-ink-soft">
             {quote.client?.name ?? 'Client'} · reçue le {dayLabel(quote.createdAt)}
-            {quote.occasion ? ` · ${quote.occasion}` : ''}
           </p>
         </div>
         <StatusBadge tone={lastDeclined ? 'danger' : 'warning'}>
@@ -190,7 +189,7 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
       )}
 
       <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-cream-soft p-3 text-center">
-        <Mini Icon={Users} label="Convives" value={`${quote.persons}`} />
+        <Mini Icon={Users} label="Personnes" value={`${quote.persons}`} />
         <Mini
           Icon={CalendarDays}
           label={quote.timeSlot ? SLOT_LABEL[quote.timeSlot].split(' (')[0] : 'Date'}

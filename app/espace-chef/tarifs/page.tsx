@@ -14,7 +14,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import ApprovalGate, { useChefApproved } from '@/components/chef/ApprovalGate'
+import ApprovalGate from '@/components/chef/ApprovalGate'
+import { useChefApproved } from '@/lib/chef/approval'
 import { CeQueChangeUneFormule } from '@/components/chef/PresenceCarte'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'

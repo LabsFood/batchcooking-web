@@ -1,3 +1,5 @@
+import { problemText } from '@/lib/chef/readiness'
+import { reasonText } from '@/lib/reason-codes'
 import { ApiError, fieldErrors, type FieldError } from './client'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -130,9 +132,21 @@ export function apiMessage(error: unknown, repli = 'L’enregistrement a été r
       return 'Cette action demande un dossier approuvé : l’API l’a refusée.'
     }
     if (error.status === 413) return 'Le fichier est trop lourd pour l’API.'
-    if ((error.body as { code?: string } | null)?.code === 'CHEF_UNAVAILABLE') {
+    const code = (error.body as { code?: string } | null)?.code
+    if (code === 'CHEF_UNAVAILABLE') {
       return 'Ce batch cooker ne peut pas recevoir de réservation ni de paiement pour le moment.'
     }
+    // Recettes §4.11 : la fiche n'est pas prête, chaque point manquant nommé.
+    const refus = error.body as { code?: string; problems?: unknown } | null
+    if (refus?.code === 'RECIPE_NOT_READY' && Array.isArray(refus.problems)) {
+      return `La fiche n’est pas prête. Il manque : ${(
+        refus.problems as { code: string; field: string }[]
+      )
+        .map(problemText)
+        .join(', ')}.`
+    }
+    const raison = reasonText(error.body)
+    if (raison) return raison
     return error.message || repli
   }
   return error instanceof Error ? error.message : repli

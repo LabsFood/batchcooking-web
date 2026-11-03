@@ -6,6 +6,7 @@ import { CreditCard, Home, Info, MapPin, Pencil, ShieldCheck } from 'lucide-reac
 import { ApiError } from '@/lib/api/client'
 import { apiMessage } from '@/lib/api/messages'
 import { useMeProfile } from '@/lib/api/me-profile'
+import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import type { ClientProfile } from '@/lib/api/types'
 import {
   centimes,
@@ -15,7 +16,7 @@ import {
   URSSAF_TON,
 } from '@/lib/api/fiscal'
 
-type Tab = 'addresses' | 'payments' | 'urssaf' | 'fiscal'
+type Tab = 'addresses' | 'payments' | 'urssaf' | 'invoices' | 'fiscal'
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>('addresses')
@@ -28,6 +29,7 @@ export default function AccountPage() {
             { id: 'addresses' as Tab, label: 'Adresses' },
             { id: 'payments' as Tab, label: 'Moyens de paiement' },
             { id: 'urssaf' as Tab, label: 'Avance immédiate' },
+            { id: 'invoices' as Tab, label: 'Factures' },
             { id: 'fiscal' as Tab, label: 'Attestation fiscale' },
           ]
         ).map((t) => (
@@ -51,8 +53,28 @@ export default function AccountPage() {
 
       {tab === 'urssaf' && <AvanceImmediate />}
 
+      {tab === 'invoices' && <Factures />}
+
       {tab === 'fiscal' && <Attestation />}
     </div>
+  )
+}
+
+/* ── Factures ──────────────────────────────────────────────────────────────── */
+
+/** Une facture par paiement par carte, au nom du batch cooker. */
+function Factures() {
+  return (
+    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+      <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
+        Mes factures <PaymentInvoicesInfo side="client" />
+      </h2>
+      <p className="mb-4 mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
+        Une facture par paiement par carte, au nom de votre batch cooker. Elles se
+        retrouvent aussi sur chaque commande.
+      </p>
+      <PaymentInvoiceList side="client" emptyText="Aucune facture pour l’instant." />
+    </section>
   )
 }
 

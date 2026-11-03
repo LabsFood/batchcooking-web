@@ -53,12 +53,15 @@ export const WORK_STATUS_LABEL: Record<WorkStatus, string> = {
   other: 'Autre situation',
 }
 
-/** Voie « services à la personne ». Type B = coopérative (retenu en premier). */
+/**
+ * Voie « services à la personne ». Type A : sa propre déclaration ; Type B : la
+ * coopérative SAP à laquelle il a adhéré. Ni l'un ni l'autre : pas d'embarquement.
+ */
 export type SapPath = 'type-a' | 'type-b'
 
 export const SAP_PATH_LABEL: Record<SapPath, string> = {
-  'type-a': 'Type A — déclaration NOVA propre',
-  'type-b': 'Type B — coopérative',
+  'type-a': 'Déclaration SAP à son nom',
+  'type-b': 'Adhérent d’une coopérative SAP',
 }
 
 /**
