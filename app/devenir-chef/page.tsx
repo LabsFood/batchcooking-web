@@ -637,7 +637,7 @@ function ApplicationForm({
 
                   {/* Impasse : sans entreprise ni déclaration propre, seule la coopérative
                       pouvait porter le dossier. Si elle refuse, on ne ferme pas la porte. */}
-                  {values.legalForm === 'not-registered' && !values.sapTypeA && (
+                  {values.legalForm === 'not-registered' && values.sapDeclared === 'no' && values.sapCooperative === 'no' && (
                     <div className="mt-4">
                       <Note tone="amber" icon={<Mail className="h-4 w-4" />}>
                         Ni entreprise, ni déclaration propre, et votre coopérative ne prend pas votre situation en
@@ -653,7 +653,7 @@ function ApplicationForm({
                     </div>
                   )}
 
-                  {values.sapTypeA && (
+                  {values.sapDeclared === 'yes' && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
