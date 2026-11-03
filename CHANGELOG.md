@@ -1,3 +1,33 @@
+## [1.1.0](https://github.com/LabsFood/batchcooking-web/compare/v1.0.0...v1.1.0) (2026-11-03)
+
+### Features
+
+* **accounts:** hints to read before creating an account ([013cccd](https://github.com/LabsFood/batchcooking-web/commit/013cccdf79de93a1c0c00d75ee9f671f04364e6e))
+* add client reservation flow page ([c72b922](https://github.com/LabsFood/batchcooking-web/commit/c72b922a4b8b43e2485adb03e3224db8197e8a9a))
+* add FoodCarousel and HowItWorks homepage components with assets ([4ee9096](https://github.com/LabsFood/batchcooking-web/commit/4ee90962204da0638e7f13a97a982d6707c055d9))
+* add public API referentials hooks and utilities ([bd72471](https://github.com/LabsFood/batchcooking-web/commit/bd724716601b545d4abc9fadf2a8627782099b4f))
+* add responsive Navbar component with authentication and mobile menu ([b87b924](https://github.com/LabsFood/batchcooking-web/commit/b87b9248bc9e1099cb75f4a43c12e70a7bec6e22))
+* **allergies:** replace a dish in conflict after a new allergy ([f98d4b6](https://github.com/LabsFood/batchcooking-web/commit/f98d4b6ebe10f79d22b22fc6195f2c2d69a4b259))
+* **allergies:** show whether a booking's allergies are verified ([43bbc67](https://github.com/LabsFood/batchcooking-web/commit/43bbc67f2268f4743cfd262b89f9de86f74df8cf))
+* **candidature:** mail link when no company, no own SAP and the cooperative declines ([6f7fead](https://github.com/LabsFood/batchcooking-web/commit/6f7fead4a8651100f9db94ef9c27766649dd28f7))
+* **chef:** say the times are private and show the chef's tier ([7a7dc88](https://github.com/LabsFood/batchcooking-web/commit/7a7dc8830af847cc2a1d3bf786ba0f061bb149a4))
+* **courses:** the client answers the shopping list, the batch cooker sends it ([aa76745](https://github.com/LabsFood/batchcooking-web/commit/aa7674537c6f2d84c0ae982212cb4065f845ac3e))
+* **courses:** the client answers the shopping list, the batch cooker sends it ([37129fe](https://github.com/LabsFood/batchcooking-web/commit/37129feaf983e2a5d462e61158621f81617d0eaa))
+* create about page with company story and values ([a77475f](https://github.com/LabsFood/batchcooking-web/commit/a77475ffc0c1f658156a64e95dd3573796a6de7b))
+* Enhance recipe management with new dietary and reheating features ([e6f9f91](https://github.com/LabsFood/batchcooking-web/commit/e6f9f91da8eb214844780ff0c54d6c69e2b1772d))
+* implement chef approval logic and restrict access to certain pages for unverified users ([df5913f](https://github.com/LabsFood/batchcooking-web/commit/df5913f8a9b852577cb1730ade5056fb287289db))
+* **notifications:** show the API notifications at the top of the bell ([51cbd98](https://github.com/LabsFood/batchcooking-web/commit/51cbd98af86c07e88ee53c6d37bd7dc8516362eb))
+* **profil:** declare allergies with consent, or "aucune" ([92d1640](https://github.com/LabsFood/batchcooking-web/commit/92d16406dcad77d8e4f4d13238099634a877a4d7))
+* **reservation:** declare allergies before booking a menu ([8a5c6c7](https://github.com/LabsFood/batchcooking-web/commit/8a5c6c710b967f9fabe3699112a6c08255f25614))
+* **shared:** add hints that stay until they are clicked ([716baea](https://github.com/LabsFood/batchcooking-web/commit/716baea58fb74980e525217c7d011cec8ee48c32))
+* **shared:** add the explanation popover and the reason-code texts ([2c5e9b5](https://github.com/LabsFood/batchcooking-web/commit/2c5e9b5e51a5e87ec754b85ddf404fd731cc17c8))
+* update API and application logic for SAP declarations and commune validation ([8c8bcb0](https://github.com/LabsFood/batchcooking-web/commit/8c8bcb04eebf19ac5b53a8ffa9f1870c7f59e942))
+
+### Bug Fixes
+
+* **espace-chef:** change password and delete account work on the settings page ([903cd6a](https://github.com/LabsFood/batchcooking-web/commit/903cd6aa3151c2f6b64a6cfc74688aae1ab7ffc6))
+* update package-lock.json dependencies ([42d8c66](https://github.com/LabsFood/batchcooking-web/commit/42d8c66bb16c0f8f92edf4eef097873b354435d5))
+
 ## 1.0.0 (2026-10-31)
 
 ### Features
