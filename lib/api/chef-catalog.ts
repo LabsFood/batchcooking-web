@@ -1,7 +1,8 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useApiFetch } from './client'
+import { useApiBlob, useApiFetch } from './client'
+import { problemText } from '@/lib/chef/readiness'
 import { removePhoto, uploadPhoto } from './photos'
 
 // Le trio d'envoi d'une photo vit dans `photos.ts` : plats et menus du batch
@@ -37,13 +38,68 @@ export interface Ingredient {
   qty: number
   unit: string
   aisle?: string
+  /** Où l'acheter, ou ce que c'est : une adresse `http(s)`. */
+  link?: string | null
+  /** À vérifier par le batch cooker (recette importée) : empêche « Prête ». */
+  toVerify?: boolean
+  /** La même quantité quel que soit le nombre de portions (§4.12). */
+  fixedQuantity?: boolean
+  /** L'entrée de la liste commune (§4.10) : régimes et saisons s'en calculent. */
+  catalogIngredientId?: string | null
+}
+
+/** Une entrée de la liste commune d'ingrédients (§4.10). */
+export interface CatalogIngredient {
+  id: string
+  name: string
+  aliases: string[]
+  diets: string[]
+  /** Mois 1 à 12 ; vide : pas de saison. */
+  seasonMonths: number[]
+}
+
+/** Une étape (§4.5) : sans type, la fiche n'est pas « Prête ». */
+export interface Step {
+  order?: number
+  text: string
+  type: string | null
+  durationMinutes: number | null
+}
+
+/** §4.6 : les modes viennent de la liste réglée dans la console. */
+export interface Reheating {
+  modes?: string[]
+  /** Le premier des modes, pour les fiches écrites avant la liste. */
+  mode?: string | null
+  temperature?: number | null
+  minutes?: number | null
+  note?: string | null
+  container?: string | null
 }
 
 export interface Recipe {
   ingredients: Ingredient[]
-  steps: string[]
-  reheating?: { mode?: string; temperature?: number; minutes?: number; note?: string } | null
-  storage?: { method?: string; days?: number; container?: string } | null
+  steps: Step[]
+  reheating?: Reheating | null
+  storage?: { method?: string; days?: number; container?: string | null } | null
+}
+
+/** Un point qui manque, tel que l'API le nomme : `field` désigne le champ. */
+export interface Problem {
+  code: string
+  field: string
+  message: string
+}
+
+/**
+ * §4.11, calculé par l'API. `problems` empêchent « Prête » ; `toPublish`
+ * s'ajoutent pour publier ; `warnings` n'empêchent rien (la photo, pour l'instant).
+ */
+export interface Readiness {
+  ready: boolean
+  problems: Problem[]
+  toPublish: Problem[]
+  warnings: Problem[]
 }
 
 export interface Dish {
@@ -66,6 +122,32 @@ export interface Dish {
   customAllergens: string[]
   recipe: Recipe | null
   recipeComplete: boolean
+  /** Texte libre, jamais contrôlé (§4.7). */
+  equipment: string[]
+  /** Dernière confirmation des allergènes ; effacée quand un ingrédient change. */
+  allergensVerifiedAt: string | null
+  /** La dernière version, celle que cuisine une prestation. */
+  recipeVersion: number
+  /** Des modifications attendent la prochaine version (« Prête » ou publication). */
+  versionPending: boolean
+  readiness: Readiness
+  /** §4.8 : calculés d'après la liste commune ; null tant qu'une ligne n'y est pas reliée. */
+  computedDiets: string[] | null
+  /** Halal, casher : déclarés, jamais calculables. */
+  declaredDiets: string[]
+  /** Vos mois s'il y en a, sinon le calcul ; null : inconnu. */
+  seasonMonths: number[] | null
+  profiles: string[]
+  /** À vous seul : jamais montrées aux clients. */
+  personalTags: string[]
+  classification: {
+    computedSeasonMonths: number[] | null
+    seasonsOverride: number[]
+    /** Les lignes à relier à la liste commune pour que le calcul se fasse. */
+    unlinkedLines: number
+  }
+  /** §5.4 : le plat dont celui-ci est la copie. */
+  variantOfId: string | null
   status: DishStatus
   publishedAt: string | null
   createdAt: string
@@ -83,6 +165,7 @@ export interface MenuDish {
   allergens: string[]
   allergensNone: boolean
   recipeComplete: boolean
+  readiness?: Readiness
 }
 
 export interface Menu {
@@ -133,6 +216,12 @@ export interface DishInput {
   allergens?: string[]
   allergensNone?: boolean
   customAllergens?: string[]
+  equipment?: string[]
+  declaredDiets?: string[]
+  profiles?: string[]
+  personalTags?: string[]
+  /** `[]` : revenir aux saisons calculées. */
+  seasonsOverride?: number[]
   recipe?: Recipe | null
 }
 
@@ -175,6 +264,60 @@ export const usePublishDish = () =>
   )
 
 
+
+/**
+ * `POST /me/dishes/{id}/allergens/confirm` (§4.9) : le batch cooker confirme que
+ * les allergènes déclarés correspondent aux ingrédients. Les modifications en
+ * attente deviennent alors une version : c'est elle que cuisine une prestation.
+ */
+export const useConfirmAllergens = () =>
+  useCatalogMutation<string, Dish>(
+    (f, id) => f<Dish>(`/me/dishes/${id}/allergens/confirm`, { method: 'POST' }),
+    [DISHES, MENUS],
+  )
+
+/** `GET /ingredients?search=` (§4.10) : vingt entrées au plus, dès deux lettres. */
+export function useIngredientSearch(term: string) {
+  const apiFetch = useApiFetch()
+  const q = term.trim()
+  return useQuery({
+    queryKey: ['ingredients', q.toLowerCase()],
+    queryFn: () =>
+      apiFetch<CatalogIngredient[]>(`/ingredients?search=${encodeURIComponent(q)}`),
+    enabled: q.length >= 2,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+/** `POST /me/dishes/{id}/duplicate` (§5.4) : une copie en brouillon, « (copie) ». */
+export const useDuplicateDish = () =>
+  useCatalogMutation<string, Dish>(
+    (f, id) => f<Dish>(`/me/dishes/${id}/duplicate`, { method: 'POST' }),
+    [DISHES],
+  )
+
+/** `POST /me/menus/{id}/duplicate` : les mêmes plats, dans un nouveau brouillon. */
+export const useDuplicateMenu = () =>
+  useCatalogMutation<string, Menu>(
+    (f, id) => f<Menu>(`/me/menus/${id}/duplicate`, { method: 'POST' }),
+    [MENUS],
+  )
+
+/** `GET /me/dishes/{id}/recipe.pdf` (§7) : la fiche telle qu'enregistrée, filigranée. */
+export function useRecipePdf() {
+  const apiBlob = useApiBlob()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const pdf = await apiBlob(`/me/dishes/${id}/recipe.pdf`)
+      const url = URL.createObjectURL(pdf)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `fiche-${name}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+  })
+}
 
 /**
  * Photo d'un plat, en trois temps. Le stockage exige que le corps du `PUT`
@@ -357,14 +500,11 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
   hard: 'Exigeant',
 }
 
-/** Ce qui manque pour publier. Vide = publiable. */
-export function publishBlockers(dish: Dish): string[] {
-  const out: string[] = []
-  if (!dish.description?.trim()) out.push('une description')
-  if (!dish.country) out.push('le pays d’origine')
-  if (!dish.allergensNone && dish.allergens.length === 0 && dish.customAllergens.length === 0) {
-    out.push('les allergènes, ou la mention « aucun »')
-  }
-  if (!dish.recipeComplete) out.push('la recette')
-  return out
+/**
+ * Ce qui manque pour publier, d'après l'API (§4.11) : « Prête », puis ce que
+ * la publication ajoute. Vide = publiable. L'origine n'est jamais exigée.
+ */
+export function publishBlockers(dish: { readiness?: Readiness }): string[] {
+  if (!dish.readiness) return []
+  return [...dish.readiness.problems, ...dish.readiness.toPublish].map(problemText)
 }

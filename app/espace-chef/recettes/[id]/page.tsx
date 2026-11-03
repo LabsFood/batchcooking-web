@@ -21,6 +21,9 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
   const toast = useToast()
   const dishes = useDishes()
   const update = useUpdateDish()
+  // À part : un enregistrement automatique ne doit ni bloquer le bouton ni
+  // afficher l'erreur d'un enregistrement voulu.
+  const autosave = useUpdateDish()
 
   const dish = dishes.data?.find((d) => d.id === id)
 
@@ -68,7 +71,14 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <ChefPage title={dish.name} subtitle="Les modifications sont enregistrées quand vous validez.">
+    <ChefPage
+      title={dish.name}
+      subtitle={
+        dish.readiness?.ready || dish.status !== 'draft'
+          ? 'Les modifications sont enregistrées quand vous validez.'
+          : 'Le brouillon s’enregistre tout seul.'
+      }
+    >
       <Link
         href="/espace-chef/recettes"
         className="mb-5 inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
@@ -79,7 +89,9 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
 
       <DishForm
         dish={dish}
+        variantOfName={dishes.data?.find((x) => x.id === dish.variantOfId)?.name ?? null}
         onSave={save}
+        onAutosave={(input) => autosave.mutateAsync({ id, patch: input })}
         saving={update.isPending}
         error={update.error ? apiMessage(update.error) : null}
         backHref="/espace-chef/recettes"

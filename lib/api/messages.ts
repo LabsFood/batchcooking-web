@@ -1,3 +1,5 @@
+import { problemText } from '@/lib/chef/readiness'
+import { reasonText } from '@/lib/reason-codes'
 import { ApiError, fieldErrors, type FieldError } from './client'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -134,17 +136,17 @@ export function apiMessage(error: unknown, repli = 'L’enregistrement a été r
     if (code === 'CHEF_UNAVAILABLE') {
       return 'Ce batch cooker ne peut pas recevoir de réservation ni de paiement pour le moment.'
     }
-    // Vérifiés contre la base officielle des communes (geo.api.gouv.fr).
-    if (code === 'ADDRESS_CITY_MISMATCH') {
-      return 'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste proposée.'
+    // Recettes §4.11 : la fiche n'est pas prête, chaque point manquant nommé.
+    const refus = error.body as { code?: string; problems?: unknown } | null
+    if (refus?.code === 'RECIPE_NOT_READY' && Array.isArray(refus.problems)) {
+      return `La fiche n’est pas prête. Il manque : ${(
+        refus.problems as { code: string; field: string }[]
+      )
+        .map(problemText)
+        .join(', ')}.`
     }
-    if (code === 'INVOICE_NOT_FOUND') return 'Cette facture est introuvable sur votre compte.'
-    if (code === 'DOCUMENT_STORAGE_UNAVAILABLE') {
-      return 'Le document est momentanément indisponible. Réessayez dans un instant.'
-    }
-    if (code === 'GEO_UNAVAILABLE') {
-      return 'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.'
-    }
+    const raison = reasonText(error.body)
+    if (raison) return raison
     return error.message || repli
   }
   return error instanceof Error ? error.message : repli
