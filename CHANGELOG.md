@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/LabsFood/batchcooking-web/compare/v1.1.0...v1.2.0) (2026-11-03)
+
+### Features
+
+* add become-chef and client reservation pages with API integration ([da6c70c](https://github.com/LabsFood/batchcooking-web/commit/da6c70cb5639b367f4f421b7e3b2abe54c191939))
+
 ## [1.1.0](https://github.com/LabsFood/batchcooking-web/compare/v1.0.0...v1.1.0) (2026-11-03)
 
 ### Features
