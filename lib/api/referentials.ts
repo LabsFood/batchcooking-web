@@ -43,6 +43,21 @@ export function useRegions(fallback: RefItem[]) {
   return { regions: q.data ?? fallback, fromApi: q.isSuccess, isPending: q.isPending }
 }
 
+/** Communes correspondant à un code postal, selon la base officielle. */
+export function useCommunes(postcode: string) {
+  return useQuery({
+    queryKey: ['communes', postcode],
+    enabled: /^\d{5}$/.test(postcode),
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`https://geo.api.gouv.fr/communes?codePostal=${postcode}&fields=nom`, { signal })
+      if (!res.ok) throw new Error(`geo.api.gouv.fr ${res.status}`)
+      return ((await res.json()) as { nom: string }[]).map((commune) => commune.nom)
+    },
+  })
+}
+
 export function useDiets(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'diets'],
