@@ -169,8 +169,8 @@ export default function ChefMissionsPage() {
                     aria-selected={active}
                     onClick={() => setFilter(f.id)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
-                        ? 'bg-navy text-white'
-                        : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
+                      ? 'bg-navy text-white'
+                      : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
                       }`}
                   >
                     {f.label}
@@ -1637,22 +1637,22 @@ function RecipeSheetDialog({
 
               {(reheatingLine(f.recipe.reheating, reheatModes) ||
                 storageLine(f.recipe.storage)) && (
-                <Section titre="Après la session">
-                  <ul className="space-y-1 text-[13px] text-ink-mid">
-                    {reheatingLine(f.recipe.reheating, reheatModes) && (
-                      <li>Réchauffage · {reheatingLine(f.recipe.reheating, reheatModes)}</li>
+                  <Section titre="Après la session">
+                    <ul className="space-y-1 text-[13px] text-ink-mid">
+                      {reheatingLine(f.recipe.reheating, reheatModes) && (
+                        <li>Réchauffage · {reheatingLine(f.recipe.reheating, reheatModes)}</li>
+                      )}
+                      {storageLine(f.recipe.storage) && (
+                        <li>Conservation · {storageLine(f.recipe.storage)}</li>
+                      )}
+                    </ul>
+                    {f.recipe.reheating?.note && (
+                      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+                        {f.recipe.reheating.note}
+                      </p>
                     )}
-                    {storageLine(f.recipe.storage) && (
-                      <li>Conservation · {storageLine(f.recipe.storage)}</li>
-                    )}
-                  </ul>
-                  {f.recipe.reheating?.note && (
-                    <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
-                      {f.recipe.reheating.note}
-                    </p>
-                  )}
-                </Section>
-              )}
+                  </Section>
+                )}
             </div>
           )}
         </div>

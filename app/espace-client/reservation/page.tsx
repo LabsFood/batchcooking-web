@@ -55,9 +55,9 @@ import type { PublicServiceOffer } from '@/lib/api/menus'
  * CESU et l'URSSAF — et c'est lui qui annonce le succès.
  */
 const STEPS = [
-  { id: 'chef',      label: 'Chef',      Icon: ChefHat },
-  { id: 'infos',     label: 'Infos',     Icon: CalendarRange },
-  { id: 'paiement',  label: 'Réserver',  Icon: CreditCard },
+  { id: 'chef', label: 'Chef', Icon: ChefHat },
+  { id: 'infos', label: 'Infos', Icon: CalendarRange },
+  { id: 'paiement', label: 'Réserver', Icon: CreditCard },
 ] as const
 type StepId = typeof STEPS[number]['id']
 
@@ -121,8 +121,8 @@ function ReservationFlow() {
   const [coursesParMoi, setCoursesParMoi] = useState(false)
   // Préremplie depuis le profil tant que le client n'y touche pas.
   const profil = useMeProfile()
-  const surFiche =
-    profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile | null) : null
+
+  const surFiche = profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile | null) : null
   const [rue, setRue] = useState<string | null>(null)
   const [cp, setCp] = useState<string | null>(null)
   const [ville, setVille] = useState<string | null>(null)
@@ -135,8 +135,7 @@ function ReservationFlow() {
   /** Plats refusés par l'API (allergène déclaré, ou allergènes non vérifiés). */
   const [refuses, setRefuses] = useState<string[]>([])
   // Recettes lot 1 : sans réponse sur les allergies, aucun menu ne se valide.
-  const clientProfile =
-    profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile) : null
+  const clientProfile = surFiche
   const allergiesADeclarer =
     !!profil.data && profil.data.profileType !== 'chef' && !clientProfile?.allergiesDeclaredAt
 
@@ -275,20 +274,18 @@ function ReservationFlow() {
                 disabled={i > stepIndex}
               >
                 <span
-                  className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    reached
-                      ? current
-                        ? 'bg-amber text-navy ring-4 ring-amber/20'
-                        : 'bg-amber text-navy'
-                      : 'bg-cream-deep text-ink-soft'
-                  }`}
+                  className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all ${reached
+                    ? current
+                      ? 'bg-amber text-navy ring-4 ring-amber/20'
+                      : 'bg-amber text-navy'
+                    : 'bg-cream-deep text-ink-soft'
+                    }`}
                 >
                   <s.Icon className="w-4 h-4" />
                 </span>
                 <p
-                  className={`mt-2 text-[10px] uppercase tracking-[0.16em] font-semibold ${
-                    reached ? 'text-navy' : 'text-ink-soft'
-                  }`}
+                  className={`mt-2 text-[10px] uppercase tracking-[0.16em] font-semibold ${reached ? 'text-navy' : 'text-ink-soft'
+                    }`}
                 >
                   {s.label}
                 </p>
@@ -405,11 +402,10 @@ function ReservationFlow() {
                               setSlot('')
                             }}
                             aria-pressed={choisie}
-                            className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${
-                              choisie
-                                ? 'border border-amber/40 bg-amber-soft'
-                                : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
-                            }`}
+                            className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${choisie
+                              ? 'border border-amber/40 bg-amber-soft'
+                              : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
+                              }`}
                           >
                             <span className="min-w-0">
                               <span className="block text-sm font-semibold text-navy">
@@ -517,17 +513,15 @@ function ReservationFlow() {
                   <button
                     type="button"
                     onClick={() => setCoursesParMoi((v) => !v)}
-                    className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${
-                      coursesParMoi
-                        ? 'bg-paper border border-[rgba(31,42,55,0.08)]'
-                        : 'bg-amber-soft border border-amber/40'
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl transition-colors text-left ${coursesParMoi
+                      ? 'bg-paper border border-[rgba(31,42,55,0.08)]'
+                      : 'bg-amber-soft border border-amber/40'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                          coursesParMoi ? 'bg-cream-deep text-ink-mid' : 'bg-amber text-navy'
-                        }`}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center ${coursesParMoi ? 'bg-cream-deep text-ink-mid' : 'bg-amber text-navy'
+                          }`}
                       >
                         <ShoppingBasket className="w-4 h-4" />
                       </span>
@@ -547,9 +541,8 @@ function ReservationFlow() {
                       </div>
                     </div>
                     <span
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        coursesParMoi ? 'border-[rgba(31,42,55,0.2)]' : 'bg-amber border-amber text-navy'
-                      }`}
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${coursesParMoi ? 'border-[rgba(31,42,55,0.2)]' : 'bg-amber border-amber text-navy'
+                        }`}
                     >
                       {!coursesParMoi && <Check className="w-3 h-3" strokeWidth={3} />}
                     </span>

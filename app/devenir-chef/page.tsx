@@ -344,10 +344,10 @@ function ApplicationForm({
                     <span
                       aria-hidden
                       className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-300 ${current
-                          ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
-                          : isDone
-                            ? 'bg-navy text-white'
-                            : 'border-[1.5px] border-[rgba(31,42,55,0.18)] bg-paper text-ink-soft'
+                        ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
+                        : isDone
+                          ? 'bg-navy text-white'
+                          : 'border-[1.5px] border-[rgba(31,42,55,0.18)] bg-paper text-ink-soft'
                         }`}
                     >
                       {isDone && !current ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
