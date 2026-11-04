@@ -88,17 +88,17 @@ export default function Concept() {
               Le batch cooking,<br />
               <span className="accent">réinventé chez vous.</span>
             </h2>
-            <p className="text-ink-mid leading-relaxed mb-5">
+            <p className="text-ink-mid leading-relaxed mb-5 text-justify">
               Imaginez ouvrir votre frigo et trouver tous vos repas de la semaine, faits maison et
               prêts à réchauffer. C&apos;est ce que fait Lab&apos;s Food : un(e) cuisinier(e) vient
               chez vous, cuisine pour toute la semaine en une seule séance, range tout et vous
               laisse une cuisine propre.
             </p>
-            <p className="text-ink-mid leading-relaxed mb-5">
-              Séniors, famille avec enfants, végétarien, allergie ou régime spécifique : nos
+            <p className="text-ink-mid leading-relaxed mb-5 text-justify">
+              Séniors, végétarien, allergie ou régime spécifique : nos
               cuisiniers adaptent chaque menu à votre profil et à vos goûts.
             </p>
-            <p className="text-ink-mid leading-relaxed mb-10">
+            <p className="text-ink-mid leading-relaxed mb-10 text-justify">
               Cuisine européenne, africaine, américaine... Vous découvrez de nouvelles saveurs
               chaque semaine, sans jamais vous lasser.
             </p>
