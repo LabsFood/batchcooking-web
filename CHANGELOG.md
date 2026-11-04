@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/LabsFood/batchcooking-web/compare/v1.2.0...v1.3.0) (2026-11-04)
+
+### Features
+
+* add Concept, HowItWorks, and Footer components for home page ([22627cd](https://github.com/LabsFood/batchcooking-web/commit/22627cd9e4e43ea5b8c036d502a5d02db48be9d8))
+
 ## [1.2.0](https://github.com/LabsFood/batchcooking-web/compare/v1.1.0...v1.2.0) (2026-11-03)
 
 ### Features
