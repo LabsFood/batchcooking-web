@@ -15,7 +15,7 @@ const STEPS = [
     Anim: WhiskingBowl,
     title: 'Choisissez vos repas',
     description:
-      '“Parcourez le menu de votre batch cooker et sélectionnez ce qui vous donne envie.',
+      'Parcourez le menu de votre batch cooker et sélectionnez ce qui vous donne envie.',
   },
   {
     number: '02',
