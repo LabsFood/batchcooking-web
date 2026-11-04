@@ -9,7 +9,7 @@ import ReserveButton from '@/components/shared/ReserveButton'
 const LINKS = {
   service: [
     { label: 'Notre concept', href: '/#concept' },
-    { label: 'Comment ça marche', href: '/#how-it-works' },
+    { label: 'Comment ça marche ?', href: '/#how-it-works' },
   ],
   about: [
     { label: 'À propos', href: '/a-propos' },
