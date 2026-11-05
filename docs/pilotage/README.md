@@ -19,8 +19,6 @@ l'inverse.
 | `04-commentaires.csv` | Commentaires | 1 ligne = 1 commentaire daté |
 | `05-equipe.csv` | Equipe | qui fait quoi |
 | `06-referentiels.csv` | Referentiels | les listes des menus déroulants |
-| `08-idees.csv` | *(hors classeur)* | 1 ligne = 1 idée produit **non engagée**, notée (voir [`../IDEES-PRODUIT-valeur-percue.md`](../IDEES-PRODUIT-valeur-percue.md)) |
-| `09-concurrence.csv` | *(hors classeur)* | 1 ligne = 1 idée face aux concurrents (Chef It Up, Miamissimo, …) ; sa colonne `Différenciation /5` alimente `08-idees.csv` |
 | *(calculé)* | Tableau de bord | compteurs, retards, charge par personne |
 
 Le grain du backlog est ce qui fait tout le reste : « lister les plats » donne
@@ -88,10 +86,6 @@ survivre s'écrit là, dans le CSV.
   viennent de [`../api/BUGS-BACKEND.md`](../api/BUGS-BACKEND.md).
 - `DEM-xx` — une demande fonctionnelle : pas un défaut, un manque qui bloque un
   écran. Viennent de [`../api/DEMANDES-BACKEND.md`](../api/DEMANDES-BACKEND.md).
-- `IDEE-xx` — une idée produit, pas encore une tâche. Statuts : `Proposée`,
-  `À valider`, `Retenue`, `Rejetée`, `Passée au backlog`. Une idée retenue
-  devient des lignes `LF-xxxx` dans le backlog ; la colonne `Tâches backlog`
-  garde le lien.
 - `BLK-xx` — un blocage qui n'est ni l'un ni l'autre : un module absent, un
   accès manquant, une décision à prendre.
 
