@@ -407,6 +407,8 @@ Même grille, notées plus sommairement.
 4. **Mesurer** : taux de réabonnement (ROI, planificateur), nombre de clients par chef
    et par semaine (liste multi-clients), part des prestations avec checklist remplie et
    taux de litige (messages prédéfinis).
-5. Une fois arbitré, reporter les lots retenus dans `docs/pilotage/01-backlog.csv`
+5. Le suivi des idées (statut, décision, bloquant) se fait dans
+   [`pilotage/08-idees.csv`](pilotage/08-idees.csv), sans rien engager.
+6. Une fois arbitré, reporter les lots retenus dans `docs/pilotage/01-backlog.csv`
    (une ligne design + une ligne intégration par action, selon la convention du
    classeur).
