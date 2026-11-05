@@ -2,8 +2,9 @@
 
 Six fonctionnalités proposées, plus quatre pistes complémentaires, évaluées selon
 **quatre axes de valeur perçue**. Pour chacune : sa facilité d'intégration dans le code
-**actuel** (LF-BackEnd, batchcooking-web, admin-dashboard), sa valeur perçue, et ce que
-l'utilisateur serait prêt à payer pour l'avoir.
+**actuel** (LF-BackEnd, batchcooking-web, admin-dashboard), sa valeur perçue, ce que
+l'utilisateur serait prêt à payer pour l'avoir, et **ce qui nous en distingue des
+concurrents** (§ 5).
 
 > Rédigé le 05/11/2026 à partir du schéma Prisma et des écrans existants. Les montants
 > de « consentement à payer » sont des **hypothèses à tester** (test de prix,
@@ -27,8 +28,12 @@ l'utilisateur serait prêt à payer pour l'avoir.
 ```
 Valeur perçue = (T + P + D + R) / 20 × 60    → le bénéfice réel
               + Fréquence / visibilité × 4    → (0-5) vu tous les jours ou une fois par an ?
-              + Différenciation × 4           → (0-5) la concurrence l'a-t-elle déjà ?
+              + Différenciation × 4           → (0-5) mesurée face aux concurrents, § 5
 ```
+
+La différenciation n'est pas une impression : elle vient de la matrice concurrentielle
+(`pilotage/09-concurrence.csv`), qui croise ce que chaque concurrent propose déjà et la
+difficulté à copier l'idée.
 
 ### Intégration (1 à 5)
 
@@ -53,23 +58,29 @@ pour peu de travail, sans éliminer les gros chantiers à forte valeur.
 
 ## 2. Synthèse et classement
 
-| Rang | Fonctionnalité | Pour | T | P | D | R | Valeur /100 | Intég. /5 | Effort | **Priorité** | Prêt à payer (hypothèse) |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Compteur d'économies (ROI) | Client | 3 | 0 | 5 | 1 | 55 | 5 | 3 j | **92** | 0 € direct : levier de conversion et de réabonnement |
-| 2 | Planificateur de calendrier familial | Client | 4 | 0 | 3 | 5 | 72 | 5 | 4 j | **90** | 2-4 €/mois isolé ; mieux inclus, sert la montée en gamme |
-| 3 | Messages prédéfinis logistiques | Chef | 4 | 1 | 1 | 4 | 54 | 5 | 4 j | **68** | 0-3 €/mois : attendu, à inclure |
-| 4 | Liste d'achat multi-clients | Chef | 5 | 4 | 3 | 3 | **85** | 4 | 7 j | **49** | **10-20 €/mois** (offre Pro) |
-| 5 | Optimisation des ingrédients | Chef | 4 | 3 | 4 | 2 | 67 | 3 | 8 j | **25** | 5-10 €/mois (offre Pro) |
-| 6 | Impact nutritionnel | Client | 1 | 0 | 1 | 3 | 39 | 2 | 20 j | **4** | 3-6 €/mois, sur un segment santé |
+| Rang | Fonctionnalité | Pour | T | P | D | R | Diff. /5 | Valeur /100 | Intég. /5 | Effort | **Priorité** | Prêt à payer (hypothèse) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Planificateur de calendrier familial | Client | 4 | 0 | 3 | 5 | 4 | 72 | 5 | 4 j | **90** | 2-4 €/mois isolé ; mieux inclus, sert la montée en gamme |
+| 2 | Compteur d'économies (ROI) | Client | 3 | 0 | 5 | 1 | 3 | 51 | 5 | 3 j | **85** | 0 € direct : levier de conversion et de réabonnement |
+| 3 | Messages prédéfinis logistiques | Chef | 4 | 1 | 1 | 4 | 3 | 58 | 5 | 4 j | **73** | 0-3 €/mois : attendu, à inclure |
+| 4 | Liste d'achat multi-clients | Chef | 5 | 4 | 3 | 3 | 3 | **77** | 4 | 7 j | **44** | 10-20 €/mois en valeur, à vendre dans la commission (§ 5.4) |
+| 5 | Optimisation des ingrédients | Chef | 4 | 3 | 4 | 2 | **5** | 71 | 3 | 8 j | **27** | 5-10 €/mois en valeur, idem |
+| 6 | Impact nutritionnel | Client | 1 | 0 | 1 | 3 | 3 | 39 | 2 | 20 j | **4** | 3-6 €/mois, sur un segment santé |
+
+Classement des 10 idées (avec les pistes du § 4) : `pilotage/08-idees.csv`.
 
 **Lecture**
 
-- **Le plus rentable à court terme** : ROI et planificateur. Les données existent, les
+- **Le plus rentable à court terme** : planificateur et ROI. Les données existent, les
   écrans `statistiques` et `conservation` de l'espace client sont déjà là, il reste à les
   enrichir. Faisables dans le même sprint.
-- **La plus forte valeur perçue** : la liste d'achat multi-clients (85/100). C'est la
-  seule qui fait gagner de l'argent au chef chaque semaine. Elle justifie une offre
-  payante, sous réserve du mandat de débours (voir § 3.5).
+- **La plus forte valeur perçue** : la liste d'achat multi-clients (77/100). C'est la
+  seule qui fait gagner de l'argent au chef chaque semaine, sous réserve du mandat de
+  débours (voir § 3.5). Mais sa différenciation n'est que de 3/5 : Miamissimo génère
+  déjà une liste de courses par prestation, l'agrégation n'est qu'une étape plus loin.
+- **La plus différenciante** : l'optimisation des ingrédients (5/5). Aucun concurrent
+  ne la met en avant, et elle repose sur le référentiel d'ingrédients que Lab's Food a
+  déjà construit.
 - **À reporter** : le calculateur nutritionnel. Valeur réelle mais de niche, aucune donnée
   nutritionnelle hors `Meal.calories`, et un cadre réglementaire (Nutri-Score, allégations
   santé, données de santé) à sécuriser d'abord.
@@ -119,7 +130,7 @@ réchauffer, comment, et quel jour de la semaine**.
 **Axes** — T 4 (plus de « qu'est-ce qu'on mange ce soir ? ») · P 0 · D 3 (moins de plats
 jetés car oubliés) · R **5** (sécurité alimentaire : on ne mange plus un plat hors délai)
 
-**Valeur perçue 72/100** — utilisé tous les jours, vu par toute la famille, pas seulement
+**Valeur perçue 72/100 · différenciation 4/5** — utilisé tous les jours, vu par toute la famille, pas seulement
 par le payeur : c'est l'écran qui rend le service visible entre deux prestations.
 
 **Intégration 5/5 · Effort ~4 j** (front + au plus un endpoint de lecture).
@@ -187,8 +198,9 @@ déclaré par le client ou par défaut.
 
 **Axes** — T 3 (déjà en partie présent) · P 0 · D **5** (c'est le sujet) · R 1
 
-**Valeur perçue 55/100** — vue surtout au moment du réabonnement, mais c'est elle qui
-transforme « 220 € » en « 5,50 € la portion, X € économisés ». Différenciante : peu de
+**Valeur perçue 51/100 · différenciation 3/5** — vue surtout au moment du réabonnement,
+mais c'est elle qui transforme « 220 € » en « 5,50 € la portion, X € économisés ».
+Chef It Up affiche déjà ses prix après crédit d'impôt, mais pas d'économie cumulée. Peu de
 concurrents chiffrent le crédit d'impôt et le gaspillage évité ensemble.
 
 **Intégration 5/5 · Effort ~3 j.**
@@ -225,7 +237,8 @@ plats).
 **Axes (chef)** — T 4 (une mise en place commune, moins d'articles) · P 3 (moins de
 pertes, plus de prestations par jour) · D 4 (côté client via les courses) · R 2
 
-**Valeur perçue 67/100.**
+**Valeur perçue 71/100 · différenciation 5/5** — aucun concurrent trouvé ne propose
+d'aide à la conception de menus.
 
 **Intégration 3/5 · Effort ~8 j.** Le recouvrement est calculable dès aujourd'hui sur
 les lignes rattachées au référentiel. Il n'y a ni prix ni unité d'achat dans
@@ -272,7 +285,8 @@ féculents, variété des cuisines, kcal estimées), sans macros ni logo.
 
 **Axes** — T 1 · P 0 · D 1 · R 3 (santé sur le long terme)
 
-**Valeur perçue 39/100** — forte pour un segment (parents, sportifs, régimes médicaux),
+**Valeur perçue 39/100 · différenciation 3/5** (les kits repas affichent déjà des
+valeurs nutritionnelles par recette) — forte pour un segment (parents, sportifs, régimes médicaux),
 faible pour la majorité.
 
 **Intégration 2/5 · Effort ~20 j** (version complète).
@@ -323,8 +337,11 @@ répartition des montants.
 semaine sans plus de logistique) · D 3 (prix de gros, carburant) · R 3 (moins
 d'oublis, débours traçables)
 
-**Valeur perçue 85/100** — la plus haute. Utilisée chaque semaine et directement
-convertible en euros. Rien d'équivalent chez les plateformes généralistes.
+**Valeur perçue 77/100 · différenciation 3/5** — la plus haute. Utilisée chaque semaine
+et directement convertible en euros. L'agrégation multi-clients n'a été trouvée chez
+aucun concurrent, mais la liste par prestation est déjà un standard (Miamissimo, Chef
+It Up) : l'avance est réelle et courte. Ce qui la rend difficile à copier, c'est la
+répartition par client conforme au débours.
 
 **Intégration 4/5 · Effort ~7 j.** Le seul point dur technique : normaliser les unités
 (`quantity` reste une chaîne libre quand `qty`/`unit` sont vides).
@@ -332,8 +349,9 @@ convertible en euros. Rien d'équivalent chez les plateformes généralistes.
 **Consentement à payer : 10-20 €/mois.** Calcul : 3 clients par semaine, 2 trajets
 évités × 45 min ≈ 1,5 h/semaine ≈ 6 h/mois. Valorisé à 25 €/h, cela fait ≈ 150 €/mois
 de valeur. En capter 10 % donne ≈ 15 €/mois. À comparer à la commission actuelle de
-15 % (`PlatformSetting`, 1 500 points de base) : alternative possible, une commission
-réduite pour les chefs qui prennent l'offre Pro.
+15 % (`PlatformSetting`, 1 500 points de base). **Attention à Miamissimo**, qui
+annonce 0 % de commission et un abonnement de 11,90 à 24,90 €/mois : un abonnement Pro
+**en plus** de la commission serait difficile à vendre (§ 5.4).
 
 ---
 
@@ -365,7 +383,8 @@ accès, digicode, stationnement, matériel disponible.
 **Axes (chef)** — T 4 · P 1 · D 1 · R **4** (évite d'arriver sans code, sans plaques
 compatibles ou sans boîtes : prestation ratée, litige). Côté client : T 2 · R 3.
 
-**Valeur perçue 54/100** — fonctionnalité attendue, peu différenciante, mais elle évite
+**Valeur perçue 58/100 · différenciation 3/5** — aucun modèle de message trouvé chez les
+concurrents, mais c'est une fonction standard des messageries, copiable vite. Elle évite
 les incidents qui coûtent le plus cher en avis négatifs (`espace-chef/litiges`).
 
 **Intégration 5/5 · Effort ~4 j** (modèles seuls : ~2 j).
@@ -382,22 +401,114 @@ Même grille, notées plus sommairement.
 | Idée | Pour | T | P | D | R | Valeur | Intég. | Effort | Commentaire |
 |---|---|---|---|---|---|---|---|---|---|
 | **Tournées par quartier** : suggérer au chef des créneaux voisins (même ville, même jour) | Chef | 4 | 4 | 3 | 1 | ~64 | 4 | ~5 j | `Booking.addressCity` / `addressPostalCode` et l'agenda existent ; complète bien le § 3.5 |
-| **Estimation du budget courses avant la prestation** (fourchette de débours) | Client | 1 | 0 | 3 | 4 | ~44 | 3 | ~6 j | Rassure sur le débours au centime ; dépend des prix du référentiel (comme le § 3.3) |
-| **Photo-checklist de fin de prestation** (cuisine rangée, plats étiquetés) | Chef + client | 1 | 1 | 0 | 5 | ~41 | 5 | ~3 j | `BookingPhoto` existe ; preuve en cas de litige, rassure le client |
-| **Réservation récurrente** (« même formule toutes les 2 semaines, menus selon mes goûts ») | Client + chef | 4 | 4 | 1 | 2 | ~65 | 3 | ~10 j | `favorites` / `dislikes` du profil + `ChefShowcaseWeek` ; le plus fort levier de chiffre d'affaires récurrent |
+| **Estimation du budget courses avant la prestation** (fourchette de débours) | Client | 1 | 0 | 3 | 4 | ~40 | 3 | ~6 j | Rassure sur le débours au centime ; dépend des prix du référentiel (comme le § 3.3) |
+| **Photo-checklist de fin de prestation** (cuisine rangée, plats étiquetés) | Chef + client | 1 | 1 | 0 | 5 | ~45 | 5 | ~3 j | `BookingPhoto` existe ; preuve en cas de litige, rassure le client |
+| **Réservation récurrente** (« même formule toutes les 2 semaines, menus selon mes goûts ») | Client + chef | 4 | 4 | 1 | 2 | ~57 | 3 | ~10 j | `favorites` / `dislikes` du profil + `ChefShowcaseWeek` ; fort levier de revenu récurrent, mais Chef It Up vend déjà un abonnement mensuel : peu différenciant |
 
 ---
 
-## 5. Packaging conseillé
+## 5. Concurrence : ce qui nous différencie
+
+> Relevé le 05/11/2026 à partir des moteurs de recherche. Les sites des concurrents
+> n'ont pas pu être consultés directement (bloqués depuis l'environnement de travail) :
+> **tout est à vérifier sur pièce** avant de s'en servir en communication.
+> « Non trouvé » veut dire « rien de public trouvé », pas « absent ».
+
+### 5.1 Les concurrents retenus
+
+| Acteur | Face à qui | Modèle | Ce qui a été relevé | Poids |
+|---|---|---|---|---|
+| **Chef It Up** | **Client** (direct) | Opérateur intégré de batch cooking à domicile : une cheffe formée vient une fois par semaine et cuisine les dîners en 1 à 2 h | « La semaine chill », 5 dîners : 160 €/semaine, 80 € après crédit d'impôt. « Le mois chill » : 102,50 à 120 €/semaine selon la page. Option « Family plus » : +20 €/session. Le client fait les courses avec 4 listes par rayon par mois, ou prend l'option courses payante. Conseils de réchauffage avec le menu. Avance immédiate du crédit d'impôt. Île-de-France, Nantes, Bordeaux, Lille, Lyon, Marseille | 2 |
+| **Miamissimo** | **Chef** (direct) | Annuaire et outil en ligne pour cuisiniers à domicile, chefs privés et traiteurs | **0 % de commission**, abonnement de 11,90 à 24,90 €/mois (« Essentiel » à 24,90 € pour 6 à 10 prestations par mois). Menus composés avec le client, devis et liste de courses en un clic, messagerie, avis, agenda iCal | 2 |
+| Take a Chef | Client (indirect) | Place de marché de chefs privés, surtout pour des repas d'exception ; certains chefs y proposent du batch cooking | Fonctions non vérifiées | 1 |
+| Batch & Cook | Client (indirect) | Plateforme de chefs à domicile créée en 2025, France et Portugal | Met en avant le crédit d'impôt de 50 % ; fonctions non vérifiées | 1 |
+| Substituts | Client | Ce que le foyer fait à la place : kits repas, livraison de plats, applis de recettes avec panier drive | Connaissance générale du marché, à vérifier acteur par acteur | 1 |
+
+**Signal** : La Belle Assiette, pionnière des chefs à domicile réservables en ligne
+(2012), a arrêté ce service en 2025. Une place de marché qui ne vit que de la commission
+est fragile : les outils doivent justifier la commission.
+
+### 5.2 Méthode
+
+Pour chaque idée et chaque acteur : **Présent** = 2, **Partiel** = 1, **Non trouvé** = 0.
+**Inconnu** et **Non applicable** sont exclus du calcul.
+
+```
+Couverture         = Σ (poids × statut) / Σ (poids × 2)      sur les acteurs renseignés
+Écart concurrentiel = arrondi(5 × (1 − couverture))            0 à 5
+Défendabilité       = difficulté à copier l'idée                0 à 5
+                      (données propres à Lab's Food, effet réseau, contrainte réglementaire maîtrisée)
+Différenciation     = arrondi((Écart + Défendabilité) / 2)     0 à 5, reportée dans 08-idees.csv
+```
+
+Pourquoi deux sous-notes : une idée que personne n'a mais que n'importe qui copie en une
+semaine n'est pas une différenciation durable. Les deux plus gros concurrents directs
+comptent double.
+
+### 5.3 Matrice
+
+Le détail (ce qui a été trouvé chez chaque acteur, pourquoi telle défendabilité) est
+dans `pilotage/09-concurrence.csv`.
+
+| Idée | Chef It Up | Miamissimo | Take a Chef | Batch & Cook | Substituts | Couverture | Écart | Défend. | **Diff.** | Angle de différenciation |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IDEE-01 Compteur d'économies | Partiel | Non trouvé | Inconnu | Partiel | Non trouvé | 25% | 4 | 2 | **3** | Seul à chiffrer l'économie réelle (crédit d'impôt + gaspillage évité), avec les sources affichées |
+| IDEE-02 Planificateur familial | Partiel | Non trouvé | Inconnu | Inconnu | Non trouvé | 20% | 4 | 3 | **4** | Du « comment réchauffer » au « quoi manger quel jour », avec les dates limites |
+| IDEE-03 Messages prédéfinis | Non trouvé | Partiel | Inconnu | Inconnu | Non applicable | 25% | 4 | 1 | **3** | La checklist logistique structurée, mémorisée dans le profil, plus que les modèles |
+| IDEE-04 Liste multi-clients | Partiel | Partiel | Inconnu | Inconnu | Partiel | 50% | 3 | 3 | **3** | Seul outil multi-clients avec répartition par client compatible débours |
+| IDEE-05 Optimisation ingrédients | Non trouvé | Non trouvé | Inconnu | Inconnu | Inconnu | 0% | 5 | 4 | **5** | Aide à la conception de menus : aucun concurrent direct ne la met en avant |
+| IDEE-06 Impact nutritionnel | Non trouvé | Non trouvé | Inconnu | Inconnu | Présent | 20% | 4 | 2 | **3** | Bilan sur ce que le foyer a vraiment mangé, pas par recette isolée |
+| IDEE-07 Tournées par quartier | Inconnu | Non trouvé | Inconnu | Inconnu | Non applicable | 0% | 5 | 3 | **4** | Plus de prestations par jour pour le chef indépendant |
+| IDEE-08 Budget courses | Partiel | Partiel | Inconnu | Inconnu | Présent | 60% | 2 | 2 | **2** | Fourchette liée au débours au centime, pas un forfait |
+| IDEE-09 Photo-checklist | Non trouvé | Non trouvé | Inconnu | Inconnu | Non applicable | 0% | 5 | 1 | **3** | Preuve de fin de prestation en cas de litige |
+| IDEE-10 Réservation récurrente | Présent | Partiel | Inconnu | Inconnu | Présent | 80% | 1 | 2 | **2** | Menus proposés d'après les goûts du profil, pas une simple récurrence |
+
+### 5.4 Ce que ça change
+
+1. **Les notes de différenciation bougent**, et le classement avec elles. L'optimisation
+   des ingrédients monte à 5/5. La liste multi-clients descend de 5 à 3, le ROI de 4 à 3
+   et la réservation récurrente de 4 à 2. Le planificateur repasse devant le ROI, et la
+   photo-checklist (bon marché, absente partout) remonte à la 3e place sur les 10 idées.
+2. **Côté chef, le concurrent qui compte est Miamissimo, pas Chef It Up.** Il offre 0 %
+   de commission et, pour 11,90 à 24,90 €/mois, des outils proches des nôtres : liste de
+   courses, devis, messagerie, iCal. Lab's Food prélève 15 %. Nos outils chef doivent
+   donc **justifier la commission**, pas s'y ajouter : offre Pro sous forme de commission
+   dégressive, pas d'abonnement en plus. Ce que Miamissimo ne fait pas, d'après ce qui a
+   été trouvé : apporter les clients, encaisser, gérer le débours et l'avance immédiate
+   (le schéma a déjà `UrssafLink` et le moyen de paiement `avance_immediate`).
+3. **Côté client, le concurrent qui compte est Chef It Up.** Les prix sont comparables :
+   80 € net la semaine de 5 dîners chez lui, 75 à 160 € net pour nos formules (prix de la
+   maquette). Il a déjà les conseils de réchauffage et l'abonnement mensuel : ce sont des
+   **prérequis**, pas des avantages. Notre différence doit venir du choix du chef, des
+   recettes personnalisées avec allergènes vérifiés, du planificateur jour par jour avec
+   les dates limites, et du ROI sourcé.
+4. **Ne jamais nommer un concurrent dans l'interface.** Le compteur d'économies se compare
+   aux plats à emporter et au gaspillage, pas à Chef It Up. La publicité comparative est
+   très encadrée (Code de la consommation).
+5. **Refaire le relevé chaque trimestre** (colonne `MAJ` de `09-concurrence.csv`), et
+   compléter Take a Chef et Batch & Cook, aujourd'hui « Inconnu ».
+
+**Sources** :
+[chefitup.fr](https://chefitup.fr/) ·
+[chefitup.fr/tarifs](https://chefitup.fr/tarifs) ·
+[Big City Nantes](https://www.bigcitynantes.fr/actu/nantes-on-a-teste-pour-toi-le-premier-service-de-batch-cooking-a-domicile/) ·
+[miamissimo.app](https://miamissimo.app/) ·
+[annuaire Miamissimo](https://miamissimo.app/annuaire) ·
+[Batch & Cook](https://batch-and-cook.com/a-propos) ·
+[La Belle Assiette (Wikipedia)](https://en.wikipedia.org/wiki/La_Belle_Assiette)
+
+---
+
+## 6. Packaging conseillé
 
 | Offre | Contenu | Prix (hypothèse) | Rôle |
 |---|---|---|---|
 | **Client – socle** | ROI, planificateur, checklist logistique | inclus | Conversion et rétention |
 | **Client – Foyer+** | Nutrition, réservation récurrente prioritaire | 3-6 €/mois ou intégré à la formule à 320 € | Montée en gamme |
 | **Chef – socle** | Messages prédéfinis, photo-checklist | inclus | Moins d'incidents |
-| **Chef – Pro** | Liste multi-clients, optimisation ingrédients, tournées par quartier, modèles illimités | 14,90 €/mois, ou commission réduite | Nouveau revenu, fidélise les meilleurs chefs |
+| **Chef – Pro** | Liste multi-clients, optimisation ingrédients, tournées par quartier, modèles illimités | **commission réduite** (ex. 15 % → 12 % au-delà de N prestations par mois) plutôt qu'un abonnement en plus | Fidélise les meilleurs chefs face à Miamissimo (0 % de commission) |
 
-## 6. Avant de lancer
+## 7. Avant de lancer
 
 1. **Tester les prix avant de développer le Lot C** : quelques entretiens chefs avec une
    maquette de la liste multi-clients et la question des 4 prix (Van Westendorp).

@@ -20,6 +20,7 @@ l'inverse.
 | `05-equipe.csv` | Equipe | qui fait quoi |
 | `06-referentiels.csv` | Referentiels | les listes des menus déroulants |
 | `08-idees.csv` | *(hors classeur)* | 1 ligne = 1 idée produit **non engagée**, notée (voir [`../IDEES-PRODUIT-valeur-percue.md`](../IDEES-PRODUIT-valeur-percue.md)) |
+| `09-concurrence.csv` | *(hors classeur)* | 1 ligne = 1 idée face aux concurrents (Chef It Up, Miamissimo, …) ; sa colonne `Différenciation /5` alimente `08-idees.csv` |
 | *(calculé)* | Tableau de bord | compteurs, retards, charge par personne |
 
 Le grain du backlog est ce qui fait tout le reste : « lister les plats » donne
