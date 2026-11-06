@@ -201,10 +201,10 @@ function Palette({
   return (
     <Dialog.Root open={open} onOpenChange={(v) => (v ? null : onClose())}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
         <Dialog.Content
           onKeyDown={onKeyDown}
-          className="fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl bg-paper shadow-[0_30px_80px_-20px_rgba(31,42,55,0.45)] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95"
+          className="fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl bg-paper shadow-[0_30px_80px_-20px_rgba(31,42,55,0.45)] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:[animation-duration:120ms]"
         >
           <Dialog.Title className="sr-only">Rechercher</Dialog.Title>
 
