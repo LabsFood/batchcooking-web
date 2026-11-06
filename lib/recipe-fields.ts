@@ -1,9 +1,10 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    Le vocabulaire d'une recette, côté batch cooker.
 
-   Les unités et les rayons viennent de `lib/chef/recipes.ts`, qui s'en sert
-   déjà pour bâtir la liste de courses : deux listes finiraient par diverger,
-   et un rayon écrit différemment casse le regroupement.
+   Les unités et les rayons sont définis ici, et `lib/chef/recipes.ts` s'en
+   sert pour bâtir la liste de courses : deux listes finiraient par diverger,
+   et un rayon écrit différemment casse le regroupement. Les listes en vigueur
+   viennent de l'API (`useUnits`, `useAisles`) ; celles d'ici sont le repli.
 
    La console admin tient le même vocabulaire, aux mêmes valeurs
    (`admin-labsfood/lib/recipe-fields.ts`). C'est nécessaire : adopter un plat
@@ -18,36 +19,85 @@
 
 import type { Ingredient, Recipe, Step } from '@/lib/api/chef-catalog'
 
-export { UNITS } from '@/lib/chef/recipes'
+/* ── Les unités (§4.12) ────────────────────────────────────────────────────── */
+
+export interface UnitItem {
+  code: string
+  /** Pour une unité. */
+  label: string
+  /** À partir de deux. */
+  plural: string
+}
+
+const unit = (code: string, label: string, plural = label): UnitItem => ({ code, label, plural })
+
+/**
+ * Les 14 unités d'une ligne, telles que l'API les sert (`GET /referentials/units`).
+ * Cette liste est le repli quand l'API ne répond pas, et la source des types.
+ */
+export const UNITS: UnitItem[] = [
+  unit('g', 'g'),
+  unit('kg', 'kg'),
+  unit('ml', 'ml'),
+  unit('cl', 'cl'),
+  unit('l', 'l'),
+  unit('tsp', 'c. à café'),
+  unit('tbsp', 'c. à soupe'),
+  unit('piece', 'pièce', 'pièces'),
+  unit('clove', 'gousse', 'gousses'),
+  unit('bunch', 'botte', 'bottes'),
+  unit('slice', 'tranche', 'tranches'),
+  unit('leaf', 'feuille', 'feuilles'),
+  unit('pinch', 'pincée', 'pincées'),
+  unit('to_taste', 'selon le goût'),
+]
+
+export const UNIT_CODES = UNITS.map((u) => u.code)
+
+/** « selon le goût » : pas de quantité, pas de nombre à l'écran. */
+export const TO_TASTE = 'to_taste'
 
 /**
  * Les rayons, par identifiant.
  *
- * Ce ne sont pas des libellés : `GET /chef-missions/{id}/shopping-list` groupe
- * la liste de courses **par la chaîne stockée**, et les exemples de l'API
- * utilisent `boucherie`, `fruits-legumes`. Écrire « Boucherie » d'un côté et
- * `boucherie` de l'autre, c'est se retrouver avec deux rayons pour la même
- * allée de magasin. Il n'y a pas de référentiel côté API : ces valeurs sont
- * notre convention, alignée sur ce que le backend écrit déjà.
+ * Ce ne sont pas des libellés : la liste de courses groupe **par la chaîne
+ * stockée**. La liste en vigueur vient de `GET /referentials/aisles` (hook
+ * `useAisles`), dans l'ordre d'un parcours en magasin, et un admin peut la
+ * modifier. Celle-ci est le repli : les 13 rayons par défaut de l'API.
  */
 export const AISLE_LABEL: Record<string, string> = {
-  'fruits-legumes': 'Fruits et légumes',
-  boucherie: 'Boucherie',
-  poissonnerie: 'Poissonnerie',
-  cremerie: 'Crèmerie',
-  'epicerie-salee': 'Épicerie salée',
-  'epicerie-sucree': 'Épicerie sucrée',
+  'fruits-legumes': 'Fruits et légumes (y compris herbes fraîches)',
   boulangerie: 'Boulangerie',
-  surgeles: 'Surgelés',
+  boucherie: 'Boucherie et volaille',
+  poissonnerie: 'Poissonnerie',
+  cremerie: 'Crèmerie et œufs',
+  fromages: 'Fromages',
+  'epicerie-salee': 'Épicerie salée (pâtes, riz, légumineuses, sauces)',
+  conserves: 'Conserves et bocaux',
+  epices: 'Épices, herbes sèches et condiments',
+  'epicerie-sucree': 'Épicerie sucrée',
   boissons: 'Boissons',
+  'non-alimentaire': 'Non alimentaire (boîtes, papier cuisson…)',
+  surgeles: 'Surgelés',
 }
 
 /** Dans l'ordre d'un parcours en magasin. */
 export const AISLES = Object.keys(AISLE_LABEL)
 
-/** Le libellé d'un rayon, ou la valeur telle quelle si elle nous est inconnue. */
-export const aisleLabel = (code?: string | null) =>
-  code ? (AISLE_LABEL[code] ?? code) : null
+/** Le repli de `useAisles`. */
+export const AISLE_ITEMS: { code: string; label: string }[] = AISLES.map((code) => ({
+  code,
+  label: AISLE_LABEL[code],
+}))
+
+/**
+ * Le libellé d'un rayon, ou la valeur telle quelle si elle nous est inconnue.
+ * Avec la liste de l'API (`useAisles`), c'est elle qui fait foi.
+ */
+export const aisleLabel = (
+  code?: string | null,
+  list: { code: string; label: string }[] = AISLE_ITEMS,
+) => (code ? (list.find((a) => a.code === code)?.label ?? AISLE_LABEL[code] ?? code) : null)
 
 export const REHEAT_MODES: { code: string; label: string }[] = [
   { code: 'oven', label: 'Four' },
@@ -122,12 +172,25 @@ export function storageLine(s?: Recipe['storage']): string | null {
 export interface IngredientRow {
   name: string
   qty: string
+  /** Un code d'unité ; vide tant qu'on n'a pas choisi (et sur une ligne à vérifier). */
   unit: string
   aisle: string
   link: string
   toVerify: boolean
   fixedQuantity: boolean
   catalogIngredientId: string | null
+  /** « Si utilisé » : ses allergènes ne comptent que sous condition. */
+  optional: boolean
+  /** Précision d'achat : « bio », « fermier ». */
+  precision: string
+  /** Façon de préparer : « émincé », « en dés ». */
+  preparation: string
+  /** Un regroupement dans la fiche : « Pour la sauce ». */
+  group: string
+  /** Masquée au client (l'huile, le sel) : la ligne reste dans la liste de courses. */
+  hiddenFromClient: boolean
+  /** Le texte d'origine d'une ligne à vérifier, tel que le batch cooker l'avait écrit. */
+  rawText: string
 }
 
 /** La ligne telle qu'elle existe déjà sur un plat, prête à être éditée. */
@@ -141,6 +204,12 @@ export function toRow(i: Ingredient): IngredientRow {
     toVerify: i.toVerify ?? false,
     fixedQuantity: i.fixedQuantity ?? false,
     catalogIngredientId: i.catalogIngredientId ?? null,
+    optional: i.optional ?? false,
+    precision: i.precision ?? '',
+    preparation: i.preparation ?? '',
+    group: i.group ?? '',
+    hiddenFromClient: i.hiddenFromClient ?? false,
+    rawText: i.rawText ?? '',
   }
 }
 
@@ -152,37 +221,71 @@ export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle'> = {
   toVerify: false,
   fixedQuantity: false,
   catalogIngredientId: null,
+  optional: false,
+  precision: '',
+  preparation: '',
+  group: '',
+  hiddenFromClient: false,
+  rawText: '',
 }
 
 /** Une adresse que l'API acceptera : `http` ou `https`, rien d'autre. */
 export const linkValid = (link: string) => !link.trim() || /^https?:\/\/\S+$/i.test(link.trim())
 
-/** Les quatre champs tenus : c'est ce que l'API exige d'une ligne. */
+/** La quantité de l'API : jusqu'à 100 000, au-dessus de zéro. */
+export const QTY_MAX = 100_000
+
+/** Une quantité saisie qui est un vrai nombre, dans les bornes de l'API. */
+export function qtyValid(qty: string): boolean {
+  if (!qty.trim()) return false
+  const n = Number(qty.replace(',', '.'))
+  return Number.isFinite(n) && n > 0 && n <= QTY_MAX
+}
+
+/**
+ * Ce que l'API exige d'une ligne : un nom ; pour « selon le goût », rien de
+ * plus ; sinon une quantité et une unité. Une ligne « à vérifier » peut les
+ * laisser vides : c'est ce que le batch cooker verra à compléter.
+ */
 export function ingredientReady(i: IngredientRow): boolean {
-  return Boolean(
-    i.name.trim() &&
-      i.qty.trim() &&
-      Number.isFinite(Number(i.qty)) &&
-      i.unit.trim() &&
-      i.aisle.trim(),
-  )
+  if (!i.name.trim()) return false
+  if (i.toVerify) return i.qty.trim() === '' || qtyValid(i.qty)
+  if (i.unit === TO_TASTE) return true
+  return qtyValid(i.qty) && UNIT_CODES.includes(i.unit)
 }
 
 /** Vrai dès qu'une ligne a été commencée : une ligne vierge n'est pas un oubli. */
 export const ingredientStarted = (i: IngredientRow): boolean =>
   Boolean(i.name.trim() || i.qty.trim() || i.unit || i.aisle)
 
+const orNull = (v: string) => (v.trim() ? v.trim() : null)
+
+/**
+ * Les lignes prêtes, au format d'écriture de l'API. Les nombres et les
+ * booléens sont de vrais types JSON : l'API refuse `"3"` comme `"false"`.
+ * `qty` vaut `null` pour « selon le goût », et sur une ligne à vérifier sans
+ * quantité.
+ */
 export function cleanIngredients(list: IngredientRow[]): Ingredient[] {
-  return list.filter(ingredientReady).map((i) => ({
-    name: i.name.trim(),
-    qty: Number(i.qty),
-    unit: i.unit.trim(),
-    aisle: i.aisle.trim(),
-    link: linkValid(i.link) && i.link.trim() ? i.link.trim() : null,
-    toVerify: i.toVerify,
-    fixedQuantity: i.fixedQuantity,
-    catalogIngredientId: i.catalogIngredientId,
-  }))
+  return list.filter(ingredientReady).map((i) => {
+    const toTaste = i.unit === TO_TASTE
+    return {
+      name: i.name.trim(),
+      qty: toTaste || !i.qty.trim() ? null : Number(i.qty.replace(',', '.')),
+      unit: i.unit.trim() || null,
+      ...(i.aisle.trim() ? { aisle: i.aisle.trim() } : {}),
+      link: linkValid(i.link) ? orNull(i.link) : null,
+      toVerify: i.toVerify,
+      fixedQuantity: i.fixedQuantity,
+      optional: i.optional,
+      hiddenFromClient: i.hiddenFromClient,
+      catalogIngredientId: i.catalogIngredientId,
+      precision: orNull(i.precision),
+      preparation: orNull(i.preparation),
+      group: orNull(i.group),
+      rawText: orNull(i.rawText),
+    }
+  })
 }
 
 /* ── Saisons (§4.8) ────────────────────────────────────────────────────────── */
@@ -256,21 +359,93 @@ export function cleanReheating(r: {
 
 /* ── Adapter les quantités (§4.12) ─────────────────────────────────────────── */
 
-/** Les unités qui se comptent en pièces : arrondies à l'unité supérieure. */
-const PIECES = new Set(['', 'pièce', 'pièces', 'piece', 'pc', 'u'])
-
 /**
  * Une quantité pour `to` portions, d'une recette écrite pour `from`. Les
  * quantités fixes ne bougent pas ; rien n'est arrondi avant l'affichage.
+ * `null` : une ligne sans quantité (« selon le goût », ou à vérifier).
  */
-export function scaledQty(i: Ingredient, from: number, to: number): number {
+export function scaledQty(i: Ingredient, from: number, to: number): number | null {
+  if (i.qty == null) return null
   return i.fixedQuantity ? i.qty : (i.qty * to) / (from || 1)
 }
 
-/** L'affichage, seul endroit où l'on arrondit : pièces au-dessus, sinon deux décimales. */
-export function displayQty(qty: number, unit: string): string {
-  const n = PIECES.has(unit.trim().toLowerCase()) ? Math.ceil(qty - 1e-9) : qty
-  return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
+/** Les unités qui se comptent entières : toujours l'unité au-dessus. */
+const WHOLE = new Set(['piece', 'clove', 'bunch', 'slice', 'leaf', 'pinch'])
+
+/** EPSILON pour que 1,005 donne 1,01 et non 1. */
+const roundTo = (qty: number, step: number) => Math.round((qty + Number.EPSILON) / step) * step
+
+const decimals = (qty: number, places: number) => {
+  const factor = 10 ** places
+  return Math.round((qty + Number.EPSILON) * factor) / factor
+}
+
+/**
+ * L'arrondi d'affichage, seul endroit où l'on arrondit : la table de l'API
+ * (`roundForDisplay`, dans `dishes/domain/units.rules.ts`), à l'identique.
+ *
+ * Les valeurs de son test, à garder vraies (le front n'a pas de lanceur de tests) :
+ *   piece 2.1 -> 3        clove 0.4 -> 1
+ *   g 7.46 -> 7.5         g 46.4 -> 46        g 132.4 -> 130      g 133 -> 135
+ *   ml 99.5 -> 100        kg 1.255 -> 1.26
+ *   tsp 0.2 -> 0.5        tsp 1.3 -> 1.5      tbsp 1.2 -> 1
+ *   gousse (unité inconnue) 1.234 -> 1.23
+ * et pour `displayQuantity` :
+ *   (1.5, 'kg') -> '1,5 kg'             (2, 'clove') -> '2 gousses'
+ *   (1, 'clove') -> '1 gousse'          (null, 'to_taste') -> 'selon le goût'
+ *   (1.234, 'gousse') -> '1,23 gousse'  (0.5, 'tbsp') -> '0,5 c. à soupe'
+ */
+export function roundForDisplay(qty: number, unitCode: string): number {
+  if (WHOLE.has(unitCode)) return Math.ceil(qty - 1e-9)
+  switch (unitCode) {
+    case 'g':
+    case 'ml':
+      if (qty < 10) return decimals(qty, 1)
+      if (qty <= 100) return Math.round(qty)
+      return roundTo(qty, 5)
+    case 'kg':
+    case 'l':
+    case 'cl':
+      return decimals(qty, 2)
+    case 'tsp':
+    case 'tbsp':
+      return Math.max(0.5, roundTo(qty, 0.5))
+    case 'to_taste':
+      return 0
+    default:
+      return decimals(qty, 2)
+  }
+}
+
+/**
+ * Le nombre affiché, à la française (virgule), ou `''` quand il n'y en a pas :
+ * « selon le goût » ne porte aucun nombre. L'unité s'affiche à part, avec
+ * `unitLabel`.
+ */
+export function displayQty(qty: number | null, unit: string | null): string {
+  if (qty === null || unit === TO_TASTE) return ''
+  return String(roundForDisplay(qty, unit ?? '')).replace('.', ',')
+}
+
+/** Le libellé d'une unité, au pluriel dès 2 une fois arrondi ; le code s'il est inconnu. */
+export function unitLabel(code: string | null, qty: number | null, list: UnitItem[] = UNITS): string {
+  if (!code) return ''
+  const known = list.find((u) => u.code === code)
+  if (!known) return code
+  return qty !== null && roundForDisplay(qty, code) >= 2 ? known.plural : known.label
+}
+
+/** « 1,5 kg », « 2 gousses », « selon le goût » : la quantité entière, comme l'API l'écrit. */
+export function displayQuantity(
+  qty: number | null,
+  unit: string | null,
+  list: UnitItem[] = UNITS,
+): string {
+  if (unit === TO_TASTE) return list.find((u) => u.code === TO_TASTE)?.label ?? 'selon le goût'
+  if (qty === null) return list.find((u) => u.code === unit)?.label ?? unit ?? ''
+  const label = unitLabel(unit, qty, list)
+  const number = displayQty(qty, unit)
+  return label ? `${number} ${label}` : number
 }
 
 export function cleanStorage(s: {

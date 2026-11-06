@@ -48,7 +48,7 @@ import {
   cleanReheating,
   cleanSteps,
   cleanStorage,
-  displayQty,
+  displayQuantity,
   ingredientReady,
   ingredientStarted,
   aisleLabel,
@@ -1163,7 +1163,7 @@ function PortionsPreview({ ingredients, base }: { ingredients: Ingredient[]; bas
               >
                 <span className="text-navy">{i.name}</span>
                 <span className="shrink-0 tabular-nums text-ink-mid">
-                  {displayQty(scaledQty(i, base, n), i.unit)} {i.unit}
+                  {displayQuantity(scaledQty(i, base, n), i.unit)}
                   {i.fixedQuantity && <span className="ml-1.5 text-ink-soft">(fixe)</span>}
                 </span>
               </li>
@@ -1357,8 +1357,8 @@ function IngredientRows({
                 >
                   <option value="">Unité</option>
                   {UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
+                    <option key={u.code} value={u.code}>
+                      {u.label}
                     </option>
                   ))}
                 </select>

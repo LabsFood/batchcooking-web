@@ -35,18 +35,20 @@ import { atTime, dayKey, durationLabel } from '@/lib/time'
 import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
-  AISLES,
+  displayQuantity,
   REHEAT_MODES,
-  UNITS,
+  TO_TASTE,
   reheatingLine,
   storageLine,
 } from '@/lib/recipe-fields'
 import {
   refLabel,
+  useAisles,
   useAllergens,
   useDiets,
   useReheatModes,
   useStepTypes,
+  useUnits,
 } from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 import {
@@ -1229,6 +1231,8 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
   const query = useMissionShoppingList(missionId)
   const save = useSaveMissionShoppingList()
   const reset = useResetMissionShoppingList()
+  const units = useUnits()
+  const aisles = useAisles()
 
   type Row = MissionLine & { aisle: string }
   const [brouillon, setBrouillon] = useState<Row[] | null>(null)
@@ -1301,25 +1305,37 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 aria-label={`Ingrédient ${i + 1}`}
                 className="input-base min-w-32 flex-1 py-2"
               />
-              <input
-                type="number"
-                step="any"
-                min={0}
-                value={Number.isFinite(l.qty) ? l.qty : ''}
-                onChange={(e) => changer(i, { qty: Number(e.target.value) })}
-                aria-label={`Quantité de ${l.name || 'la ligne'}`}
-                className="input-base w-20 shrink-0 py-2"
-              />
+              {l.unit === TO_TASTE ? (
+                <span className="w-20 shrink-0 px-1 text-[11px] leading-tight text-ink-soft">
+                  sans quantité
+                </span>
+              ) : (
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  value={Number.isFinite(l.qty) ? l.qty : ''}
+                  onChange={(e) => changer(i, { qty: Number(e.target.value) })}
+                  aria-label={`Quantité de ${l.name || 'la ligne'}`}
+                  className="input-base w-20 shrink-0 py-2"
+                />
+              )}
               <select
                 value={l.unit}
-                onChange={(e) => changer(i, { unit: e.target.value })}
+                onChange={(e) =>
+                  changer(i, {
+                    unit: e.target.value,
+                    // « selon le goût » n'a pas de nombre : l'API le lit comme zéro.
+                    ...(e.target.value === TO_TASTE ? { qty: 0 } : {}),
+                  })
+                }
                 aria-label={`Unité de ${l.name || 'la ligne'}`}
                 className="input-base w-24 shrink-0 py-2"
               >
                 <option value="">Unité</option>
-                {UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                {units.map((u) => (
+                  <option key={u.code} value={u.code}>
+                    {u.label}
                   </option>
                 ))}
               </select>
@@ -1330,9 +1346,9 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 className="input-base w-36 shrink-0 py-2"
               >
                 <option value="">Rayon</option>
-                {AISLES.map((a) => (
-                  <option key={a} value={a}>
-                    {aisleLabel(a)}
+                {aisles.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.label}
                   </option>
                 ))}
               </select>
@@ -1357,7 +1373,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
       <button
         type="button"
         onClick={() =>
-          setBrouillon([...lignes, { name: '', qty: 1, unit: 'g', aisle: AISLES[0] }])
+          setBrouillon([...lignes, { name: '', qty: 1, unit: 'g', aisle: aisles[0]?.code ?? '' }])
         }
         className="btn btn-outline mt-3 text-xs"
       >
@@ -1592,7 +1608,7 @@ function RecipeSheetDialog({
                       >
                         <span className="text-navy">{ing.name}</span>
                         <span className="shrink-0 tabular-nums text-ink-mid">
-                          {ing.qty.toLocaleString('fr-FR')} {ing.unit}
+                          {displayQuantity(ing.qty, ing.unit)}
                           {ing.aisle && (
                             <span className="ml-2 text-ink-soft">{aisleLabel(ing.aisle)}</span>
                           )}

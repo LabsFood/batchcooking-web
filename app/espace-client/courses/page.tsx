@@ -26,7 +26,7 @@ import {
   type ShoppingMark,
 } from '@/lib/api/bookings'
 import { ApiError } from '@/lib/api/client'
-import { aisleLabel } from '@/lib/recipe-fields'
+import { aisleLabel, displayQuantity } from '@/lib/recipe-fields'
 import { reasonText } from '@/lib/reason-codes'
 import { STORES } from '@/lib/client/mock'
 import { Hint } from '@/components/shared/Hint'
@@ -619,8 +619,8 @@ function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
 /** L'API ne numérote pas les lignes : le rayon, le nom et le rang suffisent. */
 const clef = (aisle: string, l: MissionLine, i: number) => `${aisle}:${l.name}:${i}`
 
-/** « 400 g », « 2 pièces » — l'unité telle que la recette l'a écrite. */
-const quantite = (l: MissionLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ''}`
+/** « 400 g », « 2 gousses », « selon le goût » — sans nombre pour une ligne au goût. */
+const quantite = (l: MissionLine) => displayQuantity(l.qty, l.unit)
 
 function sessionLabel(b: Booking): string {
   if (!b.startsAt) return bookingStatusText(b.status)

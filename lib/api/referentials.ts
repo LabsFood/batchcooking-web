@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { AISLE_ITEMS, UNITS, type UnitItem } from '@/lib/recipe-fields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Référentiels de l'API — publics, sans jeton.
@@ -21,13 +22,16 @@ export interface RefItem {
   label: string
 }
 
-async function fetchRef<K extends string>(path: string, key: K): Promise<RefItem[]> {
+async function fetchRef<K extends string, T extends RefItem = RefItem>(
+  path: string,
+  key: K,
+): Promise<T[]> {
   if (!API_URL) throw new Error("L'API n'est pas configurée.")
   const res = await fetch(`${API_URL}/referentials/${path}`, {
     headers: { Accept: 'application/json' },
   })
   if (!res.ok) throw new Error(`Référentiel ${path} indisponible (${res.status}).`)
-  const body = (await res.json()) as Record<K, RefItem[]>
+  const body = (await res.json()) as Record<K, T[]>
   return body[key] ?? []
 }
 
@@ -177,3 +181,29 @@ export const DECLARED_DIETS: RefItem[] = [
   { code: 'halal', label: 'Halal' },
   { code: 'kosher', label: 'Casher' },
 ]
+
+/**
+ * §4.12 : les 14 unités d'une ligne, avec leur pluriel. Le repli est la liste
+ * figée de `lib/recipe-fields.ts` : une ligne ne se saisit pas sans unités.
+ */
+export function useUnits(): UnitItem[] {
+  const q = useQuery({
+    queryKey: ['referentials', 'units'],
+    queryFn: () => fetchRef<'units', UnitItem>('units', 'units'),
+    staleTime: HOUR,
+  })
+  return q.data?.length ? q.data : UNITS
+}
+
+/**
+ * §5.4 : les rayons en vigueur, dans l'ordre d'un parcours en magasin. Un admin
+ * peut les changer : de l'ordre d'une heure de fraîcheur, pas plus.
+ */
+export function useAisles(): RefItem[] {
+  const q = useQuery({
+    queryKey: ['referentials', 'aisles'],
+    queryFn: () => fetchRef('aisles', 'aisles'),
+    staleTime: 5 * 60 * 1000,
+  })
+  return q.data?.length ? q.data : AISLE_ITEMS
+}

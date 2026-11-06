@@ -33,10 +33,18 @@ export type DishStatus = 'draft' | 'published' | 'suspended' | 'archived'
 export type MenuStatus = DishStatus
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+/**
+ * Une ligne de recette (§5.2). En écriture, seuls `name`, `qty` et `unit`
+ * comptent ; `allergens` et `incomplete` sont écrits par l'API et ignorés au
+ * retour d'un envoi.
+ */
 export interface Ingredient {
   name: string
-  qty: number
-  unit: string
+  /** > 0 ; `null` avec `to_taste`, ou sur une ligne à vérifier. */
+  qty: number | null
+  /** L'un des 14 codes (`GET /referentials/units`) ; `null` seulement sur une ligne à vérifier. */
+  unit: string | null
+  /** Facultatif : l'API le remplace pour une ligne reliée à la liste commune. */
   aisle?: string
   /** Où l'acheter, ou ce que c'est : une adresse `http(s)`. */
   link?: string | null
@@ -44,11 +52,27 @@ export interface Ingredient {
   toVerify?: boolean
   /** La même quantité quel que soit le nombre de portions (§4.12). */
   fixedQuantity?: boolean
+  /** Facultative (« si utilisé ») : ses allergènes ne comptent que sous condition. */
+  optional?: boolean
+  /** Masquée au client ; elle reste dans la liste de courses. */
+  hiddenFromClient?: boolean
   /** L'entrée de la liste commune (§4.10) : régimes et saisons s'en calculent. */
   catalogIngredientId?: string | null
+  /** Précision d'achat : « bio » (60 caractères au plus). */
+  precision?: string | null
+  /** Préparation : « émincé » (120). */
+  preparation?: string | null
+  /** Regroupement dans la fiche : « Pour la sauce » (60). */
+  group?: string | null
+  /** Le texte d'origine d'une ligne à vérifier (200). */
+  rawText?: string | null
+  /** Lecture seule : les allergènes que la ligne apporte, d'après l'ingrédient relié. */
+  allergens?: string[]
+  /** Lecture seule : l'ingrédient relié n'a pas encore ses allergènes. */
+  incomplete?: boolean
 }
 
-/** Une entrée de la liste commune d'ingrédients (§4.10). */
+/** Une entrée de la liste commune d'ingrédients (§4.10), ou l'ingrédient en attente d'un chef. */
 export interface CatalogIngredient {
   id: string
   name: string
@@ -56,6 +80,17 @@ export interface CatalogIngredient {
   diets: string[]
   /** Mois 1 à 12 ; vide : pas de saison. */
   seasonMonths: number[]
+  /** Le rayon, un code de `GET /referentials/aisles`. */
+  aisle: string | null
+  allergens: string[]
+  /** « Vérifié : aucun allergène ». */
+  allergensNone: boolean
+  /** Un basique (sel, huile…) : il ne demande pas de précision. */
+  isBasic: boolean
+  /** `active` pour la liste commune ; `pending` pour un ingrédient de chef pas encore validé. */
+  status: string
+  /** Vrai pour un ingrédient en attente créé par ce chef : lui seul le retrouve. */
+  private: boolean
 }
 
 /** Une étape (§4.5) : sans type, la fiche n'est pas « Prête ». */
@@ -116,10 +151,25 @@ export interface Dish {
   difficulty: Difficulty | null
   diets: string[]
   customDiets: string[]
+  /**
+   * Calculés par l'API d'après les lignes reliées, y compris celles des lignes
+   * facultatives, plus ceux que vous avez ajoutés.
+   */
   allergens: string[]
+  /** Ceux qui ne viennent que de lignes facultatives : « si utilisé ». */
+  conditionalAllergens: string[]
+  /** Ceux que vous ajoutez à la main, en plus du calcul. */
+  addedAllergens: string[]
+  /** Pour chaque allergène, les ingrédients qui l'apportent. */
+  allergenSources: Record<string, string[]>
   /** Déclaration explicite : « vérifié, il n'y en a aucun ». */
   allergensNone: boolean
   customAllergens: string[]
+  /**
+   * La version de la fiche, à renvoyer à l'enregistrement : si quelqu'un l'a
+   * modifiée entre-temps, l'API répond `409 RECIPE_CONFLICT`.
+   */
+  lockVersion: number
   recipe: Recipe | null
   recipeComplete: boolean
   /** Texte libre, jamais contrôlé (§4.7). */
@@ -213,9 +263,11 @@ export interface DishInput {
   difficulty?: Difficulty | null
   diets?: string[]
   customDiets?: string[]
-  allergens?: string[]
-  allergensNone?: boolean
+  /** Codes ajoutés aux allergènes calculés ; `allergens` et `allergensNone` n'existent plus (400). */
+  addedAllergens?: string[]
   customAllergens?: string[]
+  /** À la modification : celle que le plat portait à la lecture (`409 RECIPE_CONFLICT` sinon). */
+  lockVersion?: number
   equipment?: string[]
   declaredDiets?: string[]
   profiles?: string[]
@@ -273,6 +325,63 @@ export const usePublishDish = () =>
 export const useConfirmAllergens = () =>
   useCatalogMutation<string, Dish>(
     (f, id) => f<Dish>(`/me/dishes/${id}/allergens/confirm`, { method: 'POST' }),
+    [DISHES, MENUS],
+  )
+
+// ── Versions d'une fiche (§9) ───────────────────────────────────────────────
+
+/** Une ligne de `GET /me/dishes/{id}/versions`, la plus récente d'abord. */
+export interface DishVersionSummary {
+  version: number
+  createdAt: string
+  /** Les prestations qui cuisinent cette version. */
+  bookings: number
+  /** La version en vigueur. */
+  current: boolean
+}
+
+/** `GET /me/dishes/{id}/versions/{version}` : la fiche telle qu'elle était. */
+export interface DishVersion {
+  version: number
+  createdAt: string
+  portions: number
+  ingredients: Ingredient[]
+  steps: Step[]
+  reheating: Reheating | null
+  storage: Recipe['storage']
+}
+
+export function useDishVersions(id: string | undefined) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: [...DISHES, id, 'versions'],
+    queryFn: () => apiFetch<DishVersionSummary[]>(`/me/dishes/${id}/versions`),
+    enabled: !!id,
+  })
+}
+
+export function useDishVersion(id: string | undefined, version: number | undefined) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: [...DISHES, id, 'versions', version],
+    queryFn: () => apiFetch<DishVersion>(`/me/dishes/${id}/versions/${version}`),
+    enabled: !!id && version !== undefined,
+    // Une version ne change jamais.
+    staleTime: Infinity,
+  })
+}
+
+/**
+ * `POST /me/dishes/{id}/versions/{version}/restore` : la fiche reprend cette
+ * version et le plat est rendu. `409 RECIPE_CONFLICT` si `lockVersion` est périmée.
+ */
+export const useRestoreVersion = () =>
+  useCatalogMutation<{ id: string; version: number; lockVersion?: number }, Dish>(
+    (f, { id, version, lockVersion }) =>
+      f<Dish>(`/me/dishes/${id}/versions/${version}/restore`, {
+        method: 'POST',
+        body: lockVersion === undefined ? {} : { lockVersion },
+      }),
     [DISHES, MENUS],
   )
 
