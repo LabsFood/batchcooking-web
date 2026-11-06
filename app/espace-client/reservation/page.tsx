@@ -295,7 +295,10 @@ function ReservationFlow() {
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      {/* Une seule cellule de grille : l'étape qui part et celle qui arrive se
+          superposent le temps du fondu, sans s'empiler ni laisser de vide. */}
+      <div className="grid">
+      <AnimatePresence>
         {step === 'chef' && (
           <StepCard
             key="chef"
@@ -733,6 +736,7 @@ function ReservationFlow() {
         )}
 
       </AnimatePresence>
+      </div>
 
       {/* La carte d'un chef : meme composant que sur le site public. Ici elle
           enchaine sur la suite de la reservation au lieu d'ouvrir la connexion. */}
@@ -775,7 +779,7 @@ function StepCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-paper rounded-3xl p-6 lg:p-8 border border-[rgba(31,42,55,0.06)]"
+      className="col-start-1 row-start-1 bg-paper rounded-3xl p-6 lg:p-8 border border-[rgba(31,42,55,0.06)]"
     >
       <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
