@@ -3,11 +3,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, Loader2 } from 'lucide-react'
-import { ApiError, fieldErrors } from '@/lib/api/client'
-import { apiMessage, champMessage } from '@/lib/api/messages'
-import { useCreateIngredient, type MyIngredientInput } from '@/lib/api/ingredients'
-import { useAllergens, useAisles, useComputedDiets } from '@/lib/api/referentials'
-import { INGREDIENT_MAX, MONTHS } from '@/lib/recipe-fields'
+import { useCreateIngredient } from '@/lib/api/ingredients'
+import { useAisles } from '@/lib/api/referentials'
+import IngredientFields, {
+  emptyIngredientDraft,
+  ingredientBody,
+  readIngredientError,
+  validateIngredient,
+  type IngredientField,
+} from './IngredientFields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Créer un ingrédient sans quitter la recette.
@@ -16,7 +20,8 @@ import { INGREDIENT_MAX, MONTHS } from '@/lib/recipe-fields'
    privé et « à valider » jusqu'à ce que Lab's Food le reprenne. Les allergènes
    sont exigés — ceux de la liste, ou « aucun » déclaré, jamais un oubli.
 
-   Le dialogue vérifie avant d'appeler l'API (nom, rayon, allergènes), pour
+   Les champs et leurs règles sont ceux de `IngredientFields`, que la page
+   « Mes ingrédients » reprend. Le dialogue vérifie avant d'appeler l'API, pour
    des messages clairs ; l'API reste l'autorité, et ses refus s'affichent
    près du champ visé.
 
@@ -33,8 +38,6 @@ export interface LinkedIngredient {
   isBasic?: boolean
 }
 
-type Field = 'name' | 'aisle' | 'allergens'
-
 export default function IngredientCreateDialog({
   open,
   initialName,
@@ -48,19 +51,11 @@ export default function IngredientCreateDialog({
 }) {
   const create = useCreateIngredient()
   const aisles = useAisles()
-  const allergens = useAllergens()
-  const diets = useComputedDiets()
   const uid = useId()
   const nameRef = useRef<HTMLInputElement>(null)
 
-  const [name, setName] = useState(initialName)
-  const [aisle, setAisle] = useState('')
-  const [picked, setPicked] = useState<string[]>([])
-  const [none, setNone] = useState(false)
-  const [pickedDiets, setPickedDiets] = useState<string[]>([])
-  const [months, setMonths] = useState<number[]>([])
-  const [isBasic, setIsBasic] = useState(false)
-  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
+  const [draft, setDraft] = useState(() => emptyIngredientDraft(initialName))
+  const [errors, setErrors] = useState<Partial<Record<IngredientField, string>>>({})
   const [general, setGeneral] = useState<string | null>(null)
   const [existing, setExisting] = useState<{ id: string; name: string } | null>(null)
 
@@ -126,74 +121,31 @@ export default function IngredientCreateDialog({
 
   if (!open || typeof document === 'undefined') return null
 
-  const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
-
-  /** Les règles de l'API, vérifiées avant l'appel. */
-  function validate(): Partial<Record<Field, string>> {
-    const out: Partial<Record<Field, string>> = {}
-    const n = name.trim()
-    if (n.length < 1) out.name = 'Donnez un nom à l’ingrédient.'
-    else if (n.length > INGREDIENT_MAX.name) {
-      out.name = `Le nom tient en ${INGREDIENT_MAX.name} caractères au plus.`
-    }
-    if (!aisle || !aisles.some((a) => a.code === aisle)) {
-      out.aisle = 'Choisissez le rayon dans la liste.'
-    }
-    if (!none && picked.length === 0) {
-      out.allergens = 'Cochez ses allergènes, ou indiquez qu’il n’en contient aucun.'
-    }
-    return out
-  }
-
   function submit() {
     if (create.isPending) return
     setGeneral(null)
     setExisting(null)
-    const found = validate()
+    const found = validateIngredient(draft, aisles)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
-    const body: MyIngredientInput = {
-      name: name.trim(),
-      aisle,
-      ...(none ? { allergensNone: true } : { allergens: picked }),
-      ...(pickedDiets.length > 0 ? { diets: pickedDiets } : {}),
-      ...(months.length > 0 ? { seasonMonths: [...months].sort((a, b) => a - b) } : {}),
-      isBasic,
-    }
-    create.mutate(body, {
+    create.mutate(ingredientBody(draft), {
       onSuccess: (made) => {
         onLinked({ id: made.id, name: made.name, aisle: made.aisle, isBasic: made.isBasic })
       },
       onError: (e) => {
-        const refus = e instanceof ApiError ? (e.body as { code?: string; ingredient?: unknown } | null) : null
+        const refus = readIngredientError(e, 'L’ingrédient n’a pas pu être créé.')
         // 409 : la liste l'a déjà, on propose de la relier.
-        if (e instanceof ApiError && e.status === 409 && refus?.code === 'INGREDIENT_ALREADY_LISTED') {
-          const ing = refus.ingredient as { id?: unknown; name?: unknown } | undefined
-          if (ing && typeof ing.id === 'string' && typeof ing.name === 'string') {
-            setExisting({ id: ing.id, name: ing.name })
-            return
-          }
+        if (refus.existing) {
+          setExisting(refus.existing)
+          return
         }
-        // 400 : les champs en cause, chacun près du sien.
-        const next: Partial<Record<Field, string>> = {}
-        let rest = false
-        for (const fe of fieldErrors(e)) {
-          const root = fe.field.split('.')[0]
-          if (root === 'name' || root === 'aisle') next[root] = champMessage(fe)
-          else if (root === 'allergens' || root === 'allergensNone') next.allergens = champMessage(fe)
-          else rest = true
-        }
-        if (Object.keys(next).length > 0) setErrors((p) => ({ ...p, ...next }))
-        if (rest || Object.keys(next).length === 0) {
-          // 422 / 429 / autres : le message de l'API, en français d'après son code.
-          setGeneral(apiMessage(e, 'L’ingrédient n’a pas pu être créé.'))
-        }
+        if (Object.keys(refus.fields).length > 0) setErrors((p) => ({ ...p, ...refus.fields }))
+        // 422 / 429 / autres : le message de l'API, en français d'après son code.
+        if (refus.general) setGeneral(refus.general)
       },
     })
   }
-
-  const err = (f: Field) => errors[f]
 
   return createPortal(
     <div
@@ -214,113 +166,15 @@ export default function IngredientCreateDialog({
           liste commune. Votre recette s’en sert tout de suite.
         </p>
 
-        <div className="mt-4 space-y-4">
-          <div>
-            <label htmlFor={`${uid}-name`} className="mb-1 block text-[13px] font-semibold text-navy">
-              Nom
-            </label>
-            <input
-              id={`${uid}-name`}
-              ref={nameRef}
-              value={name}
-              maxLength={INGREDIENT_MAX.name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  submit()
-                }
-              }}
-              aria-invalid={err('name') ? true : undefined}
-              aria-describedby={err('name') ? `${uid}-name-err` : undefined}
-              className="input-base w-full"
-            />
-            {err('name') && <FieldError id={`${uid}-name-err`}>{err('name')}</FieldError>}
-          </div>
-
-          <div>
-            <label htmlFor={`${uid}-aisle`} className="mb-1 block text-[13px] font-semibold text-navy">
-              Rayon
-            </label>
-            <select
-              id={`${uid}-aisle`}
-              value={aisle}
-              onChange={(e) => setAisle(e.target.value)}
-              aria-invalid={err('aisle') ? true : undefined}
-              aria-describedby={err('aisle') ? `${uid}-aisle-err` : undefined}
-              className="input-base w-full"
-            >
-              <option value="">Choisir un rayon</option>
-              {aisles.map((a) => (
-                <option key={a.code} value={a.code}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-            {err('aisle') && <FieldError id={`${uid}-aisle-err`}>{err('aisle')}</FieldError>}
-          </div>
-
-          <fieldset aria-describedby={err('allergens') ? `${uid}-all-err` : undefined}>
-            <legend className="mb-1 text-[13px] font-semibold text-navy">Allergènes</legend>
-            <button
-              type="button"
-              onClick={() => {
-                setNone((v) => !v)
-                setPicked([])
-              }}
-              aria-pressed={none}
-              className={`mb-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                none ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
-              }`}
-            >
-              Aucun des 14 allergènes
-            </button>
-            {!none && (
-              <ChipList
-                options={allergens}
-                selected={picked}
-                onToggle={(c) => setPicked((p) => toggle(p, c))}
-                danger
-              />
-            )}
-            {err('allergens') && <FieldError id={`${uid}-all-err`}>{err('allergens')}</FieldError>}
-          </fieldset>
-
-          <fieldset>
-            <legend className="mb-1 text-[13px] font-semibold text-navy">
-              Régimes <span className="font-normal text-ink-soft">(facultatif)</span>
-            </legend>
-            <p className="mb-1.5 text-xs text-ink-soft">Ceux que cet ingrédient respecte.</p>
-            <ChipList
-              options={diets}
-              selected={pickedDiets}
-              onToggle={(c) => setPickedDiets((p) => toggle(p, c))}
-            />
-          </fieldset>
-
-          <fieldset>
-            <legend className="mb-1 text-[13px] font-semibold text-navy">
-              Mois de saison <span className="font-normal text-ink-soft">(facultatif)</span>
-            </legend>
-            <ChipList
-              options={MONTHS.map((label, i) => ({ code: String(i + 1), label }))}
-              selected={months.map(String)}
-              onToggle={(c) => setMonths((p) => toggle(p, Number(c)))}
-            />
-          </fieldset>
-
-          <label className="flex items-start gap-2 text-[13px] text-ink-mid">
-            <input
-              type="checkbox"
-              checked={isBasic}
-              onChange={(e) => setIsBasic(e.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5 accent-navy"
-            />
-            <span>
-              <span className="font-semibold text-navy">Ingrédient de base</span> (sel, huile…) :
-              masqué au client par défaut, toujours dans la liste de courses.
-            </span>
-          </label>
+        <div className="mt-4">
+          <IngredientFields
+            value={draft}
+            onChange={setDraft}
+            errors={errors}
+            idPrefix={uid}
+            nameRef={nameRef}
+            onEnter={submit}
+          />
         </div>
 
         {existing && (
@@ -371,51 +225,5 @@ export default function IngredientCreateDialog({
       </div>
     </div>,
     document.body,
-  )
-}
-
-function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <p id={id} role="alert" className="mt-1 text-xs text-red-700">
-      {children}
-    </p>
-  )
-}
-
-function ChipList({
-  options,
-  selected,
-  onToggle,
-  danger = false,
-}: {
-  options: { code: string; label: string }[]
-  selected: string[]
-  onToggle: (code: string) => void
-  danger?: boolean
-}) {
-  return (
-    <ul className="flex flex-wrap gap-1.5">
-      {options.map((o) => {
-        const on = selected.includes(o.code)
-        return (
-          <li key={o.code}>
-            <button
-              type="button"
-              onClick={() => onToggle(o.code)}
-              aria-pressed={on}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                on
-                  ? danger
-                    ? 'bg-red-600 text-white'
-                    : 'bg-navy text-white'
-                  : 'bg-cream-soft text-ink-mid hover:text-navy'
-              }`}
-            >
-              {o.label}
-            </button>
-          </li>
-        )
-      })}
-    </ul>
   )
 }

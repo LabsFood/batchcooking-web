@@ -46,6 +46,8 @@ export const REASON_TEXT = {
   INGREDIENT_ALREADY_LISTED: 'Cet ingrédient figure déjà dans la liste : reliez-le plutôt que de le recréer.',
   INGREDIENT_CAP_REACHED:
     'Vous avez créé beaucoup d’ingrédients ces dernières 24 heures : réessayez plus tard.',
+  INGREDIENT_NOT_PENDING:
+    'Cet ingrédient a été validé ou remplacé entre-temps : rechargez la page.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
 } as const
 
