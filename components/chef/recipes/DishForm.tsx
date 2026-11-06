@@ -43,13 +43,13 @@ import { apiMessage } from '@/lib/api/messages'
 import { ApiError } from '@/lib/api/client'
 import IngredientCreateDialog, { type LinkedIngredient } from './IngredientCreateDialog'
 import {
-  EMPTY_INGREDIENT,
   FREEZER_MONTHS,
   INGREDIENT_MAX,
   THAWING_MAX,
   QTY_MAX,
   TO_TASTE,
   MONTHS,
+  REGULATED_ALLERGENS,
   REHEAT_MODES,
   STORAGE_METHODS,
   cleanIngredients,
@@ -61,9 +61,15 @@ import {
   ingredientReady,
   ingredientStarted,
   aisleLabel,
+  isRegulatedAllergen,
   linkValid,
+  mergeSavedRows,
+  mergeSavedSteps,
+  newIngredientRow,
+  newStepRow,
   qtyValid,
   reheatModesOf,
+  sameJson,
   scaledQty,
   seasonsLine,
   sentIndexes,
@@ -158,6 +164,22 @@ function apiCode(error: unknown, status: number): string | null {
 /** La fiche a changé ailleurs depuis qu'on l'a lue : rien n'a été écrit. */
 const isConflict = (error: unknown) => apiCode(error, 409) === 'RECIPE_CONFLICT'
 
+/**
+ * Un échec qui peut passer tout seul : réseau coupé, délai dépassé, serveur en
+ * panne (5xx), trop de requêtes. L'enregistrement automatique réessaie. Tout
+ * autre 4xx est un refus : le même envoi serait refusé de nouveau.
+ */
+const isTransient = (error: unknown) =>
+  !(error instanceof ApiError) ||
+  error.status === 0 ||
+  error.status >= 500 ||
+  error.status === 408 ||
+  error.status === 429
+
+/** Les délais entre deux essais après un échec passager : 2,5 s, 10 s, puis 30 s au plus. */
+const RETRY_DELAYS = [2500, 10_000, 30_000]
+const AUTOSAVE_DELAY = 2500
+
 /** Les rangs (lignes enregistrées) d'un `422 INGREDIENT_NOT_LINKED`, ou null pour toute autre erreur. */
 function notLinkedLines(error: unknown): number[] | null {
   if (apiCode(error, 422) !== 'INGREDIENT_NOT_LINKED') return null
@@ -192,20 +214,30 @@ function storageInvalid(d: Draft): string | null {
 
 /**
  * Les allergènes que le brouillon envoie comme « ajoutés » : ceux que le chef a
- * ajoutés, plus tout code de `allergens` que ni les ingrédients ni une saisie
- * libre n'expliquent (un code ancien, déclaré à la main avant le calcul). Sans
- * cela, ce code serait caché puis effacé par le deuxième enregistrement.
+ * ajoutés, plus tout code de `allergens` que les ingrédients n'expliquent pas
+ * (déclaré à la main avant le calcul). Sans cela, ce code serait caché puis
+ * effacé par le deuxième enregistrement. Comme l'API (`legacyDeclaredAllergens`),
+ * une saisie libre n'explique rien.
+ *
+ * Seuls les quatorze partent, dans l'ordre de l'annexe : l'API refuse tout autre
+ * code (400). Un code ancien reste affiché, en lecture seule, et l'API le garde
+ * à chaque enregistrement (R22).
  */
 function seedAdded(dish: Dish | null): string[] {
   if (!dish) return []
-  const explained = new Set([...Object.keys(dish.allergenSources ?? {}), ...(dish.customAllergens ?? [])])
-  return [
-    ...new Set([
-      ...(dish.addedAllergens ?? []),
-      ...(dish.allergens ?? []).filter((c) => !explained.has(c)),
-    ]),
-  ]
+  const explained = new Set(Object.keys(dish.allergenSources ?? {}))
+  const seeded = new Set([
+    ...(dish.addedAllergens ?? []),
+    ...(dish.allergens ?? []).filter((c) => !explained.has(c)),
+  ])
+  return REGULATED_ALLERGENS.map((a) => a.code).filter((c) => seeded.has(c))
 }
+
+/** Les codes hors des quatorze qu'un plat porte encore : affichés, jamais envoyés. */
+const legacyCodes = (dish: Dish | null): string[] =>
+  [...new Set([...(dish?.allergens ?? []), ...(dish?.addedAllergens ?? [])])].filter(
+    (c) => !isRegulatedAllergen(c),
+  )
 
 function toDraft(dish: Dish | null): Draft {
   const reheating = dish?.recipe?.reheating
@@ -265,7 +297,8 @@ function toPayload(d: Draft): DishInput {
     diets: d.diets,
     customDiets: d.customDiets,
     // Jamais `allergens` ni `allergensNone` : l'API les calcule et refuse (400) de les recevoir.
-    addedAllergens: d.addedAllergens ?? [],
+    // Ni un code hors des quatorze : refusé lui aussi, et l'API le garde de son côté (R22).
+    addedAllergens: (d.addedAllergens ?? []).filter(isRegulatedAllergen),
     customAllergens: d.customAllergens ?? [],
     equipment: d.equipment,
     declaredDiets: d.declaredDiets,
@@ -296,6 +329,88 @@ function toPayload(d: Draft): DishInput {
   }
 }
 
+/** Les champs du brouillon qui partent tels quels, sous leur propre nom. */
+const PLAIN_KEYS = [
+  'name',
+  'description',
+  'country',
+  'category',
+  'portions',
+  'prepMinutes',
+  'cookMinutes',
+  'difficulty',
+  'diets',
+  'customDiets',
+  'addedAllergens',
+  'customAllergens',
+  'equipment',
+  'declaredDiets',
+  'profiles',
+  'personalTags',
+  'seasonsOverride',
+] as const satisfies readonly (keyof DishInput & keyof Draft)[]
+
+/**
+ * Ce qu'un enregistrement réussi change au brouillon (R23) : uniquement ce que
+ * l'API a normalisé. Le brouillon n'est jamais remplacé par la réponse.
+ *
+ * - `current` est le brouillon à l'écran, `sent` celui qui est parti, `res` la
+ *   fiche que l'API a enregistrée.
+ * - Par clé de ce qui s'envoie : la valeur de l'API n'est prise que si elle
+ *   diffère de ce qu'on a envoyé, et sur un champ que le chef n'a pas touché
+ *   depuis l'envoi. Une chaîne rendue sans ses blancs (« Poulet » pour
+ *   « Poulet ») garde donc sa saisie.
+ * - Les lignes et les étapes sont appariées par leur clé (`mergeSavedRows`,
+ *   `mergeSavedSteps`) ; celles qui ne sont pas parties restent où elles sont.
+ * - Ce qui n'est pas parti (réchauffage sans mode, conservation sans lieu ni
+ *   jours, choix « Congelable », lien invalide) n'a pas de valeur côté API à
+ *   comparer : la saisie reste.
+ *
+ * Sans modification entre l'envoi et la réponse, `toPayload` du résultat égale
+ * celui de la fiche enregistrée : l'enregistrement automatique ne repart pas.
+ */
+function mergeSaved(current: Draft, sent: Draft, res: Dish): Draft {
+  const back = toDraft(res)
+  const sentP = toPayload(sent)
+  const backP = toPayload(back)
+  const next: Draft = { ...current }
+  const take = <K extends keyof Draft>(k: K, sentValue: unknown, savedValue: unknown) => {
+    if (!sameJson(sentValue, savedValue) && sameJson(current[k], sent[k])) next[k] = back[k]
+  }
+
+  for (const k of PLAIN_KEYS) take(k, sentP[k], backP[k])
+
+  // Sans recette envoyée (ni ligne ni étape), l'API n'y a pas touché : rien à reprendre.
+  const sentRecipe = sentP.recipe
+  const savedRecipe = backP.recipe
+  if (sentRecipe && savedRecipe) {
+    next.ingredients = mergeSavedRows(
+      current.ingredients,
+      sent.ingredients,
+      res.recipe?.ingredients ?? [],
+    )
+    next.steps = mergeSavedSteps(current.steps, sent.steps, res.recipe?.steps ?? [])
+
+    const rs = sentRecipe.reheating ?? null
+    const rb = savedRecipe.reheating ?? null
+    take('reheatModes', rs?.modes, rb?.modes)
+    take('reheatTemperature', rs?.temperature, rb?.temperature)
+    take('reheatMinutes', rs?.minutes, rb?.minutes)
+    take('reheatNote', rs?.note, rb?.note)
+    take('reheatContainer', rs?.container, rb?.container)
+
+    const ss = sentRecipe.storage ?? null
+    const sb = savedRecipe.storage ?? null
+    take('storageMethod', ss?.method, sb?.method)
+    take('storageDays', ss?.days, sb?.days)
+    take('storageContainer', ss?.container, sb?.container)
+    take('storageFreezable', ss?.freezable, sb?.freezable)
+    take('storageMonths', ss?.freezerMonths, sb?.freezerMonths)
+    take('storageThawing', ss?.thawing, sb?.thawing)
+  }
+  return next
+}
+
 /** « 14:32 », l'heure du dernier enregistrement automatique. */
 const heure = (date: Date) =>
   date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -315,7 +430,12 @@ export default function DishForm({
   dish: Dish | null
   /** Le nom du plat dont celui-ci est la copie (§5.4), s'il est encore là. */
   variantOfName?: string | null
-  onSave: (input: DishInput) => void
+  /**
+   * L'enregistrement voulu. Pour un plat existant, renvoie la fiche enregistrée :
+   * le formulaire en reprend la version et ce que l'API a normalisé, même si la
+   * page le quitte ensuite (sinon la liste relue ferait croire à un conflit).
+   */
+  onSave: (input: DishInput) => void | Promise<Dish>
   /** Enregistre le brouillon sans quitter la page (plat existant, pas encore Prête). */
   onAutosave?: (input: DishInput) => Promise<Dish>
   /** Relit le plat (liste à jour) pour repartir de la dernière version ; null s'il n'existe plus. */
@@ -350,18 +470,20 @@ export default function DishForm({
   const [customAllergenError, setCustomAllergenError] = useState<string | null>(null)
   /** La fiche telle que le dernier enregistrement l'a rendue : sert de référence tant que la liste n'est pas relue. */
   const [baseline, setBaseline] = useState<{ lock: number; json: string } | null>(null)
-  /** Le dernier envoi refusé (hors conflit) : on ne le renvoie pas tel quel, on attend une modification. */
-  const failedRef = useRef<string | null>(null)
+  /**
+   * Un envoi que l'enregistrement automatique ne refait pas tel quel : refusé
+   * (4xx, hors conflit), ou accepté mais gardé autrement par l'API. On attend
+   * une modification, sans quoi il repartirait en boucle.
+   */
+  const heldRef = useRef<string | null>(null)
+  /** Les échecs passagers (réseau, 5xx) d'affilée : ils espacent les essais suivants. */
+  const [retries, setRetries] = useState(0)
   /** Une tentative d'enregistrement a eu lieu : les champs obligatoires vides se signalent alors. */
   const [attempted, setAttempted] = useState(false)
   const [thawingTouched, setThawingTouched] = useState(false)
-  const dRef = useRef(d)
-  useEffect(() => {
-    dRef.current = d
-  })
 
   const diets = useDiets()
-  const allergens = useAllergens()
+  const allergens = useAllergens(REGULATED_ALLERGENS)
   const categories = useDishCategories()
   const reheatModes = useReheatModes(REHEAT_MODES)
   const computedDiets = useComputedDiets()
@@ -420,39 +542,57 @@ export default function DishForm({
   const withLock = (input: DishInput): DishInput =>
     dish && lockVersion !== undefined ? { ...input, lockVersion } : input
 
+  /**
+   * Une réponse d'enregistrement (automatique ou voulu) : la version qu'elle
+   * porte, la référence de comparaison, et ce que l'API a normalisé, reporté sur
+   * le brouillon tel qu'il est maintenant (`mergeSaved`), jamais à sa place.
+   */
+  function adoptSaved(sentDraft: Draft, res: Dish) {
+    const savedJson = JSON.stringify(toPayload(toDraft(res)))
+    setLockVersion(res.lockVersion)
+    setBaseline({ lock: res.lockVersion, json: savedJson })
+    setD((cur) => mergeSaved(cur, sentDraft, res))
+    // Sans frappe depuis l'envoi, le brouillon devient `settled`. S'il diffère encore
+    // de la fiche, l'API a gardé autre chose (une recette vidée de toutes ses lignes,
+    // par exemple) : on ne le renvoie pas en boucle, on attend une modification.
+    const settledJson = JSON.stringify(toPayload(mergeSaved(sentDraft, sentDraft, res)))
+    heldRef.current = settledJson === savedJson ? null : settledJson
+    // La fiche est enregistrée : un échec d'avant ne vaut plus.
+    setRetries(0)
+    setAutosaveFailed(false)
+    setAutosaveError(null)
+  }
+
   const storageProblem = storageInvalid(d)
   useEffect(() => {
     if (!autosave || !dirty || !saveable || saving || autosaving || conflict || storageProblem) return
-    const sentJson = JSON.stringify(toPayload(d))
-    // Le même envoi vient d'échouer (un 422, par exemple) : on attend une modification.
-    if (failedRef.current === sentJson) return
+    const sentDraft = d
+    const sentJson = JSON.stringify(toPayload(sentDraft))
+    // Ce même envoi a été refusé (un 422, par exemple), ou l'API l'a gardé autrement :
+    // on attend une modification.
+    if (heldRef.current === sentJson) return
+    // Après un échec passager, les essais s'espacent : 2,5 s, 10 s, puis 30 s.
+    const delay =
+      retries === 0 ? AUTOSAVE_DELAY : RETRY_DELAYS[Math.min(retries, RETRY_DELAYS.length) - 1]
     const t = setTimeout(() => {
-      const sentDraft = d
       setAutosaving(true)
       onAutosave!(withLock(toPayload(sentDraft)))
         .then((res) => {
-          failedRef.current = null
-          setLockVersion(res.lockVersion)
-          setBaseline({ lock: res.lockVersion, json: JSON.stringify(toPayload(toDraft(res))) })
-          // Rien n'a changé depuis l'envoi : on adopte ce que l'API a enregistré (ordre des
-          // annexes, lignes estampillées, codes anciens). Sinon on garde la saisie, et le
-          // prochain enregistrement l'envoie avec la nouvelle version.
-          if (dRef.current === sentDraft) setD(toDraft(res))
+          adoptSaved(sentDraft, res)
           setAutosaved(new Date())
-          setAutosaveFailed(false)
-          setAutosaveError(null)
         })
         .catch((e: unknown) => {
           if (isConflict(e)) setConflictSeen(true)
-          else failedRef.current = sentJson
+          else if (isTransient(e)) setRetries((n) => n + 1)
+          else heldRef.current = sentJson
           setAutosaveFailed(true)
           setAutosaveError(e)
         })
         .finally(() => setAutosaving(false))
-    }, 2500)
+    }, delay)
     return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé.
-  }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé ; `adoptSaved` n'utilise que des setters et une ref.
+  }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave, retries])
 
   /** « Recharger » : relit le plat et repart de lui. Les saisies locales sont perdues. */
   async function reload() {
@@ -474,7 +614,8 @@ export default function DishForm({
       setD(toDraft(fresh))
       setLockVersion(fresh.lockVersion)
       setBaseline(null)
-      failedRef.current = null
+      heldRef.current = null
+      setRetries(0)
       setConflictSeen(false)
       setConflictDismissed(saveError)
       setAutosaveFailed(false)
@@ -527,12 +668,43 @@ export default function DishForm({
   const reheatNoteLost = d.reheatModes.length === 0 && d.reheatNote.trim() !== ''
   const blocked = storageProblem
 
+  /**
+   * Une modification des lignes d'ingrédients, toujours appliquée à la liste du
+   * moment : le dialogue de création répond après coup, et sa ligne a pu bouger
+   * (ou la liste être reprise après un enregistrement) entre-temps.
+   */
+  const editRows = (fn: (rows: IngredientRow[]) => IngredientRow[]) => {
+    setD((p) => ({ ...p, ingredients: fn(p.ingredients) }))
+    if (dupError) setDupDismissed(dupError)
+    if (notLinked.length > 0) setNotLinked([])
+  }
+
+  /* L'enregistrement automatique a échoué (hors conflit, qui a son bandeau) : la
+     saisie reste sur la page, et le chef doit savoir qu'elle n'est pas enregistrée. */
+  const unsaved = autosaveFailed && !conflict
+  const unsavedTransient = unsaved && isTransient(autosaveError)
+  const unsavedText = !unsaved
+    ? null
+    : unsavedTransient
+      ? 'Le brouillon n’a pas pu s’enregistrer (connexion ou serveur) : vos modifications restent sur cette page, et un nouvel essai part tout seul. Pour les enregistrer tout de suite, appuyez sur « Enregistrer ».'
+      : `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».`
+  const unsavedShort = !unsaved
+    ? null
+    : unsavedTransient
+      ? 'Brouillon non enregistré (connexion) : nouvel essai automatique, ou appuyez sur « Enregistrer ».'
+      : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         setAttempted(true)
-        if (saveable && !saving && !autosaving && !conflict && !blocked) onSave(withLock(toPayload(d)))
+        if (!saveable || saving || autosaving || conflict || blocked) return
+        const sentDraft = d
+        const pending = onSave(withLock(toPayload(sentDraft)))
+        // La nouvelle version et ce que l'API a normalisé, comme après un enregistrement
+        // automatique. Un échec est montré par la page (`error`).
+        if (dish && pending) pending.then((res) => adoptSaved(sentDraft, res), () => {})
       }}
       className="space-y-6"
     >
@@ -613,14 +785,15 @@ export default function DishForm({
           se complète quand vous voulez — rien n’est public avant publication.
         </p>
         {dish && (
-          <p className="relative mt-3 text-xs text-white/80">
-            {autosaveFailed
-              ? 'Le brouillon n’a pas pu s’enregistrer : vos modifications restent sur cette page.'
-              : autosaved && !dirty
+          <p
+            className={`relative mt-3 text-xs ${unsavedText ? 'font-semibold text-amber' : 'text-white/80'}`}
+          >
+            {unsavedText ??
+              (autosaved && !dirty
                 ? `Brouillon enregistré à ${heure(autosaved)}`
                 : autosave
                   ? 'Brouillon : il s’enregistre tout seul pendant que vous écrivez.'
-                  : `Version ${dish.recipeVersion}`}
+                  : `Version ${dish.recipeVersion}`)}
           </p>
         )}
       </motion.div>
@@ -959,7 +1132,7 @@ export default function DishForm({
             hint="Les quatorze allergènes réglementaires. C’est ce que lit un client allergique."
           >
             <div id="dish-allergens" className="space-y-4">
-              <ComputedAllergens dish={dish} options={allergens} />
+              <RecipeAllergens dish={dish} options={allergens} />
 
               <AddedAllergens
                 options={allergens}
@@ -1028,11 +1201,7 @@ export default function DishForm({
           >
             <IngredientRows
               value={d.ingredients}
-              onChange={(v) => {
-                set('ingredients', v)
-                if (dupError) setDupDismissed(dupError)
-                if (notLinked.length > 0) setNotLinked([])
-              }}
+              onEdit={editRows}
               duplicates={dupRows}
               unlinked={notLinkedRows}
             />
@@ -1068,7 +1237,10 @@ export default function DishForm({
               base={d.portions ?? 4}
             />
 
-            <StepRows value={d.steps} onChange={(v) => set('steps', v)} />
+            <StepRows
+              value={d.steps}
+              onEdit={(fn) => setD((p) => ({ ...p, steps: fn(p.steps) }))}
+            />
           </Group>
 
           {/* ── Après la session ─────────────────────────────────────────── */}
@@ -1403,16 +1575,19 @@ export default function DishForm({
           cherche, et ce formulaire se remplit souvent debout dans une cuisine. */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(31,42,55,0.08)] bg-paper/95 backdrop-blur lg:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <p className="min-w-0 flex-1 text-[13px] text-ink-mid">
-            {!saveable
-              ? 'Le nom et le temps de préparation sont nécessaires.'
-              : (readiness?.problems.length ?? 0) > 0
-                ? `Il manque ${readiness!.problems.length} point${readiness!.problems.length > 1 ? 's' : ''} pour que la fiche soit Prête.`
-                : (readiness?.toPublish.length ?? 0) > 0
-                  ? `La fiche est Prête ; il manque ${readiness!.toPublish.length} point${readiness!.toPublish.length > 1 ? 's' : ''} pour publier.`
-                : dish
-                  ? 'La fiche est Prête : rien n’est public tant que vous ne publiez pas.'
-                  : 'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.'}
+          <p
+            className={`min-w-0 flex-1 text-[13px] ${unsavedShort ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
+          >
+            {unsavedShort ??
+              (!saveable
+                ? 'Le nom et le temps de préparation sont nécessaires.'
+                : (readiness?.problems.length ?? 0) > 0
+                  ? `Il manque ${readiness!.problems.length} point${readiness!.problems.length > 1 ? 's' : ''} pour que la fiche soit Prête.`
+                  : (readiness?.toPublish.length ?? 0) > 0
+                    ? `La fiche est Prête ; il manque ${readiness!.toPublish.length} point${readiness!.toPublish.length > 1 ? 's' : ''} pour publier.`
+                    : dish
+                      ? 'La fiche est Prête : rien n’est public tant que vous ne publiez pas.'
+                      : 'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.')}
           </p>
           <div className="flex gap-2">
             <Link href={backHref} className="btn btn-outline text-xs">
@@ -1507,11 +1682,13 @@ const blocksAllergens = (dish: Dish) =>
   )
 
 /**
- * Les allergènes calculés, avec les ingrédients qui les apportent. C'est ce que
- * lit un client allergique : un allergène n'est jamais présenté comme absent
- * quand le calcul est incomplet.
+ * Les allergènes de la recette enregistrée, chacun avec sa provenance : les
+ * ingrédients qui l'apportent, ou « ajouté par vous ». C'est ce que lit un
+ * client allergique : un allergène n'est jamais présenté comme absent quand le
+ * calcul est incomplet, et un code ancien (hors des quatorze) reste affiché,
+ * en lecture seule, jusqu'à ce que Lab's Food le corrige.
  */
-function ComputedAllergens({
+function RecipeAllergens({
   dish,
   options,
 }: {
@@ -1519,38 +1696,58 @@ function ComputedAllergens({
   options: { code: string; label: string }[]
 }) {
   const sources = dish?.allergenSources ?? {}
-  // Tout code de `allergens` s'affiche : un code sans source est un ajout du chef.
-  const computed = [...new Set([...(dish?.allergens ?? []), ...Object.keys(sources)])]
+  const added = new Set(dish?.addedAllergens ?? [])
+  // Tout code de `allergens` s'affiche, et tout code ajouté : rien n'est jamais caché.
+  const all = [
+    ...new Set([...(dish?.allergens ?? []), ...Object.keys(sources), ...(dish?.addedAllergens ?? [])]),
+  ]
+  const legacy = new Set(legacyCodes(dish))
   const conditional = new Set(dish?.conditionalAllergens ?? [])
   const blocking = dish ? blocksAllergens(dish) : []
+
+  /** « beurre, crème ; ajouté par vous » : d'où vient l'allergène. */
+  const provenance = (code: string) => {
+    const from = sources[code] ?? []
+    const byChef = added.has(code) || from.length === 0
+    return [from.join(', '), byChef ? 'ajouté par vous' : ''].filter(Boolean).join(' ; ')
+  }
 
   return (
     <div>
       <p className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
-        Calculés d’après vos ingrédients
-        <InfoPopover label="D’où viennent les allergènes calculés ?">
-          Chaque ingrédient de la liste commune porte ses allergènes : la fiche les
-          rassemble. Vous ne les modifiez pas ici, mais vous pouvez en ajouter ci-dessous.
-          Un ingrédient facultatif compte aussi : son allergène est marqué « si
-          l’ingrédient facultatif est utilisé ».
+        Allergènes de la recette
+        <InfoPopover label="D’où viennent les allergènes de la recette ?">
+          De deux sources, indiquées pour chaque allergène. Les ingrédients de la liste
+          commune portent les leurs : un tel allergène ne part qu’avec l’ingrédient qui
+          l’apporte. Ceux que vous cochez plus bas s’y ajoutent (« ajouté par vous ») et
+          se décochent au même endroit. Un ingrédient facultatif compte aussi : son
+          allergène est marqué « si l’ingrédient facultatif est utilisé ». Un code ancien,
+          hors des quatorze, reste affiché jusqu’à ce que Lab’s Food le corrige.
         </InfoPopover>
       </p>
       {!dish ? (
-        <p className="text-[13px] text-ink-soft">Calculés après le premier enregistrement.</p>
+        <p className="text-[13px] text-ink-soft">Affichés après le premier enregistrement.</p>
       ) : (
         <>
-          {computed.length > 0 ? (
+          {all.length > 0 ? (
             <ul className="space-y-1.5">
-              {computed.map((code) => (
+              {all.map((code) => (
                 <li
                   key={code}
                   className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800"
                 >
-                  <span>
-                    <span className="font-semibold">{refLabel(options, code)}</span>
-                    {' : '}
-                    {sources[code]?.length ? sources[code].join(', ') : 'ajouté par vous'}
-                  </span>
+                  {legacy.has(code) ? (
+                    <span>
+                      <span className="font-semibold">code ancien ({code})</span>
+                      {' : à faire corriger par Lab’s Food'}
+                    </span>
+                  ) : (
+                    <span>
+                      <span className="font-semibold">{refLabel(options, code)}</span>
+                      {' : '}
+                      {provenance(code)}
+                    </span>
+                  )}
                   {conditional.has(code) && (
                     <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
                       si l’ingrédient facultatif est utilisé
@@ -1564,7 +1761,7 @@ function ComputedAllergens({
               Aucun des quatorze allergènes dans vos ingrédients.
             </p>
           ) : (
-            <p className="text-[13px] text-ink-mid">Aucun allergène calculé pour l’instant.</p>
+            <p className="text-[13px] text-ink-mid">Aucun allergène pour l’instant.</p>
           )}
           {blocking.length > 0 && (
             <div className="mt-2">
@@ -1588,8 +1785,10 @@ function ComputedAllergens({
 }
 
 /**
- * Les allergènes que le chef ajoute aux calculés. Un allergène calculé est coché
- * et ne se décoche pas : il vient d'un ingrédient, pas d'un choix.
+ * Les allergènes que le chef ajoute aux calculés : les quatorze seulement. Un
+ * allergène calculé est coché et ne se décoche pas : il vient d'un ingrédient,
+ * pas d'un choix. Un code ancien n'est pas ici : le chef ne peut ni le cocher ni
+ * le retirer, il s'affiche dans « Allergènes de la recette ».
  */
 function AddedAllergens({
   options,
@@ -1603,9 +1802,7 @@ function AddedAllergens({
   onToggle: (code: string) => void
 }) {
   const sources = dish?.allergenSources ?? {}
-  /* Un code ancien, hors des quatorze, déjà ajouté : il reste visible et se retire. */
-  const legacy = added.filter((c) => !options.some((o) => o.code === c))
-  const all = [...options, ...legacy.map((code) => ({ code, label: code }))]
+  const all = options.filter((o) => isRegulatedAllergen(o.code))
 
   return (
     <fieldset>
@@ -1616,7 +1813,7 @@ function AddedAllergens({
           achetée, par exemple). Il s’ajoute à ceux des ingrédients et ne les remplace pas.
         </InfoPopover>
       </legend>
-      {options.length === 0 ? (
+      {all.length === 0 ? (
         <p className="text-xs text-ink-soft">Référentiel indisponible pour le moment.</p>
       ) : (
         <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
@@ -1639,11 +1836,6 @@ function AddedAllergens({
                     {computed && (
                       <span id={reason} className="block text-xs text-ink-soft">
                         Déjà apporté par : {sources[o.code].join(', ')}. Il ne se décoche pas.
-                      </span>
-                    )}
-                    {!options.some((x) => x.code === o.code) && (
-                      <span className="block text-xs text-[#8B6200]">
-                        Code ancien, hors des quatorze : décochez-le pour le retirer.
                       </span>
                     )}
                   </span>
@@ -1688,6 +1880,8 @@ function AllergenCheck({
   const incomplete = (dish.readiness?.problems ?? []).filter((p) => p.code === 'INGREDIENT_INCOMPLETE').length
   const stale = lockVersion !== undefined && lockVersion !== dish.lockVersion
   const noLine = (dish.recipe?.ingredients.length ?? 0) === 0
+  /* L'API refuse de confirmer un code hors des quatorze (422) : seul Lab's Food le corrige. */
+  const legacy = legacyCodes(dish)
 
   const reason = locked
     ? 'Rechargez d’abord la recette : elle a changé ailleurs.'
@@ -1701,7 +1895,9 @@ function AllergenCheck({
             ? `Reliez d’abord ${unlinked === 1 ? 'l’ingrédient non relié' : `les ${unlinked} ingrédients non reliés`} à la liste commune : la confirmation porte sur des allergènes complets.`
             : incomplete > 0
               ? `Complétez d’abord ${incomplete === 1 ? 'l’ingrédient dont les allergènes ne sont pas renseignés' : `les ${incomplete} ingrédients dont les allergènes ne sont pas renseignés`} dans la liste commune.`
-              : null
+              : legacy.length > 0
+                ? `La fiche porte ${legacy.length === 1 ? 'un code ancien' : 'des codes anciens'} (${legacy.join(', ')}) : Lab’s Food doit ${legacy.length === 1 ? 'le' : 'les'} corriger avant que vous puissiez confirmer.`
+                : null
 
   return (
     <div className="rounded-xl bg-cream-soft px-3.5 py-3">
@@ -1767,8 +1963,10 @@ function AllergenCheck({
             Confirmer les allergènes
           </button>
           {reason && (
+            // Focusable (-1) : un lien du panneau « Prête ? » y mène quand le bouton est désactivé.
             <span
               id="confirm-allergens-reason"
+              tabIndex={-1}
               className="text-xs leading-relaxed text-ink-soft"
             >
               {reason}
@@ -2004,12 +2202,13 @@ function PhotoField({ dish }: { dish: Dish | null }) {
 
 function IngredientRows({
   value,
-  onChange,
+  onEdit,
   duplicates,
   unlinked,
 }: {
   value: IngredientRow[]
-  onChange: (v: IngredientRow[]) => void
+  /** Applique une modification à la liste du moment (jamais à une copie ancienne). */
+  onEdit: (fn: (rows: IngredientRow[]) => IngredientRow[]) => void
   /** Les groupes de lignes (indices affichés) qui disent la même chose. */
   duplicates: number[][]
   /** Les lignes (indices affichés) que la confirmation des allergènes a refusées : non reliées. */
@@ -2017,8 +2216,10 @@ function IngredientRows({
 }) {
   const units = useUnits()
   const aisles = useAisles()
-  const set = (i: number, patch: Partial<IngredientRow>) =>
-    onChange(value.map((row, j) => (j === i ? { ...row, ...patch } : row)))
+  /* Par la clé de la ligne, pas par son rang : un dialogue qui répond après coup
+     modifie toujours sa propre ligne, même si d'autres ont bougé entre-temps. */
+  const set = (key: string, patch: Partial<IngredientRow>) =>
+    onEdit((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)))
   const groupOf = (i: number) => duplicates.find((g) => g.includes(i))
 
   return (
@@ -2054,7 +2255,7 @@ function IngredientRows({
             const qtyBad = ing.qty.trim() !== '' && !qtyValid(ing.qty)
             return (
               <li
-                key={i}
+                key={ing.key}
                 className={`flex flex-wrap items-center gap-2 rounded-xl ${
                   amorcee && !complet ? 'bg-cream-soft px-2 py-2' : ''
                 } ${ing.toVerify ? 'bg-amber-soft/40 px-2 py-2' : ''} ${
@@ -2064,7 +2265,7 @@ function IngredientRows({
                 <IngredientName
                   row={ing}
                   index={i}
-                  onChange={(patch) => set(i, patch)}
+                  onChange={(patch) => set(ing.key, patch)}
                 />
                 {!toTaste && (
                   <input
@@ -2074,7 +2275,7 @@ function IngredientRows({
                     min={0}
                     max={QTY_MAX}
                     value={ing.qty}
-                    onChange={(e) => set(i, { qty: e.target.value })}
+                    onChange={(e) => set(ing.key, { qty: e.target.value })}
                     placeholder="Qté"
                     aria-label={`Quantité de l’ingrédient ${i + 1}`}
                     aria-invalid={qtyBad || undefined}
@@ -2086,7 +2287,7 @@ function IngredientRows({
                   value={ing.unit}
                   onChange={(e) =>
                     set(
-                      i,
+                      ing.key,
                       e.target.value === TO_TASTE
                         ? { unit: e.target.value, qty: '' }
                         : { unit: e.target.value },
@@ -2106,7 +2307,7 @@ function IngredientRows({
                   <select
                     id={`ingredient-${i}-aisle`}
                     value={ing.aisle ?? ''}
-                    onChange={(e) => set(i, { aisle: e.target.value })}
+                    onChange={(e) => set(ing.key, { aisle: e.target.value })}
                     aria-label={`Rayon de l’ingrédient ${i + 1}`}
                     className="input-base w-40 shrink-0"
                   >
@@ -2120,7 +2321,7 @@ function IngredientRows({
                 )}
                 <button
                   type="button"
-                  onClick={() => onChange(value.filter((_, j) => j !== i))}
+                  onClick={() => onEdit((rows) => rows.filter((r) => r.key !== ing.key))}
                   aria-label={`Retirer ${ing.name || 'cet ingrédient'}`}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
                 >
@@ -2184,7 +2385,7 @@ function IngredientRows({
                   <input
                     value={ing.precision}
                     maxLength={INGREDIENT_MAX.precision}
-                    onChange={(e) => set(i, { precision: e.target.value })}
+                    onChange={(e) => set(ing.key, { precision: e.target.value })}
                     placeholder="Précision : bio, fermier…"
                     aria-label={`Précision de l’ingrédient ${i + 1}`}
                     className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
@@ -2192,7 +2393,7 @@ function IngredientRows({
                   <input
                     value={ing.preparation}
                     maxLength={INGREDIENT_MAX.preparation}
-                    onChange={(e) => set(i, { preparation: e.target.value })}
+                    onChange={(e) => set(ing.key, { preparation: e.target.value })}
                     placeholder="Préparation : émincé, en dés…"
                     aria-label={`Préparation de l’ingrédient ${i + 1}`}
                     className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
@@ -2200,7 +2401,7 @@ function IngredientRows({
                   <input
                     value={ing.group}
                     maxLength={INGREDIENT_MAX.group}
-                    onChange={(e) => set(i, { group: e.target.value })}
+                    onChange={(e) => set(ing.key, { group: e.target.value })}
                     placeholder="Groupe : Pour la sauce…"
                     aria-label={`Groupe de l’ingrédient ${i + 1}`}
                     className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
@@ -2211,7 +2412,7 @@ function IngredientRows({
                     type="url"
                     value={ing.link}
                     maxLength={INGREDIENT_MAX.link}
-                    onChange={(e) => set(i, { link: e.target.value })}
+                    onChange={(e) => set(ing.key, { link: e.target.value })}
                     placeholder="Lien (facultatif) : https://…"
                     aria-label={`Lien de l’ingrédient ${i + 1}`}
                     aria-invalid={!linkValid(ing.link) || undefined}
@@ -2221,7 +2422,7 @@ function IngredientRows({
                     <input
                       type="checkbox"
                       checked={ing.fixedQuantity}
-                      onChange={(e) => set(i, { fixedQuantity: e.target.checked })}
+                      onChange={(e) => set(ing.key, { fixedQuantity: e.target.checked })}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Quantité fixe
@@ -2230,7 +2431,7 @@ function IngredientRows({
                     <input
                       type="checkbox"
                       checked={ing.optional}
-                      onChange={(e) => set(i, { optional: e.target.checked })}
+                      onChange={(e) => set(ing.key, { optional: e.target.checked })}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Facultatif
@@ -2239,7 +2440,7 @@ function IngredientRows({
                     <input
                       type="checkbox"
                       checked={ing.hiddenFromClient}
-                      onChange={(e) => set(i, { hiddenFromClient: e.target.checked })}
+                      onChange={(e) => set(ing.key, { hiddenFromClient: e.target.checked })}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Caché au client
@@ -2249,7 +2450,7 @@ function IngredientRows({
                       À vérifier
                       <button
                         type="button"
-                        onClick={() => set(i, { toVerify: false })}
+                        onClick={() => set(ing.key, { toVerify: false })}
                         className="underline underline-offset-2 hover:text-navy"
                       >
                         C’est vérifié
@@ -2264,7 +2465,7 @@ function IngredientRows({
       )}
       <button
         type="button"
-        onClick={() => onChange([...value, { ...EMPTY_INGREDIENT, aisle: '' }])}
+        onClick={() => onEdit((rows) => [...rows, newIngredientRow()])}
         className="btn btn-outline text-xs"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter un ingrédient
@@ -2306,13 +2507,19 @@ function IngredientName({
   const exact = matches.some((m) => m.name.toLowerCase() === typed.toLowerCase())
   const canCreate = typed.length >= 2 && !search.isFetching && !exact
 
-  /** Relie la ligne à une entrée : son rayon, et « caché » prérempli pour un basique. */
+  /**
+   * Relie la ligne à une entrée : son rayon, et « caché » prérempli pour un
+   * basique. Les allergènes de l'ancienne entrée ne valent plus : l'API écrira
+   * ceux de la nouvelle au prochain enregistrement.
+   */
   const link = (m: LinkedIngredient) => {
     onChange({
       name: m.name,
       catalogIngredientId: m.id,
       ...(m.aisle !== undefined ? { aisle: m.aisle ?? '' } : {}),
       ...(m.isBasic !== undefined ? { hiddenFromClient: m.isBasic } : {}),
+      allergens: null,
+      incomplete: null,
     })
     setOpen(false)
     closeDialog()
@@ -2324,7 +2531,13 @@ function IngredientName({
         value={row.name}
         maxLength={INGREDIENT_MAX.name}
         onChange={(e) => {
-          onChange({ name: e.target.value, catalogIngredientId: null })
+          // Retaper le nom délie la ligne : ce que l'API avait écrit pour l'entrée ne vaut plus.
+          onChange({
+            name: e.target.value,
+            catalogIngredientId: null,
+            allergens: null,
+            incomplete: null,
+          })
           setOpen(true)
         }}
         onFocus={() => {
@@ -2414,18 +2627,32 @@ function IngredientName({
 
 function StepRows({
   value,
-  onChange,
+  onEdit,
 }: {
   value: StepRow[]
-  onChange: (v: StepRow[]) => void
+  /** Applique une modification à la liste du moment. */
+  onEdit: (fn: (steps: StepRow[]) => StepRow[]) => void
 }) {
   const types = useStepTypes()
-  const set = (i: number, patch: Partial<StepRow>) =>
-    onChange(value.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  /* Par la clé de l'étape : l'étape en cours de frappe reste la sienne. */
+  const set = (key: string, patch: Partial<StepRow>) =>
+    onEdit((steps) => steps.map((s) => (s.key === key ? { ...s, ...patch } : s)))
   const move = (i: number, by: -1 | 1) => {
-    const next = [...value]
-    ;[next[i], next[i + by]] = [next[i + by], next[i]]
-    onChange(next)
+    const j = i + by
+    onEdit((steps) => {
+      const next = [...steps]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+    /* Les étapes ont une clé : React déplace la ligne dans la page, et le bouton
+       pressé perd le focus en route. On le lui rend, sur l'étape déplacée (l'autre
+       flèche si celle-ci est désormais désactivée). */
+    requestAnimationFrame(() => {
+      const dir = by < 0 ? 'up' : 'down'
+      const same = document.getElementById(`step-${j}-${dir}`) as HTMLButtonElement | null
+      const other = document.getElementById(`step-${j}-${by < 0 ? 'down' : 'up'}`)
+      ;(same && !same.disabled ? same : other)?.focus()
+    })
   }
 
   return (
@@ -2445,7 +2672,7 @@ function StepRows({
       ) : (
         <ol className="mb-2 space-y-3">
           {value.map((step, i) => (
-            <li key={i} className="flex items-start gap-2">
+            <li key={step.key} className="flex items-start gap-2">
               <span
                 aria-hidden
                 className="mt-2.5 w-5 shrink-0 text-right text-xs tabular-nums text-ink-soft"
@@ -2456,7 +2683,7 @@ function StepRows({
                 <textarea
                   value={step.text}
                   rows={2}
-                  onChange={(e) => set(i, { text: e.target.value })}
+                  onChange={(e) => set(step.key, { text: e.target.value })}
                   aria-label={`Étape ${i + 1}`}
                   className="input-base w-full resize-y"
                 />
@@ -2464,7 +2691,7 @@ function StepRows({
                   <select
                     id={`step-${i}-type`}
                     value={step.type}
-                    onChange={(e) => set(i, { type: e.target.value })}
+                    onChange={(e) => set(step.key, { type: e.target.value })}
                     aria-label={`Type de l’étape ${i + 1}`}
                     aria-invalid={(step.text.trim() !== '' && !step.type) || undefined}
                     className="input-base w-44 py-1.5 text-[13px]"
@@ -2480,7 +2707,7 @@ function StepRows({
                     type="number"
                     min={0}
                     value={step.minutes}
-                    onChange={(e) => set(i, { minutes: e.target.value })}
+                    onChange={(e) => set(step.key, { minutes: e.target.value })}
                     placeholder="Durée"
                     aria-label={`Durée de l’étape ${i + 1}, en minutes`}
                     className="input-base w-24 py-1.5 text-[13px]"
@@ -2490,6 +2717,7 @@ function StepRows({
               </div>
               <div className="mt-1 flex shrink-0 flex-col">
                 <button
+                  id={`step-${i}-up`}
                   type="button"
                   onClick={() => move(i, -1)}
                   disabled={i === 0}
@@ -2499,6 +2727,7 @@ function StepRows({
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>
                 <button
+                  id={`step-${i}-down`}
                   type="button"
                   onClick={() => move(i, 1)}
                   disabled={i === value.length - 1}
@@ -2509,7 +2738,7 @@ function StepRows({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onChange(value.filter((_, j) => j !== i))}
+                  onClick={() => onEdit((steps) => steps.filter((s) => s.key !== step.key))}
                   aria-label={`Retirer l’étape ${i + 1}`}
                   className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
                 >
@@ -2522,7 +2751,7 @@ function StepRows({
       )}
       <button
         type="button"
-        onClick={() => onChange([...value, { text: '', type: '', minutes: '' }])}
+        onClick={() => onEdit((steps) => [...steps, newStepRow()])}
         className="btn btn-outline text-xs"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter une étape

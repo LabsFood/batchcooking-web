@@ -160,7 +160,49 @@ export function storageLine(s?: Recipe['storage']): string | null {
     .join(' · ')
 }
 
+/* ── Les allergènes (§4.9) ─────────────────────────────────────────────────── */
+
+/**
+ * Les quatorze allergènes réglementaires, dans l'ordre de l'annexe : la liste
+ * de `GET /referentials/allergens`, qui sert de repli à `useAllergens`.
+ *
+ * C'est aussi le filtre de ce qu'un plat envoie comme « ajoutés » : l'API
+ * refuse (400) tout autre code. Il est ici en dur, et non lu de l'API, parce
+ * que le brouillon se bâtit avant que le référentiel arrive : un filtre vide
+ * à ce moment-là retirerait un allergène au premier enregistrement.
+ */
+export const REGULATED_ALLERGENS: { code: string; label: string }[] = [
+  { code: 'gluten', label: 'Céréales contenant du gluten' },
+  { code: 'crustaceans', label: 'Crustacés' },
+  { code: 'eggs', label: 'Œufs' },
+  { code: 'fish', label: 'Poissons' },
+  { code: 'peanuts', label: 'Arachides' },
+  { code: 'soy', label: 'Soja' },
+  { code: 'milk', label: 'Lait' },
+  { code: 'nuts', label: 'Fruits à coque' },
+  { code: 'celery', label: 'Céleri' },
+  { code: 'mustard', label: 'Moutarde' },
+  { code: 'sesame', label: 'Graines de sésame' },
+  { code: 'sulphites', label: 'Anhydride sulfureux et sulfites' },
+  { code: 'lupin', label: 'Lupin' },
+  { code: 'molluscs', label: 'Mollusques' },
+]
+
+/** Un des quatorze. Un autre code est ancien : l'API le garde, seul Lab's Food le corrige. */
+export const isRegulatedAllergen = (code: string) =>
+  REGULATED_ALLERGENS.some((a) => a.code === code)
+
 /* ── Les gardes avant envoi ────────────────────────────────────────────────── */
+
+let lastKey = 0
+
+/**
+ * Une clé de ligne, propre à cet écran et jamais envoyée. React s'en sert pour
+ * garder chaque champ, et le dialogue ouvert, attaché à sa ligne : avec le rang
+ * pour clé, une ligne retirée ou ajoutée ferait glisser la suivante sous le
+ * curseur, et la frappe irait sur la mauvaise ligne.
+ */
+export const rowKey = () => `row-${++lastKey}`
 
 /**
  * Une ligne en cours de saisie.
@@ -170,6 +212,8 @@ export function storageLine(s?: Recipe['storage']): string | null {
  * fois, ici.
  */
 export interface IngredientRow {
+  /** La clé de la ligne à l'écran (`rowKey`). Jamais envoyée. */
+  key: string
   name: string
   qty: string
   /** Un code d'unité ; vide tant qu'on n'a pas choisi (et sur une ligne à vérifier). */
@@ -191,11 +235,20 @@ export interface IngredientRow {
   hiddenFromClient: boolean
   /** Le texte d'origine d'une ligne à vérifier, tel que le batch cooker l'avait écrit. */
   rawText: string
+  /**
+   * Les allergènes de l'ingrédient relié, tels que l'API les a écrits au dernier
+   * enregistrement. Jamais envoyés ; null tant qu'on ne les connaît pas (ligne
+   * nouvelle, ou reliée autrement depuis).
+   */
+  allergens: string[] | null
+  /** L'ingrédient relié est incomplet dans la liste commune (écrit par l'API, jamais envoyé). */
+  incomplete: boolean | null
 }
 
 /** La ligne telle qu'elle existe déjà sur un plat, prête à être éditée. */
 export function toRow(i: Ingredient): IngredientRow {
   return {
+    key: rowKey(),
     name: i.name ?? '',
     qty: i.qty == null ? '' : String(i.qty),
     unit: i.unit ?? '',
@@ -210,10 +263,12 @@ export function toRow(i: Ingredient): IngredientRow {
     group: i.group ?? '',
     hiddenFromClient: i.hiddenFromClient ?? false,
     rawText: i.rawText ?? '',
+    allergens: Array.isArray(i.allergens) ? i.allergens : null,
+    incomplete: typeof i.incomplete === 'boolean' ? i.incomplete : null,
   }
 }
 
-export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle'> = {
+export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle' | 'key'> = {
   name: '',
   qty: '',
   unit: 'g',
@@ -227,7 +282,12 @@ export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle'> = {
   group: '',
   hiddenFromClient: false,
   rawText: '',
+  allergens: null,
+  incomplete: null,
 }
+
+/** Une ligne vierge, avec sa propre clé. */
+export const newIngredientRow = (): IngredientRow => ({ ...EMPTY_INGREDIENT, aisle: '', key: rowKey() })
 
 /** Une adresse que l'API acceptera : `http` ou `https`, rien d'autre. */
 export const linkValid = (link: string) =>
@@ -309,25 +369,107 @@ export const shownGroups = (list: IngredientRow[], groups: number[][]): number[]
  * quantité.
  */
 export function cleanIngredients(list: IngredientRow[]): Ingredient[] {
-  return sentIndexes(list).map((k) => {
-    const i = list[k]
-    const toTaste = i.unit === TO_TASTE
-    return {
-      name: i.name.trim(),
-      qty: toTaste || !i.qty.trim() ? null : Number(i.qty.replace(',', '.')),
-      unit: i.unit.trim() || null,
-      ...(i.aisle.trim() ? { aisle: i.aisle.trim() } : {}),
-      link: linkValid(i.link) ? orNull(i.link) : null,
-      toVerify: i.toVerify,
-      fixedQuantity: i.fixedQuantity,
-      optional: i.optional,
-      hiddenFromClient: i.hiddenFromClient,
-      catalogIngredientId: i.catalogIngredientId,
-      precision: orNull(i.precision),
-      preparation: orNull(i.preparation),
-      group: orNull(i.group),
-      rawText: orNull(i.rawText),
+  return sentIndexes(list).map((k) => cleanLine(list[k]))
+}
+
+/** Une ligne prête, au format d'écriture de l'API : la clé et ce que l'API écrit n'en sont pas. */
+function cleanLine(i: IngredientRow): Ingredient {
+  const toTaste = i.unit === TO_TASTE
+  return {
+    name: i.name.trim(),
+    qty: toTaste || !i.qty.trim() ? null : Number(i.qty.replace(',', '.')),
+    unit: i.unit.trim() || null,
+    ...(i.aisle.trim() ? { aisle: i.aisle.trim() } : {}),
+    link: linkValid(i.link) ? orNull(i.link) : null,
+    toVerify: i.toVerify,
+    fixedQuantity: i.fixedQuantity,
+    optional: i.optional,
+    hiddenFromClient: i.hiddenFromClient,
+    catalogIngredientId: i.catalogIngredientId,
+    precision: orNull(i.precision),
+    preparation: orNull(i.preparation),
+    group: orNull(i.group),
+    rawText: orNull(i.rawText),
+  }
+}
+
+/* ── Après un enregistrement : ce que l'API a normalisé (R23) ──────────────── */
+
+/** Deux valeurs identiques une fois écrites en JSON (absent et `null` restent distincts). */
+export const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+/**
+ * Les champs que l'API réécrit ensemble quand elle relie une ligne : le nom et
+ * le rayon de l'ingrédient, l'identifiant après une fusion, et la mise « à
+ * vérifier » d'une ligne dont l'ingrédient a disparu.
+ */
+const LINK_FIELDS = ['name', 'catalogIngredientId', 'aisle', 'toVerify', 'rawText'] as const
+
+/** Les autres champs envoyés : l'API les garde, à la normalisation près (espaces, nombres). */
+const LINE_FIELDS = [
+  'qty',
+  'unit',
+  'link',
+  'fixedQuantity',
+  'optional',
+  'hiddenFromClient',
+  'precision',
+  'preparation',
+  'group',
+] as const
+
+/**
+ * Reporte sur les lignes à l'écran ce que l'API a normalisé dans celles qu'on
+ * lui a envoyées, sans jamais remplacer la liste.
+ *
+ * `sent` est la liste au moment de l'envoi ; `saved`, les lignes de la réponse,
+ * dans l'ordre des lignes envoyées (`sentIndexes(sent)`). Chaque ligne envoyée
+ * est retrouvée par sa clé, où qu'elle soit maintenant, et ne prend que :
+ * - les champs dont la valeur envoyée diffère de celle que l'API a gardée ;
+ * - et que le chef n'a pas retouchés depuis l'envoi ;
+ * - pour l'estampille (nom, rayon, identifiant, allergènes), seulement si la
+ *   ligne est toujours reliée comme à l'envoi.
+ *
+ * Une ligne qui n'est pas partie (incomplète, en cours de saisie) ou ajoutée
+ * depuis ne bouge pas, et aucune ligne n'est ajoutée ni retirée. Une chaîne
+ * que l'API rend telle qu'envoyée garde sa saisie (un espace en fin de mot).
+ */
+export function mergeSavedRows(
+  current: IngredientRow[],
+  sent: IngredientRow[],
+  saved: Ingredient[],
+): IngredientRow[] {
+  const sentAt = sentIndexes(sent)
+  // Le compte ne correspond pas : rien ne permet d'apparier les lignes, on n'y touche pas.
+  if (saved.length !== sentAt.length) return current
+
+  const patches = new Map<string, Partial<IngredientRow>>()
+  sentAt.forEach((s, k) => {
+    const before = sent[s]
+    const now = current.find((r) => r.key === before.key)
+    if (!now) return // retirée depuis
+    const back = toRow(saved[k])
+    const sentLine = cleanLine(before)
+    const savedLine = cleanLine(back)
+    const patch: Record<string, unknown> = {}
+    const take = (f: (typeof LINK_FIELDS)[number] | (typeof LINE_FIELDS)[number]) => {
+      if (!sameJson(sentLine[f], savedLine[f]) && now[f] === before[f]) patch[f] = back[f]
     }
+    // Retapée ou reliée à autre chose depuis : l'estampille parlait de l'ancien ingrédient.
+    const sameLink =
+      now.name === before.name && now.catalogIngredientId === before.catalogIngredientId
+    if (sameLink) {
+      LINK_FIELDS.forEach(take)
+      if (!sameJson(now.allergens, back.allergens)) patch.allergens = back.allergens
+      if (now.incomplete !== back.incomplete) patch.incomplete = back.incomplete
+    }
+    LINE_FIELDS.forEach(take)
+    if (Object.keys(patch).length > 0) patches.set(before.key, patch as Partial<IngredientRow>)
+  })
+  if (patches.size === 0) return current
+  return current.map((r) => {
+    const patch = patches.get(r.key)
+    return patch ? { ...r, ...patch } : r
   })
 }
 
@@ -362,6 +504,8 @@ export function seasonsLine(months: number[] | null): string | null {
 
 /** Une étape en cours de saisie : la durée reste une chaîne, comme une quantité. */
 export interface StepRow {
+  /** La clé de l'étape à l'écran (`rowKey`). Jamais envoyée. */
+  key: string
   text: string
   type: string
   minutes: string
@@ -369,18 +513,65 @@ export interface StepRow {
 
 export const toStepRow = (s: Step | string): StepRow =>
   typeof s === 'string'
-    ? { text: s, type: '', minutes: '' }
-    : { text: s.text, type: s.type ?? '', minutes: s.durationMinutes?.toString() ?? '' }
+    ? { key: rowKey(), text: s, type: '', minutes: '' }
+    : {
+        key: rowKey(),
+        text: s.text,
+        type: s.type ?? '',
+        minutes: s.durationMinutes?.toString() ?? '',
+      }
+
+/** Une étape vierge, avec sa propre clé. */
+export const newStepRow = (): StepRow => ({ key: rowKey(), text: '', type: '', minutes: '' })
+
+/** Une étape écrite, au format d'écriture de l'API. */
+const cleanStep = (s: StepRow): Step => ({
+  text: s.text.trim(),
+  type: s.type || null,
+  durationMinutes: s.minutes.trim() ? Number(s.minutes) : null,
+})
 
 /** Les étapes écrites, dans l'ordre ; l'API les numérote. */
 export const cleanSteps = (list: StepRow[]): Step[] =>
-  list
-    .filter((s) => s.text.trim())
-    .map((s) => ({
-      text: s.text.trim(),
-      type: s.type || null,
-      durationMinutes: s.minutes.trim() ? Number(s.minutes) : null,
-    }))
+  list.filter((s) => s.text.trim()).map(cleanStep)
+
+/** Le champ d'une étape à l'écran, et son nom dans ce qui s'envoie. */
+const STEP_FIELDS = [
+  ['text', 'text'],
+  ['type', 'type'],
+  ['minutes', 'durationMinutes'],
+] as const
+
+/**
+ * Comme `mergeSavedRows`, pour les étapes : chaque étape envoyée, retrouvée par
+ * sa clé, ne prend que ce que l'API a changé et que le chef n'a pas retouché
+ * depuis. Une étape vide ou en cours de saisie garde sa frappe, espace final
+ * compris (l'API rend le texte tel qu'envoyé, sans ses blancs).
+ */
+export function mergeSavedSteps(current: StepRow[], sent: StepRow[], saved: Step[]): StepRow[] {
+  const sentAt = sentStepIndexes(sent)
+  if (saved.length !== sentAt.length) return current
+
+  const patches = new Map<string, Partial<StepRow>>()
+  sentAt.forEach((s, k) => {
+    const before = sent[s]
+    const now = current.find((r) => r.key === before.key)
+    if (!now) return
+    const back = toStepRow(saved[k])
+    const sentStep = cleanStep(before)
+    const savedStep = cleanStep(back)
+    const patch: Partial<StepRow> = {}
+    for (const [row, wire] of STEP_FIELDS) {
+      if (!sameJson(sentStep[wire], savedStep[wire]) && now[row] === before[row]) patch[row] = back[row]
+    }
+    if (Object.keys(patch).length > 0) patches.set(before.key, patch)
+  })
+  if (patches.size === 0) return current
+  return current.map((r) => {
+    const patch = patches.get(r.key)
+    return patch ? { ...r, ...patch } : r
+  })
+}
 
 /** Le réchauffage s'enregistre dès qu'un mode est coché : le reste est facultatif. */
 export function cleanReheating(r: {

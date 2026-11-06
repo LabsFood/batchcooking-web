@@ -148,11 +148,18 @@ export function fieldTarget(
 const FOCUSABLE =
   'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not([data-info-trigger])'
 
+const CONTROL = 'input, select, textarea, button'
+
 /**
  * Fait défiler jusqu'au champ et lui donne le focus (le premier champ actif d'un
  * bloc, jamais un bouton d'aide). Si le champ n'est pas affiché (la quantité
  * d'une ligne « selon le goût », le rayon d'une ligne reliée), c'est le nom de
  * la ligne qui le reçoit.
+ *
+ * Un bouton désactivé ne prend pas le focus : c'est son explication
+ * (`aria-describedby`) qui le reçoit, sinon ce qui l'entoure, lui-même. Jamais
+ * un champ voisin : pour « Confirmer les allergènes », ce serait une case
+ * d'allergène, qu'une frappe d'espace cocherait.
  */
 export function focusField(id: string): void {
   if (typeof document === 'undefined') return
@@ -162,14 +169,22 @@ export function focusField(id: string): void {
     if (row) el = document.getElementById(`ingredient-${row[1]}-name`)
   }
   if (!el) return
-  // Un bouton désactivé ne prend pas le focus : on passe au bloc qui le contient.
-  if ((el as HTMLButtonElement).disabled) el = el.parentElement?.closest<HTMLElement>('[id]') ?? el
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  const target = el.matches('input, select, textarea, button')
-    ? el
-    : (el.querySelector<HTMLElement>(FOCUSABLE) ?? el)
-  if (target === el && !el.matches('input, select, textarea, button')) {
-    el.setAttribute('tabindex', '-1')
+
+  let target: HTMLElement
+  if ((el as HTMLButtonElement).disabled) {
+    const reason = (el.getAttribute('aria-describedby') ?? '')
+      .split(/\s+/)
+      .map((ref) => (ref ? document.getElementById(ref) : null))
+      .find((x): x is HTMLElement => x !== null)
+    target = reason ?? el.parentElement ?? el
+  } else if (el.matches(CONTROL)) {
+    target = el
+  } else {
+    target = el.querySelector<HTMLElement>(FOCUSABLE) ?? el
   }
+  if (!target.matches(CONTROL) && !target.hasAttribute('tabindex')) {
+    target.setAttribute('tabindex', '-1')
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' })
   target.focus({ preventScroll: true })
 }

@@ -27,16 +27,21 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
 
   const dish = dishes.data?.find((d) => d.id === id)
 
+  /**
+   * La fiche enregistrée revient au formulaire : il en reprend la version avant
+   * que la liste relue n'arrive, sans quoi elle lui ferait croire à un conflit
+   * pendant que la page part vers la liste.
+   */
   function save(input: DishInput) {
-    update.mutate(
-      { id, patch: input },
-      {
-        onSuccess: (saved) => {
-          toast.success(`« ${saved.name} » enregistré`)
-          router.push('/espace-chef/recettes')
-        },
-        onError: (e) =>
-          toast.error('Les modifications n’ont pas été enregistrées', apiMessage(e)),
+    return update.mutateAsync({ id, patch: input }).then(
+      (saved) => {
+        toast.success(`« ${saved.name} » enregistré`)
+        router.push('/espace-chef/recettes')
+        return saved
+      },
+      (e: unknown) => {
+        toast.error('Les modifications n’ont pas été enregistrées', apiMessage(e))
+        throw e
       },
     )
   }
