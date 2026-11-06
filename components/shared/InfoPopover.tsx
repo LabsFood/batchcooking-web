@@ -30,6 +30,7 @@ export function InfoPopover({
     <Popover.Root>
       <Popover.Trigger
         aria-label={label}
+        data-info-trigger=""
         className={cn(
           'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full align-middle text-ink-soft transition-colors hover:text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber',
           className,

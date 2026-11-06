@@ -79,11 +79,18 @@ export function problemText(p: { code: string; field: string }): string {
 /**
  * L'id du champ à l'écran pour un `field` de l'API, ou null s'il n'y en a pas.
  *
- * `shownRows` ramène le rang d'une ligne de l'API (ligne enregistrée) à la
- * ligne affichée : la liste peut avoir des lignes incomplètes que l'API n'a
- * jamais reçues. Sans lui, le rang est pris tel quel.
+ * `rows` ramène le rang d'une ligne de l'API (ligne enregistrée) à la ligne
+ * affichée, `stepRows` celui d'une étape : la liste peut avoir des lignes
+ * incomplètes que l'API n'a jamais reçues. Sans eux, le rang est pris tel quel.
+ * `code` précise le point : la confirmation des allergènes a son propre bouton.
  */
-export function fieldTarget(field: string, shownRows?: number[]): string | null {
+export function fieldTarget(
+  field: string,
+  opts: { rows?: number[]; stepRows?: number[]; code?: string } = {},
+): string | null {
+  const shownRows = opts.rows
+  if (opts.code === 'ALLERGENS_UNVERIFIED') return 'confirm-allergens'
+  if (opts.code === 'FRIDGE_LONG') return 'storage-days'
   const line = /^recipe\.ingredients\[(\d+)\](?:\.(\w+))?$/.exec(field)
   if (line) {
     const k = Number(line[1])
@@ -93,7 +100,10 @@ export function fieldTarget(field: string, shownRows?: number[]): string | null 
     return `ingredient-${row}-${part}`
   }
   const step = /^recipe\.steps\[(\d+)\]/.exec(field)
-  if (step) return `step-${step[1]}-type`
+  if (step) {
+    const row = opts.stepRows ? opts.stepRows[Number(step[1])] : Number(step[1])
+    return row === undefined ? 'steps' : `step-${row}-type`
+  }
   switch (field) {
     case 'name':
       return 'dish-name'
@@ -134,17 +144,30 @@ export function fieldTarget(field: string, shownRows?: number[]): string | null 
   }
 }
 
-/** Fait défiler jusqu'au champ et lui donne le focus (le premier champ actif d'un bloc). */
+/** Les champs qui prennent le focus ; les « ? » d'aide (`data-info-trigger`) n'en sont pas. */
+const FOCUSABLE =
+  'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not([data-info-trigger])'
+
+/**
+ * Fait défiler jusqu'au champ et lui donne le focus (le premier champ actif d'un
+ * bloc, jamais un bouton d'aide). Si le champ n'est pas affiché (la quantité
+ * d'une ligne « selon le goût », le rayon d'une ligne reliée), c'est le nom de
+ * la ligne qui le reçoit.
+ */
 export function focusField(id: string): void {
   if (typeof document === 'undefined') return
-  const el = document.getElementById(id)
+  let el = document.getElementById(id)
+  if (!el) {
+    const row = /^ingredient-(\d+)-/.exec(id)
+    if (row) el = document.getElementById(`ingredient-${row[1]}-name`)
+  }
   if (!el) return
+  // Un bouton désactivé ne prend pas le focus : on passe au bloc qui le contient.
+  if ((el as HTMLButtonElement).disabled) el = el.parentElement?.closest<HTMLElement>('[id]') ?? el
   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   const target = el.matches('input, select, textarea, button')
     ? el
-    : (el.querySelector<HTMLElement>(
-        'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)',
-      ) ?? el)
+    : (el.querySelector<HTMLElement>(FOCUSABLE) ?? el)
   if (target === el && !el.matches('input, select, textarea, button')) {
     el.setAttribute('tabindex', '-1')
   }

@@ -285,6 +285,10 @@ const orNull = (v: string) => (v.trim() ? v.trim() : null)
 export const sentIndexes = (list: IngredientRow[]): number[] =>
   list.flatMap((row, i) => (ingredientReady(row) ? [i] : []))
 
+/** Les rangs affichés des étapes que `cleanSteps` envoie : le rang de l'API est l'indice dans cette liste. */
+export const sentStepIndexes = (list: StepRow[]): number[] =>
+  list.flatMap((s, i) => (s.text.trim() ? [i] : []))
+
 /**
  * Ramène des rangs de l'API (ceux des lignes envoyées) aux lignes affichées.
  * Un rang inconnu est écarté plutôt que de surligner la mauvaise ligne.

@@ -67,6 +67,7 @@ import {
   scaledQty,
   seasonsLine,
   sentIndexes,
+  sentStepIndexes,
   shownGroups,
   shownRows,
   toRow,
@@ -168,11 +169,11 @@ function notLinkedLines(error: unknown): number[] | null {
 const normalise = (v: string) =>
   v
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
+    .replace(/\u0153/g, 'oe')
+    .replace(/\u00e6/g, 'ae')
 
 /**
  * Ce que l'API refuserait sur la congélation, avec le message. Une valeur
@@ -189,6 +190,23 @@ function storageInvalid(d: Draft): string | null {
   return null
 }
 
+/**
+ * Les allergènes que le brouillon envoie comme « ajoutés » : ceux que le chef a
+ * ajoutés, plus tout code de `allergens` que ni les ingrédients ni une saisie
+ * libre n'expliquent (un code ancien, déclaré à la main avant le calcul). Sans
+ * cela, ce code serait caché puis effacé par le deuxième enregistrement.
+ */
+function seedAdded(dish: Dish | null): string[] {
+  if (!dish) return []
+  const explained = new Set([...Object.keys(dish.allergenSources ?? {}), ...(dish.customAllergens ?? [])])
+  return [
+    ...new Set([
+      ...(dish.addedAllergens ?? []),
+      ...(dish.allergens ?? []).filter((c) => !explained.has(c)),
+    ]),
+  ]
+}
+
 function toDraft(dish: Dish | null): Draft {
   const reheating = dish?.recipe?.reheating
   return {
@@ -202,7 +220,7 @@ function toDraft(dish: Dish | null): Draft {
     difficulty: dish?.difficulty ?? 'easy',
     diets: dish?.diets ?? [],
     customDiets: dish?.customDiets ?? [],
-    addedAllergens: dish?.addedAllergens ?? [],
+    addedAllergens: seedAdded(dish),
     customAllergens: dish?.customAllergens ?? [],
     equipment: dish?.equipment ?? [],
     declaredDiets: dish?.declaredDiets ?? [],
@@ -330,6 +348,17 @@ export default function DishForm({
   /** Les lignes (rangs de l'API) qu'un `422 INGREDIENT_NOT_LINKED` a refusées. */
   const [notLinked, setNotLinked] = useState<number[]>([])
   const [customAllergenError, setCustomAllergenError] = useState<string | null>(null)
+  /** La fiche telle que le dernier enregistrement l'a rendue : sert de référence tant que la liste n'est pas relue. */
+  const [baseline, setBaseline] = useState<{ lock: number; json: string } | null>(null)
+  /** Le dernier envoi refusé (hors conflit) : on ne le renvoie pas tel quel, on attend une modification. */
+  const failedRef = useRef<string | null>(null)
+  /** Une tentative d'enregistrement a eu lieu : les champs obligatoires vides se signalent alors. */
+  const [attempted, setAttempted] = useState(false)
+  const [thawingTouched, setThawingTouched] = useState(false)
+  const dRef = useRef(d)
+  useEffect(() => {
+    dRef.current = d
+  })
 
   const diets = useDiets()
   const allergens = useAllergens()
@@ -339,17 +368,36 @@ export default function DishForm({
   const profiles = useRecipeProfiles()
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }))
-  const toggle = (k: 'diets' | 'addedAllergens', code: string) =>
-    setD((p) => ({
-      ...p,
-      [k]: p[k]!.includes(code) ? p[k]!.filter((x) => x !== code) : [...p[k]!, code],
-    }))
+  /* Les codes se rangent dans l'ordre du référentiel : c'est celui que l'API
+     renvoie, donc un cochage dans le désordre ne fait pas diverger le brouillon. */
+  const toggle = (k: 'diets' | 'addedAllergens', code: string) => {
+    const order = (k === 'diets' ? diets : allergens).map((o) => o.code)
+    const rank = (c: string) => {
+      const i = order.indexOf(c)
+      return i === -1 ? order.length : i
+    }
+    setD((p) => {
+      const cur = p[k]!
+      if (cur.includes(code)) return { ...p, [k]: cur.filter((x) => x !== code) }
+      // Tri stable : les codes hors référentiel gardent leur ordre, en fin de liste.
+      const next = [...cur, code]
+        .map((c, i) => ({ c, i }))
+        .sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i)
+        .map((x) => x.c)
+      return { ...p, [k]: next }
+    })
+  }
 
   const saveable = d.name.trim().length >= 2 && d.prepMinutes > 0
 
   /* Ce qui diffère de la fiche enregistrée, comparé tel que l'API le recevrait. */
   const payload = toPayload(d)
-  const saved = useMemo(() => (dish ? JSON.stringify(toPayload(toDraft(dish))) : null), [dish])
+  const saved = useMemo(() => {
+    if (!dish) return null
+    // La liste relue peut être en retard sur la réponse du dernier enregistrement.
+    if (baseline && baseline.lock > dish.lockVersion) return baseline.json
+    return JSON.stringify(toPayload(toDraft(dish)))
+  }, [dish, baseline])
   const dirty = saved === null || JSON.stringify(payload) !== saved
 
   /* Un conflit : la fiche a changé ailleurs. Plus aucun enregistrement, automatique
@@ -375,19 +423,30 @@ export default function DishForm({
   const storageProblem = storageInvalid(d)
   useEffect(() => {
     if (!autosave || !dirty || !saveable || saving || autosaving || conflict || storageProblem) return
+    const sentJson = JSON.stringify(toPayload(d))
+    // Le même envoi vient d'échouer (un 422, par exemple) : on attend une modification.
+    if (failedRef.current === sentJson) return
     const t = setTimeout(() => {
+      const sentDraft = d
       setAutosaving(true)
-      onAutosave!(withLock(toPayload(d)))
+      onAutosave!(withLock(toPayload(sentDraft)))
         .then((res) => {
+          failedRef.current = null
           setLockVersion(res.lockVersion)
+          setBaseline({ lock: res.lockVersion, json: JSON.stringify(toPayload(toDraft(res))) })
+          // Rien n'a changé depuis l'envoi : on adopte ce que l'API a enregistré (ordre des
+          // annexes, lignes estampillées, codes anciens). Sinon on garde la saisie, et le
+          // prochain enregistrement l'envoie avec la nouvelle version.
+          if (dRef.current === sentDraft) setD(toDraft(res))
           setAutosaved(new Date())
           setAutosaveFailed(false)
           setAutosaveError(null)
         })
         .catch((e: unknown) => {
+          if (isConflict(e)) setConflictSeen(true)
+          else failedRef.current = sentJson
           setAutosaveFailed(true)
           setAutosaveError(e)
-          if (isConflict(e)) setConflictSeen(true)
         })
         .finally(() => setAutosaving(false))
     }, 2500)
@@ -414,6 +473,8 @@ export default function DishForm({
       }
       setD(toDraft(fresh))
       setLockVersion(fresh.lockVersion)
+      setBaseline(null)
+      failedRef.current = null
       setConflictSeen(false)
       setConflictDismissed(saveError)
       setAutosaveFailed(false)
@@ -428,7 +489,6 @@ export default function DishForm({
   }
 
   const readiness = dish?.readiness
-  const manques = readiness ? [...readiness.problems, ...readiness.toPublish] : []
 
   /* Les lignes et les couples que l'API refuserait. */
   const lignesIncompletes = d.ingredients.filter(
@@ -451,6 +511,7 @@ export default function DishForm({
   )
   /* Le rang d'une ligne de l'API → la ligne affichée, pour les liens du panneau. */
   const sentRows = useMemo(() => sentIndexes(d.ingredients), [d.ingredients])
+  const stepRows = useMemo(() => sentStepIndexes(d.steps), [d.steps])
   const liensInvalides = d.ingredients.filter((i) => !linkValid(i.link)).length
   const storageIncomplet = Boolean(
     (d.storageMethod ||
@@ -470,6 +531,7 @@ export default function DishForm({
     <form
       onSubmit={(e) => {
         e.preventDefault()
+        setAttempted(true)
         if (saveable && !saving && !autosaving && !conflict && !blocked) onSave(withLock(toPayload(d)))
       }}
       className="space-y-6"
@@ -1109,6 +1171,7 @@ export default function DishForm({
               </Field>
               <Field label="Jours de conservation" required={Boolean(d.storageMethod)}>
                 <input
+                  id="storage-days"
                   type="number"
                   min={0}
                   value={d.storageDays}
@@ -1130,7 +1193,12 @@ export default function DishForm({
               </Field>
             </div>
 
-            <fieldset id="storage-freezable" aria-describedby="storage-freezable-hint">
+            <fieldset
+              id="storage-freezable"
+              role="radiogroup"
+              aria-required
+              aria-describedby="storage-freezable-hint"
+            >
               <legend className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
                 Congelable <span className="text-terra">*</span>
                 <InfoPopover label="Pourquoi dire si le plat se congèle ?">
@@ -1202,7 +1270,10 @@ export default function DishForm({
                     maxLength={THAWING_MAX}
                     onChange={(e) => set('storageThawing', e.target.value)}
                     placeholder="Une nuit au réfrigérateur, puis au four."
-                    aria-invalid={d.storageThawing.trim() === '' || undefined}
+                    onBlur={() => setThawingTouched(true)}
+                    aria-invalid={
+                      ((attempted || thawingTouched) && d.storageThawing.trim() === '') || undefined
+                    }
                     className="input-base"
                   />
                 </Field>
@@ -1247,28 +1318,32 @@ export default function DishForm({
               </p>
             ) : (
               <>
-                {manques.length === 0 && (
+                {readiness?.ready && (
                   <p className="mt-2 flex items-start gap-2 text-[13px] leading-relaxed text-mint-ink">
                     <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    La fiche est Prête et publiable. Vous publierez depuis la liste de vos
-                    plats, quand il vous conviendra.
+                    {readiness.toPublish.length === 0
+                      ? 'La fiche est Prête et publiable. Vous publierez depuis la liste de vos plats, quand il vous conviendra.'
+                      : 'La fiche est Prête. Pour la publier, il reste les points ci-dessous.'}
                   </p>
                 )}
                 <MissingGroup
                   title="Pour être Prête, il manque"
                   items={readiness?.problems ?? []}
                   rows={sentRows}
+                  stepRows={stepRows}
                 />
                 <MissingGroup
                   title="Pour publier, il manque"
                   items={readiness?.toPublish ?? []}
                   rows={sentRows}
+                  stepRows={stepRows}
                 />
                 <MissingGroup
                   title="À surveiller"
                   note="Ces points n’empêchent rien."
                   items={readiness?.warnings ?? []}
                   rows={sentRows}
+                  stepRows={stepRows}
                   alert
                 />
               </>
@@ -1331,8 +1406,10 @@ export default function DishForm({
           <p className="min-w-0 flex-1 text-[13px] text-ink-mid">
             {!saveable
               ? 'Le nom et le temps de préparation sont nécessaires.'
-              : manques.length > 0
-                ? `Il manque ${manques.length} point${manques.length > 1 ? 's' : ''} pour publier.`
+              : (readiness?.problems.length ?? 0) > 0
+                ? `Il manque ${readiness!.problems.length} point${readiness!.problems.length > 1 ? 's' : ''} pour que la fiche soit Prête.`
+                : (readiness?.toPublish.length ?? 0) > 0
+                  ? `La fiche est Prête ; il manque ${readiness!.toPublish.length} point${readiness!.toPublish.length > 1 ? 's' : ''} pour publier.`
                 : dish
                   ? 'La fiche est Prête : rien n’est public tant que vous ne publiez pas.'
                   : 'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.'}
@@ -1373,12 +1450,14 @@ function MissingGroup({
   note,
   items,
   rows,
+  stepRows,
   alert = false,
 }: {
   title: string
   note?: string
   items: Problem[]
   rows: number[]
+  stepRows: number[]
   alert?: boolean
 }) {
   if (items.length === 0) return null
@@ -1390,7 +1469,7 @@ function MissingGroup({
       </p>
       <ul className="mt-1.5 space-y-1.5">
         {items.map((m) => {
-          const target = fieldTarget(m.field, rows)
+          const target = fieldTarget(m.field, { rows, stepRows, code: m.code })
           return (
             <li
               key={`${m.code}-${m.field}`}
@@ -1440,7 +1519,8 @@ function ComputedAllergens({
   options: { code: string; label: string }[]
 }) {
   const sources = dish?.allergenSources ?? {}
-  const computed = Object.keys(sources)
+  // Tout code de `allergens` s'affiche : un code sans source est un ajout du chef.
+  const computed = [...new Set([...(dish?.allergens ?? []), ...Object.keys(sources)])]
   const conditional = new Set(dish?.conditionalAllergens ?? [])
   const blocking = dish ? blocksAllergens(dish) : []
 
@@ -1469,7 +1549,7 @@ function ComputedAllergens({
                   <span>
                     <span className="font-semibold">{refLabel(options, code)}</span>
                     {' : '}
-                    {sources[code].join(', ')}
+                    {sources[code]?.length ? sources[code].join(', ') : 'ajouté par vous'}
                   </span>
                   {conditional.has(code) && (
                     <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
@@ -1604,7 +1684,9 @@ function AllergenCheck({
 }) {
   const confirm = useConfirmAllergens()
   const toast = useToast()
-  const blocking = blocksAllergens(dish).length
+  const unlinked = (dish.readiness?.problems ?? []).filter((p) => p.code === 'INGREDIENT_NOT_LINKED').length
+  const incomplete = (dish.readiness?.problems ?? []).filter((p) => p.code === 'INGREDIENT_INCOMPLETE').length
+  const stale = lockVersion !== undefined && lockVersion !== dish.lockVersion
   const noLine = (dish.recipe?.ingredients.length ?? 0) === 0
 
   const reason = locked
@@ -1613,9 +1695,13 @@ function AllergenCheck({
       ? 'Enregistrez d’abord vos modifications : la confirmation porte sur la fiche enregistrée.'
       : noLine
         ? 'Ajoutez d’abord au moins un ingrédient.'
-        : blocking > 0
-          ? `Reliez d’abord ${blocking === 1 ? 'l’ingrédient non relié' : `les ${blocking} ingrédients non reliés`} à la liste commune : la confirmation porte sur des allergènes complets.`
-          : null
+        : stale
+          ? 'Les allergènes affichés se mettent à jour après votre enregistrement : patientez un instant.'
+          : unlinked > 0
+            ? `Reliez d’abord ${unlinked === 1 ? 'l’ingrédient non relié' : `les ${unlinked} ingrédients non reliés`} à la liste commune : la confirmation porte sur des allergènes complets.`
+            : incomplete > 0
+              ? `Complétez d’abord ${incomplete === 1 ? 'l’ingrédient dont les allergènes ne sont pas renseignés' : `les ${incomplete} ingrédients dont les allergènes ne sont pas renseignés`} dans la liste commune.`
+              : null
 
   return (
     <div className="rounded-xl bg-cream-soft px-3.5 py-3">
@@ -1639,6 +1725,7 @@ function AllergenCheck({
       {!dish.allergensVerifiedAt && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
+            id="confirm-allergens"
             type="button"
             onClick={() =>
               confirm.mutate(
@@ -2202,6 +2289,15 @@ function IngredientName({
 }) {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  /** Le focus rendu au champ par le dialogue qui se ferme n'ouvre pas les suggestions. */
+  const skipOpen = useRef(false)
+  const closeDialog = () => {
+    skipOpen.current = true
+    setTimeout(() => {
+      skipOpen.current = false
+    }, 200)
+    setCreating(false)
+  }
   const allergens = useAllergens()
   const term = open && !row.catalogIngredientId ? row.name : ''
   const search = useIngredientSearch(term)
@@ -2219,7 +2315,7 @@ function IngredientName({
       ...(m.isBasic !== undefined ? { hiddenFromClient: m.isBasic } : {}),
     })
     setOpen(false)
-    setCreating(false)
+    closeDialog()
   }
 
   return (
@@ -2231,7 +2327,9 @@ function IngredientName({
           onChange({ name: e.target.value, catalogIngredientId: null })
           setOpen(true)
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (!skipOpen.current) setOpen(true)
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Poulet fermier"
         id={`ingredient-${index}-name`}
@@ -2306,7 +2404,7 @@ function IngredientName({
         <IngredientCreateDialog
           open
           initialName={row.name.trim()}
-          onClose={() => setCreating(false)}
+          onClose={closeDialog}
           onLinked={link}
         />
       )}
