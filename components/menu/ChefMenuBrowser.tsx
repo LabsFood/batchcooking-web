@@ -41,12 +41,20 @@ import {
 } from '@/lib/api/menus'
 import {
   refLabel,
+  useAllergens,
   useDiets,
   useLanguages,
   useRecipeProfiles,
   useRegions,
 } from '@/lib/api/referentials'
 import { seasonsLine } from '@/lib/recipe-fields'
+
+/**
+ * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
+ * cuisine : la fiche le dit, comme l'étiquette d'un produit (§4.8).
+ */
+const TRACES_DIETS = new Set(['gluten-free', 'lactose-free'])
+const TRACES_NOTE = 'traces possibles pendant la préparation'
 
 /** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
 const DIET_LABEL: Record<string, string> = {
@@ -1470,6 +1478,8 @@ function DishRow({
   dietLabel: (code: string) => string
 }) {
   const profiles = useRecipeProfiles()
+  const allergenList = useAllergens()
+  const conditional = new Set(dish.conditionalAllergens ?? [])
   return (
     <li>
       <button
@@ -1521,6 +1531,7 @@ function DishRow({
                   className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] text-navy"
                 >
                   {DIET_LABEL[tag] ?? dietLabel(tag)}
+                  {TRACES_DIETS.has(tag) && `, ${TRACES_NOTE}`}
                 </span>
               ))}
             {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
@@ -1545,9 +1556,15 @@ function DishRow({
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
             {dish.allergens.length > 0 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700">
-                {dish.allergens.join(', ')}
-              </span>
+              dish.allergens.map((code) => (
+                <span
+                  key={code}
+                  className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700"
+                >
+                  {refLabel(allergenList, code)}
+                  {conditional.has(code) && ', si l’ingrédient facultatif est utilisé'}
+                </span>
+              ))
             ) : dish.allergensNone ? (
               <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[10px] text-mint-ink">
                 Sans allergène déclaré
