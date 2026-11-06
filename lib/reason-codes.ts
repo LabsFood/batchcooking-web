@@ -37,6 +37,11 @@ export const REASON_TEXT = {
   LIMIT_REACHED: 'Limite atteinte.',
   AI_FORMAT_INVALID:
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',
+  DUPLICATE_INGREDIENT_LINE:
+    'Un même ingrédient figure sur plusieurs lignes : fusionnez-les en une seule.',
+  INGREDIENT_ALREADY_LISTED: 'Cet ingrédient figure déjà dans la liste : reliez-le plutôt que de le recréer.',
+  INGREDIENT_CAP_REACHED:
+    'Vous avez créé beaucoup d’ingrédients ces dernières 24 heures : réessayez plus tard.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
 } as const
 

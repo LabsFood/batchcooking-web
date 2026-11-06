@@ -94,6 +94,7 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
         onAutosave={(input) => autosave.mutateAsync({ id, patch: input })}
         saving={update.isPending}
         error={update.error ? apiMessage(update.error) : null}
+        saveError={update.error}
         backHref="/espace-chef/recettes"
       />
     </ChefPage>

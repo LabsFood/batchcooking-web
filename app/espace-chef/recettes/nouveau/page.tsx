@@ -43,6 +43,7 @@ export default function NouveauPlatPage() {
         onSave={save}
         saving={create.isPending}
         error={create.error ? apiMessage(create.error) : null}
+        saveError={create.error}
         backHref="/espace-chef/recettes"
       />
     </ChefPage>

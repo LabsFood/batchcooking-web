@@ -230,16 +230,32 @@ export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle'> = {
 }
 
 /** Une adresse que l'API acceptera : `http` ou `https`, rien d'autre. */
-export const linkValid = (link: string) => !link.trim() || /^https?:\/\/\S+$/i.test(link.trim())
+export const linkValid = (link: string) =>
+  !link.trim() || (link.trim().length <= 512 && /^https?:\/\/\S+$/i.test(link.trim()))
 
 /** La quantité de l'API : jusqu'à 100 000, au-dessus de zéro. */
 export const QTY_MAX = 100_000
 
-/** Une quantité saisie qui est un vrai nombre, dans les bornes de l'API. */
+/** Les décimales que l'API garde sur une quantité. */
+export const QTY_DECIMALS = 3
+
+/** Les longueurs maximales d'une ligne, celles de l'API. */
+export const INGREDIENT_MAX = {
+  name: 120,
+  precision: 60,
+  preparation: 120,
+  group: 60,
+  link: 512,
+  rawText: 200,
+} as const
+
+/** Une quantité saisie qui est un vrai nombre, dans les bornes de l'API (3 décimales au plus). */
 export function qtyValid(qty: string): boolean {
   if (!qty.trim()) return false
   const n = Number(qty.replace(',', '.'))
-  return Number.isFinite(n) && n > 0 && n <= QTY_MAX
+  if (!Number.isFinite(n) || n <= 0 || n > QTY_MAX) return false
+  const scaled = n * 10 ** QTY_DECIMALS
+  return Math.abs(scaled - Math.round(scaled)) < 1e-6
 }
 
 /**

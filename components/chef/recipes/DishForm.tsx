@@ -28,6 +28,7 @@ import { problemText } from '@/lib/chef/readiness'
 import {
   DECLARED_DIETS,
   refLabel,
+  useAisles,
   useAllergens,
   useComputedDiets,
   useDiets,
@@ -35,15 +36,19 @@ import {
   useRecipeProfiles,
   useReheatModes,
   useStepTypes,
+  useUnits,
 } from '@/lib/api/referentials'
 import { apiMessage } from '@/lib/api/messages'
+import { ApiError } from '@/lib/api/client'
+import IngredientCreateDialog, { type LinkedIngredient } from './IngredientCreateDialog'
 import {
-  AISLES,
   EMPTY_INGREDIENT,
+  INGREDIENT_MAX,
+  QTY_MAX,
+  TO_TASTE,
   MONTHS,
   REHEAT_MODES,
   STORAGE_METHODS,
-  UNITS,
   cleanIngredients,
   cleanReheating,
   cleanSteps,
@@ -53,6 +58,7 @@ import {
   ingredientStarted,
   aisleLabel,
   linkValid,
+  qtyValid,
   reheatModesOf,
   scaledQty,
   seasonsLine,
@@ -119,6 +125,14 @@ type Draft = DishInput & {
   storageMethod: string
   storageDays: string
   storageContainer: string
+}
+
+/** Les groupes de lignes d'un `422 DUPLICATE_INGREDIENT_LINE`, ou null pour toute autre erreur. */
+function duplicateLines(error: unknown): number[][] | null {
+  if (!(error instanceof ApiError) || error.status !== 422) return null
+  const body = error.body as { code?: string; lines?: unknown } | null
+  if (body?.code !== 'DUPLICATE_INGREDIENT_LINE' || !Array.isArray(body.lines)) return null
+  return body.lines.filter(Array.isArray).map((g: unknown[]) => g.filter((n): n is number => typeof n === 'number'))
 }
 
 function toDraft(dish: Dish | null): Draft {
@@ -211,6 +225,7 @@ export default function DishForm({
   onAutosave,
   saving,
   error,
+  saveError,
   backHref,
 }: {
   /** Plat existant, ou null pour une création. */
@@ -222,6 +237,8 @@ export default function DishForm({
   onAutosave?: (input: DishInput) => Promise<unknown>
   saving: boolean
   error: string | null
+  /** L'erreur brute du dernier enregistrement : un doublon de lignes y est lu. */
+  saveError?: unknown
   backHref: string
 }) {
   const [d, setD] = useState<Draft>(() => toDraft(dish))
@@ -231,6 +248,9 @@ export default function DishForm({
   const [personalTag, setPersonalTag] = useState('')
   const [autosaved, setAutosaved] = useState<Date | null>(null)
   const [autosaveFailed, setAutosaveFailed] = useState(false)
+  const [autosaveError, setAutosaveError] = useState<unknown>(null)
+  /** L'erreur de doublon que l'on a cessé d'afficher, parce que les lignes ont changé. */
+  const [dupDismissed, setDupDismissed] = useState<unknown>(null)
 
   const diets = useDiets()
   const allergens = useAllergens()
@@ -266,8 +286,12 @@ export default function DishForm({
         .then(() => {
           setAutosaved(new Date())
           setAutosaveFailed(false)
+          setAutosaveError(null)
         })
-        .catch(() => setAutosaveFailed(true))
+        .catch((e: unknown) => {
+          setAutosaveFailed(true)
+          setAutosaveError(e)
+        })
     }, 2500)
     return () => clearTimeout(t)
   }, [d, autosave, dirty, saveable, saving, onAutosave])
@@ -279,6 +303,17 @@ export default function DishForm({
   const lignesIncompletes = d.ingredients.filter(
     (i) => ingredientStarted(i) && !ingredientReady(i),
   ).length
+  /* Un doublon refusé par l'API (422) : ses indices valent pour les lignes envoyées,
+     c'est-à-dire après `cleanIngredients`. On les ramène aux lignes affichées. */
+  const dupError = [autosaveError, saveError].find(
+    (e) => e !== dupDismissed && duplicateLines(e) !== null,
+  )
+  const dupRows = useMemo(() => {
+    const sent = duplicateLines(dupError)
+    if (!sent) return []
+    const shown = d.ingredients.flatMap((row, i) => (ingredientReady(row) ? [i] : []))
+    return sent.map((g) => g.flatMap((k) => (shown[k] === undefined ? [] : [shown[k]])))
+  }, [dupError, d.ingredients])
   const liensInvalides = d.ingredients.filter((i) => !linkValid(i.link)).length
   const storageIncomplet = Boolean(
     (d.storageMethod || d.storageDays.trim() || d.storageContainer.trim()) &&
@@ -733,13 +768,23 @@ export default function DishForm({
           >
             <IngredientRows
               value={d.ingredients}
-              onChange={(v) => set('ingredients', v)}
+              onChange={(v) => {
+                set('ingredients', v)
+                if (dupError) setDupDismissed(dupError)
+              }}
+              duplicates={dupRows}
             />
+            {dupRows.length > 0 && (
+              <Note>
+                Le même ingrédient est sur plusieurs lignes (en rouge) : l’enregistrement
+                est refusé tant qu’elles ne sont pas fusionnées en une seule.
+              </Note>
+            )}
             {lignesIncompletes > 0 && (
               <Note>
                 {lignesIncompletes === 1
-                  ? 'Une ligne est incomplète : elle ne sera pas enregistrée. Il faut le nom, la quantité, l’unité et le rayon.'
-                  : `${lignesIncompletes} lignes sont incomplètes : elles ne seront pas enregistrées. Il faut le nom, la quantité, l’unité et le rayon.`}
+                  ? 'Une ligne est incomplète : elle ne sera pas enregistrée. Il faut le nom, la quantité et l’unité.'
+                  : `${lignesIncompletes} lignes sont incomplètes : elles ne seront pas enregistrées. Il faut le nom, la quantité et l’unité.`}
               </Note>
             )}
             {liensInvalides > 0 && (
@@ -1297,25 +1342,34 @@ function PhotoField({ dish }: { dish: Dish | null }) {
 function IngredientRows({
   value,
   onChange,
+  duplicates,
 }: {
   value: IngredientRow[]
   onChange: (v: IngredientRow[]) => void
+  /** Les groupes de lignes (indices affichés) qui disent la même chose. */
+  duplicates: number[][]
 }) {
+  const units = useUnits()
+  const aisles = useAisles()
   const set = (i: number, patch: Partial<IngredientRow>) =>
     onChange(value.map((row, j) => (j === i ? { ...row, ...patch } : row)))
+  const groupOf = (i: number) => duplicates.find((g) => g.includes(i))
 
   return (
     <div>
       <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
         Ingrédients
-        <InfoPopover label="Liste commune, quantité fixe, lien, à vérifier : de quoi s’agit-il ?">
-          En tapant un nom, choisissez l’ingrédient dans la liste commune : c’est
-          d’elle que se calculent les régimes et les saisons. Un nom à vous reste
-          possible. Une quantité fixe ne change pas avec les portions (une feuille de
-          laurier, une pincée de sel). Le lien, facultatif, dit où acheter
-          l’ingrédient. Un ingrédient « à vérifier » vient d’une recette importée :
-          relisez-le, puis indiquez qu’il est vérifié — tant qu’il ne l’est pas, la
-          fiche n’est pas Prête.
+        <InfoPopover label="Liste commune, quantité fixe, caché au client, à vérifier : de quoi s’agit-il ?">
+          Tapez un nom et choisissez l’ingrédient dans la liste commune : c’est
+          d’elle que se calculent les régimes, les allergènes et les saisons. S’il n’y
+          est pas, créez le vôtre sans quitter la recette : il reste « à valider »
+          jusqu’à ce que Lab’s Food le reprenne. Une quantité fixe ne change pas avec les
+          portions (une feuille de laurier, une pincée de sel). « Facultatif » : ses
+          allergènes ne comptent que « si utilisé ». « Caché au client » retire la ligne
+          de la fiche du client, mais pas de la liste de courses. Le lien, facultatif,
+          dit où acheter l’ingrédient. Un ingrédient « à vérifier » vient d’une recette
+          importée : reliez-le à la liste, relisez-le, puis indiquez qu’il est vérifié —
+          tant qu’il ne l’est pas, la fiche n’est pas Prête.
         </InfoPopover>
       </p>
       {value.length === 0 ? (
@@ -1327,54 +1381,73 @@ function IngredientRows({
           {value.map((ing, i) => {
             const complet = ingredientReady(ing)
             const amorcee = ingredientStarted(ing)
+            const dup = groupOf(i)
+            const linked = Boolean(ing.catalogIngredientId)
+            const toTaste = ing.unit === TO_TASTE
+            const qtyBad = ing.qty.trim() !== '' && !qtyValid(ing.qty)
             return (
               <li
                 key={i}
                 className={`flex flex-wrap items-center gap-2 rounded-xl ${
                   amorcee && !complet ? 'bg-cream-soft px-2 py-2' : ''
-                } ${ing.toVerify ? 'bg-amber-soft/40 px-2 py-2' : ''}`}
+                } ${ing.toVerify ? 'bg-amber-soft/40 px-2 py-2' : ''} ${
+                  dup ? 'bg-red-50 px-2 py-2 ring-1 ring-red-300' : ''
+                }`}
               >
                 <IngredientName
                   row={ing}
                   index={i}
                   onChange={(patch) => set(i, patch)}
                 />
-                <input
-                  type="number"
-                  step="any"
-                  min={0}
-                  value={ing.qty}
-                  onChange={(e) => set(i, { qty: e.target.value })}
-                  placeholder="Qté"
-                  aria-label={`Quantité de l’ingrédient ${i + 1}`}
-                  className="input-base w-20 shrink-0"
-                />
+                {!toTaste && (
+                  <input
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    max={QTY_MAX}
+                    value={ing.qty}
+                    onChange={(e) => set(i, { qty: e.target.value })}
+                    placeholder="Qté"
+                    aria-label={`Quantité de l’ingrédient ${i + 1}`}
+                    aria-invalid={qtyBad || undefined}
+                    className={`input-base w-20 shrink-0 ${qtyBad ? 'border-red-400' : ''}`}
+                  />
+                )}
                 <select
                   value={ing.unit}
-                  onChange={(e) => set(i, { unit: e.target.value })}
+                  onChange={(e) =>
+                    set(
+                      i,
+                      e.target.value === TO_TASTE
+                        ? { unit: e.target.value, qty: '' }
+                        : { unit: e.target.value },
+                    )
+                  }
                   aria-label={`Unité de l’ingrédient ${i + 1}`}
-                  className="input-base w-28 shrink-0"
+                  className="input-base w-32 shrink-0"
                 >
                   <option value="">Unité</option>
-                  {UNITS.map((u) => (
+                  {units.map((u) => (
                     <option key={u.code} value={u.code}>
                       {u.label}
                     </option>
                   ))}
                 </select>
-                <select
-                  value={ing.aisle ?? ''}
-                  onChange={(e) => set(i, { aisle: e.target.value })}
-                  aria-label={`Rayon de l’ingrédient ${i + 1}`}
-                  className="input-base w-40 shrink-0"
-                >
-                  <option value="">Rayon</option>
-                  {AISLES.map((a) => (
-                    <option key={a} value={a}>
-                      {aisleLabel(a)}
-                    </option>
-                  ))}
-                </select>
+                {!linked && (
+                  <select
+                    value={ing.aisle ?? ''}
+                    onChange={(e) => set(i, { aisle: e.target.value })}
+                    aria-label={`Rayon de l’ingrédient ${i + 1}`}
+                    className="input-base w-40 shrink-0"
+                  >
+                    <option value="">Rayon</option>
+                    {aisles.map((a) => (
+                      <option key={a.code} value={a.code}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((_, j) => j !== i))}
@@ -1383,10 +1456,80 @@ function IngredientRows({
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
+
+                {qtyBad && (
+                  <p role="alert" className="w-full text-xs text-red-700">
+                    La quantité est un nombre au-dessus de 0, jusqu’à 100 000, avec 3 décimales
+                    au plus.
+                  </p>
+                )}
+
+                {dup && (
+                  <p
+                    role="alert"
+                    className="flex w-full items-start gap-1.5 text-xs font-semibold text-red-700"
+                  >
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span>
+                      Même ingrédient que{' '}
+                      {dup
+                        .filter((j) => j !== i)
+                        .map((j) => `la ligne ${j + 1}`)
+                        .join(', ')}{' '}
+                      : fusionnez-les en une seule (additionnez les quantités).
+                    </span>
+                  </p>
+                )}
+
+                {ing.rawText && (ing.toVerify || !linked) && (
+                  <p className="w-full text-xs text-[#8B6200]">
+                    Écrit à l’origine : <span className="font-semibold">« {ing.rawText} »</span>
+                  </p>
+                )}
+                {amorcee && !linked && (
+                  <p className="w-full text-xs font-semibold text-[#8B6200]">
+                    {ing.toVerify
+                      ? 'À vérifier : choisissez l’ingrédient dans la liste, ou créez-le, pour relier cette ligne.'
+                      : 'Pas reliée à la liste : choisissez un ingrédient dans les suggestions, ou créez-le. Sans lien, la fiche n’est pas Prête.'}
+                  </p>
+                )}
+                {linked && ing.aisle && (
+                  <p className="w-full text-xs text-ink-soft">
+                    Rayon : {aisleLabel(ing.aisle, aisles)}
+                  </p>
+                )}
+
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <input
+                    value={ing.precision}
+                    maxLength={INGREDIENT_MAX.precision}
+                    onChange={(e) => set(i, { precision: e.target.value })}
+                    placeholder="Précision : bio, fermier…"
+                    aria-label={`Précision de l’ingrédient ${i + 1}`}
+                    className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
+                  />
+                  <input
+                    value={ing.preparation}
+                    maxLength={INGREDIENT_MAX.preparation}
+                    onChange={(e) => set(i, { preparation: e.target.value })}
+                    placeholder="Préparation : émincé, en dés…"
+                    aria-label={`Préparation de l’ingrédient ${i + 1}`}
+                    className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
+                  />
+                  <input
+                    value={ing.group}
+                    maxLength={INGREDIENT_MAX.group}
+                    onChange={(e) => set(i, { group: e.target.value })}
+                    placeholder="Groupe : Pour la sauce…"
+                    aria-label={`Groupe de l’ingrédient ${i + 1}`}
+                    className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
+                  />
+                </div>
                 <div className="flex w-full flex-wrap items-center gap-2">
                   <input
                     type="url"
                     value={ing.link}
+                    maxLength={INGREDIENT_MAX.link}
                     onChange={(e) => set(i, { link: e.target.value })}
                     placeholder="Lien (facultatif) : https://…"
                     aria-label={`Lien de l’ingrédient ${i + 1}`}
@@ -1401,6 +1544,24 @@ function IngredientRows({
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Quantité fixe
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-ink-mid">
+                    <input
+                      type="checkbox"
+                      checked={ing.optional}
+                      onChange={(e) => set(i, { optional: e.target.checked })}
+                      className="h-3.5 w-3.5 accent-navy"
+                    />
+                    Facultatif
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-ink-mid">
+                    <input
+                      type="checkbox"
+                      checked={ing.hiddenFromClient}
+                      onChange={(e) => set(i, { hiddenFromClient: e.target.checked })}
+                      className="h-3.5 w-3.5 accent-navy"
+                    />
+                    Caché au client
                   </label>
                   {ing.toVerify && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-[11px] font-semibold text-[#8B6200]">
@@ -1422,7 +1583,7 @@ function IngredientRows({
       )}
       <button
         type="button"
-        onClick={() => onChange([...value, { ...EMPTY_INGREDIENT, aisle: AISLES[0] }])}
+        onClick={() => onChange([...value, { ...EMPTY_INGREDIENT, aisle: '' }])}
         className="btn btn-outline text-xs"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter un ingrédient
@@ -1433,7 +1594,8 @@ function IngredientRows({
 
 /**
  * Le nom d'un ingrédient, avec les suggestions de la liste commune (§4.10).
- * Choisir une suggestion relie la ligne ; retaper le nom la délie.
+ * Choisir une suggestion relie la ligne ; retaper le nom la délie. Quand rien
+ * ne correspond, « Créer « … » » ouvre la création, sans quitter la recette.
  */
 function IngredientName({
   row,
@@ -1445,13 +1607,32 @@ function IngredientName({
   onChange: (patch: Partial<IngredientRow>) => void
 }) {
   const [open, setOpen] = useState(false)
-  const search = useIngredientSearch(open && !row.catalogIngredientId ? row.name : '')
+  const [creating, setCreating] = useState(false)
+  const allergens = useAllergens()
+  const term = open && !row.catalogIngredientId ? row.name : ''
+  const search = useIngredientSearch(term)
   const matches = search.data ?? []
+  const typed = term.trim()
+  const exact = matches.some((m) => m.name.toLowerCase() === typed.toLowerCase())
+  const canCreate = typed.length >= 2 && !search.isFetching && !exact
+
+  /** Relie la ligne à une entrée : son rayon, et « caché » prérempli pour un basique. */
+  const link = (m: LinkedIngredient) => {
+    onChange({
+      name: m.name,
+      catalogIngredientId: m.id,
+      ...(m.aisle !== undefined ? { aisle: m.aisle ?? '' } : {}),
+      ...(m.isBasic !== undefined ? { hiddenFromClient: m.isBasic } : {}),
+    })
+    setOpen(false)
+    setCreating(false)
+  }
 
   return (
     <div className="relative min-w-32 flex-1">
       <input
         value={row.name}
+        maxLength={INGREDIENT_MAX.name}
         onChange={(e) => {
           onChange({ name: e.target.value, catalogIngredientId: null })
           setOpen(true)
@@ -1468,30 +1649,71 @@ function IngredientName({
           liste
         </span>
       )}
-      {open && matches.length > 0 && (
+      {open && (matches.length > 0 || canCreate) && (
         <ul
           role="listbox"
-          className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[rgba(31,42,55,0.1)] bg-paper py-1 shadow-lg"
+          className="absolute z-30 mt-1 max-h-64 w-full min-w-64 overflow-y-auto rounded-xl border border-[rgba(31,42,55,0.1)] bg-paper py-1 shadow-lg"
         >
           {matches.map((m) => (
             <li key={m.id} role="option" aria-selected={false}>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onChange({ name: m.name, catalogIngredientId: m.id })
-                  setOpen(false)
-                }}
+                onClick={() => link({ id: m.id, name: m.name, aisle: m.aisle, isBasic: m.isBasic })}
                 className="block w-full px-3 py-1.5 text-left text-[13px] text-navy hover:bg-cream-soft"
               >
-                {m.name}
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {m.name}
+                  {m.private && (
+                    <span className="rounded-full bg-amber-soft px-1.5 py-0.5 text-[10px] font-semibold text-[#8B6200]">
+                      à valider
+                    </span>
+                  )}
+                </span>
                 {m.aliases.length > 0 && (
-                  <span className="ml-1.5 text-[11px] text-ink-soft">{m.aliases.join(', ')}</span>
+                  <span className="block text-[11px] text-ink-soft">{m.aliases.join(', ')}</span>
                 )}
+                <span className="mt-0.5 flex flex-wrap gap-1">
+                  {m.allergensNone ? (
+                    <span className="text-[11px] text-ink-soft">aucun allergène</span>
+                  ) : (
+                    m.allergens.map((a) => (
+                      <span
+                        key={a}
+                        className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+                      >
+                        {refLabel(allergens, a)}
+                      </span>
+                    ))
+                  )}
+                </span>
               </button>
             </li>
           ))}
+          {canCreate && (
+            <li role="option" aria-selected={false}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setCreating(true)
+                  setOpen(false)
+                }}
+                className="block w-full border-t border-[rgba(31,42,55,0.08)] px-3 py-2 text-left text-[13px] font-semibold text-navy hover:bg-cream-soft"
+              >
+                Créer « {typed} »
+              </button>
+            </li>
+          )}
         </ul>
+      )}
+      {creating && (
+        <IngredientCreateDialog
+          open
+          initialName={row.name.trim()}
+          onClose={() => setCreating(false)}
+          onLinked={link}
+        />
       )}
     </div>
   )
