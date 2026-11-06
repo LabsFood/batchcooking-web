@@ -1,3 +1,4 @@
+import CookieSettings from '@/components/shared/CookieSettings'
 import LegalLayout from '@/components/shared/LegalLayout'
 
 export const metadata = {
@@ -44,6 +45,11 @@ export default function ConfidentialitePage() {
         <li>Adapter les recettes à vos goûts, allergies et restrictions alimentaires.</li>
         <li>Établir et conserver les factures à des fins comptables et légales.</li>
         <li>Communiquer avec vous (confirmations, rappels, support).</li>
+        <li>Détecter et corriger les erreurs techniques du site.</li>
+        <li>
+          Avec votre consentement, mesurer l’audience du site pour améliorer le parcours
+          de réservation.
+        </li>
         <li>
           Avec votre consentement explicite, vous envoyer des informations marketing
           (newsletter hebdomadaire, offres saisonnières).
@@ -53,8 +59,9 @@ export default function ConfidentialitePage() {
       <h2>4. Base légale</h2>
       <p>
         Le traitement repose sur l’exécution du contrat (réservations, facturation), sur
-        votre consentement (newsletter, cookies non essentiels), ou sur nos obligations
-        légales (conservation des factures).
+        votre consentement (newsletter, mesure d’audience), sur nos obligations légales
+        (conservation des factures), ou sur notre intérêt légitime à assurer le bon
+        fonctionnement du site (diagnostic des erreurs techniques).
       </p>
 
       <h2>5. Durée de conservation</h2>
@@ -67,8 +74,10 @@ export default function ConfidentialitePage() {
       <h2>6. Destinataires</h2>
       <p>
         Vos données ne sont jamais revendues. Elles sont accessibles uniquement à Ivy
-        Siyaptze et aux prestataires techniques strictement nécessaires (hébergement,
-        paiement). Tous nos partenaires sont contractuellement tenus à la confidentialité.
+        Siyaptze et aux prestataires techniques strictement nécessaires : hébergement,
+        paiement, diagnostic des erreurs (Sentry) et, si vous l’acceptez, mesure
+        d’audience (PostHog). Sentry et PostHog hébergent ces données dans l’Union
+        européenne. Tous nos partenaires sont contractuellement tenus à la confidentialité.
       </p>
 
       <h2>7. Vos droits</h2>
@@ -92,9 +101,19 @@ export default function ConfidentialitePage() {
         fonctionnement du site (préférences d’affichage, panier, authentification).
       </p>
       <p>
-        Lors de votre première visite, un bandeau vous permet d’accepter, de refuser ou de
-        personnaliser le dépôt de cookies non essentiels (mesure d’audience anonymisée).
-        Vous pouvez modifier votre choix à tout moment depuis cette page.
+        Lors de votre première visite, un bandeau vous permet d’accepter ou de refuser la
+        mesure d’audience. Elle utilise PostHog, hébergé dans l’Union européenne : pages
+        vues et clics, sans le texte des pages ni ce que vous saisissez, rattachés à votre
+        identifiant de compte si vous êtes connecté. Aucun cookie ni identifiant n’est
+        déposé, et rien n’est envoyé, tant que vous n’avez pas accepté. Vous pouvez
+        modifier votre choix à tout moment ci-dessous.
+      </p>
+      <CookieSettings />
+      <p>
+        Les erreurs techniques du site sont transmises à Sentry, hébergé dans l’Union
+        européenne, pour être corrigées : le message d’erreur, la page concernée et votre
+        identifiant de compte, sans nom, adresse ni e-mail. Ce diagnostic ne dépose aucun
+        cookie.
       </p>
 
       <h2>9. Sécurité</h2>

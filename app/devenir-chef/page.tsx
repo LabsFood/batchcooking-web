@@ -53,6 +53,7 @@ import {
   useReapply,
   type ChefApplication,
 } from '@/lib/api/chef-documents'
+import { track } from '@/lib/analytics'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Candidature batch cooker.
@@ -263,6 +264,7 @@ function ApplicationForm({
         ? await reapply.mutateAsync(payload)
         : await submitApplication(payload)
       writeDraft(null)
+      track('candidature_submitted', { redepot: Boolean(redepot) })
       setDone({ ...res, email: payload.identity.email })
       window.scrollTo({ top: 0 })
     } catch (e) {

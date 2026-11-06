@@ -48,6 +48,7 @@ import {
   type OfferPrice,
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
+import { track } from '@/lib/analytics'
 
 /*
  * Trois étapes, plus quatre : la confirmation n'appartient plus à ce tunnel.
@@ -232,7 +233,10 @@ function ReservationFlow() {
           : {}),
       },
       {
-        onSuccess: (b) => router.push(`/espace-client/commandes/${b.id}/paiement`),
+        onSuccess: (b) => {
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals })
+          router.push(`/espace-client/commandes/${b.id}/paiement`)
+        },
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
