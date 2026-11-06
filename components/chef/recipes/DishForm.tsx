@@ -161,6 +161,10 @@ function apiCode(error: unknown, status: number): string | null {
   return typeof code === 'string' ? code : null
 }
 
+/** Session expirée ou accès refusé : corriger la saisie n'y changerait rien. */
+const isAuthError = (error: unknown) =>
+  error instanceof ApiError && (error.status === 401 || error.status === 403)
+
 /** La fiche a changé ailleurs depuis qu'on l'a lue : rien n'a été écrit. */
 const isConflict = (error: unknown) => apiCode(error, 409) === 'RECIPE_CONFLICT'
 
@@ -280,10 +284,23 @@ function toDraft(dish: Dish | null): Draft {
   }
 }
 
-function toPayload(d: Draft): DishInput {
+/** La fiche enregistrée porte-t-elle des lignes ou des étapes ? */
+const hasStoredRecipe = (dish: Dish | null): boolean =>
+  Boolean(dish?.recipe && (dish.recipe.ingredients.length > 0 || dish.recipe.steps.length > 0))
+
+/**
+ * Ce que l'API reçoit. `hadRecipe` : la fiche enregistrée a déjà des lignes ou
+ * des étapes. Si le chef les a toutes vidées (R24), on envoie alors une recette
+ * vide, et non `null` : `null` veut dire « ne touchez pas à la recette », et les
+ * anciennes lignes resteraient. Une ligne en cours de saisie, pas encore prête,
+ * n'est pas un vidage : on n'efface pas une recette sur une saisie à moitié faite.
+ */
+function toPayload(d: Draft, hadRecipe = false): DishInput {
   const ingredients = cleanIngredients(d.ingredients)
   const steps = cleanSteps(d.steps)
   const hasRecipe = ingredients.length > 0 || steps.length > 0
+  const emptied =
+    hadRecipe && !hasRecipe && !d.ingredients.some(ingredientStarted) && d.steps.every((s) => !s.text.trim())
 
   return {
     name: d.name.trim(),
@@ -305,7 +322,7 @@ function toPayload(d: Draft): DishInput {
     profiles: d.profiles,
     personalTags: d.personalTags,
     seasonsOverride: d.seasonsOverride,
-    recipe: hasRecipe
+    recipe: hasRecipe || emptied
       ? {
           ingredients,
           steps,
@@ -369,10 +386,11 @@ const PLAIN_KEYS = [
  * Sans modification entre l'envoi et la réponse, `toPayload` du résultat égale
  * celui de la fiche enregistrée : l'enregistrement automatique ne repart pas.
  */
-function mergeSaved(current: Draft, sent: Draft, res: Dish): Draft {
+function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: boolean): Draft {
   const back = toDraft(res)
-  const sentP = toPayload(sent)
-  const backP = toPayload(back)
+  const sentP = toPayload(sent, hadSent)
+  // Une recette vidée revient sans ligne : on la lit quand même, pour reprendre réchauffage et conservation.
+  const backP = toPayload(back, true)
   const next: Draft = { ...current }
   const take = <K extends keyof Draft>(k: K, sentValue: unknown, savedValue: unknown) => {
     if (!sameJson(sentValue, savedValue) && sameJson(current[k], sent[k])) next[k] = back[k]
@@ -469,13 +487,21 @@ export default function DishForm({
   const [notLinked, setNotLinked] = useState<number[]>([])
   const [customAllergenError, setCustomAllergenError] = useState<string | null>(null)
   /** La fiche telle que le dernier enregistrement l'a rendue : sert de référence tant que la liste n'est pas relue. */
-  const [baseline, setBaseline] = useState<{ lock: number; json: string } | null>(null)
+  const [baseline, setBaseline] = useState<{ lock: number; json: string; had: boolean; dish: Dish } | null>(null)
   /**
    * Un envoi que l'enregistrement automatique ne refait pas tel quel : refusé
    * (4xx, hors conflit), ou accepté mais gardé autrement par l'API. On attend
    * une modification, sans quoi il repartirait en boucle.
    */
   const heldRef = useRef<string | null>(null)
+  /** Le même envoi gardé, en état : l'en-tête ne doit pas promettre un enregistrement automatique qui n'aura pas lieu. */
+  const [heldJson, setHeldJson] = useState<string | null>(null)
+  const hold = (json: string | null) => {
+    heldRef.current = json
+    setHeldJson(json)
+  }
+  /** Le brouillon, au moment de l'envoi qui a échoué : une frappe ensuite remet le compteur d'essais à zéro. */
+  const retryDraftRef = useRef<Draft | null>(null)
   /** Les échecs passagers (réseau, 5xx) d'affilée : ils espacent les essais suivants. */
   const [retries, setRetries] = useState(0)
   /** Une tentative d'enregistrement a eu lieu : les champs obligatoires vides se signalent alors. */
@@ -513,12 +539,15 @@ export default function DishForm({
   const saveable = d.name.trim().length >= 2 && d.prepMinutes > 0
 
   /* Ce qui diffère de la fiche enregistrée, comparé tel que l'API le recevrait. */
-  const payload = toPayload(d)
+  /* La fiche enregistrée a-t-elle des lignes ou des étapes ? (la liste relue peut être en retard sur la dernière réponse) */
+  const hadRecipe =
+    baseline && dish && baseline.lock > dish.lockVersion ? baseline.had : hasStoredRecipe(dish)
+  const payload = toPayload(d, hadRecipe)
   const saved = useMemo(() => {
     if (!dish) return null
     // La liste relue peut être en retard sur la réponse du dernier enregistrement.
     if (baseline && baseline.lock > dish.lockVersion) return baseline.json
-    return JSON.stringify(toPayload(toDraft(dish)))
+    return JSON.stringify(toPayload(toDraft(dish), hasStoredRecipe(dish)))
   }, [dish, baseline])
   const dirty = saved === null || JSON.stringify(payload) !== saved
 
@@ -547,16 +576,17 @@ export default function DishForm({
    * porte, la référence de comparaison, et ce que l'API a normalisé, reporté sur
    * le brouillon tel qu'il est maintenant (`mergeSaved`), jamais à sa place.
    */
-  function adoptSaved(sentDraft: Draft, res: Dish) {
-    const savedJson = JSON.stringify(toPayload(toDraft(res)))
+  function adoptSaved(sentDraft: Draft, res: Dish, hadSent: boolean) {
+    const hadAfter = hasStoredRecipe(res)
+    const savedJson = JSON.stringify(toPayload(toDraft(res), hadAfter))
     setLockVersion(res.lockVersion)
-    setBaseline({ lock: res.lockVersion, json: savedJson })
-    setD((cur) => mergeSaved(cur, sentDraft, res))
+    setBaseline({ lock: res.lockVersion, json: savedJson, had: hadAfter, dish: res })
+    setD((cur) => mergeSaved(cur, sentDraft, res, hadSent))
     // Sans frappe depuis l'envoi, le brouillon devient `settled`. S'il diffère encore
     // de la fiche, l'API a gardé autre chose (une recette vidée de toutes ses lignes,
     // par exemple) : on ne le renvoie pas en boucle, on attend une modification.
-    const settledJson = JSON.stringify(toPayload(mergeSaved(sentDraft, sentDraft, res)))
-    heldRef.current = settledJson === savedJson ? null : settledJson
+    const settledJson = JSON.stringify(toPayload(mergeSaved(sentDraft, sentDraft, res, hadSent), hadAfter))
+    hold(settledJson === savedJson ? null : settledJson)
     // La fiche est enregistrée : un échec d'avant ne vaut plus.
     setRetries(0)
     setAutosaveFailed(false)
@@ -567,24 +597,33 @@ export default function DishForm({
   useEffect(() => {
     if (!autosave || !dirty || !saveable || saving || autosaving || conflict || storageProblem) return
     const sentDraft = d
-    const sentJson = JSON.stringify(toPayload(sentDraft))
+    const sentHad = hadRecipe
+    const sentJson = JSON.stringify(toPayload(sentDraft, sentHad))
     // Ce même envoi a été refusé (un 422, par exemple), ou l'API l'a gardé autrement :
     // on attend une modification.
     if (heldRef.current === sentJson) return
+    // Une frappe depuis le dernier échec : on repart du délai normal, pas de 10 à 30 s.
+    if (retries > 0 && retryDraftRef.current !== sentDraft) {
+      setRetries(0)
+      return
+    }
     // Après un échec passager, les essais s'espacent : 2,5 s, 10 s, puis 30 s.
     const delay =
       retries === 0 ? AUTOSAVE_DELAY : RETRY_DELAYS[Math.min(retries, RETRY_DELAYS.length) - 1]
     const t = setTimeout(() => {
       setAutosaving(true)
-      onAutosave!(withLock(toPayload(sentDraft)))
+      onAutosave!(withLock(toPayload(sentDraft, sentHad)))
         .then((res) => {
-          adoptSaved(sentDraft, res)
+          adoptSaved(sentDraft, res, sentHad)
           setAutosaved(new Date())
         })
         .catch((e: unknown) => {
           if (isConflict(e)) setConflictSeen(true)
-          else if (isTransient(e)) setRetries((n) => n + 1)
-          else heldRef.current = sentJson
+          else if (isTransient(e)) {
+            retryDraftRef.current = sentDraft
+            setRetries((n) => n + 1)
+          }
+          else hold(sentJson)
           setAutosaveFailed(true)
           setAutosaveError(e)
         })
@@ -592,7 +631,7 @@ export default function DishForm({
     }, delay)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé ; `adoptSaved` n'utilise que des setters et une ref.
-  }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave, retries])
+  }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave, retries, hadRecipe])
 
   /** « Recharger » : relit le plat et repart de lui. Les saisies locales sont perdues. */
   async function reload() {
@@ -614,7 +653,7 @@ export default function DishForm({
       setD(toDraft(fresh))
       setLockVersion(fresh.lockVersion)
       setBaseline(null)
-      heldRef.current = null
+      hold(null)
       setRetries(0)
       setConflictSeen(false)
       setConflictDismissed(saveError)
@@ -628,6 +667,10 @@ export default function DishForm({
       setReloading(false)
     }
   }
+
+  /* Entre la réponse d'un enregistrement et la liste relue, la liste porte encore l'ancienne
+     fiche, confirmation comprise : le bloc des allergènes lit la réponse, plus récente. */
+  const allergenDish = baseline && dish && baseline.lock > dish.lockVersion ? baseline.dish : dish
 
   const readiness = dish?.readiness
 
@@ -682,17 +725,25 @@ export default function DishForm({
   /* L'enregistrement automatique a échoué (hors conflit, qui a son bandeau) : la
      saisie reste sur la page, et le chef doit savoir qu'elle n'est pas enregistrée. */
   const unsaved = autosaveFailed && !conflict
+  const authLost = isAuthError(autosaveError)
+  /* Un envoi qui a réussi mais que l'API a gardé autrement : rien ne repart seul. */
+  const heldNow = heldJson !== null && heldJson === JSON.stringify(payload)
   const unsavedTransient = unsaved && isTransient(autosaveError)
   const unsavedText = !unsaved
     ? null
     : unsavedTransient
       ? 'Le brouillon n’a pas pu s’enregistrer (connexion ou serveur) : vos modifications restent sur cette page, et un nouvel essai part tout seul. Pour les enregistrer tout de suite, appuyez sur « Enregistrer ».'
-      : `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».`
+      : authLost
+        ? 'Votre session a expiré : reconnectez-vous. Le brouillon n’a pas été enregistré ; vos modifications restent sur cette page.'
+        : `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».`
   const unsavedShort = !unsaved
     ? null
     : unsavedTransient
       ? 'Brouillon non enregistré (connexion) : nouvel essai automatique, ou appuyez sur « Enregistrer ».'
-      : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
+      : authLost
+        ? 'Votre session a expiré : reconnectez-vous.'
+        : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
+  const heldText = 'Une partie de vos modifications n’a pas été prise en compte : vérifiez puis cliquez sur Enregistrer'
 
   return (
     <form
@@ -701,10 +752,11 @@ export default function DishForm({
         setAttempted(true)
         if (!saveable || saving || autosaving || conflict || blocked) return
         const sentDraft = d
-        const pending = onSave(withLock(toPayload(sentDraft)))
+        const sentHad = hadRecipe
+        const pending = onSave(withLock(toPayload(sentDraft, sentHad)))
         // La nouvelle version et ce que l'API a normalisé, comme après un enregistrement
         // automatique. Un échec est montré par la page (`error`).
-        if (dish && pending) pending.then((res) => adoptSaved(sentDraft, res), () => {})
+        if (dish && pending) pending.then((res) => adoptSaved(sentDraft, res, sentHad), () => {})
       }}
       className="space-y-6"
     >
@@ -789,7 +841,9 @@ export default function DishForm({
             className={`relative mt-3 text-xs ${unsavedText ? 'font-semibold text-amber' : 'text-white/80'}`}
           >
             {unsavedText ??
-              (autosaved && !dirty
+              (heldNow
+                ? heldText
+                : autosaved && !dirty
                 ? `Brouillon enregistré à ${heure(autosaved)}`
                 : autosave
                   ? 'Brouillon : il s’enregistre tout seul pendant que vous écrivez.'
@@ -1132,11 +1186,11 @@ export default function DishForm({
             hint="Les quatorze allergènes réglementaires. C’est ce que lit un client allergique."
           >
             <div id="dish-allergens" className="space-y-4">
-              <RecipeAllergens dish={dish} options={allergens} />
+              <RecipeAllergens dish={allergenDish} options={allergens} />
 
               <AddedAllergens
                 options={allergens}
-                dish={dish}
+                dish={allergenDish}
                 added={d.addedAllergens ?? []}
                 onToggle={(c) => toggle('addedAllergens', c)}
               />
@@ -1180,13 +1234,22 @@ export default function DishForm({
                 )}
               </div>
 
-              {dish && (
+              {allergenDish && (
                 <AllergenCheck
-                  dish={dish}
+                  dish={allergenDish}
                   dirty={dirty}
                   locked={conflict}
                   lockVersion={lockVersion}
-                  onConfirmed={(v) => setLockVersion(v)}
+                  onConfirmed={(res) => {
+                    setLockVersion(res.lockVersion)
+                    // La liste relue arrive après : la confirmation s'affiche déjà.
+                    setBaseline({
+                      lock: res.lockVersion,
+                      json: JSON.stringify(toPayload(toDraft(res), hasStoredRecipe(res))),
+                      had: hasStoredRecipe(res),
+                      dish: res,
+                    })
+                  }}
                   onConflict={() => setConflictSeen(true)}
                   onNotLinked={setNotLinked}
                 />
@@ -1579,7 +1642,9 @@ export default function DishForm({
             className={`min-w-0 flex-1 text-[13px] ${unsavedShort ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
           >
             {unsavedShort ??
-              (!saveable
+              (heldNow
+                ? heldText
+                : !saveable
                 ? 'Le nom et le temps de préparation sont nécessaires.'
                 : (readiness?.problems.length ?? 0) > 0
                   ? `Il manque ${readiness!.problems.length} point${readiness!.problems.length > 1 ? 's' : ''} pour que la fiche soit Prête.`
@@ -1740,6 +1805,7 @@ function RecipeAllergens({
                     <span>
                       <span className="font-semibold">code ancien ({code})</span>
                       {' : à faire corriger par Lab’s Food'}
+                      {(sources[code] ?? []).length > 0 && ` (apporté par : ${sources[code].join(', ')})`}
                     </span>
                   ) : (
                     <span>
@@ -1869,7 +1935,7 @@ function AllergenCheck({
   /** Un conflit est affiché : on ne confirme plus. */
   locked: boolean
   lockVersion: number | undefined
-  onConfirmed: (lockVersion: number) => void
+  onConfirmed: (dish: Dish) => void
   onConflict: () => void
   /** Les rangs (lignes enregistrées) d'un `422 INGREDIENT_NOT_LINKED`. */
   onNotLinked: (lines: number[]) => void
@@ -1928,7 +1994,7 @@ function AllergenCheck({
                 { id: dish.id, lockVersion },
                 {
                   onSuccess: (res) => {
-                    onConfirmed(res.lockVersion)
+                    onConfirmed(res)
                     toast.success('Allergènes confirmés')
                   },
                   onError: (e) => {

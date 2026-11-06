@@ -1092,6 +1092,8 @@ function ShoppingCard({
   const toast = useToast()
   const query = useMissionShoppingList(missionId)
   const envoyer = useSendMissionShoppingList()
+  // Les rayons en vigueur (l'API), à défaut la liste fixe.
+  const aisles = useAisles()
   const groupes = query.data?.groups ?? []
   const lignes = groupes.reduce((n, g) => n + g.lines.length, 0)
   const corrigees = groupes.reduce((n, g) => n + g.lines.filter((l) => l.edited).length, 0)
@@ -1208,7 +1210,7 @@ function ShoppingCard({
                 key={g.aisle}
                 className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy"
               >
-                {aisleLabel(g.aisle)}
+                {aisleLabel(g.aisle, aisles)}
                 <span className="ml-1.5 tabular-nums text-ink-soft">{g.lines.length}</span>
               </li>
             ))}
@@ -1326,7 +1328,12 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                   changer(i, {
                     unit: e.target.value,
                     // « selon le goût » n'a pas de nombre : l'API le lit comme zéro.
-                    ...(e.target.value === TO_TASTE ? { qty: 0 } : {}),
+                    ...(e.target.value === TO_TASTE
+                      ? { qty: 0 }
+                      : // En quittant « selon le goût », la quantité repart vide : pas un « 0 » affiché.
+                        l.unit === TO_TASTE
+                        ? { qty: Number.NaN }
+                        : {}),
                   })
                 }
                 aria-label={`Unité de ${l.name || 'la ligne'}`}
