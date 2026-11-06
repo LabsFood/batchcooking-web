@@ -42,6 +42,7 @@ import {
 import { apiMessage } from '@/lib/api/messages'
 import { ApiError } from '@/lib/api/client'
 import IngredientCreateDialog, { type LinkedIngredient } from './IngredientCreateDialog'
+import RecipeHistory from './RecipeHistory'
 import {
   FREEZER_MONTHS,
   INGREDIENT_MAX,
@@ -633,6 +634,34 @@ export default function DishForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé ; `adoptSaved` n'utilise que des setters et une ref.
   }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave, retries, hadRecipe])
 
+  /**
+   * Repart d'une fiche rendue par l'API, à la place du brouillon : « Recharger »
+   * et « Restaurer » le veulent. `baseline` : la fiche de la liste relue fait foi
+   * (null), ou, pour une réponse que la liste n'a pas encore, cette réponse même.
+   */
+  function replaceWith(fresh: Dish, keep: Dish | null) {
+    setD(toDraft(fresh))
+    setLockVersion(fresh.lockVersion)
+    setBaseline(
+      keep
+        ? {
+            lock: keep.lockVersion,
+            json: JSON.stringify(toPayload(toDraft(keep), hasStoredRecipe(keep))),
+            had: hasStoredRecipe(keep),
+            dish: keep,
+          }
+        : null,
+    )
+    hold(null)
+    setRetries(0)
+    setConflictSeen(false)
+    setConflictDismissed(saveError)
+    setAutosaveFailed(false)
+    setAutosaveError(null)
+    setDupDismissed(dupError ?? null)
+    setNotLinked([])
+  }
+
   /** « Recharger » : relit le plat et repart de lui. Les saisies locales sont perdues. */
   async function reload() {
     if (!onReload || reloading) return
@@ -650,17 +679,7 @@ export default function DishForm({
         setReloadError('Ce plat n’existe plus : il a peut-être été supprimé ailleurs.')
         return
       }
-      setD(toDraft(fresh))
-      setLockVersion(fresh.lockVersion)
-      setBaseline(null)
-      hold(null)
-      setRetries(0)
-      setConflictSeen(false)
-      setConflictDismissed(saveError)
-      setAutosaveFailed(false)
-      setAutosaveError(null)
-      setDupDismissed(dupError ?? null)
-      setNotLinked([])
+      replaceWith(fresh, null)
     } catch (e) {
       setReloadError(apiMessage(e, 'Le plat n’a pas pu être rechargé.'))
     } finally {
@@ -1592,6 +1611,16 @@ export default function DishForm({
           </section>
 
           {dish && <VersionCard dish={dish} />}
+          {dish && (
+            <RecipeHistory
+              dish={dish}
+              lockVersion={lockVersion}
+              dirty={dirty}
+              disabled={conflict || saving || autosaving || reloading}
+              onRestored={(restored) => replaceWith(restored, restored)}
+              onConflict={() => setConflictSeen(true)}
+            />
+          )}
 
           {error && !isConflict(saveError) && (
             <p
