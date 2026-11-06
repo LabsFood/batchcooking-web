@@ -39,6 +39,10 @@ export const REASON_TEXT = {
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',
   DUPLICATE_INGREDIENT_LINE:
     'Un même ingrédient figure sur plusieurs lignes : fusionnez-les en une seule.',
+  RECIPE_CONFLICT:
+    'Cette recette a été modifiée ailleurs (un autre onglet, ou Lab’s Food a mis à jour un ingrédient). Rechargez pour voir la dernière version.',
+  INGREDIENT_NOT_LINKED:
+    'Des ingrédients ne sont pas reliés à la liste commune : reliez-les avant de confirmer les allergènes.',
   INGREDIENT_ALREADY_LISTED: 'Cet ingrédient figure déjà dans la liste : reliez-le plutôt que de le recréer.',
   INGREDIENT_CAP_REACHED:
     'Vous avez créé beaucoup d’ingrédients ces dernières 24 heures : réessayez plus tard.',

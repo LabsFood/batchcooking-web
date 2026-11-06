@@ -64,20 +64,65 @@ export default function IngredientCreateDialog({
   const [general, setGeneral] = useState<string | null>(null)
   const [existing, setExisting] = useState<{ id: string; name: string } | null>(null)
 
+  /* Le parent passe un `onClose` neuf à chaque rendu (un enregistrement
+     automatique en provoque) : on le lit par une ref, pour que les effets
+     ci-dessous ne se relancent pas et ne volent pas le focus en pleine saisie. */
+  const closeRef = useRef(onClose)
+  const pendingRef = useRef(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    closeRef.current = onClose
+    pendingRef.current = create.isPending
+  })
+
+  /* À l'ouverture seulement : le focus va au nom, et revient au champ qui a
+     ouvert le dialogue quand il se ferme. */
   useEffect(() => {
     if (!open) return
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     nameRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !create.isPending) onClose()
-    }
-    document.addEventListener('keydown', onKey)
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', onKey)
       document.body.style.overflow = overflow
+      if (opener && opener.isConnected) opener.focus()
     }
-  }, [open, create.isPending, onClose])
+  }, [open])
+
+  /* Échap ferme ; Tab reste dans le dialogue (il se déclare `aria-modal`). */
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !pendingRef.current) {
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const panel = panelRef.current
+      if (!panel) return
+      const items = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (!panel.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
 
   if (!open || typeof document === 'undefined') return null
 
@@ -156,6 +201,7 @@ export default function IngredientCreateDialog({
       onClick={() => !create.isPending && onClose()}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Créer un ingrédient"

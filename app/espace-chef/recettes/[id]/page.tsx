@@ -92,6 +92,11 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
         variantOfName={dishes.data?.find((x) => x.id === dish.variantOfId)?.name ?? null}
         onSave={save}
         onAutosave={(input) => autosave.mutateAsync({ id, patch: input })}
+        onReload={async () => {
+          // La liste à jour fait foi : on repart de ce que l’API sert maintenant.
+          const fresh = await dishes.refetch({ throwOnError: true })
+          return fresh.data?.find((x) => x.id === id) ?? null
+        }}
         saving={update.isPending}
         error={update.error ? apiMessage(update.error) : null}
         saveError={update.error}

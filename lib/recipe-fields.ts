@@ -277,13 +277,36 @@ export const ingredientStarted = (i: IngredientRow): boolean =>
 const orNull = (v: string) => (v.trim() ? v.trim() : null)
 
 /**
+ * Les rangs (dans la liste affichée) des lignes que l'API recevra : celles qui
+ * sont prêtes. C'est la seule définition de « la ligne n'est pas envoyée » :
+ * `cleanIngredients` et la lecture des rapports de l'API (doublons, lignes non
+ * reliées, points de « Prête ») s'appuient tous sur elle, pour ne jamais diverger.
+ */
+export const sentIndexes = (list: IngredientRow[]): number[] =>
+  list.flatMap((row, i) => (ingredientReady(row) ? [i] : []))
+
+/**
+ * Ramène des rangs de l'API (ceux des lignes envoyées) aux lignes affichées.
+ * Un rang inconnu est écarté plutôt que de surligner la mauvaise ligne.
+ */
+export function shownRows(list: IngredientRow[], sent: number[]): number[] {
+  const shown = sentIndexes(list)
+  return sent.flatMap((k) => (shown[k] === undefined ? [] : [shown[k]]))
+}
+
+/** Les groupes de lignes (doublons) de l'API, en rangs affichés. */
+export const shownGroups = (list: IngredientRow[], groups: number[][]): number[][] =>
+  groups.map((g) => shownRows(list, g))
+
+/**
  * Les lignes prêtes, au format d'écriture de l'API. Les nombres et les
  * booléens sont de vrais types JSON : l'API refuse `"3"` comme `"false"`.
  * `qty` vaut `null` pour « selon le goût », et sur une ligne à vérifier sans
  * quantité.
  */
 export function cleanIngredients(list: IngredientRow[]): Ingredient[] {
-  return list.filter(ingredientReady).map((i) => {
+  return sentIndexes(list).map((k) => {
+    const i = list[k]
     const toTaste = i.unit === TO_TASTE
     return {
       name: i.name.trim(),
@@ -464,15 +487,43 @@ export function displayQuantity(
   return label ? `${number} ${label}` : number
 }
 
-export function cleanStorage(s: {
+/** Les bornes de l'API pour la congélation. */
+export const FREEZER_MONTHS = { min: 1, max: 24 } as const
+export const THAWING_MAX = 300
+
+/** Des mois de congélation saisis : un entier de 1 à 24. */
+export const freezerMonthsValid = (v: string) => {
+  const n = Number(v)
+  return v.trim() !== '' && Number.isInteger(n) && n >= FREEZER_MONTHS.min && n <= FREEZER_MONTHS.max
+}
+
+export interface StorageDraft {
   method: string
   days: string
   container: string
-}): NonNullable<Recipe['storage']> | null {
+  /** `yes`, `no`, ou vide : jamais choisi (une fiche ancienne). */
+  freezable: '' | 'yes' | 'no'
+  freezerMonths: string
+  thawing: string
+}
+
+/**
+ * La conservation à envoyer. Il faut un lieu et un nombre de jours (l'API
+ * refuse un couple incomplet). « Congelable » part en vrai booléen ; mois et
+ * décongélation ne partent que si c'est « oui » et qu'ils sont valides : une
+ * valeur hors bornes serait un 400 sur tout le plat.
+ */
+export function cleanStorage(s: StorageDraft): NonNullable<Recipe['storage']> | null {
   if (!s.method || !s.days.trim()) return null
+  const yes = s.freezable === 'yes'
   return {
     method: s.method,
     days: Number(s.days),
     ...(s.container.trim() ? { container: s.container.trim() } : {}),
+    ...(s.freezable ? { freezable: yes } : {}),
+    ...(yes && freezerMonthsValid(s.freezerMonths) ? { freezerMonths: Number(s.freezerMonths) } : {}),
+    ...(yes && s.thawing.trim() && s.thawing.trim().length <= THAWING_MAX
+      ? { thawing: s.thawing.trim() }
+      : {}),
   }
 }

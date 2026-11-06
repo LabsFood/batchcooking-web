@@ -116,7 +116,20 @@ export interface Recipe {
   ingredients: Ingredient[]
   steps: Step[]
   reheating?: Reheating | null
-  storage?: { method?: string; days?: number; container?: string | null } | null
+  storage?: Storage | null
+}
+
+/** §4.6 : où et combien de temps ; la congélation se dit à part (oui ou non). */
+export interface Storage {
+  method?: string
+  days?: number
+  container?: string | null
+  /** `undefined` : jamais renseigné (fiche ancienne). */
+  freezable?: boolean
+  /** 1 à 24, si congelable. */
+  freezerMonths?: number | null
+  /** Comment décongeler (300 caractères au plus), si congelable. */
+  thawing?: string | null
 }
 
 /** Un point qui manque, tel que l'API le nomme : `field` désigne le champ. */
@@ -323,8 +336,13 @@ export const usePublishDish = () =>
  * attente deviennent alors une version : c'est elle que cuisine une prestation.
  */
 export const useConfirmAllergens = () =>
-  useCatalogMutation<string, Dish>(
-    (f, id) => f<Dish>(`/me/dishes/${id}/allergens/confirm`, { method: 'POST' }),
+  useCatalogMutation<{ id: string; lockVersion?: number }, Dish>(
+    (f, { id, lockVersion }) =>
+      f<Dish>(`/me/dishes/${id}/allergens/confirm`, {
+        method: 'POST',
+        // La version lue avec les allergènes : périmée, l'API répond 409 RECIPE_CONFLICT.
+        body: lockVersion === undefined ? undefined : { lockVersion },
+      }),
     [DISHES, MENUS],
   )
 
