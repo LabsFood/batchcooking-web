@@ -25,9 +25,11 @@ export const clerkAuthAppearance = {
     fontSize: '0.875rem',
   },
   elements: {
-    // La page rend déjà son propre titre (typo Fraunces) et son lien de bas de
-    // page : on masque ceux de Clerk pour éviter les doublons.
-    header: 'hidden',
+    // La page rend déjà son propre lien de bas de page. Son titre ne double
+    // celui de Clerk qu'au premier écran : l'en-tête est masqué là seulement,
+    // en CSS (`.cl-signIn-start .cl-header`, app/globals.css). Le masquer
+    // partout cachait « Vérifiez votre messagerie » : on ne savait pas qu'un
+    // lien ou un code venait d'être envoyé.
     footer: 'hidden',
     // Pas de boutons sociaux : l'instance n'utilise que email + mot de passe.
     socialButtons: 'hidden',

@@ -755,24 +755,7 @@ export const LF_SUGGESTIONS: LfSuggestion[] = [
 
 export const dishById = (id: string) => CHEF_DISHES.find((d) => d.id === id)
 
-// ── Avis, litiges, messagerie ───────────────────────────────────────────────
-
-export interface ChefReview {
-  id: string
-  client: string
-  date: string
-  overall: number
-  punctuality: number
-  hygiene: number
-  taste: number
-  comment: string
-  reply?: string
-}
-
-export const CHEF_REVIEWS: ChefReview[] = [
-  { id: 'rev_001', client: 'Camille F.', date: iso(-13), overall: 5, punctuality: 5, hygiene: 5, taste: 5, comment: 'Une semaine de repas parfaite, cuisine impeccable après le passage.' },
-  { id: 'rev_002', client: 'Marc D.', date: iso(-29), overall: 4, punctuality: 4, hygiene: 5, taste: 4, comment: 'Très bon dans l’ensemble, un peu de retard au démarrage.', reply: 'Merci Marc ! Embouteillage sur la Promenade, je prévois plus large la prochaine fois.' },
-]
+// ── Litiges, messagerie ─────────────────────────────────────────────────────
 
 /*
  * Un litige ne porte pas forcément sur une prestation : il peut concerner un

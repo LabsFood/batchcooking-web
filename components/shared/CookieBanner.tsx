@@ -5,31 +5,21 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Cookie, X } from 'lucide-react'
 
-const STORAGE_KEY = 'labsfood.cookies.v1'
-
-type Choice = 'accepted' | 'declined'
+import { readConsent, saveConsent, type ConsentChoice } from '@/lib/analytics'
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    try {
-      const v = window.localStorage.getItem(STORAGE_KEY)
-      if (!v) {
-        // Slight delay so it doesn't fight the page transition
-        const t = setTimeout(() => setVisible(true), 800)
-        return () => clearTimeout(t)
-      }
-    } catch {}
+    if (!readConsent()) {
+      // Slight delay so it doesn't fight the page transition
+      const t = setTimeout(() => setVisible(true), 800)
+      return () => clearTimeout(t)
+    }
   }, [])
 
-  const choose = (c: Choice) => {
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ choice: c, at: new Date().toISOString() }),
-      )
-    } catch {}
+  const choose = (c: ConsentChoice) => {
+    saveConsent(c)
     setVisible(false)
   }
 
@@ -62,8 +52,8 @@ export default function CookieBanner() {
                 </p>
                 <p className="text-xs text-white/65 leading-relaxed mt-1.5">
                   Pas de pub, pas de revente. On utilise le strict nécessaire pour gérer
-                  ton compte et la session, plus une mesure d&apos;audience anonyme si tu
-                  acceptes.
+                  ton compte et la session, plus une mesure d&apos;audience (hébergée
+                  dans l&apos;UE) pour améliorer le site, si tu acceptes.
                 </p>
               </div>
             </div>

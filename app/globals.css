@@ -788,6 +788,13 @@ body {
   display: none !important;
 }
 
+/* Le premier écran a déjà le titre de la page. Les suivants gardent celui de
+   Clerk : c'est lui qui dit « lien envoyé » ou « code envoyé ». */
+.cl-signIn-start .cl-header,
+.cl-signUp-start .cl-header {
+  display: none !important;
+}
+
 /* Connexions sociales desactivees : email + mot de passe uniquement.
    (A desactiver aussi cote dashboard Clerk pour couper les endpoints OAuth.) */
 .cl-socialButtons,
