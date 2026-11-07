@@ -191,7 +191,7 @@ export function ChefSidebar() {
       .toUpperCase() || 'BC'
 
   return (
-    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-[calc(var(--lf-dev-banner)+1.5rem)] self-start h-[calc(100vh-var(--lf-dev-banner)-3rem)] ml-6 my-6">
       <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-navy text-white">
         <div className="px-6 pb-5 pt-6">
           <Logo variant="white" size="sm" />

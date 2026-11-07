@@ -92,7 +92,7 @@ export default function DashboardSidebar() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-[calc(var(--lf-dev-banner)+1.5rem)] self-start h-[calc(100vh-var(--lf-dev-banner)-3rem)] ml-6 my-6">
       <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden">
         <div className="flex flex-col h-full">
           {/* Logo */}
