@@ -7,8 +7,6 @@ import ChefPage, { Card } from '@/components/chef/ChefPage'
 import DeleteMyAccount from '@/components/client/DeleteMyAccount'
 import ChangePassword from '@/components/shared/ChangePassword'
 import { useAuth } from '@/lib/auth-context'
-import { CHEF_PROFILE } from '@/lib/chef/mock'
-import { SAP_PATH_LABEL } from '@/lib/chef/states'
 
 const NOTIFICATIONS = [
   { id: 'requests', label: 'Nouvelles demandes', hint: 'Push + e-mail' },
@@ -32,10 +30,10 @@ export default function ChefSettingsPage() {
       <div className="space-y-5 max-w-3xl">
         <Card title="Mon compte">
           <div className="space-y-3">
-            <Field label="Nom" value={user?.name || CHEF_PROFILE.name} />
+            {/* Ville et voie SAP venaient d'un profil fictif (« Nice »), le même
+                pour chaque batch cooker : retirés tant que l'API ne les rend pas. */}
+            <Field label="Nom" value={user?.name || '—'} />
             <Field label="Email" value={user?.email || '—'} />
-            <Field label="Ville" value={CHEF_PROFILE.city} />
-            <Field label="Voie SAP" value={SAP_PATH_LABEL[CHEF_PROFILE.sapPath]} />
           </div>
         </Card>
 
