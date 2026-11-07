@@ -83,11 +83,17 @@ export default function ChefDisputesPage() {
         <Card
           title="Écrire à l’équipe"
           action={
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => toggle('callback')} className="btn btn-outline px-4 py-2 text-xs">
+            <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto">
+              <button
+                onClick={() => toggle('callback')}
+                className="btn btn-outline justify-center px-4 py-2.5 text-xs"
+              >
                 <PhoneCall className="h-3.5 w-3.5" aria-hidden /> Être rappelé
               </button>
-              <button onClick={() => toggle('dispute')} className="btn btn-primary px-4 py-2 text-xs">
+              <button
+                onClick={() => toggle('dispute')}
+                className="btn btn-primary justify-center px-4 py-2.5 text-xs"
+              >
                 <Plus className="h-3.5 w-3.5" aria-hidden />{' '}
                 {candidate ? 'Écrire au support' : 'Ouvrir un litige'}
               </button>
@@ -98,7 +104,10 @@ export default function ChefDisputesPage() {
             Vos demandes arrivent dans le fil du support, dans votre messagerie : l’équipe y
             répond, et vous y retrouvez tout l’historique.
           </p>
-          <Link href="/espace-chef/messagerie" className="btn btn-outline mt-3 text-xs">
+          <Link
+            href="/espace-chef/messagerie"
+            className="btn btn-outline mt-3 w-full justify-center text-xs sm:w-auto"
+          >
             <MessageCircle className="h-3.5 w-3.5" aria-hidden /> Ouvrir la messagerie
           </Link>
         </Card>

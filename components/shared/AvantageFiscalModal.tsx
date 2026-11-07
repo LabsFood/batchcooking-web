@@ -1,38 +1,27 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import {
-  X,
-  Banknote,
-  CheckCircle2,
-  ShieldCheck,
-  Clock,
-  Sparkles,
-  ArrowRight,
-} from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { X, Check, ArrowRight, ArrowUpRight } from 'lucide-react'
 
 const STEPS = [
   {
     title: 'L\'inscription',
-    text:
-      'Lors de notre premier contact, nous vous inscrivons sur la plateforme dédiée de l\'Urssaf.',
+    text: 'Lors de notre premier contact, nous vous inscrivons sur la plateforme dédiée de l\'Urssaf.',
   },
   {
     title: 'L\'activation',
-    text:
-      'L\'Urssaf vous envoie un e-mail pour activer votre compte et renseigner votre RIB sur leur plateforme sécurisée.',
+    text: 'L\'Urssaf vous envoie un e-mail pour activer votre compte et renseigner votre RIB sur leur plateforme sécurisée.',
   },
   {
     title: 'La facture',
-    text:
-      'Après la session, nous émettons une demande de paiement. Vous recevez une notification de l\'Urssaf.',
+    text: 'Après la session, nous émettons une demande de paiement. Vous recevez une notification de l\'Urssaf.',
   },
   {
     title: 'Le prélèvement',
-    text:
-      'Vous validez la demande sous 48 h. L\'Urssaf prélève uniquement 50 % du montant — l\'autre moitié est versée directement à Lab\'s Food.',
+    text: 'Vous validez la demande sous 48 h. L\'Urssaf prélève uniquement 50 % du montant, l\'autre moitié est versée directement à Lab\'s Food.',
   },
 ] as const
 
@@ -47,14 +36,20 @@ type Props = {
 }
 
 export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const reduceMotion = useReducedMotion()
+
   useEffect(() => {
     if (!isOpen) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const previousFocus = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
+    closeRef.current?.focus()
     return () => {
       document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
+      previousFocus?.focus?.()
     }
   }, [isOpen, onClose])
 
@@ -62,149 +57,155 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/70 backdrop-blur-sm overflow-y-auto"
-      style={{ opacity: 1 }}
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-navy/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
-      <div
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="avantage-fiscal-title"
         onClick={(e) => e.stopPropagation()}
-        style={{ opacity: 1 }}
-        className="relative w-full max-w-5xl my-8 bg-paper rounded-3xl overflow-hidden shadow-[0_40px_100px_-20px_rgba(31,42,55,0.5)]"
+        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        className="relative flex max-h-[92dvh] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_40px_100px_-20px_rgba(31,42,55,0.45)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl"
       >
-        <button
-          onClick={onClose}
-          aria-label="Fermer"
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-navy flex items-center justify-center transition-colors shadow-md"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {/* En-tête : toujours visible, jamais écrasé par le contenu */}
+        <header className="relative shrink-0 border-b border-[rgba(31,42,55,0.08)] px-6 pb-5 pt-6 sm:px-8 sm:pt-7">
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            aria-label="Fermer"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
 
-        {/* Header */}
-        <div className="relative bg-navy text-white px-6 lg:px-9 pt-8 pb-7 overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-12 w-72 h-72 rounded-full bg-mint/15 blur-3xl pointer-events-none" />
+          <p className="pr-10 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-deep">
+            Service à la personne · Avance immédiate
+          </p>
+          <h2
+            id="avantage-fiscal-title"
+            className="mt-2.5 pr-8 font-display font-bold leading-[1.05] text-navy"
+            style={{ fontSize: 'clamp(1.5rem, 5.5vw, 1.95rem)', letterSpacing: '-0.02em' }}
+          >
+            Vous ne payez que{' '}
+            <span className="italic font-medium text-amber-deep">la moitié.</span>
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-mid">
+            Le batch cooking à domicile est éligible au crédit d&apos;impôt Service à la
+            Personne. Grâce à l&apos;avance immédiate, proposée par l&apos;Urssaf et la
+            Direction générale des Finances publiques, la réduction s&apos;applique dès la
+            facturation.
+          </p>
+        </header>
 
-          <div className="relative">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber/20 text-amber text-[10px] font-mono uppercase tracking-[0.2em]">
-              <Sparkles className="w-3 h-3" /> Service à la Personne
-            </span>
-            <h2
-              className="font-display font-bold mt-4 leading-[1]"
-              style={{ fontSize: 'clamp(1.6rem, 3.4vw, 2.4rem)', letterSpacing: '-0.02em' }}
-            >
-              L&apos;avantage fiscal,<br />
-              <span className="text-amber italic font-medium">en avance immédiate.</span>
-            </h2>
-            <p className="mt-3 text-white/70 text-sm leading-relaxed max-w-xl">
-              Le batch cooking à domicile est éligible au crédit d&apos;impôt Service à la
-              Personne. Grâce à l&apos;<strong>Avance immédiate</strong>, vous ne
-              payez plus que la moitié — et ce, dès la facturation. Le service Avance
-              immédiate est proposé par l&apos;Urssaf et la Direction générale des Finances
-              publiques.
-            </p>
-          </div>
-
-          {/* Logo Urssaf — sous le bouton fermer (sous le texte en mobile) */}
-          <Image
-            src="/images/urssaf-white.png"
-            alt="Urssaf"
-            width={1281}
-            height={242}
-            className="relative mt-6 w-32 h-auto md:absolute md:mt-0 md:top-[80px] md:right-4 md:w-40"
-          />
-        </div>
-
-        {/* Body */}
-        <div className="px-6 lg:px-9 py-8 space-y-8">
-          {/* Highlight number */}
-          <div className="rounded-3xl bg-amber-soft/50 border border-amber/30 p-5 lg:p-6 flex items-start gap-4">
-            <span className="w-12 h-12 rounded-2xl bg-amber text-navy flex items-center justify-center flex-shrink-0">
-              <Banknote className="w-5 h-5" />
-            </span>
-            <div>
-              <p className="font-display text-2xl lg:text-3xl font-bold text-navy leading-none">
-                Vous ne payez que la moitié.
-              </p>
-              <p className="text-sm text-ink-mid mt-2 leading-relaxed">
-                Une session à <strong>150 €</strong> ne vous coûte que <strong>75 €</strong>{' '}
-                sur votre compte. L&apos;Urssaf verse les 75 € restants directement à Lab&apos;s
-                Food.
+        {/* Contenu défilant */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8">
+          {/* Exemple chiffré */}
+          <div className="flex items-stretch gap-3 rounded-2xl bg-amber-soft/50 p-4">
+            <div className="flex-1">
+              <p className="text-xs text-ink-mid">Une session à</p>
+              <p className="mt-0.5 font-display text-2xl font-bold leading-none text-ink-soft line-through decoration-ink-soft/50">
+                150 €
               </p>
             </div>
+            <ArrowRight className="mt-4 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+            <div className="flex-1">
+              <p className="text-xs text-ink-mid">Sur votre compte</p>
+              <p className="mt-0.5 font-display text-2xl font-bold leading-none text-navy">75 €</p>
+            </div>
           </div>
+          <p className="mt-2.5 text-xs leading-relaxed text-ink-soft">
+            L&apos;Urssaf verse les 75 € restants directement à Lab&apos;s Food.
+          </p>
 
-          {/* How it works */}
-          <div>
-            <h3 className="font-display text-lg font-bold text-navy mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber" /> Comment ça marche
+          {/* Étapes */}
+          <section className="mt-8" aria-labelledby="afm-steps">
+            <h3 id="afm-steps" className="font-display text-base font-bold text-navy">
+              Comment ça marche
             </h3>
-            <ol className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ol className="mt-4 space-y-5">
               {STEPS.map((s, i) => (
-                <li
-                  key={s.title}
-                  className="rounded-2xl bg-cream-soft border border-[rgba(31,42,55,0.06)] p-4"
-                >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="w-6 h-6 rounded-full bg-navy text-amber text-xs font-bold flex items-center justify-center">
-                      {i + 1}
-                    </span>
+                <li key={s.title} className="relative flex gap-4">
+                  {i < STEPS.length - 1 && (
+                    <span
+                      aria-hidden
+                      className="absolute left-[13px] top-8 h-[calc(100%-0.5rem)] w-px bg-[rgba(31,42,55,0.12)]"
+                    />
+                  )}
+                  <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 pt-0.5">
                     <p className="text-sm font-semibold text-navy">{s.title}</p>
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-ink-mid">{s.text}</p>
                   </div>
-                  <p className="text-xs text-ink-mid leading-relaxed">{s.text}</p>
                 </li>
               ))}
             </ol>
-            <p className="text-[11px] text-ink-soft mt-3 italic">
-              Si vous ne faites rien sous 48 h, la demande est automatiquement validée.
+            <p className="mt-4 text-xs italic text-ink-soft">
+              Sans réponse de votre part sous 48 h, la demande est automatiquement validée.
             </p>
-          </div>
+          </section>
 
           {/* Conditions */}
-          <div>
-            <h3 className="font-display text-lg font-bold text-navy mb-4 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-mint-ink" /> Pour qui ?
+          <section className="mt-8" aria-labelledby="afm-who">
+            <h3 id="afm-who" className="font-display text-base font-bold text-navy">
+              Pour qui ?
             </h3>
-            <ul className="space-y-2">
+            <ul className="mt-3 space-y-2">
               {CONDITIONS.map((c) => (
-                <li key={c} className="flex items-start gap-2.5 text-sm text-ink-mid">
-                  <CheckCircle2 className="w-4 h-4 text-mint-ink flex-shrink-0 mt-0.5" />
-                  <span>{c}</span>
+                <li key={c} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-mid">
+                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-mint text-mint-ink">
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
+                  </span>
+                  {c}
                 </li>
               ))}
             </ul>
-            <div className="mt-4 rounded-2xl bg-mint/40 border border-mint-deep/40 p-4">
-              <p className="text-xs text-mint-ink leading-relaxed">
-                <strong className="font-semibold">Plafond annuel :</strong> 12 000 € de
-                dépenses par foyer fiscal pour les services à la personne — soit jusqu&apos;à{' '}
-                <strong>6 000 € de réduction</strong>. Majoré de 1 500 € par enfant à charge
-                ou personne de plus de 65 ans (plafond max 15 000 €). Vous pouvez retrouver
-                ces informations sur cette page,{' '}
-                <a
-                  href="https://www.impots.gouv.fr/portail/particulier/emploi-domicile"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 break-all hover:text-navy"
-                >
-                  https://www.impots.gouv.fr/portail/particulier/emploi-domicile
-                </a>
-                .
-              </p>
-            </div>
-          </div>
 
-          {/* CTA */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2 border-t border-[rgba(31,42,55,0.06)]">
-            <p className="text-xs text-ink-soft flex-1">
-              Lab&apos;s Food vous accompagne pas à pas dans l&apos;activation de votre compte
-              Urssaf lors de votre première session.
-            </p>
-            <button onClick={onClose} className="btn btn-primary text-xs">
-              J&apos;ai compris
-              <ArrowRight className="w-4 h-4 icon-arrow" />
-            </button>
-          </div>
+            <div className="mt-4 rounded-2xl bg-cream-soft p-4 text-[13px] leading-relaxed text-ink-mid">
+              <p>
+                <strong className="font-semibold text-navy">Plafond annuel :</strong> 12 000 € de
+                dépenses par foyer fiscal, soit jusqu&apos;à{' '}
+                <strong className="font-semibold text-navy">6 000 € de réduction</strong>. Majoré
+                de 1 500 € par enfant à charge ou personne de plus de 65 ans (plafond maximum
+                15 000 €).
+              </p>
+              <a
+                href="https://www.impots.gouv.fr/portail/particulier/emploi-domicile"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2.5 inline-flex items-center gap-1 font-semibold text-navy underline underline-offset-2 hover:text-amber-deep"
+              >
+                Détails sur impots.gouv.fr
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+              </a>
+            </div>
+          </section>
         </div>
-      </div>
+
+        {/* Pied : action toujours accessible */}
+        <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-[rgba(31,42,55,0.08)] bg-white px-6 py-4 sm:px-8">
+          <div className="min-w-0">
+            <Image
+              src="/logo-urssaf.png"
+              alt="Urssaf"
+              width={553}
+              height={100}
+              className="h-5 w-auto"
+            />
+            <p className="mt-1.5 hidden text-[11px] leading-snug text-ink-soft sm:block">
+              On vous guide dans l&apos;activation lors de la première session.
+            </p>
+          </div>
+          <button onClick={onClose} className="btn btn-primary shrink-0 text-xs">
+            J&apos;ai compris
+            <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+          </button>
+        </footer>
+      </motion.div>
     </div>,
     document.body,
   )
