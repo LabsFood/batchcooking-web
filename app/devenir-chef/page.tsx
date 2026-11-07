@@ -1038,9 +1038,16 @@ function Header() {
     <header className="border-b border-[rgba(31,42,55,0.06)] bg-paper">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Logo size="sm" />
-        <Link href="/" className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-ink-mid hover:text-navy">
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Retour au site
-        </Link>
+        <div className="flex items-center gap-1 sm:gap-3">
+          <Link href="/" className="hidden items-center gap-1.5 rounded-full px-2 py-1 text-xs text-ink-mid hover:text-navy sm:inline-flex">
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Retour au site
+          </Link>
+          {/* Un batch cooker arrive ici par « Nous rejoindre » : sans ce lien,
+              rien ne lui dit où se connecter une fois sa candidature déposée. */}
+          <Link href="/auth/login" className="btn btn-outline max-w-[15rem] px-4 py-2 text-center text-xs leading-tight sm:max-w-none">
+            Déjà Batch Cooker ou Candidat ? Se connecter
+          </Link>
+        </div>
       </div>
     </header>
   )

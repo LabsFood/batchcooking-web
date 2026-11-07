@@ -10,6 +10,8 @@ const LINKS = {
   service: [
     { label: 'Notre concept', href: '/#concept' },
     { label: 'Comment ça marche ?', href: '/#how-it-works' },
+    { label: 'Devenir batch cooker', href: '/devenir-chef' },
+    { label: 'Espace batch cooker', href: '/auth/login' },
   ],
   about: [
     { label: 'À propos', href: '/a-propos' },
