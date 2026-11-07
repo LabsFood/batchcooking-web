@@ -17,6 +17,11 @@ export async function register() {
     setDefaultCACertificates(
       rootCertificates.filter((pem) => !/eMudhra|emSign/i.test(new X509Certificate(pem).subject)),
     )
+    await import('./sentry.server.config');
+  }
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config');
+  
   }
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
