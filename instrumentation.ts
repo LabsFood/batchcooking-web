@@ -17,18 +17,24 @@ export async function register() {
     setDefaultCACertificates(
       rootCertificates.filter((pem) => !/eMudhra|emSign/i.test(new X509Certificate(pem).subject)),
     )
-    await import('./sentry.server.config');
-  }
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
-  
   }
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     environment: process.env.NEXT_PUBLIC_ENVIRONMENT,
     tracesSampleRate: 0.1,
+    // Rien qui identifie le visiteur : ni utilisateur déduit, ni corps de requête,
+    // ni IP (en-têtes, cookies et paramètres d'URL qui en portent une).
+    dataCollection: {
+      userInfo: false,
+      httpBodies: [],
+      httpHeaders: { deny: IP_KEYS },
+      cookies: { deny: IP_KEYS },
+      urlQueryParams: { deny: IP_KEYS },
+    },
   })
 }
+
+const IP_KEYS = ['forwarded', '-ip', 'remote-', 'via', '-user']
 
 /** Erreurs des Server Components, des route handlers et du middleware. */
 export const onRequestError = Sentry.captureRequestError
