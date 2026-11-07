@@ -32,6 +32,21 @@ export async function register() {
       urlQueryParams: { deny: IP_KEYS },
     },
   })
+
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { configurePostHogServerLogs, logServerInstrumentation } = await import(
+      './lib/posthog-server-logs'
+    )
+    configurePostHogServerLogs()
+    logServerInstrumentation('Sentry server monitoring configured', {
+      component: 'sentry',
+      runtime: 'nodejs',
+    })
+    logServerInstrumentation('Next.js server instrumentation is ready', {
+      component: 'instrumentation',
+      runtime: 'nodejs',
+    })
+  }
 }
 
 const IP_KEYS = ['forwarded', '-ip', 'remote-', 'via', '-user']

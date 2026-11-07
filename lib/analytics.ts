@@ -8,7 +8,7 @@ import posthog from 'posthog-js'
  * (CookieBanner), la page /confidentialite#cookies (CookieSettings) et l'init
  * (instrumentation-client.ts) passent tous par ce fichier.
  *
- * Sans NEXT_PUBLIC_POSTHOG_KEY (dev, preview), tout est sans effet.
+ * Sans configuration PostHog (dev, preview), tout est sans effet.
  */
 export const CONSENT_KEY = 'labsfood.cookies.v1'
 
@@ -26,18 +26,35 @@ export function readConsent(): ConsentChoice | null {
 /** Le compte Clerk connecté, gardé pour un PostHog démarré après la connexion. */
 let currentUser: string | null = null
 
-/** Démarre PostHog une fois, si la clé existe et que le visiteur a accepté. */
+/** Démarre PostHog une fois, si la configuration existe et que le visiteur a accepté. */
 export function startAnalytics(): void {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
-  if (!key || posthog.__loaded || readConsent() !== 'accepted') return
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST
+  const uiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST
+  if (!key || !host || !uiHost) {
+    if (process.env.NODE_ENV !== 'production') {
+      const variable = !key
+        ? 'NEXT_PUBLIC_POSTHOG_KEY'
+        : !host
+          ? 'NEXT_PUBLIC_POSTHOG_HOST'
+          : 'NEXT_PUBLIC_POSTHOG_UI_HOST'
+      console.error(
+        new Error(
+          `${variable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${variable} is configured`,
+        ),
+      )
+    }
+    return
+  }
+  if (posthog.__loaded || readConsent() !== 'accepted') return
   posthog.init(key, {
     // Relais same-origin (next.config.mjs) : passe les bloqueurs, reste dans l'UE.
     api_host: '/ingest',
-    ui_host: 'https://eu.posthog.com',
+    ui_host: uiHost,
     defaults: '2026-08-30',
+    // Remonte les exceptions et rejets non gérés vers Error Tracking.
+    capture_exceptions: true,
     person_profiles: 'identified_only',
-    // Les espaces client et chef affichent adresses, allergies et pièces d'identité.
-    disable_session_recording: true,
     // Un clic garde sa page et son sélecteur, jamais son texte ni ses attributs :
     // une puce d'allergie, une adresse ou un message ne partent pas.
     mask_all_text: true,
@@ -76,6 +93,7 @@ export function setAnalyticsUser(userId: string | null): void {
   const previous = currentUser
   currentUser = userId
   if (!posthog.__loaded || posthog.has_opted_out_capturing()) return
+  if (userId && previous && previous !== userId) posthog.reset()
   if (userId) posthog.identify(userId)
   else if (previous) posthog.reset()
 }
@@ -87,4 +105,8 @@ export function setAnalyticsUser(userId: string | null): void {
  */
 export function track(event: string, properties?: Record<string, string | number | boolean>): void {
   if (posthog.__loaded) posthog.capture(event, properties)
+}
+
+export function captureAnalyticsException(error: Error): void {
+  if (posthog.__loaded) posthog.captureException(error)
 }

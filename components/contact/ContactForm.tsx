@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { ApiError, apiFetch } from '@/lib/api/client'
 import { MONTRER_CONNEXION, MONTRER_RECRUTEMENT } from '@/lib/flags'
+import { track } from '@/lib/analytics'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Formulaire de contact.
@@ -111,6 +112,7 @@ export default function ContactForm() {
         message: message.trim(),
         website,
       })
+      track('contact_message_sent', { subject })
       setSent(true)
     } catch (cause) {
       setFailed(cause instanceof ApiError && cause.status === 429 ? 'too-many' : 'error')

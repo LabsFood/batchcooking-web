@@ -5,7 +5,7 @@
  *   Les erreurs 5xx de l'API sont remontées par l'API elle-même.
  * - PostHog : mesure d'audience, démarrée seulement après « Tout accepter » (lib/analytics.ts).
  *
- * Sans NEXT_PUBLIC_SENTRY_DSN ni NEXT_PUBLIC_POSTHOG_KEY (dev, preview), rien ne part.
+ * Sans NEXT_PUBLIC_SENTRY_DSN ou configuration PostHog (dev, preview), rien ne part.
  */
 import * as Sentry from '@sentry/nextjs'
 import { startAnalytics } from '@/lib/analytics'

@@ -12,6 +12,7 @@ import {
   useDeleteMyAccount,
   type BlockingBooking,
 } from '@/lib/api/account'
+import { track } from '@/lib/analytics'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    « Supprimer mon compte », du bouton jusqu'au bout.
@@ -91,6 +92,7 @@ export default function DeleteMyAccount() {
         onConfirm={() =>
           supprimer.mutate(undefined, {
             onSuccess: async (r) => {
+              track('account_deletion_completed', { outcome: r.outcome })
               setOuvert(false)
               toast.success(
                 r.outcome === 'anonymised'

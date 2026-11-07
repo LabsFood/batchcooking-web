@@ -33,6 +33,7 @@ import {
   settlementFor,
   type PaymentMethodId,
 } from '@/lib/client/payments'
+import { track } from '@/lib/analytics'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Règlement d'une prestation réalisée.
@@ -110,6 +111,7 @@ export default function MockSettlement({ id }: { id: string }) {
         }),
       )
       recordPayment(order!.id, method, settlement.dueNow)
+      track('payment_settlement_initiated', { payment_method: method, deferred: false })
       router.push(session.url.replace(window.location.origin, ''))
     } catch {
       setPending(false)
@@ -125,6 +127,7 @@ export default function MockSettlement({ id }: { id: string }) {
     try {
       await confirmUrssaf(order!.id)
       recordPayment(order!.id, 'urssaf', settlement.debitedLater)
+      track('payment_settlement_initiated', { payment_method: 'urssaf', deferred: true })
       setConfirming(false)
       router.push(`/espace-client/commandes/${order!.id}?paiement=succes`)
     } catch {

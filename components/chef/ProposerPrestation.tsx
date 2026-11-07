@@ -15,6 +15,7 @@ import {
   useCreateChefBooking,
   type Booking,
 } from '@/lib/api/bookings'
+import { track } from '@/lib/analytics'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Proposer une prestation à un client qu'on connaît déjà.
@@ -100,6 +101,10 @@ function Formulaire({ onClose }: { onClose: () => void }) {
       },
       {
         onSuccess: () => {
+          track('chef_booking_proposed', {
+            persons: personnes,
+            has_address: Boolean(adresse.trim() || ville.trim() || codePostal.trim()),
+          })
           toast.success(
             'Proposition envoyée',
             'Votre client la confirme en la payant. Le créneau est tenu 72 heures.',
