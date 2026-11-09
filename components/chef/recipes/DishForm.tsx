@@ -23,7 +23,7 @@ import {
 import { Hint } from '@/components/shared/Hint'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
-import { COUNTRIES } from '@/lib/chef/countries'
+import { COUNTRIES_ALPHA } from '@/lib/chef/countries'
 import { problemText } from '@/lib/chef/readiness'
 import {
   DECLARED_DIETS,
@@ -385,7 +385,7 @@ export default function DishForm({
                   className="input-base"
                 >
                   <option value="">Non spécifié</option>
-                  {COUNTRIES.map((c) => (
+                  {COUNTRIES_ALPHA.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.label}
                     </option>

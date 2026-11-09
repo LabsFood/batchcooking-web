@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react'
 import {
-  DIAL_COUNTRIES,
+  DIAL_COUNTRIES_ALPHA,
   dialOf,
   estInternational,
   formatE164,
@@ -90,7 +90,7 @@ export default function PhoneField({
           onChange={(e) => change(e.target.value, etat.national)}
           className="input-base w-auto max-w-[11rem] shrink-0"
         >
-          {DIAL_COUNTRIES.map((c) => (
+          {DIAL_COUNTRIES_ALPHA.map((c) => (
             <option key={`${c.code}-${c.dial}`} value={c.code}>
               {c.label} +{c.dial}
             </option>
