@@ -22,12 +22,12 @@ const TITLES: Record<string, { title: string; sub?: string }> = {
     sub: 'Les cartes de la semaine, chef par chef.',
   },
   '/espace-client/reservation': {
-    title: 'Composer ma session',
-    sub: 'Choisir un batch cooker, puis ses plats.',
+    title: 'Réserver une session',
+    sub: 'Le batch cooker, ses plats, la date.',
   },
   '/espace-client/courses': {
     title: 'Ma liste de courses',
-    sub: 'Rangée par rayon, prête à emporter.',
+    sub: 'Rangée par rayon.',
   },
   '/espace-client/personnalisation': {
     title: 'Demande sur-mesure',

@@ -47,6 +47,7 @@ import {
   useRegions,
 } from '@/lib/api/referentials'
 import { seasonsLine } from '@/lib/recipe-fields'
+import { Prix } from '@/components/shared/Prix'
 
 /** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
 const DIET_LABEL: Record<string, string> = {
@@ -1154,20 +1155,7 @@ export function MenuCard({
 }
 
 function Tarif({ prix, apresCredit }: { prix: string | null; apresCredit: string | null }) {
-  if (!prix) return <p className="text-xs text-ink-soft">Tarif sur demande</p>
-  return (
-    <div>
-      <p className="text-xs text-ink-soft">À partir de</p>
-      <p className="font-display text-xl font-bold text-navy">
-        {prix}
-        {apresCredit && (
-          <span className="ml-1.5 font-sans text-xs font-medium text-terra">
-            soit {apresCredit} après crédit d’impôt
-          </span>
-        )}
-      </p>
-    </div>
-  )
+  return <Prix lead="À partir de" apresCredit={apresCredit} total={prix} taille="sm" />
 }
 
 function Places({ slotsLeft }: { slotsLeft: number | null }) {

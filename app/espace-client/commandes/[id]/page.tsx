@@ -46,6 +46,7 @@ import {
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { Prix } from '@/components/shared/Prix'
 import { useChefPublic } from '@/lib/api/menus'
 import { apiMessage } from '@/lib/api/messages'
 import { usePaymentStatus } from '@/lib/api/payments'
@@ -325,13 +326,14 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </button>
             )}
           </div>
-          {ttc && (
-            <div className="flex flex-col items-start lg:items-end">
-              <p className="font-display text-3xl font-bold text-amber">{ttc}</p>
-              {reste && (
-                <p className="text-xs text-white/60">soit {reste} après crédit d’impôt</p>
-              )}
-            </div>
+          {(ttc || reste) && (
+            <Prix
+              apresCredit={reste}
+              total={ttc}
+              tone="dark"
+              taille="lg"
+              className="shrink-0 lg:text-right"
+            />
           )}
         </div>
       </motion.div>
