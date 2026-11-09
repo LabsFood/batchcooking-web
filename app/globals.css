@@ -795,11 +795,16 @@ body {
   display: none !important;
 }
 
-/* Connexions sociales desactivees : email + mot de passe uniquement.
-   (A desactiver aussi cote dashboard Clerk pour couper les endpoints OAuth.) */
-.cl-socialButtons,
-.cl-socialButtonsBlockButton,
-.cl-dividerRow {
+/* Connexions sociales masquees a l'ecran d'entree : on y propose email + mot
+   de passe uniquement. On ne les masque PAS aux ecrans suivants : un compte
+   cree via Google ou Apple n'a pas de mot de passe, et Clerk l'envoie alors
+   sur « Utiliser une autre methode », dont les boutons sociaux sont le seul
+   contenu. Masques partout, cet ecran etait vide et le compte bloque.
+   (Pour les retirer vraiment : les desactiver cote dashboard Clerk.) */
+.cl-signIn-start .cl-socialButtons,
+.cl-signIn-start .cl-dividerRow,
+.cl-signUp-start .cl-socialButtons,
+.cl-signUp-start .cl-dividerRow {
   display: none !important;
 }
 
