@@ -37,6 +37,8 @@ const config: Config = {
           soft: '#F1F5F8',
           deep: '#E5ECF1',
         },
+        /** Le fond des espaces connectés — voir `--shell` dans globals.css. */
+        shell: '#EDF2F7',
         ink: {
           DEFAULT: '#1F2A37',
           mid: '#4B5867',

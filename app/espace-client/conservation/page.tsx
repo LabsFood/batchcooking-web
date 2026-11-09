@@ -24,7 +24,7 @@ export default function ConservationPage() {
         {DISH_CARE.map((d) => (
           <section
             key={d.id}
-            className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]"
+            className="card-shell rounded-3xl p-5 lg:p-6"
           >
             <h3 className="font-display text-lg font-bold text-navy mb-4">{d.dish}</h3>
 

@@ -65,7 +65,7 @@ export default function AccountPage() {
 /** Une facture par paiement par carte, au nom du batch cooker. */
 function Factures() {
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
@@ -91,7 +91,7 @@ function Adresse() {
   const ligne = [p?.addressStreet, ville].filter(Boolean).join(', ')
 
   return (
-    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-lg font-bold text-navy">Mon adresse</h2>
         <Link href="/espace-client/parametres" className="btn btn-outline text-xs px-3.5 py-2">
@@ -132,7 +132,7 @@ function Adresse() {
  */
 function MoyensDePaiement() {
   return (
-    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h2 className="font-display text-lg font-bold text-navy mb-4">Moyens de paiement</h2>
       <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
         <CreditCard className="mx-auto h-5 w-5 text-ink-soft" aria-hidden />
@@ -163,7 +163,7 @@ function AvanceImmediate() {
   const liens = useMyUrssafLinks()
 
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h2 className="mb-1 font-display text-lg font-bold text-navy">
         Avance immédiate — mes rattachements
       </h2>
@@ -254,7 +254,7 @@ function Attestation() {
   const vide = a.error instanceof ApiError && a.error.status === 404
 
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-navy">

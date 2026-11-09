@@ -37,7 +37,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)] ${className}`}
+      className={`card-shell rounded-3xl p-5 lg:p-6 ${className}`}
     >
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-4">

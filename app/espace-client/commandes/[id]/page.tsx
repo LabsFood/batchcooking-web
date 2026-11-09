@@ -362,7 +362,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       )}
 
       {/* ── Suivi ────────────────────────────────────────────────────────── */}
-      <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6 lg:p-7">
+      <section className="rounded-3xl card-shell p-6 lg:p-7">
         <h3 className="mb-5 font-display text-lg font-bold text-navy">
           Suivi de la commande
         </h3>
@@ -426,7 +426,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-2">
           {/* ── Plats ──────────────────────────────────────────────────── */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+          <div className="rounded-3xl card-shell p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
               <span className="ml-auto">
@@ -463,7 +463,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {(b.photos?.length ?? 0) > 0 && <PhotosSession photos={b.photos!} />}
 
           {/* ── Liste de courses ───────────────────────────────────────── */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+          <div className="rounded-3xl card-shell p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
@@ -528,7 +528,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
         {/* ── Colonne de droite ─────────────────────────────────────────── */}
         <aside className="space-y-4">
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+          <div className="rounded-3xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
@@ -560,7 +560,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           </div>
 
           {b.addressLine && (
-            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <div className="rounded-3xl card-shell p-5">
               <h4 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-navy">
                 <MapPin className="h-4 w-4 text-amber" aria-hidden /> Où
               </h4>
@@ -572,7 +572,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           )}
 
           {!aRegler && b.status !== 'cancelled' && (
-            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <div className="rounded-3xl card-shell p-5">
               <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
                 <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
               </h4>
@@ -595,7 +595,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               carte, demain le mandat de débours. Hors de « Règlement » : une
               commande partagée CESU + carte reste `pending`, et sa part carte a
               déjà sa facture. */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+          <div className="rounded-3xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <FileText className="h-4 w-4 text-amber" aria-hidden /> Documents
               <PaymentInvoicesInfo side="client" />
@@ -728,7 +728,7 @@ function CheckoutOutcome() {
  */
 function PhotosSession({ photos }: { photos: BookingPhoto[] }) {
   return (
-    <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+    <div className="rounded-3xl card-shell p-6">
       <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
         <Camera className="h-4 w-4 text-amber" aria-hidden /> Photos de la session
       </h3>

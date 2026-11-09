@@ -1114,14 +1114,16 @@ export function MenuCard({
         <>
           {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
           <div aria-hidden className="min-h-5 flex-1" />
-          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-4">
-            <div className="flex items-end justify-between gap-3">
+          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-5">
+            {/* Alignés en haut : « 3 créneaux libres » tombait sinon sur la
+                dernière ligne du prix et se lisait comme sa suite. */}
+            <div className="flex items-start justify-between gap-4">
               <Tarif prix={prix} apresCredit={apresCredit} />
               <Places slotsLeft={menu.slotsLeft} />
             </div>
             {/* Côte à côte quand la carte est large (une par ligne), l'une sous
                 l'autre quand elles sont deux par ligne. */}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row xl:flex-col">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row xl:flex-col">
               <button
                 type="button"
                 onClick={onOpen}
@@ -1140,9 +1142,9 @@ export function MenuCard({
           </footer>
         </>
       ) : (
-        <footer className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-4">
+        <footer className="mt-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-5">
           <Tarif prix={prix} apresCredit={apresCredit} />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Places slotsLeft={menu.slotsLeft} />
             <button type="button" onClick={onOpen} className="btn btn-primary px-5 py-2.5 text-xs">
               {openLabel}
@@ -1161,7 +1163,7 @@ function Tarif({ prix, apresCredit }: { prix: string | null; apresCredit: string
 function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
-      className={`text-xs ${
+      className={`shrink-0 whitespace-nowrap text-xs leading-none ${
         slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-terra' : 'text-ink-soft'
       }`}
     >
