@@ -331,7 +331,10 @@ function RequestForm() {
               la ligne et désalignait la suite du formulaire. */}
           <fieldset>
             <legend className="mb-2 text-sm font-semibold text-navy">Quand</legend>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-[auto_minmax(0,1fr)]">
+            {/* Empilés, pas côte à côte : le calendrier prend la largeur qu'il
+                lui faut, et tout ce qui le flanquait — créneaux, compteurs —
+                finissait écrasé dans ce qui restait. */}
+            <div className="space-y-5">
               <DatePicker
                 mode="single"
                 selected={date ? new Date(`${date}T12:00:00`) : undefined}
@@ -344,35 +347,33 @@ function RequestForm() {
                 className="w-fit rounded-2xl bg-cream-soft p-3"
               />
 
-              <div className="space-y-5">
-                <div>
-                  <p className="mb-2 text-sm font-semibold text-navy">Créneau</p>
-                  <div className="flex flex-col gap-1.5">
-                    {SLOTS.map((s) => {
-                      const on = s === slot
-                      return (
-                        <button
-                          type="button"
-                          key={s}
-                          onClick={() => setSlot(s)}
-                          aria-pressed={on}
-                          className={`rounded-xl border px-3.5 py-2.5 text-left text-sm transition-colors ${
-                            on
-                              ? 'border-amber bg-amber-soft font-semibold text-navy'
-                              : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
-                          }`}
-                        >
-                          {SLOT_LABEL[s]}
-                        </button>
-                      )
-                    })}
-                  </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-navy">Créneau</p>
+                <div className="flex flex-wrap gap-2">
+                  {SLOTS.map((s) => {
+                    const on = s === slot
+                    return (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => setSlot(s)}
+                        aria-pressed={on}
+                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${
+                          on
+                            ? 'border-amber bg-amber-soft font-semibold text-navy'
+                            : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
+                        }`}
+                      >
+                        {SLOT_LABEL[s]}
+                      </button>
+                    )
+                  })}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Counter label="Personnes" value={persons} onChange={setPersons} min={1} max={200} />
-                  <Counter label="Plats" value={meals} onChange={setMeals} min={1} max={50} />
-                </div>
+              <div className="flex flex-wrap gap-5">
+                <Counter label="Personnes" value={persons} onChange={setPersons} min={1} max={200} />
+                <Counter label="Plats" value={meals} onChange={setMeals} min={1} max={50} />
               </div>
             </div>
             {date && (
@@ -944,7 +945,7 @@ function Counter({
   max: number
 }) {
   return (
-    <div>
+    <div className="min-w-[9.5rem]">
       <p className="mb-2 text-sm font-semibold text-navy">{label}</p>
       <div className="flex items-center gap-2 rounded-full bg-cream-soft p-1.5">
         <button

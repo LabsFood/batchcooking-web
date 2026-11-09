@@ -61,11 +61,13 @@ export function Prix({
   return (
     <div className={cn(align === 'right' && 'text-right', className)}>
       {lead && (
-        <p className={cn('text-xs', sombre ? 'text-white/55' : 'text-ink-soft')}>{lead}</p>
+        <p className={cn('mb-1.5 text-xs leading-none', sombre ? 'text-white/55' : 'text-ink-soft')}>
+          {lead}
+        </p>
       )}
       <p
         className={cn(
-          'flex flex-wrap items-baseline gap-x-2',
+          'flex flex-wrap items-baseline gap-x-2 gap-y-1',
           align === 'right' && 'justify-end',
         )}
       >
@@ -78,12 +80,17 @@ export function Prix({
         >
           {principal}
         </span>
-        <span className={cn('text-xs', sombre ? 'text-white/65' : 'text-ink-mid')}>
+        <span className={cn('text-xs leading-none', sombre ? 'text-white/65' : 'text-ink-mid')}>
           {apresCredit ? 'après crédit d’impôt' : 'avant crédit d’impôt'}
         </span>
       </p>
       {apresCredit && total && (
-        <p className={cn('text-xs tabular-nums', sombre ? 'text-white/45' : 'text-ink-soft')}>
+        <p
+          className={cn(
+            'mt-1.5 text-xs leading-none tabular-nums',
+            sombre ? 'text-white/45' : 'text-ink-soft',
+          )}
+        >
           {total} avant déduction
         </p>
       )}
