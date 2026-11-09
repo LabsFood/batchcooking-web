@@ -75,7 +75,7 @@ export default function ShoppingListPage() {
 
   if (commandes.isPending) {
     return (
-      <div className="flex items-center justify-center rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper py-20">
+      <div className="flex items-center justify-center rounded-3xl card-shell py-20">
         <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
       </div>
     )
@@ -83,7 +83,7 @@ export default function ShoppingListPage() {
 
   if (!active) {
     return (
-      <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-10 text-center">
+      <div className="rounded-3xl card-shell p-10 text-center">
         <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber" aria-hidden />
         <p className="font-display text-xl font-bold text-navy">
           Aucune session en préparation
@@ -177,7 +177,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
   return (
     <div className="space-y-5">
       {/* ── Ce qu'on prépare, et pour quand ──────────────────────────────── */}
-      <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+      <div className="card-shell rounded-3xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
@@ -239,17 +239,17 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
 
       {/* ── Les rayons ───────────────────────────────────────────────────── */}
       {courses.isPending ? (
-        <div className="flex items-center justify-center rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper py-16">
+        <div className="flex items-center justify-center rounded-3xl card-shell py-16">
           <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
         </div>
       ) : courses.isError ? (
-        <p className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
           La liste n’a pas pu être chargée. Elle se calcule depuis les recettes :
           si votre batch cooker ne les a pas encore renseignées, elle apparaîtra
           dès qu’il l’aura fait.
         </p>
       ) : groupes.length === 0 ? (
-        <p className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -258,7 +258,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5"
+              className="rounded-3xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
@@ -409,7 +409,7 @@ function Reponse({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+      <div className="card-shell rounded-3xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
@@ -489,7 +489,7 @@ function Reponse({
       )}
 
       {groupes.length === 0 ? (
-        <p className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -498,7 +498,7 @@ function Reponse({
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5"
+              className="rounded-3xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">

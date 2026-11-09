@@ -871,7 +871,7 @@ export default function DishForm({
 
         {/* ── Prête, version, publication ───────────────────────────────────── */}
         <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
-          <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+          <section className="card-shell rounded-3xl p-5 lg:p-6">
             <h3 className="flex items-center gap-1 font-display text-base font-bold text-navy">
               Prête ?
               <InfoPopover label="Que veut dire « Prête » ?">
@@ -1078,7 +1078,7 @@ function VersionCard({ dish }: { dish: Dish }) {
   const pdf = useRecipePdf()
   const toast = useToast()
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h3 className="flex items-center gap-1 font-display text-base font-bold text-navy">
         Version {dish.recipeVersion}
         <InfoPopover label="Qu’est-ce qu’une version ?">
@@ -1627,7 +1627,7 @@ function Group({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <div>
         <h3 className="font-display text-base font-bold text-navy">{title}</h3>
         {hint && (

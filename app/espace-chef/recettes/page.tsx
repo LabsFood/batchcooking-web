@@ -569,7 +569,7 @@ function MenuForm({
   const published = initial?.status === 'published'
 
   return (
-    <div className="mt-4 space-y-5 rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <div className="mt-4 space-y-5 card-shell rounded-3xl p-5 lg:p-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-[13px] font-semibold text-navy">

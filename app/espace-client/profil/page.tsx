@@ -162,7 +162,7 @@ function ProfileForm({
           </div>
         </div>
 
-        <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
+        <div className="card-shell rounded-3xl p-5">
           <p className="eyebrow mb-3">Foyer</p>
           <div className="grid grid-cols-2 gap-3">
             <Counter
@@ -291,7 +291,7 @@ function Card({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.4 }}
-      className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]"
+      className="card-shell rounded-3xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
         <div>

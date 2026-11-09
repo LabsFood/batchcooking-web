@@ -282,7 +282,7 @@ function RequestForm() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="h-fit rounded-3xl border border-[rgba(31,42,55,0.07)] bg-paper p-6 lg:p-8"
+      className="h-fit card-shell rounded-3xl p-6 lg:p-8"
     >
       <h2 className="font-display text-2xl font-bold leading-tight text-navy">
         Décrivez ce que vous avez{' '}
@@ -577,7 +577,7 @@ function MyRequests() {
       )}
 
       {quotes.isSuccess && list.length === 0 && (
-        <div className="rounded-2xl border border-[rgba(31,42,55,0.07)] bg-paper p-5">
+        <div className="card-shell rounded-2xl p-5">
           <p className="text-sm leading-relaxed text-ink-mid">
             Vous n’avez pas encore de demande. Voici comment ça se passe :
           </p>
@@ -638,7 +638,7 @@ function RequestCard({ quote }: { quote: Quote }) {
   const fail = (fallback: string) => (cause: unknown) => setError(errorText(cause, fallback))
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.07)] bg-paper">
+    <article className="overflow-hidden card-shell rounded-2xl">
       <div className="p-5">
         <div className="mb-2 flex items-start justify-between gap-3">
           <h3 className="text-sm font-semibold leading-snug text-navy">{quote.title}</h3>

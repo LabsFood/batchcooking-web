@@ -81,7 +81,7 @@ export default function DashboardTopbar() {
       .toUpperCase() || 'G'
 
   return (
-    <header className="sticky top-[var(--lf-dev-banner)] z-30 bg-cream/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
+    <header className="sticky top-[var(--lf-dev-banner)] z-30 bg-shell/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
       <div className="px-6 lg:px-8 py-4 flex items-center gap-4">
         {/* Mobile back / menu */}
         <Link
