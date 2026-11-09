@@ -31,10 +31,9 @@ export const clerkAuthAppearance = {
     // partout cachait « Vérifiez votre messagerie » : on ne savait pas qu'un
     // lien ou un code venait d'être envoyé.
     footer: 'hidden',
-    // Les boutons sociaux ne sont masqués qu'à l'écran d'entrée, en CSS
-    // (`.cl-signIn-start .cl-socialButtons`, app/globals.css) : les masquer ici
-    // les cachait aussi sur « Utiliser une autre méthode », seul moyen d'entrer
-    // pour un compte créé via Google ou Apple.
+    // Pas de boutons sociaux : l'instance n'utilise que email + mot de passe.
+    socialButtons: 'hidden',
+    dividerRow: 'hidden',
   },
   layout: {
     showOptionalFields: false,
