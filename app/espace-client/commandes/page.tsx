@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { AllergyBadge } from '@/components/shared/AllergyStatus'
+import { Prix } from '@/components/shared/Prix'
 import {
   AlertTriangle,
   ArrowRight,
@@ -242,21 +243,11 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {ttc ? (
-            <>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-soft">Total TTC</p>
-              <p className="font-display text-2xl font-bold text-navy">{ttc}</p>
-              {reste && (
-                <p className="text-[11px] font-semibold text-amber-deep">
-                  soit {reste} après crédit d’impôt
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
-          )}
-        </div>
+        {ttc || reste ? (
+          <Prix apresCredit={reste} total={ttc} />
+        ) : (
+          <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
+        )}
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href={`/espace-client/commandes/${b.id}`}

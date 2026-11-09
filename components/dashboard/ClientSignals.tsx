@@ -33,9 +33,8 @@ import type { ClientProfile } from '@/lib/api/types'
 
 const PAGES: { href: string; label: string; Icon: PaletteItem['Icon']; keywords: string }[] = [
   { href: '/espace-client', label: 'Accueil', Icon: LayoutDashboard, keywords: 'tableau de bord' },
-  { href: '/espace-client/reservation', label: 'Composer ma session', Icon: CalendarRange, keywords: 'reserver nouvelle prestation batch cooking' },
   { href: '/espace-client/commandes', label: 'Mes sessions', Icon: CalendarRange, keywords: 'commandes historique prestations' },
-  { href: '/espace-client/menus', label: 'Menus et plats', Icon: UtensilsCrossed, keywords: 'carte semaine recettes' },
+  { href: '/espace-client/menus', label: 'Menus et plats', Icon: UtensilsCrossed, keywords: 'carte semaine recettes reserver nouvelle session batch cooker' },
   { href: '/espace-client/courses', label: 'Ma liste de courses', Icon: ShoppingBasket, keywords: 'ingredients rayon' },
   { href: '/espace-client/conservation', label: 'Réchauffage et conservation', Icon: Snowflake, keywords: 'congelation duree temperature' },
   { href: '/espace-client/personnalisation', label: 'Demande sur-mesure', Icon: Sparkles, keywords: 'devis brief special' },
@@ -159,8 +158,8 @@ export function useClientAlerts(): { alerts: Alert[]; loading: boolean } {
         tone: 'info',
         title: 'Aucune session pour l’instant',
         detail: 'Choisissez un batch cooker près de chez vous, puis ses plats.',
-        href: '/espace-client/reservation',
-        cta: 'Composer ma première session',
+        href: '/espace-client/menus?reserve=1',
+        cta: 'Choisir un batch cooker',
       })
     }
 
