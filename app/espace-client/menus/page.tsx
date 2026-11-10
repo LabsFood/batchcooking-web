@@ -99,7 +99,7 @@ function DashboardMenusInner() {
             <MenusError onRetry={filters.refetch} />
           ) : menus.length === 0 ? (
             <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters}>
-              <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
+              <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs whitespace-normal text-balance">
                 Faire une demande sur mesure
                 <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
               </Link>
@@ -132,7 +132,7 @@ function DashboardMenusInner() {
               Décrivez vos envies, vos allergies et votre budget : les batch cookers
               disponibles vous répondent avec une proposition chiffrée.
             </p>
-            <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs">
+            <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs whitespace-normal text-balance">
               Faire une demande sur mesure
               <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
             </Link>
