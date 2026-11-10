@@ -37,3 +37,6 @@ next-env.d.ts
 .claude/
 *.local.json
 brag-output/
+
+# Sentry Config File
+.env.sentry-build-plugin

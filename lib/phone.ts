@@ -87,6 +87,19 @@ export const DIAL_COUNTRIES: DialCountry[] = [
 
 export const DEFAULT_DIAL = 'FR'
 
+/**
+ * La même liste pour la liste déroulante : la France en tête, parce que
+ * c'est le cas de la quasi-totalité des numéros saisis, puis tout le reste
+ * par ordre alphabétique. Un indicatif se cherche par le nom du pays, pas
+ * par son rang dans notre fichier.
+ */
+export const DIAL_COUNTRIES_ALPHA: DialCountry[] = [
+  ...DIAL_COUNTRIES.filter((c) => c.code === 'FR'),
+  ...DIAL_COUNTRIES.filter((c) => c.code !== 'FR').sort((a, b) =>
+    a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }),
+  ),
+]
+
 export const dialOf = (code: string) =>
   DIAL_COUNTRIES.find((c) => c.code === code) ?? DIAL_COUNTRIES[0]
 

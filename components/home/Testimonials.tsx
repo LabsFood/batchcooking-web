@@ -34,14 +34,17 @@ export default function Testimonials() {
 
         {/* Featured testimonial card */}
         <div className="max-w-4xl mx-auto">
-          <AnimatePresence mode="wait">
+          {/* Une seule cellule de grille : l'avis qui part et celui qui arrive
+              se croisent en fondu au même endroit. */}
+          <div className="grid">
+          <AnimatePresence>
             <motion.div
               key={active}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-paper rounded-3xl p-10 lg:p-14 border border-[rgba(31,26,20,0.06)] shadow-[0_30px_60px_-30px_rgba(31,26,20,0.2)]"
+              className="col-start-1 row-start-1 relative bg-paper rounded-3xl p-10 lg:p-14 border border-[rgba(31,26,20,0.06)] shadow-[0_30px_60px_-30px_rgba(31,26,20,0.2)]"
             >
               <Quote
                 className="absolute top-8 right-8 lg:top-12 lg:right-12 text-terra opacity-15"
@@ -88,6 +91,7 @@ export default function Testimonials() {
               </div>
             </motion.div>
           </AnimatePresence>
+          </div>
 
           {/* Navigation */}
           <div className="flex items-center justify-center gap-3 mt-10">

@@ -23,6 +23,7 @@ import { useMeProfile } from '@/lib/api/me-profile'
 import { chefProfileMessage, useUpdateChefProfile } from '@/lib/api/chef-profile'
 import { applicationAnswers, useChefApplication } from '@/lib/api/chef-documents'
 import { useLanguages } from '@/lib/api/referentials'
+import MultiSelect from '@/components/shared/MultiSelect'
 import VitrineDuMois from '@/components/chef/VitrineDuMois'
 import type { ChefProfile } from '@/lib/api/types'
 
@@ -610,42 +611,25 @@ function Langues({
 }) {
   const langues = useLanguages()
 
-  const basculer = (code: string) =>
-    onChange(
-      choisies.includes(code)
-        ? choisies.filter((c) => c !== code)
-        : [...choisies, code],
-    )
-
   if (langues.length === 0) return null
 
   return (
     <div className="mt-5 border-t border-[rgba(31,42,55,0.06)] pt-5">
-      <p className="mb-1.5 text-sm font-semibold text-navy">Langues parlées</p>
+      <label htmlFor="langues" className="mb-1.5 block text-sm font-semibold text-navy">
+        Langues parlées
+      </label>
       <p className="mb-3 text-[13px] leading-relaxed text-ink-soft">
         Elles s’affichent sur votre vitrine. Un client qui cherche quelqu’un
         avec qui parler dans sa cuisine les regarde avant tout le reste.
       </p>
-      <div className="flex flex-wrap gap-2">
-        {langues.map((l) => {
-          const active = choisies.includes(l.code)
-          return (
-            <button
-              key={l.code}
-              type="button"
-              onClick={() => basculer(l.code)}
-              aria-pressed={active}
-              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-                active
-                  ? 'bg-navy text-white'
-                  : 'bg-cream-soft text-navy hover:bg-cream-deep'
-              }`}
-            >
-              {l.label}
-            </button>
-          )
-        })}
-      </div>
+      <MultiSelect
+        id="langues"
+        options={langues}
+        values={choisies}
+        onChange={onChange}
+        placeholder="Choisir vos langues…"
+        className="max-w-md"
+      />
     </div>
   )
 }

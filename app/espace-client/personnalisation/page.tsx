@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
 import CityField from '@/components/chef/application/CityField'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -13,12 +13,13 @@ import {
   Clock,
   Loader2,
   MapPin,
+  Minus,
   Plus,
   Send,
-  Sparkles,
   Trash2,
 } from 'lucide-react'
 import DatePicker from '@/components/shared/DatePicker'
+import { Prix } from '@/components/shared/Prix'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import { useChefPublic, useWeekMenus } from '@/lib/api/menus'
@@ -37,6 +38,31 @@ import {
   type TimeSlot,
 } from '@/lib/api/quotes'
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Demande sur-mesure.
+
+   Deux gestes, pas un : **décrire** ce qu'on veut, puis **répondre** à l'offre
+   qui revient. L'écran les sépare — le formulaire tient la colonne de travail,
+   les demandes en cours tiennent le rail de droite — parce qu'on ne revient
+   pas ici pour la même raison la deuxième fois.
+
+   Ce qui a été repris :
+
+   - le formulaire était une colonne de onze champs d'affilée ; il est
+     désormais en trois temps (la prestation, la cuisine, le lieu), chacun
+     introduit par son titre, séparé par un filet ;
+   - le calendrier était posé dans une grille à deux colonnes face à un menu
+     déroulant : il écrasait la ligne et désalignait tout ce qui suivait. Il a
+     maintenant son bloc, avec les créneaux et les quantités à côté de lui ;
+   - les libellés étaient en capitales monospacées de 11 px — un costume de
+     champ technique sur un formulaire qu'on lit vite. Ce sont des `<label>`
+     ordinaires, reliés à leur champ ;
+   - la page tutoyait quand tout le reste de l'espace client vouvoie.
+
+   La logique — validations, codes d'erreur de l'API, mutations — n'a pas
+   bougé d'une ligne : c'est la même demande qui part.
+   ───────────────────────────────────────────────────────────────────────────── */
+
 const STATUS_LABEL: Record<QuoteStatus, string> = {
   submitted: 'Envoyée',
   in_review: 'En cours d’étude',
@@ -48,15 +74,16 @@ const STATUS_LABEL: Record<QuoteStatus, string> = {
   closed: 'Sans suite',
 }
 
-const STATUS_COLOR: Record<QuoteStatus, string> = {
-  submitted: 'bg-mint text-mint-ink',
-  in_review: 'bg-amber-soft text-amber-deep',
-  quoted: 'bg-amber text-navy',
-  accepted: 'bg-mint-deep text-mint-ink',
-  declined: 'bg-cream-deep text-navy',
-  chef_declined: 'bg-amber-soft text-amber-deep',
-  cancelled: 'bg-cream-deep text-ink-mid',
-  closed: 'bg-cream-deep text-ink-mid',
+/** La pastille d'état : une couleur par famille, pas une par statut. */
+const STATUS_DOT: Record<QuoteStatus, string> = {
+  submitted: 'bg-mint-deep',
+  in_review: 'bg-mint-deep',
+  quoted: 'bg-amber',
+  accepted: 'bg-mint-deep',
+  declined: 'bg-ink-soft',
+  chef_declined: 'bg-amber',
+  cancelled: 'bg-ink-soft',
+  closed: 'bg-ink-soft',
 }
 
 const DIETS = ['Végétarien', 'Vegan', 'Sans-gluten', 'Sans-lactose', 'Halal', 'Casher', 'High-protein']
@@ -88,16 +115,18 @@ const errorText = (error: unknown, fallback: string) =>
 
 /** Les refus de l'API que le client peut comprendre et corriger. */
 const MESSAGES: Record<string, string> = {
-  DATE_TOO_SOON: 'Choisis une date à partir de demain.',
-  DATE_TOO_FAR: 'Choisis une date dans l’année qui vient.',
-  DUPLICATE_REQUEST: 'Cette demande vient déjà d’être envoyée : elle est dans ta liste.',
-  TOO_MANY_OPEN_REQUESTS: 'Tu as déjà 10 demandes en cours. Retires-en une avant d’en envoyer une nouvelle.',
-  CHEF_NOT_AVAILABLE: 'Ce batch cooker n’est plus disponible. Choisis-en un autre.',
-  SAME_PERSON: 'Tu ne peux pas t’adresser une demande à toi-même.',
-  OFFER_EXPIRED: 'Cette offre a expiré. Le batch cooker peut t’en proposer une nouvelle.',
+  DATE_TOO_SOON: 'Choisissez une date à partir de demain.',
+  DATE_TOO_FAR: 'Choisissez une date dans l’année qui vient.',
+  DUPLICATE_REQUEST: 'Cette demande vient déjà d’être envoyée : elle est dans votre liste.',
+  TOO_MANY_OPEN_REQUESTS:
+    'Vous avez déjà 10 demandes en cours. Retirez-en une avant d’en envoyer une nouvelle.',
+  CHEF_NOT_AVAILABLE: 'Ce batch cooker n’est plus disponible. Choisissez-en un autre.',
+  SAME_PERSON: 'Vous ne pouvez pas vous adresser une demande à vous-même.',
+  OFFER_EXPIRED: 'Cette offre a expiré. Le batch cooker peut vous en proposer une nouvelle.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
   QUOTE_ALREADY_ACCEPTED: 'Cette demande est déjà confirmée.',
-  ADDRESS_CITY_MISMATCH: 'Cette ville ne correspond pas au code postal. Choisis la commune dans la liste.',
+  ADDRESS_CITY_MISMATCH:
+    'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
 }
 
 export default function PersonnalisationPage() {
@@ -111,7 +140,7 @@ export default function PersonnalisationPage() {
 
 function Personnalisation() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-10">
       <RequestForm />
       <MyRequests />
     </div>
@@ -126,6 +155,7 @@ function RequestForm() {
   // Le batch cooker venu d'un lien peut ne pas être dans les cartes de la semaine.
   const linked = useChefPublic(preselected || undefined)
   const create = useCreateQuote()
+  const champ = useId()
 
   const [chefId, setChefId] = useState(preselected)
   const [title, setTitle] = useState('')
@@ -143,6 +173,7 @@ function RequestForm() {
   const [budget, setBudget] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const alerte = useRef<HTMLParagraphElement>(null)
 
   const chefs = useMemo(() => {
     const list = (week.data?.data ?? []).map((card) => ({
@@ -177,22 +208,24 @@ function RequestForm() {
 
   /** Ce qui manque, dans les mots du formulaire — avant de solliciter l'API. */
   const missing = (): string | null => {
-    if (title.trim().length < 3 || !HAS_LETTER.test(title)) return 'Donne un titre à ta demande.'
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Choisis la date souhaitée.'
+    if (title.trim().length < 3 || !HAS_LETTER.test(title)) return 'Donnez un titre à votre demande.'
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Choisissez la date souhaitée.'
     if (date < tomorrow()) return MESSAGES.DATE_TOO_SOON
     if (date > latest()) return MESSAGES.DATE_TOO_FAR
-    if (cuisine.trim().length < 2 || !HAS_LETTER.test(cuisine)) return 'Indique le style culinaire.'
+    if (cuisine.trim().length < 2 || !HAS_LETTER.test(cuisine)) return 'Indiquez le style culinaire.'
     const labels = allergyList()
-    if (labels.length > 20) return 'Indique 20 allergies au plus.'
+    if (labels.length > 20) return 'Indiquez 20 allergies au plus.'
     if (labels.some((a) => a.length > 60)) {
-      return 'Une allergie tient en quelques mots : sépare-les par des virgules.'
+      return 'Une allergie tient en quelques mots : séparez-les par des virgules.'
     }
-    if (brief.trim().length < 10 || !HAS_LETTER.test(brief)) return 'Décris ta demande en quelques phrases.'
+    if (brief.trim().length < 10 || !HAS_LETTER.test(brief)) {
+      return 'Décrivez votre demande en quelques phrases.'
+    }
     if (addressLine.trim().length < 3 || !HAS_LETTER.test(addressLine)) {
-      return 'Indique l’adresse de la prestation : numéro et rue.'
+      return 'Indiquez l’adresse de la prestation : numéro et rue.'
     }
     if (!/^\d{5}$/.test(postalCode.trim())) return 'Le code postal compte 5 chiffres.'
-    if (!CITY.test(city.trim())) return 'Indique le nom de la ville.'
+    if (!CITY.test(city.trim())) return 'Indiquez le nom de la ville.'
     if (budget.trim()) {
       const euros = Number(budget.replace(',', '.'))
       if (!Number.isFinite(euros) || euros <= 0) return 'Le budget est un montant en euros.'
@@ -201,10 +234,16 @@ function RequestForm() {
     return null
   }
 
+  /** Ce qui manque est dit, puis lu : l'alerte prend le focus. */
+  const signale = (probleme: string | null) => {
+    setError(probleme)
+    if (probleme) requestAnimationFrame(() => alerte.current?.focus())
+  }
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const problem = missing()
-    setError(problem)
+    signale(problem)
     if (problem) return
 
     create.mutate(
@@ -232,7 +271,8 @@ function RequestForm() {
           setBudget('')
           setTimeout(() => setSent(false), 5000)
         },
-        onError: (cause) => setError(errorText(cause, 'La demande n’a pas pu être envoyée. Réessaie dans un instant.')),
+        onError: (cause) =>
+          signale(errorText(cause, 'La demande n’a pas pu être envoyée. Réessayez dans un instant.')),
       },
     )
   }
@@ -241,179 +281,267 @@ function RequestForm() {
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-paper rounded-3xl p-6 lg:p-8 border border-[rgba(31,42,55,0.06)] h-fit"
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="h-fit card-shell rounded-3xl p-6 lg:p-8"
     >
-      <p className="eyebrow mb-3">Nouvelle demande</p>
-      <h2 className="font-display text-2xl font-bold text-navy mb-2">
-        Décris ce que tu as <span className="text-terra italic font-medium">en tête.</span>
+      <h2 className="font-display text-2xl font-bold leading-tight text-navy">
+        Décrivez ce que vous avez{' '}
+        <span className="font-medium italic text-terra">en tête.</span>
       </h2>
-      <p className="text-ink-mid text-sm mb-6 leading-relaxed">
-        Ton batch cooker te répond avec son prix. Tu acceptes, et la prestation est inscrite à ton
-        agenda. Le règlement se fait après la prestation.
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-mid">
+        Un batch cooker vous répond avec son prix. Vous acceptez, et la prestation entre à
+        votre agenda. Le règlement se fait après la prestation.
       </p>
 
-      <form onSubmit={submit} className="space-y-5" noValidate>
-        <Field label="Titre de la demande">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={255}
-            placeholder="Ex. Repas de la semaine pour 4"
-            className="input-base"
-          />
-        </Field>
-
-        <Field label="Ton batch cooker">
-          <select value={chefId} onChange={(e) => setChefId(e.target.value)} className="input-base">
-            <option value="">Laisser Lab’s Food me proposer quelqu’un</option>
-            {chefs.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Date souhaitée">
-            <DatePicker
-              mode="single"
-              selected={date ? new Date(`${date}T12:00:00`) : undefined}
-              onSelect={(d) => d && setDate(dayKey(d))}
-              disabled={{
-                before: new Date(`${tomorrow()}T00:00:00`),
-                after: new Date(`${latest()}T00:00:00`),
-              }}
-              startMonth={new Date(`${tomorrow()}T00:00:00`)}
-              className="rounded-2xl bg-cream-soft p-2"
+      <form onSubmit={submit} className="mt-7 space-y-8" noValidate>
+        {/* ── 1. La prestation ──────────────────────────────────────── */}
+        <Bloc titre="La prestation">
+          <Field label="Titre de la demande" htmlFor={`${champ}-titre`}>
+            <input
+              id={`${champ}-titre`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={255}
+              placeholder="Ex. Les repas de la semaine pour 4"
+              className="input-base"
             />
           </Field>
-          <Field label="Créneau">
-            <select value={slot} onChange={(e) => setSlot(e.target.value as TimeSlot)} className="input-base">
-              {SLOTS.map((s) => (
-                <option key={s} value={s}>
-                  {SLOT_LABEL[s]}
+
+          <Field
+            label="Votre batch cooker"
+            htmlFor={`${champ}-chef`}
+            hint="Sans choix de votre part, Lab’s Food attribue la demande au batch cooker le mieux placé."
+          >
+            <select
+              id={`${champ}-chef`}
+              value={chefId}
+              onChange={(e) => setChefId(e.target.value)}
+              className="input-base"
+            >
+              <option value="">Laisser Lab’s Food me proposer quelqu’un</option>
+              {chefs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
                 </option>
               ))}
             </select>
           </Field>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Counter label="Personnes" value={persons} onChange={setPersons} min={1} max={200} />
-          <Counter label="Plats" value={meals} onChange={setMeals} min={1} max={50} />
-        </div>
+          {/* Le calendrier a son bloc : face à un menu déroulant, il écrasait
+              la ligne et désalignait la suite du formulaire. */}
+          <fieldset>
+            <legend className="mb-2 text-sm font-semibold text-navy">Quand</legend>
+            {/* Empilés, pas côte à côte : le calendrier prend la largeur qu'il
+                lui faut, et tout ce qui le flanquait — créneaux, compteurs —
+                finissait écrasé dans ce qui restait. */}
+            <div className="space-y-5">
+              <DatePicker
+                mode="single"
+                selected={date ? new Date(`${date}T12:00:00`) : undefined}
+                onSelect={(d) => d && setDate(dayKey(d))}
+                disabled={{
+                  before: new Date(`${tomorrow()}T00:00:00`),
+                  after: new Date(`${latest()}T00:00:00`),
+                }}
+                startMonth={new Date(`${tomorrow()}T00:00:00`)}
+                className="w-fit rounded-2xl bg-cream-soft p-3"
+              />
 
-        <Field label="Style culinaire">
-          <input
-            value={cuisine}
-            onChange={(e) => setCuisine(e.target.value)}
-            maxLength={120}
-            placeholder="Ex. Méditerranéen, asiatique…"
-            className="input-base"
-          />
-        </Field>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-navy">Créneau</p>
+                <div className="flex flex-wrap gap-2">
+                  {SLOTS.map((s) => {
+                    const on = s === slot
+                    return (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => setSlot(s)}
+                        aria-pressed={on}
+                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${
+                          on
+                            ? 'border-amber bg-amber-soft font-semibold text-navy'
+                            : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
+                        }`}
+                      >
+                        {SLOT_LABEL[s]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-        <Field label="Régimes">
-          <div className="flex flex-wrap gap-2">
-            {DIETS.map((d) => {
-              const on = diets.includes(d)
-              return (
-                <button
-                  type="button"
-                  key={d}
-                  onClick={() => toggle(d)}
-                  className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
-                    on
-                      ? 'bg-amber text-navy font-semibold'
-                      : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
-                  }`}
-                >
-                  {on ? <Check className="w-3 h-3 inline mr-1" /> : <Plus className="w-3 h-3 inline mr-1" />}
-                  {d}
-                </button>
-              )
-            })}
-          </div>
-        </Field>
+              <div className="flex flex-wrap gap-5">
+                <Counter label="Personnes" value={persons} onChange={setPersons} min={1} max={200} />
+                <Counter label="Plats" value={meals} onChange={setMeals} min={1} max={50} />
+              </div>
+            </div>
+            {date && (
+              <p className="mt-3 text-sm text-ink-mid">
+                Souhaité le{' '}
+                <span className="font-semibold capitalize text-navy">{dayLabel(date)}</span>,{' '}
+                {SLOT_LABEL[slot].toLowerCase()}.
+              </p>
+            )}
+          </fieldset>
+        </Bloc>
 
-        <Field label="Allergies (séparées par des virgules)">
-          <input
-            value={allergies}
-            onChange={(e) => setAllergies(e.target.value)}
-            maxLength={1300}
-            placeholder="Ex. gluten, fruits à coque"
-            className="input-base"
-          />
-        </Field>
-
-        <Field label="Le brief (raconte tout)">
-          <textarea
-            rows={5}
-            value={brief}
-            onChange={(e) => setBrief(e.target.value)}
-            maxLength={4000}
-            placeholder="Ex. Les repas de la semaine, plutôt méditerranéens. 2 sans gluten, une végétarienne stricte. Des portions faciles à emporter le midi."
-            className="input-base resize-none"
-          />
-        </Field>
-
-        <Field label="Adresse de la prestation">
-          <input
-            value={addressLine}
-            onChange={(e) => setAddressLine(e.target.value)}
-            maxLength={255}
-            autoComplete="street-address"
-            placeholder="Numéro et rue"
-            className="input-base"
-          />
-          <div className="grid grid-cols-[120px_1fr] gap-3 mt-3">
+        {/* ── 2. La cuisine ─────────────────────────────────────────── */}
+        <Bloc titre="La cuisine">
+          <Field label="Style culinaire" htmlFor={`${champ}-cuisine`}>
             <input
-              value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
-              inputMode="numeric"
-              maxLength={5}
-              autoComplete="postal-code"
-              placeholder="Code postal"
+              id={`${champ}-cuisine`}
+              value={cuisine}
+              onChange={(e) => setCuisine(e.target.value)}
+              maxLength={120}
+              placeholder="Ex. méditerranéen, asiatique…"
               className="input-base"
             />
-            <CityField bare id="request-city" postcode={postalCode} value={city} onChange={setCity} />
-          </div>
-          <p className="text-[11px] text-ink-soft mt-1.5">
-            Ton batch cooker ne voit que la ville tant que tu n’as pas accepté son offre.
-          </p>
-        </Field>
+          </Field>
 
-        <Field label="Budget indicatif en € (facultatif)">
-          <input
-            type="number"
-            min={1}
-            max={MAX_BUDGET_EUROS}
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder="Ex. 400"
-            className="input-base"
-          />
-        </Field>
+          <fieldset>
+            <legend className="mb-2 text-sm font-semibold text-navy">Régimes</legend>
+            <div className="flex flex-wrap gap-2">
+              {DIETS.map((d) => {
+                const on = diets.includes(d)
+                return (
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => toggle(d)}
+                    aria-pressed={on}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors ${
+                      on
+                        ? 'bg-amber font-semibold text-navy'
+                        : 'bg-cream-soft text-ink-mid hover:bg-cream-deep hover:text-navy'
+                    }`}
+                  >
+                    {on ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {d}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
 
-        {error && (
-          <p role="alert" className="text-sm text-red-700 bg-red-100 rounded-xl px-4 py-3">
-            {error}
-          </p>
-        )}
+          <Field
+            label="Allergies"
+            htmlFor={`${champ}-allergies`}
+            hint="Séparées par des virgules. Elles sont transmises telles quelles au batch cooker."
+          >
+            <input
+              id={`${champ}-allergies`}
+              value={allergies}
+              onChange={(e) => setAllergies(e.target.value)}
+              maxLength={1300}
+              placeholder="Ex. gluten, fruits à coque"
+              className="input-base"
+            />
+          </Field>
 
-        <div className="flex items-center gap-3">
-          <button type="submit" disabled={create.isPending} className="btn btn-primary disabled:opacity-60">
+          <Field
+            label="Le brief"
+            htmlFor={`${champ}-brief`}
+            hint="Plus il est précis — cuissons, régimes, contenants —, plus l’offre arrive vite."
+          >
+            <textarea
+              id={`${champ}-brief`}
+              rows={5}
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              maxLength={4000}
+              placeholder="Ex. Les repas de la semaine, plutôt méditerranéens. Deux sans gluten, une végétarienne stricte. Des portions faciles à emporter le midi."
+              className="input-base resize-y"
+            />
+          </Field>
+        </Bloc>
+
+        {/* ── 3. Le lieu et le budget ───────────────────────────────── */}
+        <Bloc titre="Où, et pour quel budget">
+          <Field
+            label="Adresse de la prestation"
+            htmlFor={`${champ}-adresse`}
+            hint="Le batch cooker ne voit que la ville tant que vous n’avez pas accepté son offre."
+          >
+            <input
+              id={`${champ}-adresse`}
+              value={addressLine}
+              onChange={(e) => setAddressLine(e.target.value)}
+              maxLength={255}
+              autoComplete="street-address"
+              placeholder="Numéro et rue"
+              className="input-base"
+            />
+            <div className="mt-3 grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
+              <input
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={5}
+                autoComplete="postal-code"
+                aria-label="Code postal"
+                placeholder="Code postal"
+                className="input-base"
+              />
+              <CityField bare id="request-city" postcode={postalCode} value={city} onChange={setCity} />
+            </div>
+          </Field>
+
+          <Field
+            label="Budget indicatif"
+            htmlFor={`${champ}-budget`}
+            hint="Facultatif, en euros. Il aide le batch cooker à calibrer sa proposition."
+          >
+            <input
+              id={`${champ}-budget`}
+              type="number"
+              min={1}
+              max={MAX_BUDGET_EUROS}
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="Ex. 400"
+              className="input-base sm:max-w-[12rem]"
+            />
+          </Field>
+        </Bloc>
+
+        <div className="border-t border-[rgba(31,42,55,0.08)] pt-6">
+          {error && (
+            <p
+              ref={alerte}
+              role="alert"
+              tabIndex={-1}
+              className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-red-400"
+            >
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={create.isPending}
+            className="btn btn-primary disabled:opacity-60"
+          >
             {create.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : sent ? (
-              <Check className="w-4 h-4" />
+              <Check className="h-4 w-4" aria-hidden />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="h-4 w-4" aria-hidden />
             )}
-            {sent ? 'Demande envoyée !' : 'Envoyer la demande'}
-            {!sent && !create.isPending && <ArrowRight className="w-4 h-4 icon-arrow" />}
+            {sent ? 'Demande envoyée' : 'Envoyer la demande'}
+            {!sent && !create.isPending && <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />}
           </button>
+
+          <p aria-live="polite" className="mt-3 text-sm leading-relaxed text-ink-soft">
+            {sent
+              ? 'Elle apparaît à droite. Vous serez prévenu dès qu’une offre arrive.'
+              : 'Vous ne vous engagez à rien : c’est l’offre que vous accepterez, pas la demande.'}
+          </p>
         </div>
       </form>
     </motion.section>
@@ -427,35 +555,55 @@ function MyRequests() {
   const list = quotes.data ?? []
 
   return (
-    <section className="space-y-4">
-      <h3 className="font-display text-lg font-bold text-navy">Mes demandes</h3>
+    <section className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="font-display text-lg font-bold text-navy">Mes demandes</h2>
+        {list.length > 0 && (
+          <span className="text-sm tabular-nums text-ink-soft">{list.length}</span>
+        )}
+      </div>
 
-      {quotes.isPending && <p className="text-sm text-ink-soft">Chargement…</p>}
+      {quotes.isPending && (
+        <div className="h-28 animate-pulse rounded-2xl bg-cream-soft" aria-hidden />
+      )}
+
       {quotes.isError && (
-        <p className="text-sm text-red-700">
-          Impossible de charger tes demandes.{' '}
-          <button onClick={() => quotes.refetch()} className="underline font-semibold">
+        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+          Vos demandes n’ont pas pu être chargées.{' '}
+          <button onClick={() => quotes.refetch()} className="font-semibold underline">
             Réessayer
           </button>
         </p>
       )}
+
       {quotes.isSuccess && list.length === 0 && (
-        <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)] text-sm text-ink-mid">
-          Tu n’as pas encore de demande. Remplis le formulaire : ton batch cooker te répond avec son
-          prix.
+        <div className="card-shell rounded-2xl p-5">
+          <p className="text-sm leading-relaxed text-ink-mid">
+            Vous n’avez pas encore de demande. Voici comment ça se passe :
+          </p>
+          <ol className="mt-4 space-y-3">
+            {[
+              'Vous décrivez la prestation, à gauche.',
+              'Un batch cooker l’étudie et vous répond avec son prix.',
+              'Vous acceptez, et la session entre à votre agenda.',
+            ].map((texte, i) => (
+              <li key={texte} className="flex gap-3 text-sm leading-relaxed text-navy">
+                <span
+                  aria-hidden
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-soft text-[11px] font-semibold text-amber-deep"
+                >
+                  {i + 1}
+                </span>
+                {texte}
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 
       {list.map((quote) => (
         <RequestCard key={quote.id} quote={quote} />
       ))}
-
-      <div className="rounded-3xl border border-dashed border-amber/40 bg-amber-soft/30 p-5 text-sm text-ink-mid">
-        <p className="font-semibold text-navy mb-1 inline-flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber" /> Astuce
-        </p>
-        Plus le brief est précis (cuisson, régimes, allergies), plus l’offre arrive vite.
-      </div>
     </section>
   )
 }
@@ -490,99 +638,132 @@ function RequestCard({ quote }: { quote: Quote }) {
   const fail = (fallback: string) => (cause: unknown) => setError(errorText(cause, fallback))
 
   return (
-    <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <p className="font-semibold text-navy text-sm leading-tight">{quote.title}</p>
-        <span
-          className={`shrink-0 text-[10px] uppercase tracking-[0.12em] font-semibold px-2.5 py-1 rounded-full ${STATUS_COLOR[quote.status]}`}
-        >
-          {STATUS_LABEL[quote.status]}
-        </span>
-      </div>
-      <p className="text-[11px] text-ink-soft font-mono mb-2">{quote.reference}</p>
-
-      <p className="text-xs text-ink-mid mb-3 inline-flex items-center gap-1.5">
-        <ChefHat className="w-3.5 h-3.5 text-terra" />
-        {quote.chef ? quote.chef.displayName : 'Batch cooker en cours d’attribution'}
-      </p>
-
-      <p className="text-xs text-ink-soft mb-3 line-clamp-3 leading-relaxed">{quote.brief}</p>
-
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        <Chip>{quote.persons} pers.</Chip>
-        <Chip>{quote.mealsCount} plats</Chip>
-        {quote.desiredDate && (
-          <Chip>
-            <CalendarDays className="w-3 h-3 inline mr-1" />
-            {dayLabel(quote.desiredDate)}
-          </Chip>
-        )}
-        {quote.address.city && (
-          <Chip>
-            <MapPin className="w-3 h-3 inline mr-1" />
-            {quote.address.city}
-          </Chip>
-        )}
-        {quote.diet.map((d) => (
-          <span key={d} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-soft text-amber-deep font-mono">
-            {d}
+    <article className="overflow-hidden card-shell rounded-2xl">
+      <div className="p-5">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold leading-snug text-navy">{quote.title}</h3>
+          <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-ink-mid">
+            <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[quote.status]}`} />
+            {STATUS_LABEL[quote.status]}
           </span>
-        ))}
+        </div>
+
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
+          <span className="inline-flex items-center gap-1.5">
+            <ChefHat className="h-3.5 w-3.5 text-terra" aria-hidden />
+            {quote.chef ? quote.chef.displayName : 'Batch cooker en cours d’attribution'}
+          </span>
+          <span className="tabular-nums">{quote.reference}</span>
+        </p>
+
+        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-mid">{quote.brief}</p>
+
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-soft">
+          <li className="tabular-nums">{quote.persons} personnes</li>
+          <li className="tabular-nums">{quote.mealsCount} plats</li>
+          {quote.desiredDate && (
+            <li className="inline-flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+              {dayLabel(quote.desiredDate)}
+            </li>
+          )}
+          {quote.address.city && (
+            <li className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              {quote.address.city}
+            </li>
+          )}
+        </ul>
+
+        {quote.diet.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {quote.diet.map((d) => (
+              <span
+                key={d}
+                className="rounded-full bg-mint/60 px-2.5 py-1 text-[11px] font-medium text-mint-ink"
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {quote.status === 'chef_declined' && (
+          <Note>
+            Le batch cooker n’est pas disponible pour cette demande. Notre équipe vous en
+            propose un autre : vous pouvez attendre, ou retirer votre demande.
+          </Note>
+        )}
+        {quote.status === 'submitted' && !quote.chef && (
+          <Note>Notre équipe choisit le batch cooker qui vous répondra.</Note>
+        )}
+        {quote.status === 'declined' && (
+          <Note>
+            Vous avez refusé la dernière offre. Votre batch cooker peut vous en proposer une
+            nouvelle.
+          </Note>
+        )}
+        {quote.status === 'closed' && (
+          <Note>
+            Lab’s Food n’a pas donné suite à cette demande. Vous avez reçu un email qui
+            l’explique — et vous pouvez en déposer une nouvelle quand vous voulez.
+          </Note>
+        )}
+
+        {error && (
+          <p role="alert" className="mt-3 text-sm leading-relaxed text-red-800">
+            {error}
+          </p>
+        )}
       </div>
 
-      {quote.status === 'chef_declined' && (
-        <Note>
-          Le batch cooker n’est pas disponible pour cette demande. Notre équipe t’en propose un
-          autre : tu peux attendre, ou retirer ta demande.
-        </Note>
-      )}
-      {quote.status === 'submitted' && !quote.chef && (
-        <Note>Notre équipe choisit le batch cooker qui te répondra.</Note>
-      )}
-      {quote.status === 'declined' && (
-        <Note>Tu as refusé la dernière offre. Ton batch cooker peut t’en proposer une nouvelle.</Note>
-      )}
-      {quote.status === 'closed' && (
-        <Note>
-          Lab’s Food n’a pas donné suite à cette demande. Tu as reçu un email qui
-          l’explique — et tu peux en déposer une nouvelle quand tu veux.
-        </Note>
-      )}
-
+      {/* ── L'offre : c'est la décision du client, elle sort du corps ── */}
       {offer && (
-        <div className="rounded-xl bg-amber-soft/60 border border-amber/30 p-3 text-sm">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-amber-deep font-mono mb-1">
-            Offre de {quote.chef?.displayName ?? 'ton batch cooker'}
+        <div className="border-t border-amber/30 bg-amber-soft/50 p-5">
+          <p className="text-xs text-ink-mid">
+            Offre de {quote.chef?.displayName ?? 'votre batch cooker'}
           </p>
-          <p className="font-display text-xl font-bold text-navy">{centsToEuros(offer.clientPriceCents)}</p>
-          <p className="text-[11px] text-ink-mid">
-            soit {centsToEuros(offer.afterTaxCreditCents)} après crédit d’impôt
-          </p>
+          <div className="mt-2">
+            <Prix
+              apresCredit={centsToEuros(offer.afterTaxCreditCents)}
+              total={centsToEuros(offer.clientPriceCents)}
+            />
+          </div>
+
           {(offer.proposedDate || offer.proposedTimeSlot) && (
-            <p className="text-[11px] text-navy mt-1.5 font-semibold">
-              Proposé : {dayLabel(offer.proposedDate ?? quote.desiredDate ?? '')}
+            <p className="mt-3 text-sm font-semibold capitalize text-navy">
+              {dayLabel(offer.proposedDate ?? quote.desiredDate ?? '')}
               {', '}
-              {SLOT_LABEL[offer.proposedTimeSlot ?? quote.timeSlot ?? 'evening'].toLowerCase()}
+              <span className="font-normal lowercase text-ink-mid">
+                {SLOT_LABEL[offer.proposedTimeSlot ?? quote.timeSlot ?? 'evening'].toLowerCase()}
+              </span>
             </p>
           )}
           {offer.conditions && (
-            <p className="text-[11px] text-ink-mid mt-1.5 italic whitespace-pre-line">{offer.conditions}</p>
+            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-mid">
+              {offer.conditions}
+            </p>
           )}
-          <p className="text-[11px] text-ink-soft mt-1.5 inline-flex items-center gap-1">
-            <Clock className="w-3 h-3" /> Valable jusqu’au {dayLabel(offer.validUntil)}
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-ink-soft">
+            <Clock className="h-3.5 w-3.5" aria-hidden /> Valable jusqu’au{' '}
+            {dayLabel(offer.validUntil)}
           </p>
 
           {declining ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-4 space-y-2">
+              <label htmlFor={`refus-${offer.id}`} className="block text-sm font-semibold text-navy">
+                Un mot pour votre batch cooker
+              </label>
               <textarea
+                id={`refus-${offer.id}`}
                 rows={2}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 maxLength={1000}
-                placeholder="Un mot pour ton batch cooker (facultatif)"
-                className="input-base resize-none text-xs"
+                placeholder="Facultatif"
+                className="input-base resize-none text-sm"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   disabled={busy}
                   onClick={() =>
@@ -594,43 +775,47 @@ function RequestCard({ quote }: { quote: Quote }) {
                       },
                     )
                   }
-                  className="text-[11px] font-semibold bg-navy text-white rounded-full px-3 py-1.5 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-navy-deep disabled:opacity-60"
                 >
+                  {decline.isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
                   Confirmer le refus
                 </button>
                 <button
                   onClick={() => setDeclining(false)}
-                  className="text-[11px] font-semibold text-ink-mid hover:text-navy"
+                  className="text-xs font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
                 >
                   Annuler
                 </button>
               </div>
             </div>
           ) : (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
               <button
                 disabled={busy}
                 onClick={() => {
                   setError(null)
                   accept.mutate(
                     { quoteId: quote.id, offerId: offer.id },
-                    { onError: fail('L’offre n’a pas pu être acceptée. Réessaie dans un instant.') },
+                    { onError: fail('L’offre n’a pas pu être acceptée. Réessayez dans un instant.') },
                   )
                 }}
-                className="text-[11px] font-semibold bg-navy text-amber rounded-full px-3 py-1.5 disabled:opacity-60 inline-flex items-center gap-1.5"
+                className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep disabled:opacity-60"
               >
-                {accept.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                {accept.isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
                 Accepter et confirmer
               </button>
               <button
                 disabled={busy}
                 onClick={() => setDeclining(true)}
-                className="text-[11px] font-semibold text-ink-mid hover:text-navy"
+                className="text-xs font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
               >
                 Refuser
               </button>
-              <Link href="/espace-client/messages" className="text-[11px] font-semibold text-ink-mid hover:text-navy py-1.5">
-                Discuter
+              <Link
+                href="/espace-client/messages"
+                className="text-xs font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+              >
+                En discuter
               </Link>
             </div>
           )}
@@ -638,11 +823,11 @@ function RequestCard({ quote }: { quote: Quote }) {
       )}
 
       {quote.status === 'accepted' && quote.booking && (
-        <div className="rounded-xl bg-mint/60 border border-mint-deep/30 p-3 text-sm">
-          <p className="font-semibold text-navy inline-flex items-center gap-1.5">
-            <Check className="w-4 h-4" /> Prestation confirmée
+        <div className="border-t border-mint-deep/30 bg-mint/50 p-5">
+          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy">
+            <Check className="h-4 w-4" aria-hidden /> Prestation confirmée
           </p>
-          <p className="text-[11px] text-ink-mid mt-1">
+          <p className="mt-1 text-xs text-ink-mid">
             Le{' '}
             {new Date(quote.booking.startsAt).toLocaleString('fr-FR', {
               weekday: 'long',
@@ -657,23 +842,17 @@ function RequestCard({ quote }: { quote: Quote }) {
           {/* Le règlement se fait après la prestation : la page le dit si c'est trop tôt. */}
           <Link
             href={`/espace-client/commandes/${quote.booking.id}/paiement`}
-            className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-navy underline"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-navy underline underline-offset-4"
           >
-            Régler la prestation <ArrowRight className="w-3 h-3" />
+            Régler la prestation <ArrowRight className="h-3 w-3" aria-hidden />
           </Link>
         </div>
       )}
 
-      {error && (
-        <p role="alert" className="mt-3 text-xs text-red-700">
-          {error}
-        </p>
-      )}
-
       {open && (
-        <div className="mt-3 pt-3 border-t border-[rgba(31,42,55,0.06)]">
+        <div className="border-t border-[rgba(31,42,55,0.07)] px-5 py-3">
           {confirmCancel ? (
-            <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
               <span className="text-ink-mid">Retirer cette demande ?</span>
               <button
                 disabled={busy}
@@ -683,34 +862,73 @@ function RequestCard({ quote }: { quote: Quote }) {
                     onError: fail('La demande n’a pas pu être retirée.'),
                   })
                 }
-                className="font-semibold text-red-700 disabled:opacity-60"
+                className="font-semibold text-red-700 underline-offset-4 hover:underline disabled:opacity-60"
               >
                 Oui, la retirer
               </button>
-              <button onClick={() => setConfirmCancel(false)} className="font-semibold text-ink-mid">
+              <button
+                onClick={() => setConfirmCancel(false)}
+                className="font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+              >
                 Non
               </button>
             </div>
           ) : (
             <button
               onClick={() => setConfirmCancel(true)}
-              className="text-[11px] font-semibold text-ink-soft hover:text-red-700 inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft transition-colors hover:text-red-700"
             >
-              <Trash2 className="w-3 h-3" /> Retirer ma demande
+              <Trash2 className="h-3 w-3" aria-hidden /> Retirer ma demande
             </button>
           )}
         </div>
       )}
+    </article>
+  )
+}
+
+/* ── Les pièces du formulaire ─────────────────────────────────────────────── */
+
+/** Un temps du formulaire : son titre, un filet, ses champs. */
+function Bloc({ titre, children }: { titre: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="border-b border-[rgba(31,42,55,0.08)] pb-2 font-display text-base font-bold text-navy">
+        {titre}
+      </h3>
+      <div className="mt-5 space-y-5">{children}</div>
+    </section>
+  )
+}
+
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string
+  htmlFor?: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="mb-2 block text-sm font-semibold text-navy">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">{hint}</p>}
     </div>
   )
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="text-[10px] px-2 py-0.5 rounded-full bg-cream-soft text-navy font-mono">{children}</span>
-}
-
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-mid bg-cream-soft rounded-xl px-3 py-2 mb-3 leading-relaxed">{children}</p>
+  return (
+    <p className="mt-3 rounded-xl bg-cream-soft px-3.5 py-2.5 text-xs leading-relaxed text-ink-mid">
+      {children}
+    </p>
+  )
 }
 
 function Counter({
@@ -727,34 +945,34 @@ function Counter({
   max: number
 }) {
   return (
-    <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
-      <div className="flex items-center gap-3 bg-cream-soft rounded-full p-1.5">
+    <div className="min-w-[9.5rem]">
+      <p className="mb-2 text-sm font-semibold text-navy">{label}</p>
+      <div className="flex items-center gap-2 rounded-full bg-cream-soft p-1.5">
         <button
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-8 h-8 rounded-full bg-paper text-navy font-bold flex items-center justify-center hover:bg-amber hover:text-navy transition-colors"
+          disabled={value <= min}
+          aria-label={`Moins de ${label.toLowerCase()}`}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper text-navy transition-colors hover:bg-amber disabled:opacity-40 disabled:hover:bg-paper"
         >
-          –
+          <Minus className="h-3.5 w-3.5" aria-hidden />
         </button>
-        <span className="flex-1 text-center font-display text-xl font-bold text-navy">{value}</span>
+        <span
+          aria-live="polite"
+          className="flex-1 text-center font-display text-xl font-bold tabular-nums text-navy"
+        >
+          {value}
+        </span>
         <button
           type="button"
           onClick={() => onChange(Math.min(max, value + 1))}
-          className="w-8 h-8 rounded-full bg-paper text-navy font-bold flex items-center justify-center hover:bg-amber transition-colors"
+          disabled={value >= max}
+          aria-label={`Plus de ${label.toLowerCase()}`}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper text-navy transition-colors hover:bg-amber disabled:opacity-40 disabled:hover:bg-paper"
         >
-          +
+          <Plus className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
-      {children}
     </div>
   )
 }

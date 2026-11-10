@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import * as Sentry from '@sentry/nextjs'
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { setAnalyticsUser } from '@/lib/analytics'
 import { makeQueryClient } from '@/lib/api/query-client'
 import { ReservationGateProvider } from '@/lib/reservation-gate-context'
 import LoginRequiredModal from '@/components/shared/LoginRequiredModal'
@@ -38,6 +40,19 @@ function AuthCacheReset() {
   return null
 }
 
+/** Rattache Sentry et PostHog au compte Clerk : l'id seulement, jamais l'email. */
+function ObservabilityIdentity() {
+  const { isLoaded, userId } = useAuth()
+
+  useEffect(() => {
+    if (!isLoaded) return
+    Sentry.setUser(userId ? { id: userId } : null)
+    setAnalyticsUser(userId ?? null)
+  }, [isLoaded, userId])
+
+  return null
+}
+
 export default function Providers({ children }: { children: ReactNode }) {
   // useState garantit un QueryClient stable par montage (pas recréé au re-render).
   const [queryClient] = useState(makeQueryClient)
@@ -45,6 +60,7 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthCacheReset />
+      <ObservabilityIdentity />
       <ReservationGateProvider>
         <Toaster>{children}</Toaster>
         <LoginRequiredModal />

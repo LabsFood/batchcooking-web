@@ -1,0 +1,90 @@
+import posthog from 'posthog-js'
+
+/**
+ * Mesure d'audience (PostHog, hébergé dans l'UE), seulement avec consentement.
+ *
+ * PostHog n'est démarré qu'après « accepted » : avant, aucune requête ne part,
+ * pas même sa configuration ou ses feature flags, et rien n'est stocké. Le bandeau
+ * (CookieBanner), la page /confidentialite#cookies (CookieSettings) et l'init
+ * (instrumentation-client.ts) passent tous par ce fichier.
+ *
+ * Sans NEXT_PUBLIC_POSTHOG_KEY (dev, preview), tout est sans effet.
+ */
+export const CONSENT_KEY = 'labsfood.cookies.v1'
+
+export type ConsentChoice = 'accepted' | 'declined'
+
+export function readConsent(): ConsentChoice | null {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(CONSENT_KEY) ?? 'null')
+    return saved?.choice === 'accepted' || saved?.choice === 'declined' ? saved.choice : null
+  } catch {
+    return null
+  }
+}
+
+/** Le compte Clerk connecté, gardé pour un PostHog démarré après la connexion. */
+let currentUser: string | null = null
+
+/** Démarre PostHog une fois, si la clé existe et que le visiteur a accepté. */
+export function startAnalytics(): void {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
+  if (!key || posthog.__loaded || readConsent() !== 'accepted') return
+  posthog.init(key, {
+    // Relais same-origin (next.config.mjs) : passe les bloqueurs, reste dans l'UE.
+    api_host: '/ingest',
+    ui_host: 'https://eu.posthog.com',
+    defaults: '2026-08-30',
+    person_profiles: 'identified_only',
+    // Les espaces client et chef affichent adresses, allergies et pièces d'identité.
+    disable_session_recording: true,
+    // Un clic garde sa page et son sélecteur, jamais son texte ni ses attributs :
+    // une puce d'allergie, une adresse ou un message ne partent pas.
+    mask_all_text: true,
+    mask_all_element_attributes: true,
+    loaded: (ph) => {
+      if (currentUser) ph.identify(currentUser)
+    },
+  })
+}
+
+/** Mémorise le choix et l'applique tout de suite, sans recharger la page. */
+export function saveConsent(choice: ConsentChoice): void {
+  try {
+    window.localStorage.setItem(
+      CONSENT_KEY,
+      JSON.stringify({ choice, at: new Date().toISOString() }),
+    )
+  } catch {}
+  if (choice === 'accepted') {
+    if (posthog.__loaded) posthog.opt_in_capturing()
+    else startAnalytics()
+  } else if (posthog.__loaded) {
+    // Retrait : l'identifiant stocké est effacé, puis plus rien ne part.
+    // Dans cet ordre, car `reset()` remet aussi le consentement à zéro.
+    posthog.reset()
+    posthog.opt_out_capturing()
+  }
+}
+
+/**
+ * Rattache les événements au compte Clerk : l'id seulement, jamais l'email.
+ * À la déconnexion, PostHog repart sur un visiteur anonyme neuf. Rien à faire
+ * pour un visiteur jamais connecté : chaque page vue changerait d'identifiant.
+ */
+export function setAnalyticsUser(userId: string | null): void {
+  const previous = currentUser
+  currentUser = userId
+  if (!posthog.__loaded || posthog.has_opted_out_capturing()) return
+  if (userId) posthog.identify(userId)
+  else if (previous) posthog.reset()
+}
+
+/**
+ * Étape d'un parcours qui ne change pas d'URL (les pages vues sont déjà captées).
+ * Propriétés : des ids, des nombres, des étapes. Jamais d'adresse, d'allergie ni
+ * de texte libre.
+ */
+export function track(event: string, properties?: Record<string, string | number | boolean>): void {
+  if (posthog.__loaded) posthog.capture(event, properties)
+}

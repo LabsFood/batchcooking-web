@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import {
-  Instagram, Linkedin,
+  Instagram, Linkedin, Facebook,
   Mail, Phone, MapPin, ArrowRight, ArrowUpRight,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
@@ -10,6 +10,8 @@ const LINKS = {
   service: [
     { label: 'Notre concept', href: '/#concept' },
     { label: 'Comment ça marche ?', href: '/#how-it-works' },
+    { label: 'Devenir batch cooker', href: '/devenir-chef' },
+    { label: 'Espace batch cooker', href: '/auth/login' },
   ],
   about: [
     { label: 'À propos', href: '/a-propos' },
@@ -35,6 +37,7 @@ function TikTok({ className }: { className?: string }) {
 
 const SOCIAL = [
   { Icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/labs_food' },
+  { Icon: Facebook, label: 'Facebook', href: 'https://www.facebook.com/share/1CD552gDxM/?mibextid=wwXIfr' },
   { Icon: TikTok, label: 'TikTok', href: 'https://www.tiktok.com/@labs_food' },
   { Icon: Linkedin, label: 'LinkedIn', href: 'https://www.linkedin.com/company/labs-food' },
 ]

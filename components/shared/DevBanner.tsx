@@ -22,7 +22,9 @@ export default function DevBanner() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[60] flex h-[var(--lf-dev-banner)] items-center justify-center bg-navy px-4 text-white"
+      // z-[45] : sous les fenêtres et tiroirs (z-50 et plus), qui sinon
+      // passaient dessous et y perdaient leur titre et leur bouton Fermer.
+      className="fixed inset-x-0 top-0 z-[45] flex h-[var(--lf-dev-banner)] items-center justify-center bg-navy px-4 text-white"
     >
       <p className="flex items-center gap-2 text-center text-[12px] leading-tight sm:text-[13px]">
         <TriangleAlert

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  Carrot,
   LayoutDashboard,
   FileText,
   CalendarRange,
@@ -59,6 +60,7 @@ export const CHEF_NAV = [
     group: 'Mon offre',
     items: [
       { href: '/espace-chef/recettes', label: 'Menus & recettes', Icon: UtensilsCrossed },
+      { href: '/espace-chef/ingredients', label: 'Mes ingrédients', Icon: Carrot },
       { href: '/espace-chef/tarifs', label: 'Mes tarifs', Icon: Tag },
       { href: '/espace-chef/vitrine', label: 'Ma vitrine', Icon: Store },
     ],
@@ -191,7 +193,7 @@ export function ChefSidebar() {
       .toUpperCase() || 'BC'
 
   return (
-    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-[calc(var(--lf-dev-banner)+1.5rem)] self-start h-[calc(100vh-var(--lf-dev-banner)-3rem)] ml-6 my-6">
       <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-navy text-white">
         <div className="px-6 pb-5 pt-6">
           <Logo variant="white" size="sm" />
@@ -327,8 +329,8 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
 
   return (
     <>
-      <header className="sticky top-[var(--lf-dev-banner)] z-20 bg-cream/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
+      <header className="sticky top-[var(--lf-dev-banner)] z-20 bg-shell/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
+        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setOpen(true)}
             className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] text-navy shrink-0"
@@ -339,7 +341,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
 
           <div className="min-w-0 flex-1">
             <p className="eyebrow mb-1 hidden sm:inline-flex">Espace chef</p>
-            <h1 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-none truncate">
+            <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-navy leading-tight sm:leading-none line-clamp-2 sm:truncate">
               {title}
             </h1>
             {subtitle && (
@@ -365,7 +367,8 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
           <div className="relative shrink-0">
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
+              aria-label="Menu du compte"
+              className="flex items-center gap-2 p-1 md:pl-1 md:pr-3 rounded-full bg-paper border border-[rgba(31,42,55,0.08)] hover:border-amber transition-colors"
             >
               <Avatar
                 url={me.data?.avatarUrl}
@@ -382,7 +385,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                   </span>
                 )}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-ink-soft" />
+              <ChevronDown className="hidden md:block w-3.5 h-3.5 text-ink-soft" />
             </button>
 
             {menuOpen && (

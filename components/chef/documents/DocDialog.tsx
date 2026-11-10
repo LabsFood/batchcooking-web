@@ -23,8 +23,8 @@ export default function DocDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_30px_80px_-20px_rgba(15,23,32,0.55)] focus:outline-none sm:inset-x-8 sm:inset-y-6 lg:inset-x-[14%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_30px_80px_-20px_rgba(15,23,32,0.55)] focus:outline-none sm:inset-x-8 sm:inset-y-6 lg:inset-x-[14%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:[animation-duration:120ms]">
           <div className="flex items-center gap-3 border-b border-[rgba(31,42,55,0.08)] px-5 py-3.5">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="truncate text-sm font-semibold text-navy">{title}</Dialog.Title>

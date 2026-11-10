@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { AllergyBadge } from '@/components/shared/AllergyStatus'
+import { Prix } from '@/components/shared/Prix'
 import {
   AlertTriangle,
   ArrowRight,
@@ -73,7 +74,7 @@ export default function OrdersListPage() {
 
   if (query.isError) {
     return (
-      <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+      <div className="rounded-3xl card-shell p-6">
         <p className="flex items-start gap-2 font-display text-lg font-bold text-navy">
           <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-red-700" aria-hidden />
           Vos commandes n’ont pas pu être chargées
@@ -123,7 +124,7 @@ export default function OrdersListPage() {
           ))}
         </div>
       ) : toutes.length === 0 ? (
-        <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper px-6 py-14 text-center">
+        <div className="rounded-3xl card-shell px-6 py-14 text-center">
           <UtensilsCrossed className="mx-auto h-7 w-7 text-ink-soft" aria-hidden />
           <p className="mt-3 font-display text-lg font-bold text-navy">
             Aucune commande pour l’instant
@@ -173,7 +174,7 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 transition-colors hover:border-amber/50"
+      className="rounded-3xl card-shell p-5 transition-colors hover:border-amber/50"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -242,21 +243,11 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {ttc ? (
-            <>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-soft">Total TTC</p>
-              <p className="font-display text-2xl font-bold text-navy">{ttc}</p>
-              {reste && (
-                <p className="text-[11px] font-semibold text-amber-deep">
-                  soit {reste} après crédit d’impôt
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
-          )}
-        </div>
+        {ttc || reste ? (
+          <Prix apresCredit={reste} total={ttc} />
+        ) : (
+          <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
+        )}
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href={`/espace-client/commandes/${b.id}`}

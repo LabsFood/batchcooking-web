@@ -168,8 +168,8 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-3xl bg-navy text-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)] focus:outline-none sm:inset-6 lg:inset-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/80 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-3xl bg-navy text-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)] focus:outline-none sm:inset-6 lg:inset-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
             <div>
               <Dialog.Title className="font-display text-xl font-bold leading-tight">Ma carte culinaire</Dialog.Title>

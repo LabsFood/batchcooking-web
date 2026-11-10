@@ -117,8 +117,8 @@ export function AlertBell({
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in" />
-        <Dialog.Content className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col bg-cream-soft shadow-[0_0_80px_-20px_rgba(31,42,55,0.55)] data-[state=open]:animate-in data-[state=open]:slide-in-from-right">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col bg-cream-soft shadow-[0_0_80px_-20px_rgba(31,42,55,0.55)] data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-start justify-between gap-4 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4">
             <div>
               <Dialog.Title className="font-display text-lg font-bold leading-tight text-navy">

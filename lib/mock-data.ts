@@ -361,7 +361,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'f3',
     question: 'Qui est responsable de l’achat des ingrédients ?',
     answer:
-      'À ce jour, la gestion des courses incombe exclusivement au client. Une liste d’ingrédients précise et détaillée vous est transmise au moins 3 jours avant l’intervention. Vous gardez la maîtrise totale de votre budget, le choix des fournisseurs (bio, producteurs locaux…) et la provenance des produits que vous consommez.',
+      'À ce jour, la gestion des courses incombe exclusivement au client. Une liste d’ingrédients précise et détaillée vous est transmise. Vous gardez la maîtrise totale de votre budget, le choix des fournisseurs (bio, producteurs locaux…) et la provenance des produits que vous consommez.',
     category: 'service',
   },
   {

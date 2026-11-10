@@ -22,12 +22,12 @@ const TITLES: Record<string, { title: string; sub?: string }> = {
     sub: 'Les cartes de la semaine, chef par chef.',
   },
   '/espace-client/reservation': {
-    title: 'Composer ma session',
-    sub: 'Choisir un batch cooker, puis ses plats.',
+    title: 'Réserver une session',
+    sub: 'Le batch cooker, ses plats, la date.',
   },
   '/espace-client/courses': {
     title: 'Ma liste de courses',
-    sub: 'Rangée par rayon, prête à emporter.',
+    sub: 'Rangée par rayon.',
   },
   '/espace-client/personnalisation': {
     title: 'Demande sur-mesure',
@@ -81,7 +81,7 @@ export default function DashboardTopbar() {
       .toUpperCase() || 'G'
 
   return (
-    <header className="sticky top-[var(--lf-dev-banner)] z-30 bg-cream/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
+    <header className="sticky top-[var(--lf-dev-banner)] z-30 bg-shell/85 backdrop-blur-md border-b border-[rgba(31,42,55,0.06)]">
       <div className="px-6 lg:px-8 py-4 flex items-center gap-4">
         {/* Mobile back / menu */}
         <Link

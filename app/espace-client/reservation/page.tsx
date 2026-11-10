@@ -30,7 +30,13 @@ import {
 } from '@/components/menu/ChefMenuBrowser'
 import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
-import { useChefSlots, useCreateBooking } from '@/lib/api/bookings'
+import {
+  afterTaxFromClientPrice,
+  usePricingRules,
+  useChefSlots,
+  useCreateBooking,
+} from '@/lib/api/bookings'
+import { Prix } from '@/components/shared/Prix'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile } from '@/lib/api/types'
 import CityField from '@/components/chef/application/CityField'
@@ -48,6 +54,7 @@ import {
   type OfferPrice,
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
+import { track } from '@/lib/analytics'
 
 /*
  * Trois étapes, plus quatre : la confirmation n'appartient plus à ce tunnel.
@@ -87,6 +94,10 @@ function ReservationFlow() {
   const [step, setStep] = useState<StepId>('chef')
 
   const filters = useMenuFilters()
+  // Le reste à charge de chaque formule, avant même que l'API ne chiffre la
+  // session : la liste des formules annonce le prix dans le même ordre que
+  // partout ailleurs.
+  const regles = usePricingRules().data
   const [openMenu, setOpenMenu] = useState<WeekCard | null>(null)
   const diets = useDiets([])
   const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
@@ -232,7 +243,10 @@ function ReservationFlow() {
           : {}),
       },
       {
-        onSuccess: (b) => router.push(`/espace-client/commandes/${b.id}/paiement`),
+        onSuccess: (b) => {
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals })
+          router.push(`/espace-client/commandes/${b.id}/paiement`)
+        },
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
@@ -255,7 +269,7 @@ function ReservationFlow() {
   return (
     <div className="space-y-6">
       {/* Stepper */}
-      <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
+      <div className="card-shell rounded-3xl p-5">
         <div className="relative grid grid-cols-4 gap-2">
           <div className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]" />
           <div
@@ -295,7 +309,10 @@ function ReservationFlow() {
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      {/* Une seule cellule de grille : l'étape qui part et celle qui arrive se
+          superposent le temps du fondu, sans s'empiler ni laisser de vide. */}
+      <div className="grid">
+      <AnimatePresence>
         {step === 'chef' && (
           <StepCard
             key="chef"
@@ -420,11 +437,17 @@ function ReservationFlow() {
                                   : 'courses à votre charge'}
                               </span>
                             </span>
-                            <span className="shrink-0 text-right">
-                              <span className="block font-display text-lg font-bold text-navy">
-                                {offerEuros(o.priceCents)}
-                              </span>
-                            </span>
+                            <Prix
+                              apresCredit={
+                                regles
+                                  ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
+                                  : null
+                              }
+                              total={offerEuros(o.priceCents)}
+                              taille="sm"
+                              align="right"
+                              className="shrink-0"
+                            />
                           </button>
                         )
                       })}
@@ -733,6 +756,7 @@ function ReservationFlow() {
         )}
 
       </AnimatePresence>
+      </div>
 
       {/* La carte d'un chef : meme composant que sur le site public. Ici elle
           enchaine sur la suite de la reservation au lieu d'ouvrir la connexion. */}
@@ -775,7 +799,7 @@ function StepCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-paper rounded-3xl p-6 lg:p-8 border border-[rgba(31,42,55,0.06)]"
+      className="col-start-1 row-start-1 card-shell rounded-3xl p-6 lg:p-8"
     >
       <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
@@ -1118,17 +1142,16 @@ function SummaryCard({
               {prix.shoppingFeeCents > 0 && (
                 <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
               )}
-              <div className="pt-3 border-t border-white/10 flex items-baseline justify-between">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-white/55">
-                  Total TTC
-                </span>
-                <span className="font-display text-3xl font-bold">
-                  {offerEuros(prix.amountTtc)}
-                </span>
+              <div className="pt-3 border-t border-white/10">
+                <Prix
+                  apresCredit={offerEuros(prix.amountAfterTax)}
+                  total={offerEuros(prix.amountTtc)}
+                  lead="Ce que vous payez"
+                  tone="dark"
+                  taille="lg"
+                  align="right"
+                />
               </div>
-              <p className="text-[11px] text-amber font-semibold text-right">
-                soit {offerEuros(prix.amountAfterTax)} après crédit d&apos;impôt
-              </p>
             </>
           ) : offre ? (
             /* En attendant la réponse de l'API : le prix de l'offre seule,

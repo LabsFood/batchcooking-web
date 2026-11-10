@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users, X } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
@@ -273,14 +273,27 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
 function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }) {
   const rules = usePricingRules()
   const send = useSendOffer()
+  const id = useId()
+  const panneau = useRef<HTMLDivElement>(null)
+
   const [net, setNet] = useState(quote.budgetCents ? Math.round(quote.budgetCents / 100) : 150)
   const [validityDays, setValidityDays] = useState(7)
-  const [conditions, setConditions] = useState('Courses incluses. Déplacement compris dans un rayon de 30 km.')
-  const [otherDate, setOtherDate] = useState(false)
+  const [conditions, setConditions] = useState(
+    'Courses incluses. Déplacement compris dans un rayon de 30 km.',
+  )
+  /* Sans date demandée il n'y a pas de date à garder : on en propose une. */
+  const [otherDate, setOtherDate] = useState(!quote.desiredDate)
   const [date, setDate] = useState(quote.desiredDate ?? '')
   const [slot, setSlot] = useState<TimeSlot>(quote.timeSlot ?? 'evening')
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+
+  /* Le composeur s'insère sous une liste qui tient parfois deux écrans : sans
+     ça, on clique « Proposer une prestation » et rien ne semble se passer. */
+  useEffect(() => {
+    const doux = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    panneau.current?.scrollIntoView({ behavior: doux ? 'smooth' : 'auto', block: 'start' })
+  }, [])
 
   const netCents = Math.round(net * 100)
   const preview = rules.data ? previewOffer(netCents, rules.data) : null
@@ -319,76 +332,112 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div
+      ref={panneau}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="scroll-mt-24"
+    >
       <Card
-        title={`Composer une offre — ${clientName}`}
+        title={`Proposer une prestation à ${clientName}`}
         action={
-          <button onClick={onClose} className="text-xs text-ink-soft hover:text-navy">
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
             Fermer
           </button>
         }
       >
         {sent ? (
-          <div className="py-8 text-center">
+          <div className="py-10 text-center">
             <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-mint-deep text-mint-ink">
-              <Check className="h-6 w-6" />
+              <Check className="h-6 w-6" aria-hidden />
             </span>
             <p className="font-display text-lg font-bold text-navy">Offre envoyée</p>
-            <p className="text-sm text-ink-mid mt-1">
-              Elle passera en « Vue » dès que {clientName} l&apos;aura consultée.
+            <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-ink-mid">
+              Elle passera en « Vue » dès que {clientName} l&apos;aura consultée. Vous la
+              retrouvez dans le suivi, plus bas.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="label-muted block mb-2">Votre net perçu</label>
-                <div className="relative">
+          /* Deux colonnes seulement à partir de `xl` : à 1024 px la barre
+             latérale prend déjà 288 px, et le calendrier ne tenait plus. */
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_21rem] xl:gap-8">
+            <div className="space-y-6">
+              <Champ
+                htmlFor={`${id}-net`}
+                label="Votre net perçu"
+                hint="Vous saisissez ce que vous touchez. Le prix client s’en déduit, commission comprise."
+              >
+                <div className="relative w-full max-w-[13rem]">
                   <input
+                    id={`${id}-net`}
                     type="number"
+                    inputMode="decimal"
                     min={10}
                     max={20000}
                     step="0.01"
                     value={net}
                     onChange={(e) => setNet(Math.max(0, Number(e.target.value) || 0))}
-                    className="input-base pr-10 font-display text-xl font-bold"
+                    /* Les flèches natives passaient sous le « € ». */
+                    className="input-base pr-10 font-display text-xl font-bold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft">€</span>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft"
+                  >
+                    €
+                  </span>
                 </div>
-                <p className="text-[11px] text-ink-soft mt-1.5">
-                  Vous saisissez ce que vous touchez. Le prix client est calculé automatiquement.
-                </p>
-              </div>
+              </Champ>
 
-              <div>
-                <label className="label-muted block mb-2">Validité de l&apos;offre</label>
-                <div className="flex gap-2">
+              <Champ
+                label="Validité de l’offre"
+                hint="Passé ce délai, l’offre expire et la demande vous revient."
+              >
+                <div role="group" aria-label="Validité de l’offre" className="flex max-w-sm flex-wrap gap-2">
                   {[3, 7, 14].map((d) => (
                     <button
                       key={d}
+                      type="button"
                       onClick={() => setValidityDays(d)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                        validityDays === d ? 'bg-amber text-navy' : 'bg-cream-soft text-ink-mid'
+                      aria-pressed={validityDays === d}
+                      className={`min-w-[5.5rem] flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold tabular-nums transition-colors ${
+                        validityDays === d
+                          ? 'bg-amber text-navy'
+                          : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
                       }`}
                     >
                       {d} jours
                     </button>
                   ))}
                 </div>
-              </div>
+              </Champ>
 
-              <div>
-                <label className="label-muted block mb-2">Date de la prestation</label>
-                <p className="text-sm text-navy">
-                  Demandée : {quote.desiredDate ? dayLabel(quote.desiredDate) : '—'}
+              <Champ label="Date de la prestation">
+                <p className="text-sm leading-relaxed text-ink-mid">
+                  Demandée :{' '}
+                  <strong className="font-semibold text-navy">
+                    {quote.desiredDate ? dayLabel(quote.desiredDate) : 'non précisée'}
+                  </strong>
                   {quote.timeSlot ? `, ${SLOT_LABEL[quote.timeSlot].toLowerCase()}` : ''}
                 </p>
-                <label className="mt-2 flex items-center gap-2 text-xs text-ink-mid">
-                  <input type="checkbox" checked={otherDate} onChange={(e) => setOtherDate(e.target.checked)} />
-                  Je propose une autre date
-                </label>
+
+                {quote.desiredDate && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <Choix on={!otherDate} onClick={() => setOtherDate(false)}>
+                      Je garde cette date
+                    </Choix>
+                    <Choix on={otherDate} onClick={() => setOtherDate(true)}>
+                      J’en propose une autre
+                    </Choix>
+                  </div>
+                )}
+
                 {otherDate && (
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-3 flex flex-wrap items-start gap-4">
                     <DatePicker
                       mode="single"
                       selected={date ? new Date(`${date}T12:00:00`) : undefined}
@@ -398,69 +447,167 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                         after: new Date(`${dayFromNow(365)}T00:00:00`),
                       }}
                       startMonth={new Date(`${dayFromNow(1)}T00:00:00`)}
-                      className="rounded-2xl bg-cream-soft p-2"
+                      className="w-fit rounded-2xl bg-cream-soft p-3"
                     />
-                    <select value={slot} onChange={(e) => setSlot(e.target.value as TimeSlot)} className="input-base">
-                      {SLOTS.map((s) => (
-                        <option key={s} value={s}>
-                          {SLOT_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="min-w-[11rem] flex-1">
+                      <label
+                        htmlFor={`${id}-slot`}
+                        className="mb-1.5 block text-[13px] font-semibold text-navy"
+                      >
+                        Créneau
+                      </label>
+                      <select
+                        id={`${id}-slot`}
+                        value={slot}
+                        onChange={(e) => setSlot(e.target.value as TimeSlot)}
+                        className="input-base"
+                      >
+                        {SLOTS.map((sl) => (
+                          <option key={sl} value={sl}>
+                            {SLOT_LABEL[sl]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
-              </div>
+              </Champ>
 
-              <div>
-                <label className="label-muted block mb-2">Conditions</label>
+              <Champ
+                htmlFor={`${id}-conditions`}
+                label="Conditions"
+                hint="Ce qui est compris, ce qui ne l’est pas. C’est ce que le client lit avant d’accepter."
+              >
                 <textarea
-                  rows={3}
+                  id={`${id}-conditions`}
+                  rows={4}
                   value={conditions}
                   onChange={(e) => setConditions(e.target.value)}
                   maxLength={2000}
-                  className="input-base resize-none"
+                  className="input-base resize-y"
                 />
-              </div>
+                <p className="mt-1 text-right text-[11px] tabular-nums text-ink-soft">
+                  {conditions.length} / 2 000
+                </p>
+              </Champ>
             </div>
 
-            {/* Récapitulatif calculé en temps réel */}
-            <aside className="bg-navy text-white rounded-2xl p-5 h-fit">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber mb-4">Récapitulatif</p>
-              <Row label="Votre net perçu" value={centsToEuros(netCents)} strong />
-              {preview && rules.data ? (
-                <>
+            {/* Le récapitulatif, calculé au taux en vigueur lu depuis l'API. */}
+            <aside className="h-fit rounded-2xl bg-navy p-5 text-white lg:sticky lg:top-24">
+              <h3 className="font-display text-base font-bold text-white">Ce que dit cette offre</h3>
+
+              <dl className="mt-4">
+                <Row label="Votre net perçu" value={centsToEuros(netCents)} strong />
+                {preview && rules.data && (
                   <Row
-                    label={`Commission (${(rules.data.commissionBps / 100).toLocaleString('fr-FR')} %)`}
+                    label={`Commission Lab’s Food (${(rules.data.commissionBps / 100).toLocaleString('fr-FR')} %)`}
                     value={centsToEuros(preview.commissionCents)}
                     muted
                   />
-                  <div className="my-3 border-t border-white/10" />
-                  <Row label="Prix client" value={centsToEuros(preview.clientPriceCents)} strong />
-                  <Row label="Après crédit d'impôt" value={centsToEuros(preview.afterTaxCreditCents)} accent />
-                </>
+                )}
+              </dl>
+
+              {preview ? (
+                <div className="mt-4 border-t border-white/15 pt-4">
+                  <p className="text-xs leading-none text-white/60">Ce que paie {clientName}</p>
+                  <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="font-display text-3xl font-bold leading-none tabular-nums text-amber">
+                      {centsToEuros(preview.afterTaxCreditCents)}
+                    </span>
+                    <span className="text-xs leading-none text-white/70">après crédit d’impôt</span>
+                  </p>
+                  <p className="mt-2 text-xs leading-none tabular-nums text-white/60">
+                    {centsToEuros(preview.clientPriceCents)} avant déduction
+                  </p>
+                </div>
               ) : (
-                <p className="text-xs text-white/60 mt-2">
+                <p className="mt-4 text-xs leading-relaxed text-white/70">
                   {rules.isError ? 'Le prix client sera calculé à l’envoi.' : 'Calcul du prix client…'}
                 </p>
               )}
+
               {error && (
-                <p role="alert" className="text-xs text-amber mt-3">
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl bg-amber/15 px-3 py-2.5 text-xs leading-relaxed text-amber"
+                >
                   {error}
                 </p>
               )}
+
               <button
                 onClick={submit}
                 disabled={send.isPending}
-                className="btn btn-amber w-full justify-center mt-4 text-sm disabled:opacity-60"
+                className="btn btn-amber mt-4 w-full justify-center text-sm disabled:opacity-60"
               >
-                {send.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {send.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden />
+                )}
                 Envoyer l&apos;offre
               </button>
+
+              <p className="mt-3 text-[11px] leading-relaxed text-white/60">
+                La prestation est réglée après coup : {clientName} paie une fois qu’elle a
+                eu lieu, jamais à l’acceptation de l’offre.
+              </p>
             </aside>
           </div>
         )}
       </Card>
     </motion.div>
+  )
+}
+
+/** Un champ du composeur : une étiquette qui pointe vraiment sur son champ. */
+function Champ({
+  htmlFor,
+  label,
+  hint,
+  children,
+}: {
+  htmlFor?: string
+  label: string
+  hint?: string
+  children: ReactNode
+}) {
+  return (
+    <div>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="block text-sm font-semibold text-navy">
+          {label}
+        </label>
+      ) : (
+        <p className="text-sm font-semibold text-navy">{label}</p>
+      )}
+      {hint && <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{hint}</p>}
+      <div className="mt-2">{children}</div>
+    </div>
+  )
+}
+
+/** Un choix parmi deux ou trois, assez large pour le pouce. */
+function Choix({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`rounded-xl px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+        on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -565,14 +712,14 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className={`text-xs ${muted ? 'text-white/50' : 'text-white/70'}`}>{label}</span>
-      <span
-        className={`font-display font-bold ${
-          accent ? 'text-amber text-lg' : strong ? 'text-white text-lg' : 'text-white/70 text-sm'
+      <dt className={`text-xs leading-snug ${muted ? 'text-white/60' : 'text-white/75'}`}>{label}</dt>
+      <dd
+        className={`shrink-0 font-display font-bold tabular-nums ${
+          accent ? 'text-lg text-amber' : strong ? 'text-lg text-white' : 'text-sm text-white/75'
         }`}
       >
         {value}
-      </span>
+      </dd>
     </div>
   )
 }

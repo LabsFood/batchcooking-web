@@ -325,7 +325,7 @@ function DossierCard({
   attendMiseEnLigne?: boolean
 }) {
   if (loading) {
-    return <div className="h-28 animate-pulse rounded-2xl bg-paper" />
+    return <div className="h-28 animate-pulse rounded-2xl bg-paper/70" />
   }
   if (!status) return null
 
@@ -343,7 +343,7 @@ function DossierCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className={`rounded-2xl p-5 lg:p-6 ${urgent ? 'bg-navy text-white' : 'bg-paper'}`}
+      className={`rounded-2xl p-5 lg:p-6 ${urgent ? 'bg-navy text-white' : 'card-shell'}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <div className="min-w-0 max-w-prose">
@@ -408,7 +408,7 @@ function Stat({
   hint?: string
 }) {
   return (
-    <div className="bg-paper rounded-2xl p-4 border border-[rgba(31,42,55,0.06)]">
+    <div className="card-shell rounded-2xl p-4">
       <Icon className="w-4 h-4 text-terra mb-2" />
       <p className="font-display text-xl font-bold text-navy leading-none">{value}</p>
       <p className="text-[11px] uppercase tracking-wide text-ink-soft mt-1">{label}</p>

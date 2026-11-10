@@ -5,9 +5,7 @@ import { motion } from 'framer-motion'
 import {
   ArrowRight,
   CheckCircle2,
-  ChefHat,
   Circle,
-  MessageCircle,
   ShoppingBasket,
   Sparkles,
   Trophy,
@@ -27,22 +25,28 @@ import { useMyQuotes } from '@/lib/api/quotes'
 import { useConversations } from '@/lib/api/messaging'
 import { previewOf } from '@/components/messaging/format'
 import CulinaryMap from '@/components/dashboard/CulinaryMap'
+import BienDemarrer from '@/components/client/BienDemarrer'
+import { Prix, PrixLigne } from '@/components/shared/Prix'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Accueil client.
 
-   Ordre de lecture : ce qui arrive et où ça en est, puis la carte culinaire,
-   puis ce qui s'est passé. Le bilan chiffré est une ligne de texte et non une
-   rangée de tuiles : quatre nombres du même poids ne font pas une hiérarchie,
-   ils font un décor.
+   Trois questions, dans cet ordre : qu'est-ce qui arrive, est-ce que quelque
+   chose m'attend, et qu'est-ce que ça m'a apporté. Le reste — messages,
+   demande en cours, bilan — tient dans une colonne de côté : ce sont des
+   nouvelles, pas des décisions.
 
-   Tout vient de l'API depuis le 21/10 — `GET /me/bookings` et `GET /me/quotes`.
-   Jusque-là cet écran lisait `lib/dashboard-mock.ts`, et se contredisait
-   lui-même : la barre de signaux, en haut, disait vrai pendant que les cartes
-   du dessous annonçaient une session qui n'existait pas.
+   Le bilan est un relevé aligné à droite, pas une rangée de tuiles. Quatre
+   nombres du même poids posés côte à côte ne font pas une hiérarchie, et
+   leurs libellés se percutent dès que la ligne se replie. En colonne, les
+   chiffres s'alignent sur leur unité et se comparent d'un coup d'œil.
 
-   Le bilan se calcule sur les prestations **terminées**, parce que c'est la
-   seule définition qu'un client reconnaîtra : une session annulée n'a fait
+   Les montants suivent la règle de la maison : le reste à charge après
+   crédit d'impôt en premier, le total avant déduction dessous — c'est le
+   prix que le client paie réellement.
+
+   Tout vient de l'API — `GET /me/bookings` et `GET /me/quotes`. Le bilan se
+   calcule sur les prestations **terminées** : une session annulée n'a fait
    gagner de temps à personne.
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -108,6 +112,9 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
+      {/* ── Bien démarrer (LF-0221) : disparaît une fois tout fait ─────── */}
+      <BienDemarrer />
+
       {/* ── Ce qui arrive ─────────────────────────────────────────────── */}
       <motion.section
         initial={{ opacity: 0, y: 14 }}
@@ -171,56 +178,67 @@ export default function DashboardOverviewPage() {
                   Choisissez un batch cooker et calez une date : le reste se prépare tout seul.
                 </p>
                 <Link
-                  href="/espace-client/reservation"
+                  href="/espace-client/menus?reserve=1"
                   className="mt-7 inline-flex items-center gap-2 bg-amber px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-amber-deep"
                 >
-                  Trouver un batch cooker
+                  Voir les cartes de la semaine
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
               </>
             )}
           </div>
 
-          {/* Où en est la session : la question qu'on se pose vraiment. */}
+          {/* Le montant et l'avancement : les deux questions qu'on se pose. */}
           {prochaine && (
-            <div className="bg-navy p-6 lg:p-7">
-              <p className="mb-4 text-sm text-white/50">Où en est ma session</p>
-              <ol className="space-y-3">
-                {FLOW.map((step, i) => {
-                  const done = i < etape
-                  const now = i === etape
-                  return (
-                    <li key={step} className="flex items-center gap-3">
-                      {done ? (
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-mint-deep" aria-hidden />
-                      ) : (
-                        <Circle
-                          className={`h-4 w-4 shrink-0 ${now ? 'text-amber' : 'text-white/25'}`}
-                          strokeWidth={now ? 3 : 2}
-                          aria-hidden
-                        />
-                      )}
-                      <span
-                        className={
-                          now
-                            ? 'text-sm font-semibold text-white'
-                            : done
-                              ? 'text-sm text-white/65'
-                              : 'text-sm text-white/35'
-                        }
-                      >
-                        {STEP_LABEL[step]}
-                      </span>
-                      {now && <span className="ml-auto text-xs text-amber">en cours</span>}
-                    </li>
-                  )
-                })}
-              </ol>
-              <p className="mt-5 border-t border-white/10 pt-4 text-xs leading-relaxed text-white/45">
-                {prochaine.status === 'pending'
-                  ? 'C’est le paiement qui confirme la session. Le créneau est tenu 72 heures.'
-                  : 'Vous réglez à l’issue de la prestation, et choisissez votre moyen de paiement à ce moment-là.'}
-              </p>
+            <div className="flex flex-col gap-5 bg-navy p-6 lg:p-7">
+              {(prochaine.amountAfterTax != null || prochaine.amountTtc != null) && (
+                <Prix
+                  apresCredit={euros(prochaine.amountAfterTax)}
+                  total={euros(prochaine.amountTtc ?? prochaine.priceCents)}
+                  lead="Ce que vous payez"
+                  tone="dark"
+                />
+              )}
+
+              <div className="border-t border-white/10 pt-5">
+                <p className="mb-4 text-sm text-white/50">Où en est ma session</p>
+                <ol className="space-y-3">
+                  {FLOW.map((step, i) => {
+                    const done = i < etape
+                    const now = i === etape
+                    return (
+                      <li key={step} className="flex items-center gap-3">
+                        {done ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-mint-deep" aria-hidden />
+                        ) : (
+                          <Circle
+                            className={`h-4 w-4 shrink-0 ${now ? 'text-amber' : 'text-white/25'}`}
+                            strokeWidth={now ? 3 : 2}
+                            aria-hidden
+                          />
+                        )}
+                        <span
+                          className={
+                            now
+                              ? 'text-sm font-semibold text-white'
+                              : done
+                                ? 'text-sm text-white/65'
+                                : 'text-sm text-white/35'
+                          }
+                        >
+                          {STEP_LABEL[step]}
+                        </span>
+                        {now && <span className="ml-auto text-xs text-amber">en cours</span>}
+                      </li>
+                    )
+                  })}
+                </ol>
+                <p className="mt-5 text-xs leading-relaxed text-white/45">
+                  {prochaine.status === 'pending'
+                    ? 'C’est le paiement qui confirme la session. Le créneau est tenu 72 heures.'
+                    : 'Vous réglez à l’issue de la prestation, et choisissez votre moyen de paiement à ce moment-là.'}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -230,107 +248,93 @@ export default function DashboardOverviewPage() {
       {aRegler && (
         <Link
           href={`/espace-client/commandes/${aRegler.id}/paiement`}
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 border-l-2 border-terra bg-paper py-4 pl-5 pr-4 transition-colors hover:bg-cream-soft"
+          className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-amber/45 bg-amber-soft/50 px-5 py-4 transition-colors hover:border-amber hover:bg-amber-soft"
         >
-          <span className="text-sm text-navy">
+          <span className="min-w-0 flex-1 text-sm leading-relaxed text-navy">
             <span className="font-semibold">
-              {aRegler.chef?.displayName?.split(' ')[0] ?? 'Votre batch cooker'} vous attend{' '}
-            </span>
+              {aRegler.chef?.displayName?.split(' ')[0] ?? 'Votre batch cooker'} vous attend
+            </span>{' '}
             le {longDate(aRegler.startsAt)}. Cette réservation n’est pas encore réglée.
           </span>
-          <span className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-terra">
-            Régler {euros(aRegler.amountAfterTax ?? aRegler.amountTtc) ?? ''}
+          <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold text-navy">
+            Régler
+            <PrixLigne
+              apresCredit={euros(aRegler.amountAfterTax)}
+              total={euros(aRegler.amountTtc)}
+            />
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </span>
         </Link>
       )}
 
-      {/* ── Bilan ─────────────────────────────────────────────────────── */}
-      <section>
-        <dl className="flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-[rgba(31,42,55,0.1)] py-5">
-          <Figure value={String(terminees.length)} label="sessions réalisées" />
-          <Figure value={String(platsCuisines)} label="portions cuisinées" />
-          <Figure
-            value={`${terminees.length * HEURES_PAR_SESSION} h`}
-            label="passées à autre chose"
-          />
-          <Figure
-            value={euros(creditCumule) ?? '0 €'}
-            label="de crédit d’impôt cumulé"
-            accent
-          />
-        </dl>
-      </section>
-
-      {/* ── Carte culinaire : une tuile, la carte s'ouvre en grand ────── */}
-      <CulinaryMap />
-
-      {/* ── Sessions et activité ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <section className="lg:col-span-2">
-          <div className="mb-3 flex items-baseline justify-between gap-4">
-            <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
-            <Link
-              href="/espace-client/commandes"
-              className="text-xs font-semibold text-terra underline-offset-4 hover:underline"
-            >
-              Tout voir
-            </Link>
-          </div>
-
-          {query.isPending ? (
-            <div className="h-32 animate-pulse rounded-2xl bg-paper" />
-          ) : toutes.length === 0 ? (
-            <p className="border-t border-[rgba(31,42,55,0.08)] py-6 text-sm text-ink-soft">
-              Aucune session pour l’instant.
-            </p>
-          ) : (
-            <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-t border-[rgba(31,42,55,0.08)]">
-              {[...toutes]
-                .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
-                .slice(0, 4)
-                .map((o) => (
-                  <li key={o.id}>
-                    <Link
-                      href={`/espace-client/commandes/${o.id}`}
-                      className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-paper"
-                    >
-                      <span
-                        aria-hidden
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          STATUS_DOT[o.status] ?? 'bg-ink-soft'
-                        }`}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold capitalize text-navy">
-                          {longDate(o.startsAt)}
-                          {o.chef?.displayName
-                            ? ` · ${o.chef.displayName.split(' ')[0]}`
-                            : ''}
-                        </span>
-                        <span className="block truncate text-xs text-ink-soft">
-                          {bookingMealNames(o).length} plats ·{' '}
-                          {euros(o.amountTtc ?? o.priceCents) ?? '—'} ·{' '}
-                          {bookingStatusText(o.status)}
-                        </span>
-                      </span>
-                      {o.status === 'pending' && !o.paidCents && (
-                        <span className="whitespace-nowrap text-xs font-semibold text-terra">
-                          À régler
-                        </span>
-                      )}
-                      <ArrowRight
-                        className="h-4 w-4 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
-                        aria-hidden
-                      />
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </section>
-
+      {/* ── Le corps : l'histoire à gauche, les nouvelles à droite ────── */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-10">
         <div className="space-y-8">
+          <section>
+            <div className="mb-3 flex items-baseline justify-between gap-4">
+              <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
+              <Link
+                href="/espace-client/commandes"
+                className="text-xs font-semibold text-terra underline-offset-4 hover:underline"
+              >
+                Tout voir
+              </Link>
+            </div>
+
+            {query.isPending ? (
+              <div className="h-32 animate-pulse rounded-2xl bg-paper" />
+            ) : toutes.length === 0 ? (
+              <p className="border-t border-[rgba(31,42,55,0.08)] py-6 text-sm text-ink-soft">
+                Aucune session pour l’instant.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-t border-[rgba(31,42,55,0.08)]">
+                {[...toutes]
+                  .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+                  .slice(0, 5)
+                  .map((o) => (
+                    <li key={o.id}>
+                      <SessionRow booking={o} />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </section>
+
+          <CulinaryMap />
+        </div>
+
+        <aside className="space-y-8">
+          {/* ── Bilan : un relevé, chiffres alignés à droite ──────────── */}
+          <section>
+            <h3 className="mb-3 font-display text-lg font-bold text-navy">Votre bilan</h3>
+            {terminees.length === 0 ? (
+              <p className="border-t border-[rgba(31,42,55,0.08)] pt-3 text-sm leading-relaxed text-ink-mid">
+                Il se remplira après votre première session : portions cuisinées, temps
+                gagné, crédit d’impôt.
+              </p>
+            ) : (
+              <>
+                <dl className="divide-y divide-[rgba(31,42,55,0.08)] border-t border-[rgba(31,42,55,0.08)]">
+                  <Figure label="Sessions réalisées" value={String(terminees.length)} />
+                  <Figure label="Portions cuisinées" value={String(platsCuisines)} />
+                  <Figure
+                    label="Passées à autre chose"
+                    value={`${terminees.length * HEURES_PAR_SESSION} h`}
+                  />
+                  <Figure
+                    label="Crédit d’impôt cumulé"
+                    value={euros(creditCumule) ?? '0 €'}
+                    accent
+                  />
+                </dl>
+                <p className="mt-2.5 text-xs leading-relaxed text-ink-soft">
+                  Temps gagné estimé à {HEURES_PAR_SESSION} h par session.
+                </p>
+              </>
+            )}
+          </section>
+
           <section>
             <h3 className="mb-3 font-display text-lg font-bold text-navy">Dernier message</h3>
             <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
@@ -371,7 +375,7 @@ export default function DashboardOverviewPage() {
                 <p className="text-sm font-semibold text-navy">{demande.title}</p>
                 <p className="mt-1 text-xs text-ink-soft">
                   {demande.activeOffer
-                    ? `Offre reçue · ${euros(demande.activeOffer.clientPriceCents) ?? ''}`
+                    ? `Offre reçue · ${euros(demande.activeOffer.afterTaxCreditCents) ?? ''} après crédit d’impôt`
                     : 'En attente d’une offre'}
                 </p>
                 <Link
@@ -384,56 +388,80 @@ export default function DashboardOverviewPage() {
               </div>
             </section>
           )}
-        </div>
-      </div>
 
-      {/* ── Aller ailleurs ────────────────────────────────────────────── */}
-      <section>
-        <h3 className="mb-3 font-display text-lg font-bold text-navy">Aller à</h3>
-        <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-y border-[rgba(31,42,55,0.08)]">
-          <Shortcut
-            href="/espace-client/menus"
-            Icon={ChefHat}
-            title="Menus et plats"
-            subtitle="Les cartes de la semaine, chef par chef"
-          />
-          <Shortcut
-            href="/espace-client/courses"
-            Icon={ShoppingBasket}
-            title="Ma liste de courses"
-            subtitle="Rangée par rayon, prête à emporter"
-          />
-          <Shortcut
-            href="/espace-client/personnalisation"
-            Icon={Sparkles}
-            title="Demande sur-mesure"
-            subtitle="Régime particulier, menu de la semaine"
-          />
-          <Shortcut
-            href="/espace-client/statistiques"
-            Icon={Trophy}
-            title="Mes statistiques"
-            subtitle="Vos plats, votre temps gagné"
-          />
-        </ul>
-      </section>
+          <section>
+            <h3 className="mb-3 font-display text-lg font-bold text-navy">Aller à</h3>
+            <ul className="divide-y divide-[rgba(31,42,55,0.08)] border-t border-[rgba(31,42,55,0.08)]">
+              <Shortcut
+                href="/espace-client/courses"
+                Icon={ShoppingBasket}
+                title="Ma liste de courses"
+              />
+              <Shortcut
+                href="/espace-client/personnalisation"
+                Icon={Sparkles}
+                title="Demande sur-mesure"
+              />
+              <Shortcut
+                href="/espace-client/statistiques"
+                Icon={Trophy}
+                title="Mes statistiques"
+              />
+            </ul>
+          </section>
+        </aside>
+      </div>
     </div>
   )
 }
 
-function Figure({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+/** Une ligne de l'historique : date, chef, ce qu'il reste à charge. */
+function SessionRow({ booking: o }: { booking: Booking }) {
   return (
-    <div>
-      <dt className="sr-only">{label}</dt>
-      <dd>
-        <span
-          className={`font-display text-3xl font-bold leading-none ${
-            accent ? 'text-terra' : 'text-navy'
-          }`}
-        >
-          {value}
+    <Link
+      href={`/espace-client/commandes/${o.id}`}
+      className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-paper"
+    >
+      <span
+        aria-hidden
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[o.status] ?? 'bg-ink-soft'}`}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold capitalize text-navy">
+          {longDate(o.startsAt)}
+          {o.chef?.displayName ? ` · ${o.chef.displayName.split(' ')[0]}` : ''}
         </span>
-        <span className="ml-2 text-sm text-ink-soft">{label}</span>
+        <span className="block truncate text-xs text-ink-soft">
+          {bookingMealNames(o).length} plats · {bookingStatusText(o.status)}
+        </span>
+      </span>
+      {o.status === 'pending' && !o.paidCents ? (
+        <span className="whitespace-nowrap text-xs font-semibold text-terra">À régler</span>
+      ) : (
+        <PrixLigne
+          apresCredit={euros(o.amountAfterTax)}
+          total={euros(o.amountTtc ?? o.priceCents)}
+          className="hidden shrink-0 text-sm sm:inline-flex"
+        />
+      )}
+      <ArrowRight
+        className="h-4 w-4 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
+        aria-hidden
+      />
+    </Link>
+  )
+}
+
+function Figure({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2.5">
+      <dt className="text-sm text-ink-mid">{label}</dt>
+      <dd
+        className={`shrink-0 font-display text-lg font-bold tabular-nums ${
+          accent ? 'text-terra' : 'text-navy'
+        }`}
+      >
+        {value}
       </dd>
     </div>
   )
@@ -443,26 +471,21 @@ function Shortcut({
   href,
   Icon,
   title,
-  subtitle,
 }: {
   href: string
-  Icon: typeof ChefHat
+  Icon: typeof ShoppingBasket
   title: string
-  subtitle: string
 }) {
   return (
     <li>
       <Link
         href={href}
-        className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-paper"
+        className="group flex items-center gap-3 py-2.5 transition-colors hover:bg-paper"
       >
         <Icon className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-navy">{title}</span>
-          <span className="block truncate text-xs text-ink-soft">{subtitle}</span>
-        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-navy">{title}</span>
         <ArrowRight
-          className="h-4 w-4 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
+          className="h-3.5 w-3.5 shrink-0 text-ink-soft transition-colors group-hover:text-navy"
           aria-hidden
         />
       </Link>

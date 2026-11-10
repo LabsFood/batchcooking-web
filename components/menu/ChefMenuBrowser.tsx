@@ -47,6 +47,7 @@ import {
   useRegions,
 } from '@/lib/api/referentials'
 import { seasonsLine } from '@/lib/recipe-fields'
+import { Prix } from '@/components/shared/Prix'
 
 /** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
 const DIET_LABEL: Record<string, string> = {
@@ -774,8 +775,8 @@ export function MenuFilterDrawer({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,92vw)] flex-col bg-cream focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,92vw)] flex-col bg-cream focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-center justify-between gap-3 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4">
             <div>
               <Dialog.Title className="font-display text-lg font-bold text-navy">
@@ -1113,14 +1114,16 @@ export function MenuCard({
         <>
           {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
           <div aria-hidden className="min-h-5 flex-1" />
-          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-4">
-            <div className="flex items-end justify-between gap-3">
+          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-5">
+            {/* Alignés en haut : « 3 créneaux libres » tombait sinon sur la
+                dernière ligne du prix et se lisait comme sa suite. */}
+            <div className="flex items-start justify-between gap-4">
               <Tarif prix={prix} apresCredit={apresCredit} />
               <Places slotsLeft={menu.slotsLeft} />
             </div>
             {/* Côte à côte quand la carte est large (une par ligne), l'une sous
                 l'autre quand elles sont deux par ligne. */}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row xl:flex-col">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row xl:flex-col">
               <button
                 type="button"
                 onClick={onOpen}
@@ -1139,9 +1142,9 @@ export function MenuCard({
           </footer>
         </>
       ) : (
-        <footer className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-4">
+        <footer className="mt-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-5">
           <Tarif prix={prix} apresCredit={apresCredit} />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Places slotsLeft={menu.slotsLeft} />
             <button type="button" onClick={onOpen} className="btn btn-primary px-5 py-2.5 text-xs">
               {openLabel}
@@ -1154,26 +1157,13 @@ export function MenuCard({
 }
 
 function Tarif({ prix, apresCredit }: { prix: string | null; apresCredit: string | null }) {
-  if (!prix) return <p className="text-xs text-ink-soft">Tarif sur demande</p>
-  return (
-    <div>
-      <p className="text-xs text-ink-soft">À partir de</p>
-      <p className="font-display text-xl font-bold text-navy">
-        {prix}
-        {apresCredit && (
-          <span className="ml-1.5 font-sans text-xs font-medium text-terra">
-            soit {apresCredit} après crédit d’impôt
-          </span>
-        )}
-      </p>
-    </div>
-  )
+  return <Prix lead="À partir de" apresCredit={apresCredit} total={prix} taille="sm" />
 }
 
 function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
-      className={`text-xs ${
+      className={`shrink-0 whitespace-nowrap text-xs leading-none ${
         slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-terra' : 'text-ink-soft'
       }`}
     >
@@ -1234,8 +1224,8 @@ export function MenuDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-50 flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-6 sm:rounded-3xl lg:inset-x-[10%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-50 flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-6 sm:rounded-3xl lg:inset-x-[10%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-4 data-[state=closed]:[animation-duration:120ms]">
           {menu && (
             <>
               <header className="flex items-start gap-4 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">

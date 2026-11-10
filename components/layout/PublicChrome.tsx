@@ -16,21 +16,13 @@ export default function PublicChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const hideChrome = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))
 
-  if (hideChrome) {
-    return (
-      <>
-        <DevBanner />
-        <main className="min-h-screen">{children}</main>
-      </>
-    )
-  }
-
+  // Le choix des cookies est demandé partout, espaces connectés compris.
   return (
     <>
       <DevBanner />
-      <Navbar />
+      {!hideChrome && <Navbar />}
       <main className="min-h-screen">{children}</main>
-      <Footer />
+      {!hideChrome && <Footer />}
       <CookieBanner />
     </>
   )
