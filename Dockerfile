@@ -41,6 +41,13 @@ ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_ENVIRONMENT=$NEXT_PUBLIC_ENVIRONMENT
 ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
 
+# Clé fixe des Server Actions. Sans elle, Next en tire une au hasard à chaque build,
+# les identifiants d'actions changent à chaque déploiement, et un onglet ouvert avant
+# reste bloqué à la connexion : l'action de Clerk est refusée (BATCHCOOKING-WEB-1).
+# Vide = comportement d'avant (clé aléatoire).
+ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
 RUN npm run build
 
 FROM node:24.22.1-alpine3.24 AS runtime
