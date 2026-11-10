@@ -1,3 +1,26 @@
+## [1.4.0](https://github.com/LabsFood/batchcooking-web/compare/v1.3.0...v1.4.0) (2026-11-10)
+
+### Features
+
+* add about page and chef space litiges view with layout components and mock data ([6e1b0ee](https://github.com/LabsFood/batchcooking-web/commit/6e1b0ee7fe100f903a317d97c2e73038770f0498))
+* Bien démarrer côté client et mes ingrédients côté chef (LF-0221, BLK-33) ([#76](https://github.com/LabsFood/batchcooking-web/issues/76)) ([e38b95e](https://github.com/LabsFood/batchcooking-web/commit/e38b95e18da2c846666a6f84e61f8d880ac8a83b))
+* **cookies:** le choix des cookies est obligatoire pour continuer ([e46aa7a](https://github.com/LabsFood/batchcooking-web/commit/e46aa7a3f11adbe2c9fd6c3e9be0421b9e1f6255))
+* **espace-chef:** refaire le composeur d'offre sur-mesure ([731fb27](https://github.com/LabsFood/batchcooking-web/commit/731fb27c52e8d90f266df2a63621a6566bcc6993))
+* **espace-client:** prix après crédit d'impôt en tête, accueil et sur-mesure refaits ([81daa6d](https://github.com/LabsFood/batchcooking-web/commit/81daa6d822b0926759d168f90dfb1d97b82fddf1))
+* **espace-client:** retirer l'onglet « Avance immédiate » de Mon compte ([325f6ad](https://github.com/LabsFood/batchcooking-web/commit/325f6ad9386a5853321ef4c4ebca518ef2e85263))
+* **observability:** Sentry errors and consent-gated PostHog analytics ([#71](https://github.com/LabsFood/batchcooking-web/issues/71)) ([29f0193](https://github.com/LabsFood/batchcooking-web/commit/29f01934ed8abd226dfde2923a0ad5992bbe0959)), closes [confidentialite#cookies](https://github.com/LabsFood/confidentialite/issues/cookies)
+* **ui:** donner un sol aux espaces connectés, pour que les cartes s'en détachent ([78cec53](https://github.com/LabsFood/batchcooking-web/commit/78cec53943567ad287af0c2c70c2f3baef4197ac)), closes [#FFFFFF](https://github.com/LabsFood/batchcooking-web/issues/FFFFFF) [#FBFCFD](https://github.com/LabsFood/batchcooking-web/issues/FBFCFD) [#EDF2F7](https://github.com/LabsFood/batchcooking-web/issues/EDF2F7)
+* **ui:** motion polish on buttons, popovers, dialogs and reservation steps ([#69](https://github.com/LabsFood/batchcooking-web/issues/69)) ([a990cac](https://github.com/LabsFood/batchcooking-web/commit/a990caca95a4473a365c25d3428a7a52b212b396))
+* **ui:** multiselect pour les langues, et des listes rangées par ordre alphabétique ([765c003](https://github.com/LabsFood/batchcooking-web/commit/765c003a4c36476e5ae00fcb610d1a5727c8ddbf))
+
+### Bug Fixes
+
+* **auth:** une clé fixe pour les Server Actions (BATCHCOOKING-WEB-1) ([694bce8](https://github.com/LabsFood/batchcooking-web/commit/694bce8c915a91ea72a2b163f2f9223c278fe8d9))
+* **espace-chef:** les deux boutons Stripe ne tiennent plus côte à côte ([c2d0bda](https://github.com/LabsFood/batchcooking-web/commit/c2d0bda80066c40228a8175f1155ca648811a914))
+* **espace-client:** desserrer le pied de carte et le bloc « Quand » ([45528b8](https://github.com/LabsFood/batchcooking-web/commit/45528b86629bc089ea90c88d2bc2570774cb715a))
+* **menu:** le bouton sur-mesure passe à la ligne au lieu d'élargir la page ([29784af](https://github.com/LabsFood/batchcooking-web/commit/29784afcdd5614c24e25fd0b00529a02102a812b))
+* **palette:** ignorer les keydown sans touche (BATCHCOOKING-WEB-2) ([912cc32](https://github.com/LabsFood/batchcooking-web/commit/912cc3242ca8a301a0bf8d90a8d31915cf6b8da4))
+
 ## [1.3.0](https://github.com/LabsFood/batchcooking-web/compare/v1.2.0...v1.3.0) (2026-11-04)
 
 ### Features
