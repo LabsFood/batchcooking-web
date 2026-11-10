@@ -77,6 +77,8 @@ export function CommandPaletteProvider({
   // ⌘K / Ctrl+K partout, « / » quand on n'écrit pas ailleurs.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Le remplissage auto de Chrome envoie des keydown sans `key` (BATCHCOOKING-WEB-2).
+      if (typeof e.key !== 'string') return
       const k = e.key.toLowerCase()
       if (k === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
