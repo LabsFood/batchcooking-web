@@ -289,6 +289,60 @@ export function useIngredientSearch(term: string) {
   })
 }
 
+/* ── Mes ingrédients (BLK-33) ──────────────────────────────────────────────── */
+
+/**
+ * Ma version d'une entrée de la liste commune : adoptée, puis modifiée si besoin.
+ * Mes plats se classent depuis elle ; ceux des autres, depuis la liste commune.
+ */
+export interface ChefIngredient {
+  id: string
+  catalogIngredientId: string
+  name: string
+  aliases: string[]
+  diets: string[]
+  /** Mois 1 à 12 ; vide : pas de saison. */
+  seasonMonths: number[]
+  updatedAt: string
+}
+
+export type ChefIngredientPatch = Partial<Pick<ChefIngredient, 'name' | 'diets' | 'seasonMonths'>>
+
+const MY_INGREDIENTS = ['me', 'chef-ingredients'] as const
+
+/** `GET /me/chef/ingredients` : 500 au plus, par nom. Batch cooker validé seulement. */
+export function useMyIngredients(enabled: boolean) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: MY_INGREDIENTS,
+    queryFn: () => apiFetch<ChefIngredient[]>('/me/chef/ingredients'),
+    enabled,
+  })
+}
+
+/** `POST /me/chef/ingredients` : copie l'entrée ; adopter deux fois rend la même. */
+export const useAdoptIngredient = () =>
+  useCatalogMutation<string, ChefIngredient>(
+    (f, catalogIngredientId) =>
+      f<ChefIngredient>('/me/chef/ingredients', { method: 'POST', body: { catalogIngredientId } }),
+    [MY_INGREDIENTS],
+  )
+
+/** `PATCH /me/chef/ingredients/{id}` : mes plats qui la relient sont reclassés. */
+export const useUpdateMyIngredient = () =>
+  useCatalogMutation<{ id: string; patch: ChefIngredientPatch }, ChefIngredient>(
+    (f, { id, patch }) =>
+      f<ChefIngredient>(`/me/chef/ingredients/${id}`, { method: 'PATCH', body: patch }),
+    [MY_INGREDIENTS, DISHES],
+  )
+
+/** `DELETE /me/chef/ingredients/{id}` : retour à la version commune. */
+export const useRemoveMyIngredient = () =>
+  useCatalogMutation<string, void>(
+    (f, id) => f<void>(`/me/chef/ingredients/${id}`, { method: 'DELETE' }),
+    [MY_INGREDIENTS, DISHES],
+  )
+
 /** `POST /me/dishes/{id}/duplicate` (§5.4) : une copie en brouillon, « (copie) ». */
 export const useDuplicateDish = () =>
   useCatalogMutation<string, Dish>(

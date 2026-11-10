@@ -25,6 +25,7 @@ import { useMyQuotes } from '@/lib/api/quotes'
 import { useConversations } from '@/lib/api/messaging'
 import { previewOf } from '@/components/messaging/format'
 import CulinaryMap from '@/components/dashboard/CulinaryMap'
+import BienDemarrer from '@/components/client/BienDemarrer'
 import { Prix, PrixLigne } from '@/components/shared/Prix'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -111,6 +112,9 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
+      {/* ── Bien démarrer (LF-0221) : disparaît une fois tout fait ─────── */}
+      <BienDemarrer />
+
       {/* ── Ce qui arrive ─────────────────────────────────────────────── */}
       <motion.section
         initial={{ opacity: 0, y: 14 }}

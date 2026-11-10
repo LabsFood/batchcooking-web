@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  Carrot,
   LayoutDashboard,
   FileText,
   CalendarRange,
@@ -59,6 +60,7 @@ export const CHEF_NAV = [
     group: 'Mon offre',
     items: [
       { href: '/espace-chef/recettes', label: 'Menus & recettes', Icon: UtensilsCrossed },
+      { href: '/espace-chef/ingredients', label: 'Mes ingrédients', Icon: Carrot },
       { href: '/espace-chef/tarifs', label: 'Mes tarifs', Icon: Tag },
       { href: '/espace-chef/vitrine', label: 'Ma vitrine', Icon: Store },
     ],
