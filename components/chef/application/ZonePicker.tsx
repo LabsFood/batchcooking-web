@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useRegions } from '@/lib/api/referentials'
+import { useRegionCommunes, useRegions } from '@/lib/api/referentials'
 import { ChevronDown, Loader2, MapPin, Plus, Search, X } from 'lucide-react'
 import {
   METRO_REGION_CODES,
@@ -19,9 +19,11 @@ import { CheckBox } from './fields'
 /* ─────────────────────────────────────────────────────────────────────────────
    Sélecteur de zones d'intervention.
 
-   Les 13 régions métropolitaines en liste, chacune dépliable sur ses villes.
-   On coche une région entière, ou des villes précises. La recherche filtre la
-   liste et interroge geo.api.gouv.fr pour toutes les autres communes : seul le
+   Les 13 régions métropolitaines en liste, chacune dépliable sur toutes ses
+   communes (`GET /referentials/regions/{code}/communes`, par ordre
+   alphabétique). On coche une région entière, ou des villes précises. La
+   recherche du haut filtre la liste et interroge geo.api.gouv.fr pour
+   retrouver une commune sans savoir dans quelle région elle est : seul le
    texte saisi est transmis, rien d'autre.
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -239,7 +241,7 @@ export default function ZonePicker({
                           ? 'Toute la région'
                           : partial
                             ? `${zone!.cities.length} ville${zone!.cities.length > 1 ? 's' : ''} choisie${zone!.cities.length > 1 ? 's' : ''}`
-                            : `${region.cities.length} villes de référence`}
+                            : 'Toute la région, ou des villes précises'}
                       </span>
                     </span>
                     {!searching && (
@@ -258,29 +260,23 @@ export default function ZonePicker({
                         Toute la région est couverte. Décochez-la pour choisir des villes précises.
                       </p>
                     )}
-                    <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                      {cities.map((city) => {
-                        const on = whole || !!zone?.cities.some((c) => cityKey(c) === cityKey(city))
-                        return (
-                          <li key={cityKey(city)}>
-                            <label
-                              className={`flex items-center gap-3 rounded-lg py-1.5 pl-[30px] pr-2 text-sm ${
-                                whole ? 'text-ink-soft' : 'cursor-pointer text-ink hover:bg-paper'
-                              }`}
-                            >
-                              <CheckBox
-                                label={`${city.name} (${city.dept})`}
-                                checked={on}
-                                disabled={whole}
-                                onChange={() => toggleCity(region.code, city)}
-                              />
-                              <span className="min-w-0 truncate">{city.name}</span>
-                              <span className="ml-auto text-xs tabular-nums text-ink-soft">{city.dept}</span>
-                            </label>
-                          </li>
-                        )
-                      })}
-                    </ul>
+                    {searching ? (
+                      <CityGrid
+                        cities={cities}
+                        zone={zone}
+                        whole={whole}
+                        onToggle={(city) => toggleCity(region.code, city)}
+                      />
+                    ) : (
+                      <RegionCommunes
+                        regionCode={region.code}
+                        regionLabel={region.label}
+                        fallback={cities}
+                        zone={zone}
+                        whole={whole}
+                        onToggle={(city) => toggleCity(region.code, city)}
+                      />
+                    )}
                   </div>
                 )}
               </li>
@@ -341,6 +337,143 @@ export default function ZonePicker({
           : `${value.length} région${value.length > 1 ? 's' : ''} concernée${value.length > 1 ? 's' : ''}`}
       </p>
     </div>
+  )
+}
+
+/** Une tranche suffit à l'œil ; les milliers de communes d'une région, non. */
+const TRANCHE = 200
+
+/**
+ * Toutes les communes d'une région dépliée, par ordre alphabétique.
+ *
+ * Chargées à l'ouverture seulement, filtrables sur place, et montrées par
+ * tranches : la Nouvelle-Aquitaine en compte plus de quatre mille. Si l'API ne
+ * répond pas, les villes de référence et la recherche du haut prennent le
+ * relais, comme avant.
+ */
+function RegionCommunes({
+  regionCode,
+  regionLabel,
+  fallback,
+  zone,
+  whole,
+  onToggle,
+}: {
+  regionCode: string
+  regionLabel: string
+  fallback: City[]
+  zone: Zone | undefined
+  whole: boolean
+  onToggle: (city: City) => void
+}) {
+  const communes = useRegionCommunes(regionCode)
+  const [filtre, setFiltre] = useState('')
+  const [montrees, setMontrees] = useState(TRANCHE)
+
+  const toutes: City[] = useMemo(
+    () =>
+      communes.data
+        ? communes.data.map((c) => ({ name: c.name, dept: c.department, insee: c.insee }))
+        : fallback,
+    [communes.data, fallback],
+  )
+  const f = normalize(filtre)
+  const liste = f ? toutes.filter((c) => normalize(c.name).includes(f)) : toutes
+
+  // `isLoading` et pas `isPending` : sans API configurée, la requête ne part
+  // jamais et resterait « en attente » pour toujours.
+  if (communes.isLoading) {
+    return (
+      <p className="flex items-center gap-2 py-2 pl-[30px] text-[13px] text-ink-soft">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Chargement des communes…
+      </p>
+    )
+  }
+
+  return (
+    <div className="pl-[30px]">
+      {communes.isError && (
+        <p className="mb-2 text-xs text-ink-mid">
+          La liste complète est indisponible pour le moment : voici les villes principales.
+          Les autres se trouvent avec la recherche du haut.
+        </p>
+      )}
+      {toutes.length > 12 && (
+        <input
+          type="search"
+          value={filtre}
+          onChange={(e) => {
+            setFiltre(e.target.value)
+            setMontrees(TRANCHE)
+          }}
+          // Entrée ne doit pas envoyer la candidature.
+          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+          placeholder={`Filtrer les ${toutes.length.toLocaleString('fr-FR')} communes`}
+          aria-label={`Filtrer les communes de ${regionLabel}`}
+          className="mb-2 w-full rounded-lg border border-[rgba(31,42,55,0.12)] bg-paper px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-soft/80 focus-visible:border-[rgba(31,42,55,0.35)]"
+        />
+      )}
+      {liste.length === 0 ? (
+        <p className="py-1.5 text-[13px] text-ink-soft">Aucune commune de la région ne correspond.</p>
+      ) : (
+        <CityGrid
+          cities={liste.slice(0, montrees)}
+          zone={zone}
+          whole={whole}
+          onToggle={onToggle}
+          indent={false}
+        />
+      )}
+      {liste.length > montrees && (
+        <button
+          type="button"
+          onClick={() => setMontrees((n) => n + TRANCHE)}
+          className="mt-2 text-xs font-semibold text-amber-deep hover:underline"
+        >
+          Afficher plus ({(liste.length - montrees).toLocaleString('fr-FR')} restantes)
+        </button>
+      )}
+    </div>
+  )
+}
+
+function CityGrid({
+  cities,
+  zone,
+  whole,
+  onToggle,
+  indent = true,
+}: {
+  cities: City[]
+  zone: Zone | undefined
+  whole: boolean
+  onToggle: (city: City) => void
+  indent?: boolean
+}) {
+  return (
+    <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+      {cities.map((city) => {
+        const on = whole || !!zone?.cities.some((c) => cityKey(c) === cityKey(city))
+        return (
+          <li key={city.insee || cityKey(city)}>
+            <label
+              className={`flex items-center gap-3 rounded-lg py-1.5 pr-2 text-sm ${indent ? 'pl-[30px]' : 'pl-0'} ${
+                whole ? 'text-ink-soft' : 'cursor-pointer text-ink hover:bg-paper'
+              }`}
+            >
+              <CheckBox
+                label={`${city.name} (${city.dept})`}
+                checked={on}
+                disabled={whole}
+                onChange={() => onToggle(city)}
+              />
+              <span className="min-w-0 truncate">{city.name}</span>
+              <span className="ml-auto text-xs tabular-nums text-ink-soft">{city.dept}</span>
+            </label>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

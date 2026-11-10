@@ -691,6 +691,48 @@ export interface MissionRecipeSheet {
    * prestation ne bouge.
    */
   version: { pinned: number; current: number; newerAvailable: boolean }
+  /**
+   * Ce que le batch cooker a écrit de CE plat dans CETTE prestation : comment
+   * le réchauffer, comment le garder. À côté des consignes de la recette, sans
+   * les remplacer. Absent d'une API d'avant le 10/11.
+   */
+  notes?: { reheating: string | null; storage: string | null }
+}
+
+/** Les statuts où le batch cooker peut écrire ses notes : il cuisine, ou c'est fait. */
+export const DISH_NOTES_OPEN: BookingStatus[] = ['cooking', 'delivered', 'completed']
+
+export interface DishNotes {
+  reheatingNote: string | null
+  storageNote: string | null
+}
+
+/**
+ * `PUT /chef-missions/{id}/dishes/{dishId}/notes` — les notes du batch cooker
+ * sur un plat de la prestation. Un champ absent reste, un champ vide s'efface.
+ * `409 PRESTATION_NOT_STARTED` avant qu'il soit en cuisine.
+ */
+export function useSaveDishNotes() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      dishId,
+      notes,
+    }: {
+      missionId: string
+      dishId: string
+      notes: Partial<DishNotes>
+    }) =>
+      apiFetch<DishNotes>(`/chef-missions/${missionId}/dishes/${dishId}/notes`, {
+        method: 'PUT',
+        body: notes,
+      }),
+    onSuccess: (_saved, { missionId }) =>
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId, 'recipe-sheet'] }),
+  })
 }
 
 export function useMissionRecipeSheet(

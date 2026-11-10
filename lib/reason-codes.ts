@@ -38,6 +38,12 @@ export const REASON_TEXT = {
   AI_FORMAT_INVALID:
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
+  ADDRESS_NOT_FOUND:
+    'Cette adresse est introuvable dans ce code postal. Vérifiez le numéro et le nom de la rue.',
+  ADDRESS_CITY_MISMATCH:
+    'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
+  GEO_UNAVAILABLE:
+    'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 } as const
 
 export type ReasonCode = keyof typeof REASON_TEXT
