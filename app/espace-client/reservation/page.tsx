@@ -1175,7 +1175,10 @@ function SummaryCard({
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
           {prix ? (
             <>
-              <Row label="Prestation" value={offerEuros(prix.priceCents)} />
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                Prestation
+              </p>
+              <Row label="Formule" value={offerEuros(prix.priceCents)} />
               {prix.extraPersonsCents > 0 && (
                 <Row
                   label={`+ ${persons - prix.rules.includedPersons} personne${persons - prix.rules.includedPersons > 1 ? 's' : ''}`}
@@ -1189,7 +1192,18 @@ function SummaryCard({
                 />
               )}
               {prix.shoppingFeeCents > 0 && (
-                <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
+                <>
+                  {/* CGV 10 : le forfait est le temps du batch cooker, il ouvre droit
+                      au crédit d'impôt ; les ingrédients sont des débours, à part. */}
+                  <p className="pt-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                    Courses
+                  </p>
+                  <Row label="Forfait courses" value={offerEuros(prix.shoppingFeeCents)} />
+                  <p className="text-[11px] leading-relaxed text-white/55">
+                    Courses (ingrédients) : payées à part par carte, au montant exact, sans
+                    marge. Elles n’ouvrent pas droit au crédit d’impôt.
+                  </p>
+                </>
               )}
               <div className="pt-3 border-t border-white/10">
                 <Prix

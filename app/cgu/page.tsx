@@ -1,4 +1,5 @@
 import LegalLayout from '@/components/shared/LegalLayout'
+import LegalPdfLink from '@/components/shared/LegalPdfLink'
 import LegalMarkdown from '@/components/shared/LegalMarkdown'
 
 export const metadata = {
@@ -15,6 +16,7 @@ export default function Page() {
       subtitle="Accès et utilisation de la plateforme Lab’s Food par les clients et les batch cookers."
       updatedAt="Version 1.0 — en vigueur au 21 novembre 2026"
     >
+      <LegalPdfLink file="cgu-1.0.pdf" />
       <LegalMarkdown file="cgu-v1.md" />
     </LegalLayout>
   )

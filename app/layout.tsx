@@ -50,7 +50,7 @@ const clerkLocalization = {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://labsfood.fr'),
+  metadataBase: new URL('https://www.labsfood.fr'),
   title: {
     default: "Lab's Food — Batch Cooking à domicile",
     template: "%s | Lab's Food",

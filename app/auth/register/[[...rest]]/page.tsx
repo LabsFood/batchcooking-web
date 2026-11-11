@@ -44,7 +44,7 @@ function RegisterInner() {
 
           <p className="text-center text-xs text-ink-soft mt-6 leading-relaxed">
             En créant un compte, tu acceptes nos{' '}
-            <Link href="/cgv" className="text-terra hover:underline">CGV</Link> et notre{' '}
+            <Link href="/cgu" className="text-terra hover:underline">CGU</Link> et notre{' '}
             <Link href="/confidentialite" className="text-terra hover:underline">politique de confidentialité</Link>.
           </p>
 

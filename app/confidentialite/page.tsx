@@ -1,5 +1,6 @@
 import CookieSettings from '@/components/shared/CookieSettings'
 import LegalLayout from '@/components/shared/LegalLayout'
+import LegalPdfLink from '@/components/shared/LegalPdfLink'
 import LegalMarkdown from '@/components/shared/LegalMarkdown'
 
 export const metadata = {
@@ -16,6 +17,7 @@ export default function ConfidentialitePage() {
       subtitle="Protection des données personnelles et cookies sur la plateforme LAB’S FOOD."
       updatedAt="Version 1.0 — en vigueur au 21 novembre 2026"
     >
+      <LegalPdfLink file="politique-confidentialite-1.0.pdf" />
       <LegalMarkdown file="confidentialite-v1.md" />
       <h2 id="cookies">Vos choix de cookies</h2>
       <CookieSettings />

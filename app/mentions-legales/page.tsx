@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import LegalLayout from '@/components/shared/LegalLayout'
+import LegalPdfLink from '@/components/shared/LegalPdfLink'
 
 export const metadata = {
   title: 'Mentions légales',
@@ -16,6 +17,7 @@ export default function MentionsLegalesPage() {
       subtitle="Éditeur, hébergement, fonctionnement de la plateforme, médiation."
       updatedAt="Version 1.0 — en vigueur au 21 novembre 2026"
     >
+      <LegalPdfLink file="mentions-legales-1.0.pdf" />
       <p>
         Conformément aux articles 1-1 et 19 de la loi n° 2004-575 du 21 juin 2004 pour la
         confiance dans l’économie numérique (LCEN), les informations suivantes sont portées
