@@ -83,6 +83,8 @@ export interface MeProfile {
   profile: ClientProfile | ChefProfile | null
   /** Le texte à accepter avant de lister des allergies, et sa version à renvoyer. */
   healthConsent?: { version: string; text: string }
+  /** CGV V1 : les textes des cases de commande et leur version à renvoyer. */
+  contractTerms?: import('./contract').ContractTerms
   /** Fixé par l'API pour tout le monde : les emails sont transactionnels, le SMS n'existe pas encore. */
   notificationPreferences?: { email: boolean; sms: boolean }
 }
@@ -116,6 +118,9 @@ export interface ChefProfilePatch {
 /** Corps de `PATCH /me/profile` (mise à jour partielle). */
 export interface ClientProfilePatch {
   dietaryPreferences?: string[]
+  /** Le consentement santé coché avec les régimes (politique de confidentialité V1 §5). */
+  consent?: boolean
+  consentVersion?: string
   dislikes?: string[]
   favorites?: string[]
   spiceLevel?: number

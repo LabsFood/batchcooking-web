@@ -192,7 +192,7 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
             STATUS_COLOR[b.status ?? ''] ?? 'bg-cream-deep text-navy'
           }`}
         >
-          {bookingStatusText(b.status)}
+          {b.withdrawnAt ? 'Rétractée' : bookingStatusText(b.status)}
         </span>
       </div>
 

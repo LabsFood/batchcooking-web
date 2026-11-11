@@ -22,6 +22,9 @@ import DatePicker from '@/components/shared/DatePicker'
 import { Prix } from '@/components/shared/Prix'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
+import { useMeProfile } from '@/lib/api/me-profile'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
+import { consentGaps, neededGaps, type ContractGap } from '@/lib/api/contract'
 import { useChefPublic, useWeekMenus } from '@/lib/api/menus'
 import {
   SLOT_LABEL,
@@ -626,6 +629,16 @@ function RequestCard({ quote }: { quote: Quote }) {
   const [error, setError] = useState<string | null>(null)
 
   const offer = quote.activeOffer
+  // CGV V1 : l'acceptation conclut le contrat, d'où les cases (pas de mandat sur un devis).
+  const terms = useMeProfile().data?.contractTerms
+  const [ticks, setTicks] = useState<Ticks>({})
+  const [manquantes, setManquantes] = useState<ContractGap[]>([])
+  const cases = Array.from(
+    new Set([
+      ...neededGaps({ chefShops: false, startsAt: quote.desiredDate, windowDays: 18 }),
+      ...manquantes,
+    ]),
+  )
   const busy = accept.isPending || decline.isPending || cancel.isPending
   const open =
     quote.status !== 'accepted' &&
@@ -797,19 +810,40 @@ function RequestCard({ quote }: { quote: Quote }) {
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              {terms && (
+                <div className="w-full">
+                  <ContractBoxes
+                    terms={terms}
+                    gaps={cases}
+                    ticks={ticks}
+                    onChange={setTicks}
+                    missing={manquantes}
+                  />
+                </div>
+              )}
               <button
-                disabled={busy}
+                disabled={busy || (!!terms && !allTicked(cases, ticks))}
                 onClick={() => {
                   setError(null)
                   accept.mutate(
-                    { quoteId: quote.id, offerId: offer.id },
-                    { onError: fail('L’offre n’a pas pu être acceptée. Réessayez dans un instant.') },
+                    {
+                      quoteId: quote.id,
+                      offerId: offer.id,
+                      ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
+                    },
+                    {
+                      onError: (e) => {
+                        const gaps = consentGaps(e instanceof ApiError ? e.body : null)
+                        if (gaps) setManquantes(gaps.missing)
+                        fail('L’offre n’a pas pu être acceptée. Réessayez dans un instant.')(e)
+                      },
+                    },
                   )
                 }}
                 className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep disabled:opacity-60"
               >
                 {accept.isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
-                Accepter et confirmer
+                Accepter l’offre avec obligation de paiement
               </button>
               <button
                 disabled={busy}

@@ -76,6 +76,8 @@ export default function ChefDisputesPage() {
   const [missionRef, setMissionRef] = useState('')
   const [description, setDescription] = useState('')
   const [slot, setSlot] = useState(CALLBACK_SLOTS[0].id)
+  // Politique de confidentialité V1 §4 et §14 : rappel = consentement préalable, case dédiée.
+  const [rappelOk, setRappelOk] = useState(false)
   const write = useWriteToSupport()
   const profil = useMeProfile()
   const [coordEdits, setCoordEdits] = useState<Partial<Coords>>({})
@@ -97,6 +99,7 @@ export default function ChefDisputesPage() {
     setDescription('')
     setMissionRef('')
     setCoordEdits({})
+    setRappelOk(false)
   }
 
   const toggle = (next: 'dispute' | 'callback') => {
@@ -116,8 +119,12 @@ export default function ChefDisputesPage() {
       (f) => `${f.label} : ${coords[f.key].trim()}`,
     )
     const question = description.trim()
+    // La preuve du consentement reste dans le fil de support (conservée 1 an au plus).
+    const accord = `Consentement au rappel : oui, le ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`
     write.mutate(
-      [`Demande de rappel — ${quand}`, ...lignes, ...(question ? ['', question] : [])].join('\n'),
+      [`Demande de rappel — ${quand}`, ...lignes, accord, ...(question ? ['', question] : [])].join(
+        '\n',
+      ),
     )
   }
 
@@ -258,10 +265,22 @@ export default function ChefDisputesPage() {
                     coordonnées : prénom, nom, téléphone et ville.
                   </p>
                 )}
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[rgba(31,42,55,0.1)] p-3 text-[13px] leading-relaxed text-ink-mid">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-navy"
+                    checked={rappelOk}
+                    onChange={(e) => setRappelOk(e.target.checked)}
+                  />
+                  <span>
+                    J’accepte que Lab’s Food me rappelle au numéro indiqué, au sujet de cette
+                    demande. Je peux retirer cet accord à tout moment, y compris pendant l’appel.
+                  </span>
+                </label>
                 {error}
                 <button
                   onClick={sendCallback}
-                  disabled={!callbackReady || write.isPending}
+                  disabled={!callbackReady || !rappelOk || write.isPending}
                   aria-describedby={callbackReady ? undefined : 'callback-hint'}
                   className="btn btn-primary w-full justify-center text-sm disabled:opacity-50"
                 >
