@@ -108,8 +108,11 @@ const HAS_LETTER = /\p{L}/u
 const CITY = /^\p{L}[\p{L} .'’-]*$/u
 const MAX_BUDGET_EUROS = 100_000
 
+/* Un code connu est dit tel quel, même en 502/504 : `GEO_UNAVAILABLE` vient
+   d'un service tiers, et « réessayez dans un instant » sans dire pourquoi ne
+   suffisait pas. */
 const errorText = (error: unknown, fallback: string) =>
-  error instanceof ApiError && error.status !== 0 && error.status < 500
+  error instanceof ApiError && error.status !== 0
     ? (MESSAGES[(error.body as { code?: string } | null)?.code ?? ''] ?? fallback)
     : fallback
 
@@ -127,6 +130,10 @@ const MESSAGES: Record<string, string> = {
   QUOTE_ALREADY_ACCEPTED: 'Cette demande est déjà confirmée.',
   ADDRESS_CITY_MISMATCH:
     'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
+  ADDRESS_NOT_FOUND:
+    'Cette adresse est introuvable dans ce code postal. Vérifiez le numéro et le nom de la rue.',
+  GEO_UNAVAILABLE:
+    'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 }
 
 export default function PersonnalisationPage() {

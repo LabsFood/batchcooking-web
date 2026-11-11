@@ -83,6 +83,39 @@ export function useCommunes(postcode: string) {
   })
 }
 
+/** Une commune d'une région, telle que `interventionZones[].cities` l'attend. */
+export interface RegionCommune {
+  name: string
+  insee: string
+  department: string
+}
+
+/**
+ * Toutes les communes d'une région, par ordre alphabétique (l'API trie).
+ *
+ * `GET /referentials/regions/{code}/communes` : la base officielle, relayée et
+ * gardée 24 h par l'API. Jusqu'au 10/11 on n'avait que quelques villes de
+ * référence par région, et le reste à chercher : une candidate de Mérignac ne
+ * trouvait pas sa ville en dépliant sa région. N'appeler qu'à l'ouverture
+ * d'une région : la plus grande pèse plusieurs milliers de lignes.
+ */
+export function useRegionCommunes(regionCode: string, enabled = true) {
+  return useQuery({
+    queryKey: ['referentials', 'communes', regionCode],
+    enabled: enabled && !!API_URL,
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`${API_URL}/referentials/regions/${regionCode}/communes`, {
+        headers: { Accept: 'application/json' },
+        signal,
+      })
+      if (!res.ok) throw new Error(`Communes de la région ${regionCode} indisponibles (${res.status}).`)
+      return ((await res.json()) as { communes: RegionCommune[] }).communes ?? []
+    },
+  })
+}
+
 export function useDiets(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'diets'],
@@ -95,9 +128,10 @@ export function useDiets(fallback: RefItem[] = []) {
 /**
  * Les langues qu'un batch cooker peut déclarer parler avec ses clients.
  *
- * Référentiel fermé côté API — vingt-quatre codes, du français au wolof. Un
- * champ libre aurait donné « Anglais », « anglais », « EN » et « English »
- * dans la même liste, et aucun filtre possible.
+ * Référentiel fermé côté API — toutes les langues ISO 639-1 (184 depuis le
+ * 10/11), nommées en français. Un champ libre aurait donné « Anglais »,
+ * « anglais », « EN » et « English » dans la même liste, et aucun filtre
+ * possible.
  */
 export function useLanguages(fallback: RefItem[] = []) {
   const q = useQuery({

@@ -598,9 +598,10 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
 
 /**
  * Un critère de choix réel : on fait entrer quelqu'un dans sa cuisine pour
- * quatre heures. Le référentiel est fermé côté API — vingt-quatre codes — et
- * l'écran se contente de les cocher : un champ libre aurait donné « Anglais »,
- * « anglais » et « EN » dans la même liste.
+ * quatre heures. Le référentiel est fermé côté API — toutes les langues ISO
+ * 639-1, une liste à recherche — et l'écran se contente de les cocher : un
+ * champ libre aurait donné « Anglais », « anglais » et « EN » dans la même
+ * liste.
  */
 function Langues({
   choisies,

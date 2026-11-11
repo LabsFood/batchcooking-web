@@ -64,6 +64,8 @@ import {
   useAdvanceBooking,
   useAnswerReschedule,
   useChefBooking,
+  DISH_NOTES_OPEN,
+  useSaveDishNotes,
   useChefBookings,
   useMissionRecipeSheet,
   useMissionShoppingList,
@@ -74,6 +76,7 @@ import {
   useSaveMissionShoppingList,
   useSendMissionShoppingList,
   type Booking,
+  type BookingStatus,
   type MissionLine,
   type ShoppingListStatus,
 } from '@/lib/api/bookings'
@@ -113,7 +116,7 @@ type Filter = 'all' | 'upcoming' | 'history'
 const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] = [
   { id: 'all', label: 'Tout', match: () => true },
   { id: 'upcoming', label: 'À venir', match: isBookingOpen },
-  { id: 'history', label: 'Historique', match: (b) => !isBookingOpen(b) },
+  { id: 'history', label: 'Passées', match: (b) => !isBookingOpen(b) },
 ]
 
 export default function ChefMissionsPage() {
@@ -685,6 +688,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
       <RecipeSheetDialog
         missionId={m.id}
+        status={m.status}
         dish={fiche}
         reference={m.reference}
         onClose={() => setFiche(null)}
@@ -1451,11 +1455,13 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
 
 function RecipeSheetDialog({
   missionId,
+  status,
   dish,
   reference,
   onClose,
 }: {
   missionId: string
+  status: BookingStatus
   dish: { dishId: string; nom: string } | null
   reference: string | null
   onClose: () => void
@@ -1653,6 +1659,17 @@ function RecipeSheetDialog({
                     )}
                   </Section>
                 )}
+
+              {dish && (
+                <DishNotesForm
+                  // Repart des notes enregistrées quand elles changent.
+                  key={`${dish.dishId}:${f.notes?.reheating ?? ''}:${f.notes?.storage ?? ''}`}
+                  missionId={missionId}
+                  dishId={dish.dishId}
+                  status={status}
+                  saved={f.notes}
+                />
+              )}
             </div>
           )}
         </div>
@@ -1684,6 +1701,106 @@ function RecipeSheetDialog({
         confirmLabel="Basculer"
       />
     </>
+  )
+}
+
+// ── Notes du plat, pour cette prestation ───────────────────────────────────
+
+const NOTE_MAX = 500
+
+/**
+ * Ce que le batch cooker écrit de ce plat tel qu'il l'a cuisiné chez ce
+ * client : réchauffage et conservation. Rattaché à la prestation, pas à la
+ * recette (retours de test du 09/11) : les consignes de la recette, plus
+ * haut, ne bougent pas. Le client les lit dans « Réchauffage & conservation »
+ * une fois la prestation terminée.
+ */
+function DishNotesForm({
+  missionId,
+  dishId,
+  status,
+  saved,
+}: {
+  missionId: string
+  dishId: string
+  status: BookingStatus
+  saved?: { reheating: string | null; storage: string | null }
+}) {
+  const toast = useToast()
+  const save = useSaveDishNotes()
+  const [reheating, setReheating] = useState(saved?.reheating ?? '')
+  const [storage, setStorage] = useState(saved?.storage ?? '')
+  const ouvert = DISH_NOTES_OPEN.includes(status)
+  const modifie =
+    reheating.trim() !== (saved?.reheating ?? '') || storage.trim() !== (saved?.storage ?? '')
+
+  const champ =
+    'w-full rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-soft/80 focus-visible:border-[rgba(31,42,55,0.35)] disabled:bg-cream-soft disabled:text-ink-soft'
+
+  return (
+    <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
+      <p className="flex flex-wrap items-center gap-1 text-[13px] font-semibold text-navy">
+        Vos notes pour ce client
+        <InfoPopover label="À quoi servent ces notes ?">
+          Elles disent comment réchauffer et garder ce plat tel que vous l’avez cuisiné
+          pour cette prestation — une cuisson plus courte, un contenant différent. Elles
+          s’ajoutent aux consignes de la recette sans les remplacer, et ne valent que pour
+          cette prestation. Le client les lit une fois la prestation terminée.
+        </InfoPopover>
+      </p>
+      {!ouvert && (
+        <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+          Vous pourrez les écrire dès que vous passez « En cuisine ».
+        </p>
+      )}
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          save.mutate(
+            { missionId, dishId, notes: { reheatingNote: reheating, storageNote: storage } },
+            {
+              onSuccess: () => toast.success('Notes enregistrées', 'Le client les verra sur sa fiche.'),
+              onError: (err) => toast.error('Notes non enregistrées', apiMessage(err)),
+            },
+          )
+        }}
+      >
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-ink-mid">Réchauffage</span>
+          <textarea
+            value={reheating}
+            onChange={(e) => setReheating(e.target.value)}
+            maxLength={NOTE_MAX}
+            rows={2}
+            disabled={!ouvert}
+            placeholder="Ex. Four à 160 °C, 15 min, couvercle retiré."
+            className={champ}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-ink-mid">Conservation</span>
+          <textarea
+            value={storage}
+            onChange={(e) => setStorage(e.target.value)}
+            maxLength={NOTE_MAX}
+            rows={2}
+            disabled={!ouvert}
+            placeholder="Ex. Réfrigérateur, 3 jours ; se congèle bien."
+            className={champ}
+          />
+        </label>
+        {ouvert && (
+          <button
+            type="submit"
+            disabled={!modifie || save.isPending}
+            className="btn btn-outline text-xs disabled:opacity-50"
+          >
+            {save.isPending ? 'Enregistrement…' : 'Enregistrer les notes'}
+          </button>
+        )}
+      </form>
+    </div>
   )
 }
 
