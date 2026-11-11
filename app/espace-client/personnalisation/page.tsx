@@ -358,11 +358,10 @@ function RequestForm() {
                         key={s}
                         onClick={() => setSlot(s)}
                         aria-pressed={on}
-                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${
-                          on
-                            ? 'border-amber bg-amber-soft font-semibold text-navy'
-                            : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
-                        }`}
+                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${on
+                          ? 'border-amber bg-amber-soft font-semibold text-navy'
+                          : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
+                          }`}
                       >
                         {SLOT_LABEL[s]}
                       </button>
@@ -410,11 +409,10 @@ function RequestForm() {
                     key={d}
                     onClick={() => toggle(d)}
                     aria-pressed={on}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors ${
-                      on
-                        ? 'bg-amber font-semibold text-navy'
-                        : 'bg-cream-soft text-ink-mid hover:bg-cream-deep hover:text-navy'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors ${on
+                      ? 'bg-amber font-semibold text-navy'
+                      : 'bg-cream-soft text-ink-mid hover:bg-cream-deep hover:text-navy'
+                      }`}
                   >
                     {on ? (
                       <Check className="h-3.5 w-3.5" aria-hidden />
@@ -454,7 +452,7 @@ function RequestForm() {
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               maxLength={4000}
-              placeholder="Ex. Les repas de la semaine, plutôt méditerranéens. Deux sans gluten, une végétarienne stricte. Des portions faciles à emporter le midi."
+              placeholder="Ex: batch cooker qui respectera mes restrictions alimentaires : sans gluten, sans lactose."
               className="input-base resize-y"
             />
           </Field>
