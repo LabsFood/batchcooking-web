@@ -12,7 +12,9 @@ const CATEGORIES = [
   { id: 'tarifs',      label: 'Tarifs' },
   { id: 'réservation', label: 'Réservation' },
   { id: 'recettes',    label: 'Recettes' },
+  { id: 'allergies',   label: 'Allergies' },
   { id: 'fiscal',      label: 'Avantage fiscal' },
+  { id: 'cuisiniers',  label: 'Batch cookers' },
 ] as const
 
 export default function FAQ() {
