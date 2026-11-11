@@ -133,12 +133,3 @@ export interface ShoppingList {
     biocoop?: string
   }
 }
-
-// ─── FAQ ──────────────────────────────────────────────────────────────────────
-
-export interface FAQItem {
-  id: string
-  question: string
-  answer: string
-  category: 'service' | 'tarifs' | 'réservation' | 'recettes' | 'fiscal' | 'allergies' | 'cuisiniers'
-}

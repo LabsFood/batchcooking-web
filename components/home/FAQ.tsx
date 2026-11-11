@@ -2,20 +2,11 @@
 
 import { useRef, useState } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { Plus, Minus, Mail } from 'lucide-react'
-import { FAQ_ITEMS } from '@/lib/mock-data'
-import type { FAQItem } from '@/types'
+import { Plus, Minus, Mail, ArrowUpRight } from 'lucide-react'
+import { FAQ_ITEMS, FAQ_CATEGORIES, type FAQItem } from '@/lib/faq'
 
-const CATEGORIES = [
-  { id: 'all',         label: 'Toutes' },
-  { id: 'service',     label: 'Service' },
-  { id: 'tarifs',      label: 'Tarifs' },
-  { id: 'réservation', label: 'Réservation' },
-  { id: 'recettes',    label: 'Recettes' },
-  { id: 'allergies',   label: 'Allergies' },
-  { id: 'fiscal',      label: 'Avantage fiscal' },
-  { id: 'cuisiniers',  label: 'Batch cookers' },
-] as const
+// « Toutes » est l'absence de filtre ; les autres catégories viennent de la bibliothèque FAQ.
+const FILTERS = [{ id: 'all', label: 'Toutes' }, ...FAQ_CATEGORIES]
 
 export default function FAQ() {
   const ref = useRef(null)
@@ -58,7 +49,7 @@ export default function FAQ() {
             <div className="mt-10">
               <p className="label-muted mb-4">Filtrer par</p>
               <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => (
+                {FILTERS.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
@@ -131,9 +122,30 @@ export default function FAQ() {
                             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                             className="overflow-hidden"
                           >
-                            <p className="text-ink-mid leading-relaxed px-6 pb-6 pr-16">
-                              {item.answer}
-                            </p>
+                            <div className="px-6 pb-6 pr-16">
+                              <p className="text-ink-mid leading-relaxed">{item.answer}</p>
+                              {item.sources && (
+                                <div className="mt-4">
+                                  <p className="label-muted mb-2">Sources officielles</p>
+                                  <ul className="space-y-1.5">
+                                    {item.sources.map((source) => (
+                                      <li key={source.label}>
+                                        <a
+                                          href={source.href}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-start gap-1.5 text-sm text-terra underline underline-offset-2 transition-colors hover:text-navy"
+                                        >
+                                          <span>{source.label}</span>
+                                          <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                                          <span className="sr-only">(s’ouvre dans un nouvel onglet)</span>
+                                        </a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
