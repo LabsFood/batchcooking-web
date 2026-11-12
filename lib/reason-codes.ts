@@ -51,6 +51,10 @@ export const REASON_TEXT = {
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
 } as const
 
+/** Les allergènes d'un ingrédient sont exigés (ou « aucun ») : la phrase du dialogue, de la page et de leurs refus. */
+export const INGREDIENT_ALLERGENS_REQUIRED_TEXT =
+  'Cochez ses allergènes, ou indiquez qu’il n’en contient aucun.'
+
 export type ReasonCode = keyof typeof REASON_TEXT
 
 /**

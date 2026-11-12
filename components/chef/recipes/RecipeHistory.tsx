@@ -43,6 +43,7 @@ export default function RecipeHistory({
   disabled,
   onRestored,
   onConflict,
+  onPending,
 }: {
   dish: Dish
   /** La version lue de la fiche, renvoyée à la restauration. */
@@ -54,6 +55,8 @@ export default function RecipeHistory({
   /** La fiche rendue par la restauration, que le formulaire adopte. */
   onRestored: (restored: Dish) => void
   onConflict: () => void
+  /** La restauration part (true) ou a répondu (false) : le formulaire se fige le temps de l'appel. */
+  onPending: (pending: boolean) => void
 }) {
   const versions = useDishVersions(dish.id)
   const restore = useRestoreVersion()
@@ -64,9 +67,11 @@ export default function RecipeHistory({
 
   function doRestore(version: number) {
     setError(null)
+    onPending(true)
     restore.mutate(
       { id: dish.id, version, lockVersion },
       {
+        onSettled: () => onPending(false),
         onSuccess: (res) => {
           setConfirming(null)
           onRestored(res)

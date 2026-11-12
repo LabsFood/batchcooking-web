@@ -5,6 +5,7 @@ import { ApiError, fieldErrors } from '@/lib/api/client'
 import { apiMessage, champMessage } from '@/lib/api/messages'
 import type { MyIngredient, MyIngredientInput } from '@/lib/api/ingredients'
 import { useAllergens, useAisles, useComputedDiets } from '@/lib/api/referentials'
+import { INGREDIENT_ALLERGENS_REQUIRED_TEXT, REASON_TEXT } from '@/lib/reason-codes'
 import { INGREDIENT_MAX, MONTHS } from '@/lib/recipe-fields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ export function validateIngredient(
     out.aisle = 'Choisissez le rayon dans la liste.'
   }
   if (!d.none && d.picked.length === 0) {
-    out.allergens = 'Cochez ses allergènes, ou indiquez qu’il n’en contient aucun.'
+    out.allergens = INGREDIENT_ALLERGENS_REQUIRED_TEXT
   }
   return out
 }
@@ -117,11 +118,11 @@ export function readIngredientError(error: unknown, fallback: string): Ingredien
   }
   if (error instanceof ApiError && error.status === 422 && body?.code === 'INGREDIENT_NOT_PENDING') {
     out.notPending = true
-    out.general = 'Cet ingrédient a été validé ou remplacé entre-temps : rechargez la page.'
+    out.general = REASON_TEXT.INGREDIENT_NOT_PENDING
     return out
   }
   if (error instanceof ApiError && body?.code === 'ALLERGENS_REQUIRED') {
-    out.fields.allergens = 'Cochez ses allergènes, ou indiquez qu’il n’en contient aucun.'
+    out.fields.allergens = INGREDIENT_ALLERGENS_REQUIRED_TEXT
     return out
   }
 

@@ -483,6 +483,8 @@ export default function DishForm({
   const [reloading, setReloading] = useState(false)
   /** Un enregistrement automatique part : un autre en même temps porterait une version périmée. */
   const [autosaving, setAutosaving] = useState(false)
+  /** Une restauration de version part : ni enregistrement automatique ni saisie tant qu'elle n'a pas répondu (même `lockVersion`, faux conflit). */
+  const [restoring, setRestoring] = useState(false)
   const [reloadError, setReloadError] = useState<string | null>(null)
   /** Les lignes (rangs de l'API) qu'un `422 INGREDIENT_NOT_LINKED` a refusées. */
   const [notLinked, setNotLinked] = useState<number[]>([])
@@ -596,7 +598,7 @@ export default function DishForm({
 
   const storageProblem = storageInvalid(d)
   useEffect(() => {
-    if (!autosave || !dirty || !saveable || saving || autosaving || conflict || storageProblem) return
+    if (!autosave || !dirty || !saveable || saving || autosaving || restoring || conflict || storageProblem) return
     const sentDraft = d
     const sentHad = hadRecipe
     const sentJson = JSON.stringify(toPayload(sentDraft, sentHad))
@@ -632,7 +634,7 @@ export default function DishForm({
     }, delay)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé ; `adoptSaved` n'utilise que des setters et une ref.
-  }, [d, autosave, dirty, saveable, saving, autosaving, conflict, storageProblem, lockVersion, onAutosave, retries, hadRecipe])
+  }, [d, autosave, dirty, saveable, saving, autosaving, restoring, conflict, storageProblem, lockVersion, onAutosave, retries, hadRecipe])
 
   /**
    * Repart d'une fiche rendue par l'API, à la place du brouillon : « Recharger »
@@ -769,7 +771,7 @@ export default function DishForm({
       onSubmit={(e) => {
         e.preventDefault()
         setAttempted(true)
-        if (!saveable || saving || autosaving || conflict || blocked) return
+        if (!saveable || saving || autosaving || restoring || conflict || blocked) return
         const sentDraft = d
         const sentHad = hadRecipe
         const pending = onSave(withLock(toPayload(sentDraft, sentHad)))
@@ -777,8 +779,9 @@ export default function DishForm({
         // automatique. Un échec est montré par la page (`error`).
         if (dish && pending) pending.then((res) => adoptSaved(sentDraft, res, sentHad), () => {})
       }}
-      className="space-y-6"
     >
+      {/* Pendant une restauration, tout le formulaire est inerte : une frappe partirait avec la version périmée. */}
+      <fieldset disabled={restoring} className="m-0 min-w-0 space-y-6 border-0 p-0">
       <Link
         href={backHref}
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
@@ -1616,8 +1619,9 @@ export default function DishForm({
               dish={dish}
               lockVersion={lockVersion}
               dirty={dirty}
-              disabled={conflict || saving || autosaving || reloading}
+              disabled={conflict || saving || autosaving || reloading || restoring}
               onRestored={(restored) => replaceWith(restored, restored)}
+              onPending={setRestoring}
               onConflict={() => setConflictSeen(true)}
             />
           )}
@@ -1704,6 +1708,7 @@ export default function DishForm({
         </div>
       </div>
       <div aria-hidden className="h-16 lg:hidden" />
+      </fieldset>
     </form>
   )
 }
