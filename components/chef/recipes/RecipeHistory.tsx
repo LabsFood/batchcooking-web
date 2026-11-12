@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Eye, EyeOff, History, Loader2, RotateCcw } from 'lucide-react'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
@@ -12,6 +12,7 @@ import {
   useDishVersions,
   useRestoreVersion,
   type Dish,
+  type Step,
 } from '@/lib/api/chef-catalog'
 import { REHEAT_MODES, displayQuantity, reheatingLine, storageLine } from '@/lib/recipe-fields'
 
@@ -20,7 +21,8 @@ import { REHEAT_MODES, displayQuantity, reheatingLine, storageLine } from '@/lib
 
    Chaque version est la fiche telle qu'elle était quand une prestation a pu la
    réserver. On la lit sans rien changer, ou on la restaure : la fiche reprend
-   son contenu, les allergènes sont recalculés et se confirment de nouveau.
+   son contenu, et les allergènes sont recalculés. L'API garde leur confirmation
+   quand ils n'ont pas changé ; sinon, ils se confirment de nouveau.
    L'historique, lui, est conservé : restaurer ajoute une version, n'en efface
    aucune.
 
@@ -64,6 +66,18 @@ export default function RecipeHistory({
   const [viewing, setViewing] = useState<number | null>(null)
   const [confirming, setConfirming] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /* La confirmation s'ouvre sous le bouton : le focus y va, pour qu'un lecteur d'écran
+     l'annonce, et revient au bouton « Restaurer » si l'on renonce. */
+  const panelRef = useRef<HTMLDivElement>(null)
+  const openerRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (confirming !== null) panelRef.current?.focus()
+  }, [confirming])
+  const cancel = () => {
+    setConfirming(null)
+    const opener = openerRef.current
+    if (opener?.isConnected) requestAnimationFrame(() => opener.focus())
+  }
 
   function doRestore(version: number) {
     setError(null)
@@ -75,9 +89,12 @@ export default function RecipeHistory({
         onSuccess: (res) => {
           setConfirming(null)
           onRestored(res)
+          // L'API garde la confirmation quand les allergènes restaurés sont les mêmes.
           toast.success(
             `Version ${version} restaurée`,
-            'Les allergènes sont à confirmer de nouveau.',
+            res.allergensVerifiedAt
+              ? 'Les allergènes n’ont pas changé : leur confirmation est gardée.'
+              : 'Les allergènes sont à confirmer de nouveau.',
           )
         },
         onError: (e) => {
@@ -100,8 +117,9 @@ export default function RecipeHistory({
         Historique
         <InfoPopover label="À quoi sert l’historique ?">
           Chaque version est la fiche telle qu’une prestation l’a cuisinée. Vous pouvez
-          la relire, ou la restaurer : la fiche reprend son contenu, les allergènes sont
-          recalculés et à confirmer de nouveau. Rien n’est effacé de l’historique.
+          la relire, ou la restaurer : la fiche reprend son contenu, et les allergènes
+          sont recalculés ; s’ils changent, ils sont à confirmer de nouveau. Rien n’est
+          effacé de l’historique.
         </InfoPopover>
       </h3>
 
@@ -151,8 +169,9 @@ export default function RecipeHistory({
                 {!v.current && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
                       setError(null)
+                      openerRef.current = e.currentTarget
                       setConfirming(confirming === v.version ? null : v.version)
                     }}
                     disabled={disabled || restore.isPending}
@@ -166,15 +185,24 @@ export default function RecipeHistory({
 
               {confirming === v.version && (
                 <div
+                  ref={panelRef}
                   role="alertdialog"
+                  tabIndex={-1}
                   aria-label={`Restaurer la version ${v.version}`}
-                  className="mt-2 rounded-xl border border-amber/40 bg-amber-soft/50 p-3 text-[13px] leading-relaxed text-[#6B4A00]"
+                  aria-describedby={`restore-${v.version}-text`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' && !restore.isPending) {
+                      e.preventDefault()
+                      cancel()
+                    }
+                  }}
+                  className="mt-2 rounded-xl border border-amber/40 bg-amber-soft/50 p-3 text-[13px] leading-relaxed text-[#6B4A00] outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <p className="font-semibold">Restaurer la version {v.version} ?</p>
-                  <p className="mt-1">
+                  <p id={`restore-${v.version}-text`} className="mt-1">
                     La fiche prendra le contenu de cette version. Les allergènes seront
-                    recalculés et à confirmer de nouveau. L’historique est conservé : rien
-                    n’est effacé.
+                    recalculés : s’ils changent, ils seront à confirmer de nouveau.
+                    L’historique est conservé : rien n’est effacé.
                   </p>
                   {dirty && (
                     <p className="mt-1 font-semibold">
@@ -201,7 +229,7 @@ export default function RecipeHistory({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setConfirming(null)}
+                      onClick={cancel}
                       disabled={restore.isPending}
                       className="btn btn-outline px-3 py-1.5 text-xs"
                     >
@@ -253,7 +281,9 @@ function VersionContent({ dishId, version }: { dishId: string; version: number }
           <ul className="mt-1 space-y-0.5">
             {v.ingredients.map((i, k) => (
               <li key={k}>
-                <span className="tabular-nums">{displayQuantity(i.qty, i.unit, units)}</span>{' '}
+                <span className="tabular-nums">
+                  {displayQuantity(i.qty ?? null, i.unit ?? null, units)}
+                </span>{' '}
                 {i.name}
                 {i.preparation ? `, ${i.preparation}` : ''}
                 {i.optional ? ' (facultatif)' : ''}
@@ -269,7 +299,10 @@ function VersionContent({ dishId, version }: { dishId: string; version: number }
           <p>Aucune.</p>
         ) : (
           <ol className="mt-1 list-decimal space-y-0.5 pl-5">
-            {v.steps.map((s, k) => (
+            {/* Une version d'avant le lot 2 peut porter des étapes en texte seul. */}
+            {(v.steps as (Step | string)[]).map((raw, k) => {
+              const s = typeof raw === 'string' ? { text: raw, type: null, durationMinutes: null } : raw
+              return (
               <li key={k}>
                 {s.text}
                 {s.type && (
@@ -279,7 +312,8 @@ function VersionContent({ dishId, version }: { dishId: string; version: number }
                   <span className="text-ink-soft"> · {s.durationMinutes} min</span>
                 )}
               </li>
-            ))}
+              )
+            })}
           </ol>
         )}
       </div>
