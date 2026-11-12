@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { AISLE_ITEMS, UNITS, type UnitItem } from '@/lib/recipe-fields'
+import { AISLE_ITEMS, UNITS, acceptUnits, type UnitItem } from '@/lib/recipe-fields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Référentiels de l'API — publics, sans jeton.
@@ -185,11 +185,18 @@ export const DECLARED_DIETS: RefItem[] = [
 /**
  * §4.12 : les 14 unités d'une ligne, avec leur pluriel. Le repli est la liste
  * figée de `lib/recipe-fields.ts` : une ligne ne se saisit pas sans unités.
+ *
+ * Les unités servies rejoignent celles qu'une ligne accepte (`acceptUnits`) :
+ * une unité que la liste déroulante propose rend toujours la ligne prête.
  */
 export function useUnits(): UnitItem[] {
   const q = useQuery({
     queryKey: ['referentials', 'units'],
-    queryFn: () => fetchRef<'units', UnitItem>('units', 'units'),
+    queryFn: async () => {
+      const list = await fetchRef<'units', UnitItem>('units', 'units')
+      acceptUnits(list.map((u) => u.code))
+      return list
+    },
     staleTime: HOUR,
   })
   return q.data?.length ? q.data : UNITS

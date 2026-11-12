@@ -54,6 +54,25 @@ export const UNITS: UnitItem[] = [
 
 export const UNIT_CODES = UNITS.map((u) => u.code)
 
+/**
+ * Les unités qu'une ligne accepte : les 14 du repli, plus celles que l'API sert
+ * (`useUnits` les ajoute dès qu'elles arrivent). C'est le jeu que la liste
+ * déroulante propose : une unité qu'on peut y choisir rend la ligne prête.
+ *
+ * Il ne fait que grandir. Une ligne prête ne cesse donc jamais de l'être parce
+ * que le référentiel est arrivé entre-temps : elle sortirait de l'envoi, et
+ * l'enregistrement suivant l'effacerait.
+ */
+const acceptedUnits = new Set<string>(UNIT_CODES)
+
+/** Ajoute les unités servies par l'API (`GET /referentials/units`). */
+export function acceptUnits(codes: string[]): void {
+  for (const code of codes) if (code) acceptedUnits.add(code)
+}
+
+/** Une unité qu'une ligne peut porter : celles de la liste déroulante. */
+export const unitAccepted = (code: string) => acceptedUnits.has(code)
+
 /** « selon le goût » : pas de quantité, pas de nombre à l'écran. */
 export const TO_TASTE = 'to_taste'
 
@@ -245,16 +264,65 @@ export interface IngredientRow {
   incomplete: boolean | null
 }
 
-/** La ligne telle qu'elle existe déjà sur un plat, prête à être éditée. */
+/**
+ * La ligne telle qu'elle existe déjà sur un plat, prête à être éditée.
+ *
+ * Elle est lue comme l'API lit ses lignes (`toLineInput`, R33) : une ligne que
+ * ce formulaire ne saurait pas envoyer telle quelle passe « à vérifier », au
+ * lieu d'être écartée de l'envoi. Écartée, le premier enregistrement de
+ * n'importe quel champ l'effacerait de la fiche, sans que le chef y ait touché.
+ * - Une unité inconnue (ancienne comme « pièce », ou vide) : l'unité se vide.
+ * - Une quantité illisible, nulle, hors bornes ou à plus de 3 décimales : elle se vide.
+ * - Une quantité absente (hors « selon le goût ») : la ligne est à vérifier.
+ *
+ * Ce qui se perd ainsi reste dans le texte d'origine (« 2 pièce Œuf »), s'il n'y
+ * en avait pas déjà un. La fiche enregistrée se lit de la même façon (`saved`) :
+ * ouvrir un plat ne le rend pas modifié.
+ */
 export function toRow(i: Ingredient): IngredientRow {
+  const name = i.name ?? ''
+  // Une ligne d'avant le lot 2 portait `amount` : l'API le lit aussi.
+  const stored = i.qty ?? (i as { amount?: unknown }).amount
+  const qtyText = stored == null ? '' : String(stored).trim()
+  const unitText = typeof i.unit === 'string' ? i.unit.trim() : ''
+  let toVerify = i.toVerify === true
+  let unit = unitText
+  let qty = qtyText
+  let rawText = i.rawText ?? ''
+  const keepOrigin = () => {
+    if (rawText.trim()) return
+    rawText = [qtyText, unitText, name.trim()]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, INGREDIENT_MAX.rawText)
+  }
+
+  // Une ligne à vérifier sans unité est déjà ce qu'elle doit être.
+  if (!unitAccepted(unitText) && !(toVerify && !unitText)) {
+    toVerify = true
+    unit = ''
+    keepOrigin()
+  }
+  if (unit === TO_TASTE) {
+    // « Selon le goût » n'a pas de quantité (les anciennes lignes portaient un zéro).
+    qty = ''
+  } else if (qty !== '' && !qtyValid(qty)) {
+    toVerify = true
+    qty = ''
+    keepOrigin()
+  } else if (qty === '') {
+    toVerify = true
+  }
+
   return {
     key: rowKey(),
-    name: i.name ?? '',
-    qty: i.qty == null ? '' : String(i.qty),
-    unit: i.unit ?? '',
+    name,
+    qty,
+    unit,
     aisle: i.aisle ?? '',
     link: i.link ?? '',
-    toVerify: i.toVerify ?? false,
+    toVerify,
     fixedQuantity: i.fixedQuantity ?? false,
     catalogIngredientId: i.catalogIngredientId ?? null,
     optional: i.optional ?? false,
@@ -262,7 +330,7 @@ export function toRow(i: Ingredient): IngredientRow {
     preparation: i.preparation ?? '',
     group: i.group ?? '',
     hiddenFromClient: i.hiddenFromClient ?? false,
-    rawText: i.rawText ?? '',
+    rawText,
     allergens: Array.isArray(i.allergens) ? i.allergens : null,
     incomplete: typeof i.incomplete === 'boolean' ? i.incomplete : null,
   }
@@ -327,8 +395,15 @@ export function ingredientReady(i: IngredientRow): boolean {
   if (!i.name.trim()) return false
   if (i.toVerify) return i.qty.trim() === '' || qtyValid(i.qty)
   if (i.unit === TO_TASTE) return true
-  return qtyValid(i.qty) && UNIT_CODES.includes(i.unit)
+  return qtyValid(i.qty) && unitAccepted(i.unit)
 }
+
+/**
+ * Une ligne complète, qu'on peut dire vérifiée : un nom (reliée ou non), une
+ * quantité valide ou « selon le goût », et une unité. Retirer « à vérifier » à
+ * une ligne incomplète la sortirait de l'envoi : la fiche la perdrait.
+ */
+export const lineComplete = (i: IngredientRow): boolean => ingredientReady({ ...i, toVerify: false })
 
 /** Vrai dès qu'une ligne a été commencée : une ligne vierge n'est pas un oubli. */
 export const ingredientStarted = (i: IngredientRow): boolean =>
@@ -372,12 +447,18 @@ export function cleanIngredients(list: IngredientRow[]): Ingredient[] {
   return sentIndexes(list).map((k) => cleanLine(list[k]))
 }
 
+/**
+ * Arrondie aux 3 décimales que l'API garde : `qtyValid` tolère un reste
+ * infime (1,0000000001), que `maxDecimalPlaces: 3` refuserait.
+ */
+const roundQty = (n: number) => Math.round(n * 10 ** QTY_DECIMALS) / 10 ** QTY_DECIMALS
+
 /** Une ligne prête, au format d'écriture de l'API : la clé et ce que l'API écrit n'en sont pas. */
 function cleanLine(i: IngredientRow): Ingredient {
   const toTaste = i.unit === TO_TASTE
   return {
     name: i.name.trim(),
-    qty: toTaste || !i.qty.trim() ? null : Number(i.qty.replace(',', '.')),
+    qty: toTaste || !i.qty.trim() ? null : roundQty(Number(i.qty.replace(',', '.'))),
     unit: i.unit.trim() || null,
     ...(i.aisle.trim() ? { aisle: i.aisle.trim() } : {}),
     link: linkValid(i.link) ? orNull(i.link) : null,

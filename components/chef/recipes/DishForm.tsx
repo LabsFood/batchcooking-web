@@ -63,6 +63,7 @@ import {
   ingredientStarted,
   aisleLabel,
   isRegulatedAllergen,
+  lineComplete,
   linkValid,
   mergeSavedRows,
   mergeSavedSteps,
@@ -2353,6 +2354,7 @@ function IngredientRows({
             const linked = Boolean(ing.catalogIngredientId)
             const toTaste = ing.unit === TO_TASTE
             const qtyBad = ing.qty.trim() !== '' && !qtyValid(ing.qty)
+            const verifiable = lineComplete(ing)
             return (
               <li
                 key={ing.key}
@@ -2548,16 +2550,26 @@ function IngredientRows({
                   {ing.toVerify && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-[11px] font-semibold text-[#8B6200]">
                       À vérifier
+                      {/* Une ligne incomplète qui ne serait plus « à vérifier » sortirait de
+                          l'envoi, et la fiche la perdrait au prochain enregistrement. */}
                       <button
                         type="button"
                         onClick={() => set(ing.key, { toVerify: false })}
-                        className="underline underline-offset-2 hover:text-navy"
+                        disabled={!verifiable}
+                        aria-describedby={verifiable ? undefined : `ingredient-${i}-verify-why`}
+                        className="underline underline-offset-2 hover:text-navy disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
                       >
                         C’est vérifié
                       </button>
                     </span>
                   )}
                 </div>
+                {ing.toVerify && !verifiable && (
+                  <p id={`ingredient-${i}-verify-why`} className="w-full text-xs text-[#8B6200]">
+                    Pour la dire vérifiée, complétez la ligne : le nom, la quantité et l’unité (ou
+                    « selon le goût »).
+                  </p>
+                )}
               </li>
             )
           })}
