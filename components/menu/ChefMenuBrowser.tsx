@@ -47,7 +47,7 @@ import {
   useRecipeProfiles,
   useRegions,
 } from '@/lib/api/referentials'
-import { seasonsLine } from '@/lib/recipe-fields'
+import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 
 /**
  * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
@@ -1107,6 +1107,8 @@ export function MenuCard({
             className="rounded-full bg-mint/60 px-2.5 py-1 text-[11px] font-medium text-mint-ink"
           >
             Toute la carte {dietLabel(d).toLowerCase()}
+            {/* La promesse la plus forte de la page : la mention des traces la suit aussi. */}
+            {TRACES_DIETS.has(d) && `, ${TRACES_NOTE}`}
           </span>
         ))}
         {menu.shoppingIncluded && (
@@ -1478,8 +1480,11 @@ function DishRow({
   dietLabel: (code: string) => string
 }) {
   const profiles = useRecipeProfiles()
-  const allergenList = useAllergens()
+  // Le repli des quatorze : un client lit « Lait », jamais le code `milk`.
+  const allergenList = useAllergens(REGULATED_ALLERGENS)
   const conditional = new Set(dish.conditionalAllergens ?? [])
+  // Les allergènes hors des quatorze (le sarrasin) : un client allergique doit les lire aussi.
+  const customAllergens = dish.customAllergens ?? []
   return (
     <li>
       <button
@@ -1557,16 +1562,26 @@ function DishRow({
             )}
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
-            {dish.allergens.length > 0 ? (
-              dish.allergens.map((code) => (
-                <span
-                  key={code}
-                  className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700"
-                >
-                  {refLabel(allergenList, code)}
-                  {conditional.has(code) && ', si l’ingrédient facultatif est utilisé'}
-                </span>
-              ))
+            {dish.allergens.length > 0 || customAllergens.length > 0 ? (
+              <>
+                {dish.allergens.map((code) => (
+                  <span
+                    key={code}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700"
+                  >
+                    {refLabel(allergenList, code)}
+                    {conditional.has(code) && ', si l’ingrédient facultatif est utilisé'}
+                  </span>
+                ))}
+                {customAllergens.map((name) => (
+                  <span
+                    key={`autre-${name}`}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </>
             ) : dish.allergensNone ? (
               <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[10px] text-mint-ink">
                 Sans allergène déclaré
