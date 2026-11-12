@@ -61,6 +61,13 @@ export interface ChefProfile {
   tier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4'
   /** Le nom du palier, réglé dans la console : sur `GET /me/profile`. */
   tierLabel?: string
+  /** Les zones couvertes : celles de la candidature, puis celles que le batch cooker règle seul. */
+  interventionZones?: {
+    regionCode?: string
+    regionLabel?: string
+    scope?: 'region' | 'cities'
+    cities?: { name?: string; dept?: string; insee?: string }[]
+  }[]
 }
 
 /** Recettes lot 1 : jamais « OK » tant que rien n'a été vérifié. */

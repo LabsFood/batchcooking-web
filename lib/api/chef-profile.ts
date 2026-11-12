@@ -30,6 +30,36 @@ export function useUpdateChefProfile() {
   })
 }
 
+/** Une zone telle que `PATCH /me/chef-profile/zones` l'attend, comme à la candidature. */
+export interface ChefZoneInput {
+  regionCode: string
+  regionLabel: string
+  scope: 'region' | 'cities'
+  cities: { name: string; dept: string; insee: string }[]
+}
+
+/**
+ * `PATCH /me/chef-profile/zones` — le batch cooker approuvé remplace ses zones.
+ * Mêmes règles que la candidature ; `403 CHEF_NOT_VERIFIED` avant l'approbation
+ * (les zones sont alors celles de la candidature). Journalisé côté API.
+ */
+export function useUpdateChefZones() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+
+  return useMutation({
+    mutationFn: (interventionZones: ChefZoneInput[]) =>
+      apiFetch<{ interventionZones: ChefZoneInput[] }>('/me/chef-profile/zones', {
+        method: 'PATCH',
+        body: { interventionZones },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: meKey })
+    },
+  })
+}
+
 /** Le refus de l'API, dit à la personne qui vient de cliquer. */
 export function chefProfileMessage(error: unknown): string {
   const e = error as { status?: number; message?: string } | null
