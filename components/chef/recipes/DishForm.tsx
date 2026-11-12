@@ -286,23 +286,75 @@ function toDraft(dish: Dish | null): Draft {
   }
 }
 
-/** La fiche enregistrée porte-t-elle des lignes ou des étapes ? */
-const hasStoredRecipe = (dish: Dish | null): boolean =>
-  Boolean(dish?.recipe && (dish.recipe.ingredients.length > 0 || dish.recipe.steps.length > 0))
+/**
+ * Ce que la fiche enregistrée porte déjà de sa recette : des lignes ou des
+ * étapes (`lines`), seulement un réchauffage ou une conservation (`aftercare`),
+ * ou rien (`none`).
+ */
+type StoredRecipe = 'lines' | 'aftercare' | 'none'
+
+/** Le réchauffage et la conservation du brouillon, tels qu'ils partent (null : rien à envoyer). */
+function aftercareOf(d: Draft) {
+  return {
+    reheating: cleanReheating({
+      modes: d.reheatModes,
+      temperature: d.reheatTemperature,
+      minutes: d.reheatMinutes,
+      note: d.reheatNote,
+      container: d.reheatContainer,
+    }),
+    storage: cleanStorage({
+      method: d.storageMethod,
+      days: d.storageDays,
+      container: d.storageContainer,
+      freezable: d.storageFreezable,
+      freezerMonths: d.storageMonths,
+      thawing: d.storageThawing,
+    }),
+  }
+}
 
 /**
- * Ce que l'API reçoit. `hadRecipe` : la fiche enregistrée a déjà des lignes ou
- * des étapes. Si le chef les a toutes vidées (R24), on envoie alors une recette
- * vide, et non `null` : `null` veut dire « ne touchez pas à la recette », et les
- * anciennes lignes resteraient. Une ligne en cours de saisie, pas encore prête,
- * n'est pas un vidage : on n'efface pas une recette sur une saisie à moitié faite.
+ * Ce que la fiche enregistrée porte de sa recette. Le réchauffage et la
+ * conservation comptent tels que le formulaire les relit : un reste ancien
+ * qu'il n'enverrait pas (des consignes sans mode) ne déclenche rien, et
+ * n'est donc jamais effacé sans que le chef y touche.
  */
-function toPayload(d: Draft, hadRecipe = false): DishInput {
+function storedRecipe(dish: Dish | null): StoredRecipe {
+  if (!dish?.recipe) return 'none'
+  if (dish.recipe.ingredients.length > 0 || dish.recipe.steps.length > 0) return 'lines'
+  const care = aftercareOf(toDraft(dish))
+  return care.reheating || care.storage ? 'aftercare' : 'none'
+}
+
+/**
+ * Ce que l'API reçoit. `had` : ce que la fiche enregistrée porte déjà.
+ *
+ * - Des lignes ou des étapes, toutes vidées par le chef (R24) : on envoie une
+ *   recette vide, et non `null`. `null` veut dire « ne touchez pas à la
+ *   recette », et les anciennes lignes resteraient. Une ligne en cours de
+ *   saisie, pas encore prête, n'est pas un vidage : on n'efface pas une recette
+ *   sur une saisie à moitié faite.
+ * - Aucune ligne enregistrée : une recette vide n'efface rien. Le réchauffage et
+ *   la conservation partent donc seuls, dès qu'ils disent quelque chose (ou pour
+ *   s'effacer, s'ils étaient enregistrés). Sans cela, écrits avant le premier
+ *   ingrédient, ils ne partaient jamais, et la fiche se disait enregistrée.
+ * - Un plat neuf, sans rien de tout cela : `null`.
+ */
+function toPayload(d: Draft, had: StoredRecipe = 'none'): DishInput {
   const ingredients = cleanIngredients(d.ingredients)
   const steps = cleanSteps(d.steps)
+  const { reheating, storage } = aftercareOf(d)
   const hasRecipe = ingredients.length > 0 || steps.length > 0
   const emptied =
-    hadRecipe && !hasRecipe && !d.ingredients.some(ingredientStarted) && d.steps.every((s) => !s.text.trim())
+    had === 'lines' &&
+    !hasRecipe &&
+    !d.ingredients.some(ingredientStarted) &&
+    d.steps.every((s) => !s.text.trim())
+  const aftercareOnly =
+    had !== 'lines' &&
+    !hasRecipe &&
+    (reheating !== null || storage !== null || had === 'aftercare')
 
   return {
     name: d.name.trim(),
@@ -324,27 +376,7 @@ function toPayload(d: Draft, hadRecipe = false): DishInput {
     profiles: d.profiles,
     personalTags: d.personalTags,
     seasonsOverride: d.seasonsOverride,
-    recipe: hasRecipe || emptied
-      ? {
-          ingredients,
-          steps,
-          reheating: cleanReheating({
-            modes: d.reheatModes,
-            temperature: d.reheatTemperature,
-            minutes: d.reheatMinutes,
-            note: d.reheatNote,
-            container: d.reheatContainer,
-          }),
-          storage: cleanStorage({
-            method: d.storageMethod,
-            days: d.storageDays,
-            container: d.storageContainer,
-            freezable: d.storageFreezable,
-            freezerMonths: d.storageMonths,
-            thawing: d.storageThawing,
-          }),
-        }
-      : null,
+    recipe: hasRecipe || emptied || aftercareOnly ? { ingredients, steps, reheating, storage } : null,
   }
 }
 
@@ -388,11 +420,11 @@ const PLAIN_KEYS = [
  * Sans modification entre l'envoi et la réponse, `toPayload` du résultat égale
  * celui de la fiche enregistrée : l'enregistrement automatique ne repart pas.
  */
-function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: boolean): Draft {
+function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: StoredRecipe): Draft {
   const back = toDraft(res)
   const sentP = toPayload(sent, hadSent)
-  // Une recette vidée revient sans ligne : on la lit quand même, pour reprendre réchauffage et conservation.
-  const backP = toPayload(back, true)
+  // Une recette vidée (ou sans ligne) revient sans ligne : on la lit quand même, pour reprendre réchauffage et conservation.
+  const backP = toPayload(back, 'lines')
   const next: Draft = { ...current }
   const take = <K extends keyof Draft>(k: K, sentValue: unknown, savedValue: unknown) => {
     if (!sameJson(sentValue, savedValue) && sameJson(current[k], sent[k])) next[k] = back[k]
@@ -400,7 +432,7 @@ function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: boolean): D
 
   for (const k of PLAIN_KEYS) take(k, sentP[k], backP[k])
 
-  // Sans recette envoyée (ni ligne ni étape), l'API n'y a pas touché : rien à reprendre.
+  // Sans recette envoyée (ni ligne, ni étape, ni réchauffage, ni conservation), l'API n'y a pas touché : rien à reprendre.
   const sentRecipe = sentP.recipe
   const savedRecipe = backP.recipe
   if (sentRecipe && savedRecipe) {
@@ -430,6 +462,10 @@ function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: boolean): D
   }
   return next
 }
+
+/** « a, b et c ». */
+const enumeration = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`
 
 /** « 14:32 », l'heure du dernier enregistrement automatique. */
 const heure = (date: Date) =>
@@ -491,7 +527,7 @@ export default function DishForm({
   const [notLinked, setNotLinked] = useState<number[]>([])
   const [customAllergenError, setCustomAllergenError] = useState<string | null>(null)
   /** La fiche telle que le dernier enregistrement l'a rendue : sert de référence tant que la liste n'est pas relue. */
-  const [baseline, setBaseline] = useState<{ lock: number; json: string; had: boolean; dish: Dish } | null>(null)
+  const [baseline, setBaseline] = useState<{ lock: number; json: string; had: StoredRecipe; dish: Dish } | null>(null)
   /**
    * Un envoi que l'enregistrement automatique ne refait pas tel quel : refusé
    * (4xx, hors conflit), ou accepté mais gardé autrement par l'API. On attend
@@ -543,15 +579,15 @@ export default function DishForm({
   const saveable = d.name.trim().length >= 2 && d.prepMinutes > 0
 
   /* Ce qui diffère de la fiche enregistrée, comparé tel que l'API le recevrait. */
-  /* La fiche enregistrée a-t-elle des lignes ou des étapes ? (la liste relue peut être en retard sur la dernière réponse) */
+  /* Ce que la fiche enregistrée porte de sa recette (la liste relue peut être en retard sur la dernière réponse). */
   const hadRecipe =
-    baseline && dish && baseline.lock > dish.lockVersion ? baseline.had : hasStoredRecipe(dish)
+    baseline && dish && baseline.lock > dish.lockVersion ? baseline.had : storedRecipe(dish)
   const payload = toPayload(d, hadRecipe)
   const saved = useMemo(() => {
     if (!dish) return null
     // La liste relue peut être en retard sur la réponse du dernier enregistrement.
     if (baseline && baseline.lock > dish.lockVersion) return baseline.json
-    return JSON.stringify(toPayload(toDraft(dish), hasStoredRecipe(dish)))
+    return JSON.stringify(toPayload(toDraft(dish), storedRecipe(dish)))
   }, [dish, baseline])
   const dirty = saved === null || JSON.stringify(payload) !== saved
 
@@ -580,8 +616,8 @@ export default function DishForm({
    * porte, la référence de comparaison, et ce que l'API a normalisé, reporté sur
    * le brouillon tel qu'il est maintenant (`mergeSaved`), jamais à sa place.
    */
-  function adoptSaved(sentDraft: Draft, res: Dish, hadSent: boolean) {
-    const hadAfter = hasStoredRecipe(res)
+  function adoptSaved(sentDraft: Draft, res: Dish, hadSent: StoredRecipe) {
+    const hadAfter = storedRecipe(res)
     const savedJson = JSON.stringify(toPayload(toDraft(res), hadAfter))
     setLockVersion(res.lockVersion)
     setBaseline({ lock: res.lockVersion, json: savedJson, had: hadAfter, dish: res })
@@ -649,8 +685,8 @@ export default function DishForm({
       keep
         ? {
             lock: keep.lockVersion,
-            json: JSON.stringify(toPayload(toDraft(keep), hasStoredRecipe(keep))),
-            had: hasStoredRecipe(keep),
+            json: JSON.stringify(toPayload(toDraft(keep), storedRecipe(keep))),
+            had: storedRecipe(keep),
             dish: keep,
           }
         : null,
@@ -730,7 +766,14 @@ export default function DishForm({
   )
   const freezeYes = d.storageFreezable === 'yes'
   const reheatNoteMissing = d.reheatModes.length > 0 && !d.reheatNote.trim()
-  const reheatNoteLost = d.reheatModes.length === 0 && d.reheatNote.trim() !== ''
+  /* Sans mode coché, rien du réchauffage ne part (`cleanReheating`) : ce qui est écrit le dit. */
+  const reheatLost = [
+    d.reheatNote.trim() ? 'les consignes' : null,
+    d.reheatTemperature.trim() ? 'la température' : null,
+    d.reheatMinutes.trim() ? 'la durée' : null,
+    d.reheatContainer.trim() ? 'le contenant' : null,
+  ].filter((x): x is string => x !== null)
+  const reheatNoteLost = d.reheatModes.length === 0 && reheatLost.length > 0
   const blocked = storageProblem
 
   /**
@@ -1276,8 +1319,8 @@ export default function DishForm({
                     // La liste relue arrive après : la confirmation s'affiche déjà.
                     setBaseline({
                       lock: res.lockVersion,
-                      json: JSON.stringify(toPayload(toDraft(res), hasStoredRecipe(res))),
-                      had: hasStoredRecipe(res),
+                      json: JSON.stringify(toPayload(toDraft(res), storedRecipe(res))),
+                      had: storedRecipe(res),
                       dish: res,
                     })
                   }}
@@ -1414,8 +1457,9 @@ export default function DishForm({
             )}
             {reheatNoteLost && (
               <Note>
-                Les consignes ne s’enregistrent qu’avec un mode de réchauffage : cochez-en un
-                plus haut.
+                {`${enumeration(reheatLost).replace(/^./, (c) => c.toUpperCase())} ne s’enregistre${
+                  reheatLost.length > 1 || reheatLost[0] === 'les consignes' ? 'nt' : ''
+                } qu’avec un mode de réchauffage : cochez-en un plus haut.`}
               </Note>
             )}
 
