@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { useCreateIngredient } from '@/lib/api/ingredients'
+import { useFindIngredient } from '@/lib/api/chef-catalog'
 import { useAisles } from '@/lib/api/referentials'
 import IngredientFields, {
   emptyIngredientDraft,
@@ -50,6 +51,7 @@ export default function IngredientCreateDialog({
   onLinked: (ingredient: LinkedIngredient) => void
 }) {
   const create = useCreateIngredient()
+  const find = useFindIngredient()
   const aisles = useAisles()
   const uid = useId()
   const nameRef = useRef<HTMLInputElement>(null)
@@ -58,6 +60,8 @@ export default function IngredientCreateDialog({
   const [errors, setErrors] = useState<Partial<Record<IngredientField, string>>>({})
   const [general, setGeneral] = useState<string | null>(null)
   const [existing, setExisting] = useState<{ id: string; name: string } | null>(null)
+  /** L'entrée déjà listée se relit (rayon, « basique ») avant d'être reliée. */
+  const [linking, setLinking] = useState(false)
 
   /* Le parent passe un `onClose` neuf à chaque rendu (un enregistrement
      automatique en provoque) : on le lit par une ref, pour que les effets
@@ -67,7 +71,7 @@ export default function IngredientCreateDialog({
   const panelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     closeRef.current = onClose
-    pendingRef.current = create.isPending
+    pendingRef.current = create.isPending || linking
   })
 
   /* À l'ouverture seulement : le focus va au nom, et revient au champ qui a
@@ -121,8 +125,26 @@ export default function IngredientCreateDialog({
 
   if (!open || typeof document === 'undefined') return null
 
+  /**
+   * Relie la ligne à l'entrée que la liste a déjà (409), avec son rayon et son
+   * « basique » comme une suggestion choisie : un ingrédient de base reste ainsi
+   * caché au client par défaut. Relue sans succès, elle est reliée quand même ;
+   * l'API en remplit le rayon à l'envoi.
+   */
+  async function linkExisting(entry: { id: string; name: string }) {
+    if (linking) return
+    setLinking(true)
+    const found = await find(entry.id, entry.name).catch(() => null)
+    setLinking(false)
+    onLinked({
+      id: entry.id,
+      name: entry.name,
+      ...(found ? { aisle: found.aisle, isBasic: found.isBasic } : {}),
+    })
+  }
+
   function submit() {
-    if (create.isPending) return
+    if (create.isPending || linking) return
     setGeneral(null)
     setExisting(null)
     const found = validateIngredient(draft, aisles)
@@ -150,7 +172,7 @@ export default function IngredientCreateDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/50 p-4"
-      onClick={() => !create.isPending && onClose()}
+      onClick={() => !create.isPending && !linking && onClose()}
     >
       <div
         ref={panelRef}
@@ -185,9 +207,11 @@ export default function IngredientCreateDialog({
             </p>
             <button
               type="button"
-              onClick={() => onLinked({ id: existing.id, name: existing.name })}
-              className="btn btn-primary mt-2 text-xs"
+              onClick={() => linkExisting(existing)}
+              disabled={linking}
+              className="btn btn-primary mt-2 text-xs disabled:opacity-55"
             >
+              {linking && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
               Utiliser « {existing.name} »
             </button>
           </div>
@@ -207,7 +231,7 @@ export default function IngredientCreateDialog({
           <button
             type="button"
             onClick={onClose}
-            disabled={create.isPending}
+            disabled={create.isPending || linking}
             className="btn btn-outline text-xs"
           >
             Annuler
@@ -215,7 +239,7 @@ export default function IngredientCreateDialog({
           <button
             type="button"
             onClick={submit}
-            disabled={create.isPending}
+            disabled={create.isPending || linking}
             className="btn btn-primary text-xs disabled:opacity-55"
           >
             {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}

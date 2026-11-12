@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Pencil, RotateCw } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
@@ -176,6 +176,17 @@ function PendingRow({ ingredient: i, onReload }: { ingredient: MyIngredient; onR
   const [general, setGeneral] = useState<string | null>(null)
   const [existing, setExisting] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const editRef = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+
+  /* « Modifier » disparaît quand le formulaire s'ouvre : sans cela, le focus tomberait
+     sur la page. Il va au nom, et revient au bouton quand le formulaire se ferme. */
+  useEffect(() => {
+    if (editing) nameRef.current?.focus()
+    else if (wasEditing.current) editRef.current?.focus()
+    wasEditing.current = editing
+  }, [editing])
 
   function open() {
     setDraft(draftFromIngredient(i))
@@ -228,7 +239,7 @@ function PendingRow({ ingredient: i, onReload }: { ingredient: MyIngredient; onR
           <Summary ingredient={i} />
         </div>
         {!editing && (
-          <button type="button" onClick={open} className="btn btn-outline px-3 py-1.5 text-xs">
+          <button ref={editRef} type="button" onClick={open} className="btn btn-outline px-3 py-1.5 text-xs">
             <Pencil className="h-3.5 w-3.5" aria-hidden /> Modifier
           </button>
         )}
@@ -252,6 +263,7 @@ function PendingRow({ ingredient: i, onReload }: { ingredient: MyIngredient; onR
             onChange={setDraft}
             errors={errors}
             idPrefix={uid}
+            nameRef={nameRef}
             onEnter={submit}
           />
 

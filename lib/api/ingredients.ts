@@ -71,6 +71,10 @@ export function useCreateIngredient() {
 /**
  * `PATCH /me/ingredients/{id}` : seulement une entrée encore en attente
  * (`422 INGREDIENT_NOT_PENDING`), et jamais sans allergènes (`422 ALLERGENS_REQUIRED`).
+ *
+ * L'API reporte le changement sur les plats du chef qui l'utilisent, et leur
+ * version lue avance : la liste des plats se relit, sans quoi un plat ouvert
+ * depuis le cache afficherait aussitôt un faux conflit.
  */
 export function useUpdateIngredient() {
   const apiFetch = useApiFetch()
@@ -81,6 +85,7 @@ export function useUpdateIngredient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: MINE })
       qc.invalidateQueries({ queryKey: ['ingredients'] })
+      qc.invalidateQueries({ queryKey: ['me', 'dishes'] })
     },
   })
 }

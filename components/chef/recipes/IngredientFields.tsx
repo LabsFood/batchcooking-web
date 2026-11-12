@@ -6,7 +6,7 @@ import { apiMessage, champMessage } from '@/lib/api/messages'
 import type { MyIngredient, MyIngredientInput } from '@/lib/api/ingredients'
 import { useAllergens, useAisles, useComputedDiets } from '@/lib/api/referentials'
 import { INGREDIENT_ALLERGENS_REQUIRED_TEXT, REASON_TEXT } from '@/lib/reason-codes'
-import { INGREDIENT_MAX, MONTHS } from '@/lib/recipe-fields'
+import { INGREDIENT_MAX, MONTHS, REGULATED_ALLERGENS } from '@/lib/recipe-fields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Les champs d'un ingrédient du batch cooker, et leurs règles.
@@ -125,6 +125,11 @@ export function readIngredientError(error: unknown, fallback: string): Ingredien
     out.fields.allergens = INGREDIENT_ALLERGENS_REQUIRED_TEXT
     return out
   }
+  // La liste des rayons a changé depuis qu'on l'a lue (un admin l'a modifiée).
+  if (error instanceof ApiError && body?.code === 'AISLE_UNKNOWN') {
+    out.fields.aisle = 'Ce rayon n’est plus dans la liste : rechargez la page, puis choisissez-en un autre.'
+    return out
+  }
 
   // 400 : les champs en cause, chacun près du sien.
   let rest = false
@@ -167,7 +172,11 @@ export default function IngredientFields({
   onEnter?: () => void
 }) {
   const aisles = useAisles()
-  const allergens = useAllergens()
+  /* Le repli des quatorze : sans lui, pendant le chargement (ou une panne) du
+     référentiel, seul « Aucun » serait proposé, et le choisir déclarerait sans
+     allergène un ingrédient qui en porte. */
+  const allergens = useAllergens(REGULATED_ALLERGENS)
+  const allergensKnown = allergens.length > 0
   const diets = useComputedDiets()
   const set = <K extends keyof IngredientDraft>(k: K, v: IngredientDraft[K]) =>
     onChange({ ...value, [k]: v })
@@ -222,16 +231,23 @@ export default function IngredientFields({
 
       <fieldset aria-describedby={err('allergens') ? `${idPrefix}-all-err` : undefined}>
         <legend className="mb-1 text-[13px] font-semibold text-navy">Allergènes</legend>
+        {/* « Aucun » n'a de sens que face à la liste : tant qu'elle manque, il ne se choisit pas. */}
         <button
           type="button"
           onClick={() => onChange({ ...value, none: !value.none, picked: [] })}
           aria-pressed={value.none}
-          className={`mb-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+          disabled={!allergensKnown}
+          className={`mb-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${
             value.none ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
           }`}
         >
           Aucun des 14 allergènes
         </button>
+        {!allergensKnown && (
+          <p className="mb-2 text-xs text-ink-soft">
+            La liste des allergènes n’est pas disponible pour le moment : réessayez dans un instant.
+          </p>
+        )}
         {!value.none && (
           <ChipList
             options={allergens}

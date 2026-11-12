@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiBlob, useApiFetch } from './client'
 import { problemText } from '@/lib/chef/readiness'
@@ -409,8 +410,7 @@ const INGREDIENT_SEARCH_MAX = 60
 /** `GET /ingredients?search=` (§4.10) : vingt entrées au plus, dès deux lettres. */
 export function useIngredientSearch(term: string) {
   const apiFetch = useApiFetch()
-  // L'API cherche sur 60 caractères au plus (400 au-delà) ; un nom de ligne en compte jusqu'à 120.
-  const q = term.trim().slice(0, INGREDIENT_SEARCH_MAX).trim()
+  const q = searchTerm(term)
   return useQuery({
     queryKey: ['ingredients', q.toLowerCase()],
     queryFn: () =>
@@ -418,6 +418,34 @@ export function useIngredientSearch(term: string) {
     enabled: q.length >= 2,
     staleTime: 5 * 60 * 1000,
   })
+}
+
+/** L'API cherche sur 60 caractères au plus (400 au-delà) ; un nom de ligne en compte jusqu'à 120. */
+const searchTerm = (term: string) => term.trim().slice(0, INGREDIENT_SEARCH_MAX).trim()
+
+/**
+ * Retrouve une entrée par la recherche, d'après son nom et son id, pour en lire
+ * le rayon et « basique » : un `409 INGREDIENT_ALREADY_LISTED` ne donne que l'id
+ * et le nom. `null` si elle n'y est pas ; la recherche partage le cache de
+ * `useIngredientSearch`.
+ */
+export function useFindIngredient() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  return useCallback(
+    async (id: string, name: string): Promise<CatalogIngredient | null> => {
+      const q = searchTerm(name)
+      if (q.length < 2) return null
+      const list = await qc.fetchQuery({
+        queryKey: ['ingredients', q.toLowerCase()],
+        queryFn: () =>
+          apiFetch<CatalogIngredient[]>(`/ingredients?search=${encodeURIComponent(q)}`),
+        staleTime: 5 * 60 * 1000,
+      })
+      return list.find((x) => x.id === id) ?? null
+    },
+    [apiFetch, qc],
+  )
 }
 
 /** `POST /me/dishes/{id}/duplicate` (§5.4) : une copie en brouillon, « (copie) ». */
