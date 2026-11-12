@@ -76,8 +76,14 @@ export function problemText(p: { code: string; field: string }): string {
   }
 }
 
+/** Les champs d'une ligne qui ont leur propre id à l'écran ; les autres mènent au nom. */
+const LINE_PARTS = new Set(['qty', 'unit', 'aisle', 'link', 'precision', 'preparation', 'group'])
+
 /**
  * L'id du champ à l'écran pour un `field` de l'API, ou null s'il n'y en a pas.
+ *
+ * Deux écritures du même chemin arrivent : `recipe.ingredients[3].qty` (« Prête »,
+ * 422) et `recipe.ingredients.3.qty` (le détail d'un 400). Les deux sont lues.
  *
  * `rows` ramène le rang d'une ligne de l'API (ligne enregistrée) à la ligne
  * affichée, `stepRows` celui d'une étape : la liste peut avoir des lignes
@@ -91,18 +97,59 @@ export function fieldTarget(
   const shownRows = opts.rows
   if (opts.code === 'ALLERGENS_UNVERIFIED') return 'confirm-allergens'
   if (opts.code === 'FRIDGE_LONG') return 'storage-days'
-  const line = /^recipe\.ingredients\[(\d+)\](?:\.(\w+))?$/.exec(field)
+  const path = field.replace(/\.(\d+)(?=\.|$)/g, '[$1]')
+  const line = /^recipe\.ingredients\[(\d+)\](?:\.(\w+))?$/.exec(path)
   if (line) {
     const k = Number(line[1])
     const row = shownRows ? shownRows[k] : k
     if (row === undefined) return 'ingredients'
-    const part = line[2] === 'qty' || line[2] === 'unit' || line[2] === 'aisle' ? line[2] : 'name'
+    const part = line[2] && LINE_PARTS.has(line[2]) ? line[2] : 'name'
     return `ingredient-${row}-${part}`
   }
-  const step = /^recipe\.steps\[(\d+)\]/.exec(field)
+  const step = /^recipe\.steps\[(\d+)\](?:\.(\w+))?$/.exec(path)
   if (step) {
     const row = opts.stepRows ? opts.stepRows[Number(step[1])] : Number(step[1])
-    return row === undefined ? 'steps' : `step-${row}-type`
+    if (row === undefined) return 'steps'
+    const part = step[2] === 'text' ? 'text' : step[2] === 'durationMinutes' ? 'minutes' : 'type'
+    return `step-${row}-${part}`
+  }
+  // `customDiets[2]` : l'élément d'une liste libre mène à la liste.
+  switch (path.replace(/\[\d+\]$/, '')) {
+    case 'prepMinutes':
+      return 'dish-prep'
+    case 'country':
+      return 'dish-country'
+    case 'difficulty':
+      return 'dish-difficulty'
+    case 'equipment':
+      return 'dish-equipment'
+    case 'customDiets':
+      return 'dish-custom-diets'
+    case 'customAllergens':
+      return 'dish-custom-allergens'
+    case 'addedAllergens':
+      return 'dish-allergens'
+    case 'personalTags':
+      return 'dish-tags'
+    case 'profiles':
+      return 'dish-profiles'
+    case 'seasonsOverride':
+      return 'dish-seasons'
+    case 'recipe.reheating.modes':
+    case 'recipe.reheating.mode':
+      return 'reheat-modes'
+    case 'recipe.reheating.temperature':
+      return 'reheat-temperature'
+    case 'recipe.reheating.minutes':
+      return 'reheat-minutes'
+    case 'recipe.reheating.container':
+      return 'reheat-container'
+    case 'recipe.storage.method':
+      return 'storage-method'
+    case 'recipe.storage.days':
+      return 'storage-days'
+    case 'recipe.storage.container':
+      return 'storage-container'
   }
   switch (field) {
     case 'name':
@@ -167,6 +214,8 @@ export function focusField(id: string): void {
   if (!el) {
     const row = /^ingredient-(\d+)-/.exec(id)
     if (row) el = document.getElementById(`ingredient-${row[1]}-name`)
+    const step = /^step-(\d+)-/.exec(id)
+    if (step) el = document.getElementById(`step-${step[1]}-text`)
   }
   if (!el) return
 

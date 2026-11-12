@@ -39,13 +39,17 @@ import {
   useStepTypes,
   useUnits,
 } from '@/lib/api/referentials'
-import { apiMessage } from '@/lib/api/messages'
-import { ApiError } from '@/lib/api/client'
+import { apiMessage, champMessage } from '@/lib/api/messages'
+import { ApiError, fieldErrors } from '@/lib/api/client'
+import { reasonText } from '@/lib/reason-codes'
 import IngredientCreateDialog, { type LinkedIngredient } from './IngredientCreateDialog'
 import RecipeHistory from './RecipeHistory'
 import {
+  DISH_LIMITS,
   FREEZER_MONTHS,
+  FREE_LIST_LIMITS,
   INGREDIENT_MAX,
+  LINK_INVALID_TEXT,
   THAWING_MAX,
   QTY_MAX,
   TO_TASTE,
@@ -61,6 +65,7 @@ import {
   freezerMonthsValid,
   ingredientReady,
   ingredientStarted,
+  intIn,
   aisleLabel,
   isRegulatedAllergen,
   lineComplete,
@@ -203,19 +208,139 @@ const normalise = (v: string) =>
     .replace(/\u0153/g, 'oe')
     .replace(/\u00e6/g, 'ae')
 
+/** Les listes libres du brouillon, avec l'id de leur champ et leur nom dans un message. */
+const FREE_LISTS = [
+  ['customDiets', 'dish-custom-diets', 'Les autres régimes'],
+  ['customAllergens', 'dish-custom-allergens', 'Les autres allergènes'],
+  ['equipment', 'dish-equipment', 'Le matériel'],
+  ['personalTags', 'dish-tags', 'Les étiquettes personnelles'],
+] as const
+
 /**
- * Ce que l'API refuserait sur la congélation, avec le message. Une valeur
- * manquante n'est pas ici : c'est un brouillon, et « Prête » la réclame.
+ * Ce que l'API refuserait (400 ou 422 sur **tout** le plat), champ par champ :
+ * l'id du champ à l'écran, et le message à lire dessous. Ce sont les bornes de
+ * `dish.dto.ts` et de `RECIPE_LIMITS`. Tant qu'il en reste, rien ne part :
+ * l'envoi ferait refuser le plat entier, et toutes les autres saisies avec.
+ *
+ * Une valeur manquante n'est pas ici : c'est un brouillon, et « Prête » la
+ * réclame. Une ligne incomplète non plus : elle ne part pas, et le formulaire
+ * le dit à part.
  */
-function storageInvalid(d: Draft): string | null {
-  if (d.storageFreezable !== 'yes') return null
-  if (d.storageMonths.trim() && !freezerMonthsValid(d.storageMonths)) {
-    return `Les mois de congélation : un nombre entier de ${FREEZER_MONTHS.min} à ${FREEZER_MONTHS.max}.`
+function fieldProblems(d: Draft): Record<string, string> {
+  const out: Record<string, string> = {}
+  const tooLong = (id: string, value: string | null | undefined, max: number, what: string) => {
+    if ((value ?? '').trim().length > max) out[id] = `${what} tient en ${max} caractères au plus.`
   }
-  if (d.storageThawing.trim().length > THAWING_MAX) {
-    return `La décongélation tient en ${THAWING_MAX} caractères au plus.`
+  const wholeIn = (id: string, value: string, min: number, max: number, what: string) => {
+    if (value.trim() && !intIn(value, min, max)) out[id] = `${what} : un nombre entier de ${min} à ${max}.`
   }
-  return null
+
+  tooLong('dish-name', d.name, DISH_LIMITS.name, 'Le nom')
+  tooLong('dish-description', d.description, DISH_LIMITS.description, 'La description')
+  wholeIn(
+    'dish-portions',
+    String(d.portions ?? ''),
+    DISH_LIMITS.portions.min,
+    DISH_LIMITS.portions.max,
+    'Les portions',
+  )
+  wholeIn('dish-prep', String(d.prepMinutes), 0, DISH_LIMITS.minutes, 'Le temps de préparation (en minutes)')
+  if (d.cookMinutes != null) {
+    wholeIn('dish-cook', String(d.cookMinutes), 0, DISH_LIMITS.minutes, 'Le temps de cuisson (en minutes)')
+  }
+
+  for (const [key, id, what] of FREE_LISTS) {
+    const { items, length } = FREE_LIST_LIMITS[key]
+    const list = d[key] ?? []
+    const long = list.find((v) => v.trim().length > length)
+    if (list.length > items) out[id] = `${what} : ${items} au plus. Retirez-en ${list.length - items}.`
+    else if (long) out[id] = `« ${long} » est trop long : ${length} caractères au plus.`
+  }
+  if (d.profiles.length > DISH_LIMITS.profiles) {
+    out['dish-profiles'] = `${DISH_LIMITS.profiles} profils au plus.`
+  }
+
+  d.ingredients.forEach((row, i) => {
+    if (!linkValid(row.link)) out[`ingredient-${i}-link`] = LINK_INVALID_TEXT
+    tooLong(`ingredient-${i}-name`, row.name, INGREDIENT_MAX.name, 'Le nom de l’ingrédient')
+    tooLong(`ingredient-${i}-precision`, row.precision, INGREDIENT_MAX.precision, 'La précision')
+    tooLong(`ingredient-${i}-preparation`, row.preparation, INGREDIENT_MAX.preparation, 'La préparation')
+    tooLong(`ingredient-${i}-group`, row.group, INGREDIENT_MAX.group, 'Le groupe')
+  })
+  if (sentIndexes(d.ingredients).length > DISH_LIMITS.ingredients) {
+    out.ingredients = `${DISH_LIMITS.ingredients} ingrédients au plus par recette.`
+  }
+
+  d.steps.forEach((s, i) => {
+    tooLong(`step-${i}-text`, s.text, DISH_LIMITS.stepText, 'Une étape')
+    wholeIn(`step-${i}-minutes`, s.minutes, 0, DISH_LIMITS.minutes, 'La durée (en minutes)')
+  })
+  if (sentStepIndexes(d.steps).length > DISH_LIMITS.steps) {
+    out.steps = `${DISH_LIMITS.steps} étapes au plus par recette.`
+  }
+
+  wholeIn('reheat-temperature', d.reheatTemperature, 0, DISH_LIMITS.reheatTemperature, 'La température')
+  wholeIn('reheat-minutes', d.reheatMinutes, 0, DISH_LIMITS.reheatMinutes, 'La durée (en minutes)')
+  tooLong('reheat-container', d.reheatContainer, DISH_LIMITS.container, 'Le contenant')
+  tooLong('reheat-note', d.reheatNote, DISH_LIMITS.reheatNote, 'Le texte des consignes')
+
+  wholeIn('storage-days', d.storageDays, 0, DISH_LIMITS.storageDays, 'Les jours de conservation')
+  tooLong('storage-container', d.storageContainer, DISH_LIMITS.container, 'Le contenant')
+  if (d.storageFreezable === 'yes') {
+    if (d.storageMonths.trim() && !freezerMonthsValid(d.storageMonths)) {
+      out['storage-months'] = `Les mois de congélation : un nombre entier de ${FREEZER_MONTHS.min} à ${FREEZER_MONTHS.max}.`
+    }
+    tooLong('storage-thawing', d.storageThawing, THAWING_MAX, 'La décongélation')
+  }
+  return out
+}
+
+/**
+ * Un refus de l'API (400 par champ, 422), avec l'envoi refusé : ce qui est parti
+ * (`json`) et les clés des lignes et des étapes parties, dans l'ordre de l'API.
+ * Ses messages ne s'affichent que tant que l'écran n'a pas changé depuis : une
+ * frappe les rend caducs, et les clés ramènent un rang de l'API à sa ligne même
+ * si une autre a été retirée entre-temps.
+ */
+interface Refusal {
+  error: unknown
+  json: string
+  rowKeys: string[]
+  stepKeys: string[]
+}
+
+/** Les clés des lignes et des étapes que l'envoi de ce brouillon porte, dans l'ordre de l'API. */
+const sentKeys = (d: Draft) => ({
+  rowKeys: sentIndexes(d.ingredients).map((k) => d.ingredients[k].key),
+  stepKeys: sentStepIndexes(d.steps).map((k) => d.steps[k].key),
+})
+
+/** Les rangs affichés, par rang de l'API ; un trou pour une ligne retirée depuis. */
+function shownByKey(keys: string[], list: { key: string }[]): number[] {
+  const out: number[] = []
+  keys.forEach((key, k) => {
+    const i = list.findIndex((x) => x.key === key)
+    if (i >= 0) out[k] = i
+  })
+  return out
+}
+
+/**
+ * Les messages d'un refus, rangés sous l'id du champ à l'écran (`fieldTarget`).
+ * Un champ sans place à l'écran garde son message dans l'en-tête (`apiMessage`).
+ */
+function refusedFields(r: Refusal, d: Draft): Record<string, string> {
+  const opts = { rows: shownByKey(r.rowKeys, d.ingredients), stepRows: shownByKey(r.stepKeys, d.steps) }
+  const out: Record<string, string> = {}
+  for (const fe of fieldErrors(r.error)) {
+    const id = fieldTarget(fe.field, opts)
+    if (id && !out[id]) out[id] = champMessage(fe)
+  }
+  const body = r.error instanceof ApiError ? (r.error.body as { code?: unknown; limit?: unknown } | null) : null
+  if (body?.code === 'LIMIT_REACHED') {
+    out[body.limit === 'ingredients' ? 'ingredients' : 'steps'] = reasonText(body) ?? apiMessage(r.error)
+  }
+  return out
 }
 
 /**
@@ -547,6 +672,10 @@ export default function DishForm({
   /** Une tentative d'enregistrement a eu lieu : les champs obligatoires vides se signalent alors. */
   const [attempted, setAttempted] = useState(false)
   const [thawingTouched, setThawingTouched] = useState(false)
+  /** Le dernier envoi automatique refusé champ par champ (400, 422), pour en placer les messages. */
+  const [refusal, setRefusal] = useState<Refusal | null>(null)
+  /** Le dernier envoi voulu : son refus arrive par `saveError`, et se place de même. */
+  const [submitted, setSubmitted] = useState<Omit<Refusal, 'error'> | null>(null)
 
   const diets = useDiets()
   const allergens = useAllergens(REGULATED_ALLERGENS)
@@ -583,13 +712,14 @@ export default function DishForm({
   const hadRecipe =
     baseline && dish && baseline.lock > dish.lockVersion ? baseline.had : storedRecipe(dish)
   const payload = toPayload(d, hadRecipe)
+  const payloadJson = JSON.stringify(payload)
   const saved = useMemo(() => {
     if (!dish) return null
     // La liste relue peut être en retard sur la réponse du dernier enregistrement.
     if (baseline && baseline.lock > dish.lockVersion) return baseline.json
     return JSON.stringify(toPayload(toDraft(dish), storedRecipe(dish)))
   }, [dish, baseline])
-  const dirty = saved === null || JSON.stringify(payload) !== saved
+  const dirty = saved === null || payloadJson !== saved
 
   /* Un conflit : la fiche a changé ailleurs. Plus aucun enregistrement, automatique
      ou non, tant qu'on n'a pas rechargé : renvoyer la nouvelle version à notre
@@ -631,11 +761,15 @@ export default function DishForm({
     setRetries(0)
     setAutosaveFailed(false)
     setAutosaveError(null)
+    setRefusal(null)
   }
 
-  const storageProblem = storageInvalid(d)
+  /* Les valeurs que l'API refuserait : rien ne part tant qu'il en reste. */
+  const problems = useMemo(() => fieldProblems(d), [d])
+  const firstProblem = Object.keys(problems)[0] ?? null
+  const blocked = firstProblem !== null
   useEffect(() => {
-    if (!autosave || !dirty || !saveable || saving || autosaving || restoring || conflict || storageProblem) return
+    if (!autosave || !dirty || !saveable || saving || autosaving || restoring || conflict || blocked) return
     const sentDraft = d
     const sentHad = hadRecipe
     const sentJson = JSON.stringify(toPayload(sentDraft, sentHad))
@@ -663,7 +797,10 @@ export default function DishForm({
             retryDraftRef.current = sentDraft
             setRetries((n) => n + 1)
           }
-          else hold(sentJson)
+          else {
+            hold(sentJson)
+            setRefusal({ error: e, json: sentJson, ...sentKeys(sentDraft) })
+          }
           setAutosaveFailed(true)
           setAutosaveError(e)
         })
@@ -671,7 +808,7 @@ export default function DishForm({
     }, delay)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `withLock` ne change qu'avec `lockVersion`, listé ; `adoptSaved` n'utilise que des setters et une ref.
-  }, [d, autosave, dirty, saveable, saving, autosaving, restoring, conflict, storageProblem, lockVersion, onAutosave, retries, hadRecipe])
+  }, [d, autosave, dirty, saveable, saving, autosaving, restoring, conflict, blocked, lockVersion, onAutosave, retries, hadRecipe])
 
   /**
    * Repart d'une fiche rendue par l'API, à la place du brouillon : « Recharger »
@@ -699,6 +836,8 @@ export default function DishForm({
     setAutosaveError(null)
     setDupDismissed(dupError ?? null)
     setNotLinked([])
+    setRefusal(null)
+    setSubmitted(null)
   }
 
   /** « Recharger » : relit le plat et repart de lui. Les saisies locales sont perdues. */
@@ -774,7 +913,16 @@ export default function DishForm({
     d.reheatContainer.trim() ? 'le contenant' : null,
   ].filter((x): x is string => x !== null)
   const reheatNoteLost = d.reheatModes.length === 0 && reheatLost.length > 0
-  const blocked = storageProblem
+
+  /* Sous chaque champ : ce que l'API refuserait (`problems`), sinon ce qu'elle a refusé,
+     tant que l'écran est celui de l'envoi refusé. */
+  const manualRefusal: Refusal | null =
+    saveError && submitted ? { error: saveError, ...submitted } : null
+  const refused = [refusal, manualRefusal]
+    .filter((r): r is Refusal => r !== null && r.json === payloadJson)
+    .reduce<Record<string, string>>((acc, r) => ({ ...refusedFields(r, d), ...acc }), {})
+  const fieldMsgs: Record<string, string> = { ...refused, ...problems }
+  const invalid = (id: string, also = false) => invalidProps(fieldMsgs, id, also)
 
   /**
    * Une modification des lignes d'ingrédients, toujours appliquée à la liste du
@@ -811,6 +959,7 @@ export default function DishForm({
   /* En pratique, un envoi gardé vient d'une ligne commencée mais pas prête, après le
      retrait de toutes les lignes enregistrées : la recette n'est pas vidée tant
      qu'elle est là (R24). On le dit, plutôt qu'un « vérifiez » sans objet. */
+  const blockedText = 'Rien ne s’enregistre : corrigez d’abord les champs signalés en rouge.'
   const heldText =
     lignesIncompletes > 0
       ? 'Une ligne d’ingrédient est incomplète : la recette ne s’enregistre pas telle qu’elle est à l’écran. Complétez cette ligne ou retirez-la.'
@@ -821,9 +970,11 @@ export default function DishForm({
       onSubmit={(e) => {
         e.preventDefault()
         setAttempted(true)
+        if (firstProblem) focusField(firstProblem)
         if (!saveable || saving || autosaving || restoring || conflict || blocked) return
         const sentDraft = d
         const sentHad = hadRecipe
+        setSubmitted({ json: JSON.stringify(toPayload(sentDraft, sentHad)), ...sentKeys(sentDraft) })
         const pending = onSave(withLock(toPayload(sentDraft, sentHad)))
         // La nouvelle version et ce que l'API a normalisé, comme après un enregistrement
         // automatique. Un échec est montré par la page (`error`).
@@ -913,7 +1064,9 @@ export default function DishForm({
             className={`relative mt-3 text-xs ${unsavedText ? 'font-semibold text-amber' : 'text-white/80'}`}
           >
             {unsavedText ??
-              (heldNow
+              (blocked && dirty
+                ? blockedText
+                : heldNow
                 ? heldText
                 : autosaved && !dirty
                 ? `Brouillon enregistré à ${heure(autosaved)}`
@@ -932,10 +1085,13 @@ export default function DishForm({
               <input
                 id="dish-name"
                 value={d.name}
+                maxLength={DISH_LIMITS.name}
                 onChange={(e) => set('name', e.target.value)}
                 placeholder="Poulet rôti aux herbes"
+                {...invalid('dish-name')}
                 className="input-base"
               />
+              <ProblemText id="dish-name" msgs={fieldMsgs} />
             </Field>
             <Field
               label="Description courte"
@@ -944,11 +1100,14 @@ export default function DishForm({
               <textarea
                 id="dish-description"
                 value={d.description ?? ''}
+                maxLength={DISH_LIMITS.description}
                 onChange={(e) => set('description', e.target.value)}
                 rows={3}
                 placeholder="Poulet fermier rôti, thym et romarin, pommes de terre grenaille."
+                {...invalid('dish-description')}
                 className="input-base resize-y"
               />
+              <ProblemText id="dish-description" msgs={fieldMsgs} />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
@@ -962,6 +1121,7 @@ export default function DishForm({
                 }
               >
                 <select
+                  id="dish-country"
                   value={d.country ?? ''}
                   onChange={(e) => set('country', e.target.value)}
                   className="input-base"
@@ -999,35 +1159,49 @@ export default function DishForm({
                 <input
                   id="dish-portions"
                   type="number"
-                  min={1}
+                  min={DISH_LIMITS.portions.min}
+                  max={DISH_LIMITS.portions.max}
+                  step={1}
                   value={d.portions ?? 4}
                   onChange={(e) => set('portions', Number(e.target.value))}
+                  {...invalid('dish-portions')}
                   className="input-base"
                 />
+                <ProblemText id="dish-portions" msgs={fieldMsgs} />
               </Field>
               <Field label="Prépa (min)" required>
                 <input
+                  id="dish-prep"
                   type="number"
                   min={1}
+                  max={DISH_LIMITS.minutes}
+                  step={1}
                   value={d.prepMinutes}
                   onChange={(e) => set('prepMinutes', Number(e.target.value))}
+                  {...invalid('dish-prep')}
                   className="input-base"
                 />
+                <ProblemText id="dish-prep" msgs={fieldMsgs} />
               </Field>
               <Field label="Cuisson (min)" hint="0 si le plat ne cuit pas.">
                 <input
                   id="dish-cook"
                   type="number"
                   min={0}
+                  max={DISH_LIMITS.minutes}
+                  step={1}
                   value={d.cookMinutes ?? ''}
                   onChange={(e) =>
                     set('cookMinutes', e.target.value ? Number(e.target.value) : null)
                   }
+                  {...invalid('dish-cook')}
                   className="input-base"
                 />
+                <ProblemText id="dish-cook" msgs={fieldMsgs} />
               </Field>
               <Field label="Difficulté">
                 <select
+                  id="dish-difficulty"
                   value={d.difficulty ?? ''}
                   onChange={(e) => set('difficulty', (e.target.value || null) as Difficulty)}
                   className="input-base"
@@ -1064,6 +1238,9 @@ export default function DishForm({
                 </InfoPopover>
               </p>
               <FreeList
+                id="dish-equipment"
+                limits={FREE_LIST_LIMITS.equipment}
+                problem={fieldMsgs['dish-equipment']}
                 value={equipment}
                 onChange={setEquipment}
                 items={d.equipment}
@@ -1152,6 +1329,9 @@ export default function DishForm({
               />
               <div className="mt-2">
                 <FreeList
+                  id="dish-custom-diets"
+                  limits={FREE_LIST_LIMITS.customDiets}
+                  problem={fieldMsgs['dish-custom-diets']}
                   value={customDiet}
                   onChange={setCustomDiet}
                   items={d.customDiets ?? []}
@@ -1217,7 +1397,7 @@ export default function DishForm({
               )}
             </div>
 
-            <div>
+            <div id="dish-profiles">
               <p className="mb-1.5 text-[13px] font-semibold text-navy">Profils</p>
               <Chips
                 options={profiles}
@@ -1231,6 +1411,7 @@ export default function DishForm({
                   )
                 }
               />
+              <ProblemText id="dish-profiles" msgs={fieldMsgs} />
             </div>
 
             <div>
@@ -1242,6 +1423,9 @@ export default function DishForm({
                 </InfoPopover>
               </p>
               <FreeList
+                id="dish-tags"
+                limits={FREE_LIST_LIMITS.personalTags}
+                problem={fieldMsgs['dish-tags']}
                 value={personalTag}
                 onChange={setPersonalTag}
                 items={d.personalTags}
@@ -1276,6 +1460,9 @@ export default function DishForm({
                   </InfoPopover>
                 </p>
                 <FreeList
+                  id="dish-custom-allergens"
+                  limits={FREE_LIST_LIMITS.customAllergens}
+                  problem={fieldMsgs['dish-custom-allergens']}
                   value={customAllergen}
                   onChange={(v) => {
                     setCustomAllergen(v)
@@ -1341,6 +1528,7 @@ export default function DishForm({
               onEdit={editRows}
               duplicates={dupRows}
               unlinked={notLinkedRows}
+              problems={fieldMsgs}
             />
             {notLinkedRows.length > 0 && (
               <Note>
@@ -1364,8 +1552,9 @@ export default function DishForm({
             )}
             {liensInvalides > 0 && (
               <Note>
-                Un lien doit commencer par http:// ou https:// : sinon il n’est pas
-                enregistré.
+                {liensInvalides === 1
+                  ? 'Un lien n’est pas une adresse complète (https://exemple.fr/…) : corrigez-le ou videz-le, la fiche ne s’enregistre pas d’ici là.'
+                  : `${liensInvalides} liens ne sont pas des adresses complètes (https://exemple.fr/…) : corrigez-les ou videz-les, la fiche ne s’enregistre pas d’ici là.`}
               </Note>
             )}
 
@@ -1376,6 +1565,7 @@ export default function DishForm({
 
             <StepRows
               value={d.steps}
+              problems={fieldMsgs}
               onEdit={(fn) => setD((p) => ({ ...p, steps: fn(p.steps) }))}
             />
           </Group>
@@ -1410,31 +1600,45 @@ export default function DishForm({
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="Température (°C)">
                 <input
+                  id="reheat-temperature"
                   type="number"
                   min={0}
+                  max={DISH_LIMITS.reheatTemperature}
+                  step={1}
                   value={d.reheatTemperature}
                   onChange={(e) => set('reheatTemperature', e.target.value)}
                   placeholder="160"
+                  {...invalid('reheat-temperature')}
                   className="input-base"
                 />
+                <ProblemText id="reheat-temperature" msgs={fieldMsgs} />
               </Field>
               <Field label="Durée (min)">
                 <input
+                  id="reheat-minutes"
                   type="number"
                   min={0}
+                  max={DISH_LIMITS.reheatMinutes}
+                  step={1}
                   value={d.reheatMinutes}
                   onChange={(e) => set('reheatMinutes', e.target.value)}
                   placeholder="15"
+                  {...invalid('reheat-minutes')}
                   className="input-base"
                 />
+                <ProblemText id="reheat-minutes" msgs={fieldMsgs} />
               </Field>
               <Field label="Contenant conseillé">
                 <input
+                  id="reheat-container"
                   value={d.reheatContainer}
+                  maxLength={DISH_LIMITS.container}
                   onChange={(e) => set('reheatContainer', e.target.value)}
                   placeholder="Plat en verre"
+                  {...invalid('reheat-container')}
                   className="input-base"
                 />
+                <ProblemText id="reheat-container" msgs={fieldMsgs} />
               </Field>
             </div>
             <Field
@@ -1444,13 +1648,14 @@ export default function DishForm({
             >
               <input
                 id="reheat-note"
-                aria-invalid={reheatNoteMissing || undefined}
+                {...invalid('reheat-note', reheatNoteMissing)}
                 value={d.reheatNote}
                 onChange={(e) => set('reheatNote', e.target.value)}
                 placeholder="Ajoutez une cuillère de bouillon pour éviter le dessèchement."
-                maxLength={300}
+                maxLength={DISH_LIMITS.reheatNote}
                 className="input-base"
               />
+              <ProblemText id="reheat-note" msgs={fieldMsgs} />
             </Field>
             {reheatNoteMissing && (
               <Note>Les consignes de réchauffage sont nécessaires pour que la fiche soit Prête.</Note>
@@ -1484,22 +1689,27 @@ export default function DishForm({
                   id="storage-days"
                   type="number"
                   min={0}
+                  max={DISH_LIMITS.storageDays}
+                  step={1}
                   value={d.storageDays}
                   onChange={(e) => set('storageDays', e.target.value)}
                   placeholder="3"
-                  aria-invalid={
-                    (Boolean(d.storageMethod) && !d.storageDays.trim()) || undefined
-                  }
+                  {...invalid('storage-days', Boolean(d.storageMethod) && !d.storageDays.trim())}
                   className="input-base"
                 />
+                <ProblemText id="storage-days" msgs={fieldMsgs} />
               </Field>
               <Field label="Contenant">
                 <input
+                  id="storage-container"
                   value={d.storageContainer}
+                  maxLength={DISH_LIMITS.container}
                   onChange={(e) => set('storageContainer', e.target.value)}
                   placeholder="Boîte hermétique"
+                  {...invalid('storage-container')}
                   className="input-base"
                 />
+                <ProblemText id="storage-container" msgs={fieldMsgs} />
               </Field>
             </div>
 
@@ -1561,12 +1771,10 @@ export default function DishForm({
                     value={d.storageMonths}
                     onChange={(e) => set('storageMonths', e.target.value)}
                     placeholder="3"
-                    aria-invalid={
-                      (d.storageMonths.trim() !== '' && !freezerMonthsValid(d.storageMonths)) ||
-                      undefined
-                    }
+                    {...invalid('storage-months')}
                     className="input-base"
                   />
+                  <ProblemText id="storage-months" msgs={fieldMsgs} />
                 </Field>
                 <Field
                   label="Comment le décongeler"
@@ -1581,11 +1789,13 @@ export default function DishForm({
                     onChange={(e) => set('storageThawing', e.target.value)}
                     placeholder="Une nuit au réfrigérateur, puis au four."
                     onBlur={() => setThawingTouched(true)}
-                    aria-invalid={
-                      ((attempted || thawingTouched) && d.storageThawing.trim() === '') || undefined
-                    }
+                    {...invalid(
+                      'storage-thawing',
+                      (attempted || thawingTouched) && d.storageThawing.trim() === '',
+                    )}
                     className="input-base"
                   />
+                  <ProblemText id="storage-thawing" msgs={fieldMsgs} />
                 </Field>
               </div>
             )}
@@ -1594,11 +1804,6 @@ export default function DishForm({
                 Un plat congelable demande les mois de conservation et la façon de le
                 décongeler pour que la fiche soit Prête.
               </Note>
-            )}
-            {storageProblem && (
-              <p role="alert" className="text-xs font-semibold text-red-700">
-                {storageProblem} Corrigez-la pour enregistrer.
-              </p>
             )}
 
             {storageIncomplet && (
@@ -1689,6 +1894,26 @@ export default function DishForm({
             </p>
           )}
 
+          {/* Ce que l'API refuserait : chaque point mène à son champ. */}
+          {blocked && (
+            <div className="rounded-2xl bg-red-50 p-3.5 text-[13px] leading-relaxed text-red-700">
+              <p className="font-semibold">À corriger avant d’enregistrer</p>
+              <ul className="mt-1.5 space-y-1">
+                {Object.entries(problems).map(([id, text]) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      onClick={() => focusField(id)}
+                      className="text-left underline decoration-red-300 underline-offset-2 hover:decoration-red-700"
+                    >
+                      {text}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Les actions, à côté du formulaire sur grand écran. */}
           <div className="hidden flex-col gap-2 lg:flex">
             <button
@@ -1728,7 +1953,9 @@ export default function DishForm({
             className={`min-w-0 flex-1 text-[13px] ${unsavedShort ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
           >
             {unsavedShort ??
-              (heldNow
+              (blocked
+                ? blockedText
+                : heldNow
                 ? heldText
                 : !saveable
                 ? 'Le nom et le temps de préparation sont nécessaires.'
@@ -2392,6 +2619,7 @@ function IngredientRows({
   onEdit,
   duplicates,
   unlinked,
+  problems,
 }: {
   value: IngredientRow[]
   /** Applique une modification à la liste du moment (jamais à une copie ancienne). */
@@ -2400,6 +2628,8 @@ function IngredientRows({
   duplicates: number[][]
   /** Les lignes (indices affichés) que la confirmation des allergènes a refusées : non reliées. */
   unlinked: number[]
+  /** Les messages par id de champ (`ingredient-3-link`…), ceux du formulaire puis ceux de l'API. */
+  problems: Record<string, string>
 }) {
   const units = useUnits()
   const aisles = useAisles()
@@ -2453,6 +2683,7 @@ function IngredientRows({
                 <IngredientName
                   row={ing}
                   index={i}
+                  problem={problems[`ingredient-${i}-name`]}
                   onChange={(patch) => set(ing.key, patch)}
                 />
                 {!toTaste && (
@@ -2466,7 +2697,7 @@ function IngredientRows({
                     onChange={(e) => set(ing.key, { qty: e.target.value })}
                     placeholder="Qté"
                     aria-label={`Quantité de l’ingrédient ${i + 1}`}
-                    aria-invalid={qtyBad || undefined}
+                    {...invalidProps(problems, `ingredient-${i}-qty`, qtyBad)}
                     className={`input-base w-20 shrink-0 ${qtyBad ? 'border-red-400' : ''}`}
                   />
                 )}
@@ -2482,6 +2713,7 @@ function IngredientRows({
                     )
                   }
                   aria-label={`Unité de l’ingrédient ${i + 1}`}
+                  {...invalidProps(problems, `ingredient-${i}-unit`)}
                   className="input-base w-32 shrink-0"
                 >
                   <option value="">Unité</option>
@@ -2522,6 +2754,14 @@ function IngredientRows({
                     au plus.
                   </p>
                 )}
+                {/* Ce que le formulaire ou l'API refuse sur cette ligne, champ par champ. */}
+                {Object.entries(problems)
+                  .filter(([id]) => id.startsWith(`ingredient-${i}-`))
+                  .map(([id, text]) => (
+                    <p key={id} id={`${id}-problem`} role="alert" className="w-full text-xs font-semibold text-red-700">
+                      {text}
+                    </p>
+                  ))}
 
                 {dup && (
                   <p
@@ -2571,24 +2811,30 @@ function IngredientRows({
 
                 <div className="flex w-full flex-wrap items-center gap-2">
                   <input
+                    id={`ingredient-${i}-precision`}
                     value={ing.precision}
                     maxLength={INGREDIENT_MAX.precision}
+                    {...invalidProps(problems, `ingredient-${i}-precision`)}
                     onChange={(e) => set(ing.key, { precision: e.target.value })}
                     placeholder="Précision : bio, fermier…"
                     aria-label={`Précision de l’ingrédient ${i + 1}`}
                     className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
                   />
                   <input
+                    id={`ingredient-${i}-preparation`}
                     value={ing.preparation}
                     maxLength={INGREDIENT_MAX.preparation}
+                    {...invalidProps(problems, `ingredient-${i}-preparation`)}
                     onChange={(e) => set(ing.key, { preparation: e.target.value })}
                     placeholder="Préparation : émincé, en dés…"
                     aria-label={`Préparation de l’ingrédient ${i + 1}`}
                     className="input-base min-w-32 flex-1 py-1.5 text-[13px]"
                   />
                   <input
+                    id={`ingredient-${i}-group`}
                     value={ing.group}
                     maxLength={INGREDIENT_MAX.group}
+                    {...invalidProps(problems, `ingredient-${i}-group`)}
                     onChange={(e) => set(ing.key, { group: e.target.value })}
                     placeholder="Groupe : Pour la sauce…"
                     aria-label={`Groupe de l’ingrédient ${i + 1}`}
@@ -2597,13 +2843,14 @@ function IngredientRows({
                 </div>
                 <div className="flex w-full flex-wrap items-center gap-2">
                   <input
+                    id={`ingredient-${i}-link`}
                     type="url"
                     value={ing.link}
                     maxLength={INGREDIENT_MAX.link}
                     onChange={(e) => set(ing.key, { link: e.target.value })}
                     placeholder="Lien (facultatif) : https://…"
                     aria-label={`Lien de l’ingrédient ${i + 1}`}
-                    aria-invalid={!linkValid(ing.link) || undefined}
+                    {...invalidProps(problems, `ingredient-${i}-link`)}
                     className="input-base min-w-40 flex-1 py-1.5 text-[13px]"
                   />
                   <label className="inline-flex items-center gap-1.5 text-xs text-ink-mid">
@@ -2661,6 +2908,7 @@ function IngredientRows({
           })}
         </ul>
       )}
+      <ProblemText id="ingredients" msgs={problems} />
       <button
         type="button"
         onClick={() => onEdit((rows) => [...rows, newIngredientRow()])}
@@ -2680,10 +2928,13 @@ function IngredientRows({
 function IngredientName({
   row,
   index,
+  problem,
   onChange,
 }: {
   row: IngredientRow
   index: number
+  /** Un refus sur le nom : le message est affiché sous la ligne, le champ y renvoie. */
+  problem?: string
   onChange: (patch: Partial<IngredientRow>) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -2745,6 +2996,8 @@ function IngredientName({
         placeholder="Poulet fermier"
         id={`ingredient-${index}-name`}
         aria-label={`Ingrédient ${index + 1}`}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={problem ? `ingredient-${index}-name-problem` : undefined}
         aria-autocomplete="list"
         className={`input-base w-full ${row.catalogIngredientId ? 'pr-16' : ''}`}
       />
@@ -2825,9 +3078,12 @@ function IngredientName({
 
 function StepRows({
   value,
+  problems,
   onEdit,
 }: {
   value: StepRow[]
+  /** Les messages par id de champ (`step-2-minutes`…), ceux du formulaire puis ceux de l'API. */
+  problems: Record<string, string>
   /** Applique une modification à la liste du moment. */
   onEdit: (fn: (steps: StepRow[]) => StepRow[]) => void
 }) {
@@ -2879,10 +3135,13 @@ function StepRows({
               </span>
               <div className="min-w-0 flex-1 space-y-2">
                 <textarea
+                  id={`step-${i}-text`}
                   value={step.text}
                   rows={2}
+                  maxLength={DISH_LIMITS.stepText}
                   onChange={(e) => set(step.key, { text: e.target.value })}
                   aria-label={`Étape ${i + 1}`}
+                  {...invalidProps(problems, `step-${i}-text`)}
                   className="input-base w-full resize-y"
                 />
                 <div className="flex flex-wrap items-center gap-2">
@@ -2891,7 +3150,7 @@ function StepRows({
                     value={step.type}
                     onChange={(e) => set(step.key, { type: e.target.value })}
                     aria-label={`Type de l’étape ${i + 1}`}
-                    aria-invalid={(step.text.trim() !== '' && !step.type) || undefined}
+                    {...invalidProps(problems, `step-${i}-type`, step.text.trim() !== '' && !step.type)}
                     className="input-base w-44 py-1.5 text-[13px]"
                   >
                     <option value="">Type à choisir</option>
@@ -2902,16 +3161,27 @@ function StepRows({
                     ))}
                   </select>
                   <input
+                    id={`step-${i}-minutes`}
                     type="number"
                     min={0}
+                    max={DISH_LIMITS.minutes}
+                    step={1}
                     value={step.minutes}
                     onChange={(e) => set(step.key, { minutes: e.target.value })}
                     placeholder="Durée"
                     aria-label={`Durée de l’étape ${i + 1}, en minutes`}
+                    {...invalidProps(problems, `step-${i}-minutes`)}
                     className="input-base w-24 py-1.5 text-[13px]"
                   />
                   <span className="text-xs text-ink-soft">min</span>
                 </div>
+                {Object.entries(problems)
+                  .filter(([id]) => id.startsWith(`step-${i}-`))
+                  .map(([id, text]) => (
+                    <p key={id} id={`${id}-problem`} role="alert" className="text-xs font-semibold text-red-700">
+                      {text}
+                    </p>
+                  ))}
               </div>
               <div className="mt-1 flex shrink-0 flex-col">
                 <button
@@ -2947,6 +3217,7 @@ function StepRows({
           ))}
         </ol>
       )}
+      <ProblemText id="steps" msgs={problems} />
       <button
         type="button"
         onClick={() => onEdit((steps) => [...steps, newStepRow()])}
@@ -2959,6 +3230,24 @@ function StepRows({
 }
 
 // ── Petits blocs ────────────────────────────────────────────────────────────
+
+/** `aria-invalid` et `aria-describedby` d'un champ, d'après son message (`also` : une autre raison de le marquer). */
+function invalidProps(msgs: Record<string, string>, id: string, also = false) {
+  return {
+    'aria-invalid': also || Boolean(msgs[id]) || undefined,
+    'aria-describedby': msgs[id] ? `${id}-problem` : undefined,
+  }
+}
+
+/** Le message d'un champ refusé, sous le champ : son `aria-describedby` y renvoie. */
+function ProblemText({ id, msgs }: { id: string; msgs: Record<string, string> }) {
+  if (!msgs[id]) return null
+  return (
+    <span id={`${id}-problem`} role="alert" className="mt-1 block text-xs font-semibold text-red-700">
+      {msgs[id]}
+    </span>
+  )
+}
 
 function Group({
   title,
@@ -3067,6 +3356,9 @@ function Chips({
 }
 
 function FreeList({
+  id,
+  limits,
+  problem,
   value,
   onChange,
   items,
@@ -3074,6 +3366,12 @@ function FreeList({
   onRemove,
   placeholder,
 }: {
+  /** L'id du champ de saisie : les messages et le panneau « Prête ? » y mènent. */
+  id?: string
+  /** Les bornes de l'API : combien d'éléments, et combien de caractères chacun. */
+  limits?: { items: number; length: number }
+  /** Ce que le formulaire ou l'API refuse sur la liste. */
+  problem?: string
   value: string
   onChange: (v: string) => void
   items: string[]
@@ -3082,9 +3380,10 @@ function FreeList({
   onRemove: (v: string) => void
   placeholder: string
 }) {
+  const full = limits !== undefined && items.length >= limits.items
   const add = () => {
     const v = value.trim()
-    if (!v || items.includes(v)) return
+    if (!v || items.includes(v) || full) return
     if (onAdd(v) === false) return
     onChange('')
   }
@@ -3092,7 +3391,12 @@ function FreeList({
     <div>
       <div className="flex gap-2">
         <input
+          id={id}
           value={value}
+          maxLength={limits?.length}
+          disabled={full}
+          aria-invalid={problem ? true : undefined}
+          aria-describedby={id && (problem || full) ? `${id}-problem` : undefined}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -3103,10 +3407,19 @@ function FreeList({
           placeholder={placeholder}
           className="input-base min-w-0 flex-1 py-2"
         />
-        <button type="button" onClick={add} className="btn btn-outline text-xs">
+        <button type="button" onClick={add} disabled={full} className="btn btn-outline text-xs disabled:opacity-55">
           Ajouter
         </button>
       </div>
+      {(problem || full) && (
+        <p
+          id={id ? `${id}-problem` : undefined}
+          role={problem ? 'alert' : undefined}
+          className={`mt-1 text-xs ${problem ? 'font-semibold text-red-700' : 'text-ink-soft'}`}
+        >
+          {problem ?? `${limits!.items} au plus : retirez-en un pour en ajouter un autre.`}
+        </p>
+      )}
       {items.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {items.map((it) => (

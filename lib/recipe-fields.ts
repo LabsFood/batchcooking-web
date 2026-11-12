@@ -357,9 +357,65 @@ export const EMPTY_INGREDIENT: Omit<IngredientRow, 'aisle' | 'key'> = {
 /** Une ligne vierge, avec sa propre clé. */
 export const newIngredientRow = (): IngredientRow => ({ ...EMPTY_INGREDIENT, aisle: '', key: rowKey() })
 
-/** Une adresse que l'API acceptera : `http` ou `https`, rien d'autre. */
-export const linkValid = (link: string) =>
-  !link.trim() || (link.trim().length <= 512 && /^https?:\/\/\S+$/i.test(link.trim()))
+/** Un nom de domaine complet (`exemple.fr`), ou une adresse IPv4. */
+const fullHost = (host: string) =>
+  /^\d{1,3}(\.\d{1,3}){3}$/.test(host) ||
+  (/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,}|xn--[a-z0-9-]+)$/i.test(host) &&
+    host.split('.').every((label) => label.length <= 63))
+
+/**
+ * Une adresse que l'API acceptera, comme son `@IsUrl({ require_protocol: true })` :
+ * `http` ou `https`, et un vrai nom de domaine, avec son point. « https://monsite »
+ * ou « http://localhost:3000 » sont refusés par l'API (400 sur tout le plat).
+ */
+export function linkValid(link: string): boolean {
+  const v = link.trim()
+  if (!v) return true
+  if (v.length > INGREDIENT_MAX.link || /\s/.test(v) || !/^https?:\/\//i.test(v)) return false
+  try {
+    // `URL` met le nom en minuscules et en punycode (« café.fr » → « xn--caf-dma.fr »).
+    return fullHost(new URL(v).hostname)
+  } catch {
+    return false
+  }
+}
+
+/** Le message d'un lien refusé, sous le champ. */
+export const LINK_INVALID_TEXT =
+  'Le lien doit être une adresse complète, qui commence par http:// ou https:// (par exemple https://exemple.fr/produit).'
+
+/** Un nombre entier de `min` à `max`, tel que saisi. */
+export function intIn(value: string, min: number, max: number): boolean {
+  const v = value.trim()
+  const n = Number(v)
+  return v !== '' && Number.isInteger(n) && n >= min && n <= max
+}
+
+/** Les bornes des champs d'un plat, celles de l'API (`dish.dto.ts`, `RECIPE_LIMITS`). */
+export const DISH_LIMITS = {
+  name: 255,
+  description: 2000,
+  portions: { min: 1, max: 100 },
+  /** Préparation, cuisson, durée d'une étape. */
+  minutes: 1440,
+  reheatTemperature: 300,
+  reheatMinutes: 600,
+  reheatNote: 300,
+  container: 120,
+  storageDays: 365,
+  stepText: 2000,
+  ingredients: 60,
+  steps: 40,
+  profiles: 10,
+} as const
+
+/** Les listes libres d'un plat : combien d'éléments, et combien de caractères chacun. */
+export const FREE_LIST_LIMITS = {
+  customDiets: { items: 10, length: 40 },
+  customAllergens: { items: 10, length: 40 },
+  equipment: { items: 20, length: 60 },
+  personalTags: { items: 10, length: 30 },
+} as const
 
 /** La quantité de l'API : jusqu'à 100 000, au-dessus de zéro. */
 export const QTY_MAX = 100_000
