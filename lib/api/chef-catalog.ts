@@ -403,10 +403,14 @@ export const useRestoreVersion = () =>
     [DISHES, MENUS],
   )
 
+/** La longueur d'une recherche que l'API accepte (`SearchIngredientsQueryDto`, 1 à 60). */
+const INGREDIENT_SEARCH_MAX = 60
+
 /** `GET /ingredients?search=` (§4.10) : vingt entrées au plus, dès deux lettres. */
 export function useIngredientSearch(term: string) {
   const apiFetch = useApiFetch()
-  const q = term.trim()
+  // L'API cherche sur 60 caractères au plus (400 au-delà) ; un nom de ligne en compte jusqu'à 120.
+  const q = term.trim().slice(0, INGREDIENT_SEARCH_MAX).trim()
   return useQuery({
     queryKey: ['ingredients', q.toLowerCase()],
     queryFn: () =>

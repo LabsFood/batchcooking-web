@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -2929,6 +2929,7 @@ function IngredientRows({
                       type="checkbox"
                       checked={ing.fixedQuantity}
                       onChange={(e) => set(ing.key, { fixedQuantity: e.target.checked })}
+                      aria-label={`Quantité fixe, ingrédient ${i + 1}`}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Quantité fixe
@@ -2938,6 +2939,7 @@ function IngredientRows({
                       type="checkbox"
                       checked={ing.optional}
                       onChange={(e) => set(ing.key, { optional: e.target.checked })}
+                      aria-label={`Facultatif, ingrédient ${i + 1}`}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Facultatif
@@ -2947,6 +2949,7 @@ function IngredientRows({
                       type="checkbox"
                       checked={ing.hiddenFromClient}
                       onChange={(e) => set(ing.key, { hiddenFromClient: e.target.checked })}
+                      aria-label={`Caché au client, ingrédient ${i + 1}`}
                       className="h-3.5 w-3.5 accent-navy"
                     />
                     Caché au client
@@ -2995,6 +2998,11 @@ function IngredientRows({
  * Le nom d'un ingrédient, avec les suggestions de la liste commune (§4.10).
  * Choisir une suggestion relie la ligne ; retaper le nom la délie. Quand rien
  * ne correspond, « Créer « … » » ouvre la création, sans quitter la recette.
+ *
+ * Relier une ligne est exigé pour « Prête » : tout se fait aussi au clavier,
+ * comme une liste déroulante (le motif « combobox ») — flèches pour parcourir
+ * les suggestions et « Créer », Entrée pour choisir, Échap pour fermer. Le focus
+ * reste dans le champ ; l'option désignée est annoncée (`aria-activedescendant`).
  */
 function IngredientName({
   row,
@@ -3010,6 +3018,11 @@ function IngredientName({
 }) {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  /** L'option désignée au clavier (flèches) ; -1 : aucune. */
+  const [active, setActive] = useState(-1)
+  const uid = useId()
+  const listId = `${uid}-suggestions`
+  const optionId = (k: number) => `${uid}-option-${k}`
   /** Le focus rendu au champ par le dialogue qui se ferme n'ouvre pas les suggestions. */
   const skipOpen = useRef(false)
   const closeDialog = () => {
@@ -3019,13 +3032,23 @@ function IngredientName({
     }, 200)
     setCreating(false)
   }
-  const allergens = useAllergens()
+  const allergens = useAllergens(REGULATED_ALLERGENS)
   const term = open && !row.catalogIngredientId ? row.name : ''
   const search = useIngredientSearch(term)
   const matches = search.data ?? []
   const typed = term.trim()
   const exact = matches.some((m) => m.name.toLowerCase() === typed.toLowerCase())
   const canCreate = typed.length >= 2 && !search.isFetching && !exact
+  /* Les options, dans l'ordre : les suggestions, puis « Créer ». */
+  const count = matches.length + (canCreate ? 1 : 0)
+  const shown = open && count > 0
+  const current = shown && active >= 0 && active < count ? active : -1
+
+  /* L'option désignée reste visible quand la liste défile. */
+  useEffect(() => {
+    if (current >= 0) document.getElementById(optionId(current))?.scrollIntoView({ block: 'nearest' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `optionId` ne dépend que de `uid`, listé.
+  }, [current, uid])
 
   /**
    * Relie la ligne à une entrée : son rayon, et « caché » prérempli pour un
@@ -3042,11 +3065,32 @@ function IngredientName({
       incomplete: null,
     })
     setOpen(false)
+    setActive(-1)
     closeDialog()
   }
 
+  /** Choisit l'option `k` : relie la ligne à la suggestion, ou ouvre la création. */
+  const choose = (k: number) => {
+    const m = matches[k]
+    if (m) {
+      link({ id: m.id, name: m.name, aisle: m.aisle, isBasic: m.isBasic })
+      return
+    }
+    setCreating(true)
+    setOpen(false)
+    setActive(-1)
+  }
+
   return (
-    <div className="relative min-w-32 flex-1">
+    <div
+      className="relative min-w-32 flex-1"
+      onBlur={(e) => {
+        // Le focus reste dans le bloc (une suggestion) : la liste reste ouverte.
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+        setOpen(false)
+        setActive(-1)
+      }}
+    >
       <input
         value={row.name}
         maxLength={INGREDIENT_MAX.name}
@@ -3059,17 +3103,39 @@ function IngredientName({
             incomplete: null,
           })
           setOpen(true)
+          setActive(-1)
         }}
         onFocus={() => {
           if (!skipOpen.current) setOpen(true)
         }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            const down = e.key === 'ArrowDown'
+            setOpen(true)
+            setActive((a) =>
+              count === 0 ? -1 : a < 0 || a >= count ? (down ? 0 : count - 1) : (a + (down ? 1 : -1) + count) % count,
+            )
+          } else if (e.key === 'Enter' && shown) {
+            // Liste ouverte : Entrée choisit, et n'enregistre pas le plat.
+            e.preventDefault()
+            if (current >= 0) choose(current)
+          } else if (e.key === 'Escape' && shown) {
+            e.preventDefault()
+            setOpen(false)
+            setActive(-1)
+          }
+        }}
         placeholder="Poulet fermier"
         id={`ingredient-${index}-name`}
+        role="combobox"
         aria-label={`Ingrédient ${index + 1}`}
         aria-invalid={problem ? true : undefined}
         aria-describedby={problem ? `ingredient-${index}-name-problem` : undefined}
         aria-autocomplete="list"
+        aria-expanded={shown}
+        aria-controls={listId}
+        aria-activedescendant={current >= 0 ? optionId(current) : undefined}
         className={`input-base w-full ${row.catalogIngredientId ? 'pr-16' : ''}`}
       />
       {row.catalogIngredientId && (
@@ -3077,18 +3143,28 @@ function IngredientName({
           liste
         </span>
       )}
-      {open && (matches.length > 0 || canCreate) && (
+      {shown && (
         <ul
+          id={listId}
           role="listbox"
+          aria-label={`Suggestions pour l’ingrédient ${index + 1}`}
           className="absolute z-30 mt-1 max-h-64 w-full min-w-64 overflow-y-auto rounded-xl border border-[rgba(31,42,55,0.1)] bg-paper py-1 shadow-lg"
         >
-          {matches.map((m) => (
-            <li key={m.id} role="option" aria-selected={false}>
+          {matches.map((m, k) => (
+            <li key={m.id} role="none">
+              {/* Le focus reste dans le champ (`aria-activedescendant`) : l'option ne le prend pas. */}
               <button
                 type="button"
+                id={optionId(k)}
+                role="option"
+                aria-selected={current === k}
+                tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => link({ id: m.id, name: m.name, aisle: m.aisle, isBasic: m.isBasic })}
-                className="block w-full px-3 py-1.5 text-left text-[13px] text-navy hover:bg-cream-soft"
+                onMouseEnter={() => setActive(k)}
+                onClick={() => choose(k)}
+                className={`block w-full px-3 py-1.5 text-left text-[13px] text-navy hover:bg-cream-soft ${
+                  current === k ? 'bg-cream-soft' : ''
+                }`}
               >
                 <span className="flex flex-wrap items-center gap-1.5">
                   {m.name}
@@ -3119,15 +3195,19 @@ function IngredientName({
             </li>
           ))}
           {canCreate && (
-            <li role="option" aria-selected={false}>
+            <li role="none">
               <button
                 type="button"
+                id={optionId(matches.length)}
+                role="option"
+                aria-selected={current === matches.length}
+                tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setCreating(true)
-                  setOpen(false)
-                }}
-                className="block w-full border-t border-[rgba(31,42,55,0.08)] px-3 py-2 text-left text-[13px] font-semibold text-navy hover:bg-cream-soft"
+                onMouseEnter={() => setActive(matches.length)}
+                onClick={() => choose(matches.length)}
+                className={`block w-full border-t border-[rgba(31,42,55,0.08)] px-3 py-2 text-left text-[13px] font-semibold text-navy hover:bg-cream-soft ${
+                  current === matches.length ? 'bg-cream-soft' : ''
+                }`}
               >
                 Créer « {typed} »
               </button>
