@@ -168,9 +168,14 @@ function apiCode(error: unknown, status: number): string | null {
   return typeof code === 'string' ? code : null
 }
 
-/** Session expirée ou accès refusé : corriger la saisie n'y changerait rien. */
-const isAuthError = (error: unknown) =>
-  error instanceof ApiError && (error.status === 401 || error.status === 403)
+/** Session expirée (401) : se reconnecter, puis renvoyer. Corriger la saisie n'y changerait rien. */
+const isSessionLost = (error: unknown) => error instanceof ApiError && error.status === 401
+
+/**
+ * Accès refusé (403) : un batch cooker pas encore vérifié, ou suspendu. Ce n'est
+ * pas une session (R34) : se reconnecter n'y changerait rien non plus.
+ */
+const isForbidden = (error: unknown) => error instanceof ApiError && error.status === 403
 
 /** La fiche a changé ailleurs depuis qu'on l'a lue : rien n'a été écrit. */
 const isConflict = (error: unknown) => apiCode(error, 409) === 'RECIPE_CONFLICT'
@@ -588,6 +593,9 @@ function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: StoredRecip
   return next
 }
 
+/** Le plat neuf tel qu'il s'ouvre : ce qui en diffère est une saisie à ne pas perdre. */
+const EMPTY_DISH_JSON = JSON.stringify(toPayload(toDraft(null)))
+
 /** « a, b et c ». */
 const enumeration = (items: string[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`
@@ -731,11 +739,18 @@ export default function DishForm({
     isConflict(autosaveError) ||
     Boolean(dish && lockVersion !== undefined && dish.lockVersion > lockVersion)
 
+  /* La fiche la plus récente : entre la réponse d'un enregistrement et la liste relue,
+     la liste porte encore l'ancienne (son statut, « Prête », la confirmation des
+     allergènes). C'est la réponse qui fait foi tant que la liste ne l'a pas rattrapée. */
+  const liveDish = baseline && dish && baseline.lock > dish.lockVersion ? baseline.dish : dish
+
   /* Le brouillon s'enregistre seul tant que la fiche n'est pas Prête : un
      enregistrement d'une fiche Prête crée une version (R6), et une version ne
-     naît pas d'une frappe au clavier. */
+     naît pas d'une frappe au clavier. Lue sur la liste seule, une réponse qui
+     vient de rendre la fiche Prête laisserait partir un second envoi, et une
+     seconde version. */
   const autosave = Boolean(
-    dish && onAutosave && dish.status === 'draft' && !dish.readiness?.ready,
+    liveDish && onAutosave && liveDish.status === 'draft' && !liveDish.readiness?.ready,
   )
   /** Ce qui s'envoie : la fiche, avec la version lue. */
   const withLock = (input: DishInput): DishInput =>
@@ -865,11 +880,10 @@ export default function DishForm({
     }
   }
 
-  /* Entre la réponse d'un enregistrement et la liste relue, la liste porte encore l'ancienne
-     fiche, confirmation comprise : le bloc des allergènes lit la réponse, plus récente. */
-  const allergenDish = baseline && dish && baseline.lock > dish.lockVersion ? baseline.dish : dish
+  /* Le bloc des allergènes et le panneau « Prête ? » lisent la fiche la plus récente. */
+  const allergenDish = liveDish
 
-  const readiness = dish?.readiness
+  const readiness = liveDish?.readiness
 
   /* Les lignes et les couples que l'API refuserait. */
   const lignesIncompletes = d.ingredients.filter(
@@ -938,32 +952,101 @@ export default function DishForm({
   /* L'enregistrement automatique a échoué (hors conflit, qui a son bandeau) : la
      saisie reste sur la page, et le chef doit savoir qu'elle n'est pas enregistrée. */
   const unsaved = autosaveFailed && !conflict
-  const authLost = isAuthError(autosaveError)
+  const authLost = isSessionLost(autosaveError)
+  const forbidden = isForbidden(autosaveError)
   /* Un envoi qui a réussi mais que l'API a gardé autrement : rien ne repart seul. */
-  const heldNow = heldJson !== null && heldJson === JSON.stringify(payload)
+  const heldNow = heldJson !== null && heldJson === payloadJson
   const unsavedTransient = unsaved && isTransient(autosaveError)
   const unsavedText = !unsaved
     ? null
     : unsavedTransient
       ? 'Le brouillon n’a pas pu s’enregistrer (connexion ou serveur) : vos modifications restent sur cette page, et un nouvel essai part tout seul. Pour les enregistrer tout de suite, appuyez sur « Enregistrer ».'
       : authLost
-        ? 'Votre session a expiré : reconnectez-vous. Le brouillon n’a pas été enregistré ; vos modifications restent sur cette page.'
-        : `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».`
+        ? 'Votre session a expiré : reconnectez-vous, puis cliquez sur « Enregistrer ». Le brouillon n’a pas été enregistré ; vos modifications restent sur cette page.'
+        : forbidden
+          ? `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page.`
+          : `Le brouillon n’a pas été enregistré : ${apiMessage(autosaveError)} Vos modifications restent sur cette page : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».`
   const unsavedShort = !unsaved
     ? null
     : unsavedTransient
       ? 'Brouillon non enregistré (connexion) : nouvel essai automatique, ou appuyez sur « Enregistrer ».'
       : authLost
-        ? 'Votre session a expiré : reconnectez-vous.'
-        : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
+        ? 'Votre session a expiré : reconnectez-vous, puis cliquez sur « Enregistrer ».'
+        : forbidden
+          ? `Brouillon refusé : ${apiMessage(autosaveError)}`
+          : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
   /* En pratique, un envoi gardé vient d'une ligne commencée mais pas prête, après le
      retrait de toutes les lignes enregistrées : la recette n'est pas vidée tant
      qu'elle est là (R24). On le dit, plutôt qu'un « vérifiez » sans objet. */
   const blockedText = 'Rien ne s’enregistre : corrigez d’abord les champs signalés en rouge.'
+  /* Une fiche Prête ou publiée ne s'enregistre qu'au bouton (R6) : le dire dès la
+     première frappe, sans quoi l'en-tête afficherait « Version 4 » sur des
+     modifications qu'un départ effacerait. */
+  const manualText = 'Modifications non enregistrées : cliquez sur « Enregistrer »'
+  const needText = 'Le nom (2 caractères au moins) et le temps de préparation sont nécessaires pour enregistrer.'
   const heldText =
     lignesIncompletes > 0
       ? 'Une ligne d’ingrédient est incomplète : la recette ne s’enregistre pas telle qu’elle est à l’écran. Complétez cette ligne ou retirez-la.'
       : 'Une partie de vos modifications n’a pas été prise en compte : vérifiez puis cliquez sur « Enregistrer ».'
+
+  /* L'état de l'enregistrement, dans l'en-tête : ce qui n'est pas enregistré passe avant tout. */
+  const headerWarning =
+    unsavedText ??
+    (blocked && dirty
+      ? blockedText
+      : heldNow
+        ? heldText
+        : dirty && !saveable
+          ? needText
+          : dirty && !autosave
+            ? manualText
+            : null)
+  const headerAlert = headerWarning !== null
+  const headerText =
+    headerWarning ??
+    (autosaved && !dirty
+      ? `Brouillon enregistré à ${heure(autosaved)}`
+      : autosave
+        ? 'Brouillon : il s’enregistre tout seul pendant que vous écrivez.'
+        : `Version ${liveDish?.recipeVersion ?? ''}`)
+  /* La barre du téléphone : la même alerte, en court, sinon ce qui manque à « Prête ». */
+  const barWarning =
+    unsavedShort ??
+    (blocked
+      ? blockedText
+      : heldNow
+        ? heldText
+        : !saveable
+          ? 'Le nom et le temps de préparation sont nécessaires.'
+          : dish && dirty && !autosave
+            ? manualText
+            : null)
+  const barAlert = barWarning !== null && (unsavedShort !== null || saveable)
+
+  /* Fermer ou recharger la page perdrait ce qui n'est pas enregistré, ou l'envoi en
+     cours : le navigateur demande d'abord. Un plat neuf compte dès la première saisie. */
+  const changed = dish ? dirty : payloadJson !== EMPTY_DISH_JSON
+  const leaveGuard = changed || autosaving
+  useEffect(() => {
+    if (!leaveGuard) return
+    const onLeave = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      // Safari et les anciens navigateurs attendent encore `returnValue`.
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onLeave)
+    return () => window.removeEventListener('beforeunload', onLeave)
+  }, [leaveGuard])
+  /* « Annuler » et « Mes plats » quittent sans recharger : le navigateur ne demande
+     rien, le formulaire demande. Un envoi automatique en cours, lui, aboutit quand même. */
+  const confirmLeave = (e: React.MouseEvent) => {
+    if (
+      changed &&
+      !window.confirm('Vos modifications ne sont pas enregistrées : quitter la page les efface. Quitter quand même ?')
+    ) {
+      e.preventDefault()
+    }
+  }
 
   return (
     <form
@@ -985,6 +1068,7 @@ export default function DishForm({
       <fieldset disabled={restoring} className="m-0 min-w-0 space-y-6 border-0 p-0">
       <Link
         href={backHref}
+        onClick={confirmLeave}
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
@@ -1061,18 +1145,10 @@ export default function DishForm({
         </p>
         {dish && (
           <p
-            className={`relative mt-3 text-xs ${unsavedText ? 'font-semibold text-amber' : 'text-white/80'}`}
+            role="status"
+            className={`relative mt-3 text-xs ${headerAlert ? 'font-semibold text-amber' : 'text-white/80'}`}
           >
-            {unsavedText ??
-              (blocked && dirty
-                ? blockedText
-                : heldNow
-                ? heldText
-                : autosaved && !dirty
-                ? `Brouillon enregistré à ${heure(autosaved)}`
-                : autosave
-                  ? 'Brouillon : il s’enregistre tout seul pendant que vous écrivez.'
-                  : `Version ${dish.recipeVersion}`)}
+            {headerText}
           </p>
         )}
       </motion.div>
@@ -1932,7 +2008,7 @@ export default function DishForm({
                 </>
               )}
             </button>
-            <Link href={backHref} className="btn btn-outline w-full text-xs">
+            <Link href={backHref} onClick={confirmLeave} className="btn btn-outline w-full text-xs">
               Annuler
             </Link>
             {!saveable && (
@@ -1950,16 +2026,11 @@ export default function DishForm({
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(31,42,55,0.08)] bg-paper/95 backdrop-blur lg:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p
-            className={`min-w-0 flex-1 text-[13px] ${unsavedShort ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
+            role="status"
+            className={`min-w-0 flex-1 text-[13px] ${barAlert ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
           >
-            {unsavedShort ??
-              (blocked
-                ? blockedText
-                : heldNow
-                ? heldText
-                : !saveable
-                ? 'Le nom et le temps de préparation sont nécessaires.'
-                : (readiness?.problems.length ?? 0) > 0
+            {barWarning ??
+              ((readiness?.problems.length ?? 0) > 0
                   ? `Il manque ${readiness!.problems.length} point${readiness!.problems.length > 1 ? 's' : ''} pour que la fiche soit Prête.`
                   : (readiness?.toPublish.length ?? 0) > 0
                     ? `La fiche est Prête ; il manque ${readiness!.toPublish.length} point${readiness!.toPublish.length > 1 ? 's' : ''} pour publier.`
@@ -1968,7 +2039,7 @@ export default function DishForm({
                       : 'Enregistré en brouillon : rien n’est public tant que vous ne publiez pas.')}
           </p>
           <div className="flex gap-2">
-            <Link href={backHref} className="btn btn-outline text-xs">
+            <Link href={backHref} onClick={confirmLeave} className="btn btn-outline text-xs">
               Annuler
             </Link>
             <button
