@@ -405,9 +405,16 @@ export function ingredientReady(i: IngredientRow): boolean {
  */
 export const lineComplete = (i: IngredientRow): boolean => ingredientReady({ ...i, toVerify: false })
 
-/** Vrai dès qu'une ligne a été commencée : une ligne vierge n'est pas un oubli. */
+/**
+ * Vrai dès qu'une ligne a été commencée : une ligne vierge n'est pas un oubli.
+ * L'unité par défaut d'une ligne ajoutée (`g`) ne compte pas : sans quoi une
+ * ligne laissée vierge bloquerait la confirmation des allergènes et le vidage
+ * d'une recette (R24).
+ */
 export const ingredientStarted = (i: IngredientRow): boolean =>
-  Boolean(i.name.trim() || i.qty.trim() || i.unit || i.aisle)
+  Boolean(
+    i.name.trim() || i.qty.trim() || (i.unit && i.unit !== EMPTY_INGREDIENT.unit) || i.aisle,
+  )
 
 const orNull = (v: string) => (v.trim() ? v.trim() : null)
 

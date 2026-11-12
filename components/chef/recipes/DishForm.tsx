@@ -765,7 +765,13 @@ export default function DishForm({
       : authLost
         ? 'Votre session a expiré : reconnectez-vous.'
         : 'Brouillon refusé : corrigez ce qui est signalé, puis appuyez sur « Enregistrer ».'
-  const heldText = 'Une partie de vos modifications n’a pas été prise en compte : vérifiez puis cliquez sur Enregistrer'
+  /* En pratique, un envoi gardé vient d'une ligne commencée mais pas prête, après le
+     retrait de toutes les lignes enregistrées : la recette n'est pas vidée tant
+     qu'elle est là (R24). On le dit, plutôt qu'un « vérifiez » sans objet. */
+  const heldText =
+    lignesIncompletes > 0
+      ? 'Une ligne d’ingrédient est incomplète : la recette ne s’enregistre pas telle qu’elle est à l’écran. Complétez cette ligne ou retirez-la.'
+      : 'Une partie de vos modifications n’a pas été prise en compte : vérifiez puis cliquez sur « Enregistrer ».'
 
   return (
     <form
@@ -1261,6 +1267,8 @@ export default function DishForm({
                 <AllergenCheck
                   dish={allergenDish}
                   dirty={dirty}
+                  incompleteRows={lignesIncompletes}
+                  badLinks={liensInvalides}
                   locked={conflict}
                   lockVersion={lockVersion}
                   onConfirmed={(res) => {
@@ -1804,6 +1812,8 @@ function RecipeAllergens({
   const legacy = new Set(legacyCodes(dish))
   const conditional = new Set(dish?.conditionalAllergens ?? [])
   const blocking = dish ? blocksAllergens(dish) : []
+  /* Les allergènes hors des quatorze (« Autre ») : le client les lit aussi, la liste ne les tait pas. */
+  const customs = dish?.customAllergens ?? []
 
   /** « beurre, crème ; ajouté par vous » : d'où vient l'allergène. */
   const provenance = (code: string) => {
@@ -1821,15 +1831,16 @@ function RecipeAllergens({
           commune portent les leurs : un tel allergène ne part qu’avec l’ingrédient qui
           l’apporte. Ceux que vous cochez plus bas s’y ajoutent (« ajouté par vous ») et
           se décochent au même endroit. Un ingrédient facultatif compte aussi : son
-          allergène est marqué « si l’ingrédient facultatif est utilisé ». Un code ancien,
-          hors des quatorze, reste affiché jusqu’à ce que Lab’s Food le corrige.
+          allergène est marqué « si l’ingrédient facultatif est utilisé ». Ceux que vous
+          écrivez dans « Autre », hors des quatorze, figurent aussi dans la liste. Un code
+          ancien reste affiché jusqu’à ce que Lab’s Food le corrige.
         </InfoPopover>
       </p>
       {!dish ? (
         <p className="text-[13px] text-ink-soft">Affichés après le premier enregistrement.</p>
       ) : (
         <>
-          {all.length > 0 ? (
+          {all.length > 0 || customs.length > 0 ? (
             <ul className="space-y-1.5">
               {all.map((code) => (
                 <li
@@ -1856,13 +1867,29 @@ function RecipeAllergens({
                   )}
                 </li>
               ))}
+              {customs.map((c) => (
+                <li
+                  key={`autre-${c}`}
+                  className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800"
+                >
+                  <span>
+                    <span className="font-semibold">{c}</span>
+                    {' : hors des quatorze, indiqué par vous'}
+                  </span>
+                </li>
+              ))}
             </ul>
           ) : dish.allergensNone && blocking.length === 0 ? (
             <p className="text-[13px] text-ink-mid">
               Aucun des quatorze allergènes dans vos ingrédients.
             </p>
           ) : (
-            <p className="text-[13px] text-ink-mid">Aucun allergène pour l’instant.</p>
+            <p className="text-[13px] text-ink-mid">Aucun des quatorze allergènes pour l’instant.</p>
+          )}
+          {all.length === 0 && customs.length > 0 && blocking.length === 0 && (
+            <p className="mt-1.5 text-xs text-ink-mid">
+              Aucun des quatorze allergènes réglementaires dans vos ingrédients.
+            </p>
           )}
           {blocking.length > 0 && (
             <div className="mt-2">
@@ -1959,6 +1986,8 @@ function AddedAllergens({
 function AllergenCheck({
   dish,
   dirty,
+  incompleteRows,
+  badLinks,
   locked,
   lockVersion,
   onConfirmed,
@@ -1967,6 +1996,13 @@ function AllergenCheck({
 }: {
   dish: Dish
   dirty: boolean
+  /**
+   * Les lignes commencées mais pas prêtes : elles ne partent pas, donc `dirty` ne
+   * les voit pas, et leurs allergènes manquent à la fiche enregistrée.
+   */
+  incompleteRows: number
+  /** Les liens refusés : ils ne partent pas non plus, la fiche diffère de l'écran. */
+  badLinks: number
   /** Un conflit est affiché : on ne confirme plus. */
   locked: boolean
   lockVersion: number | undefined
@@ -1988,6 +2024,12 @@ function AllergenCheck({
     ? 'Rechargez d’abord la recette : elle a changé ailleurs.'
     : dirty
       ? 'Enregistrez d’abord vos modifications : la confirmation porte sur la fiche enregistrée.'
+      : incompleteRows > 0
+        ? incompleteRows === 1
+          ? 'Complétez ou retirez d’abord la ligne incomplète : ses allergènes ne sont pas comptés.'
+          : `Complétez ou retirez d’abord les ${incompleteRows} lignes incomplètes : leurs allergènes ne sont pas comptés.`
+      : badLinks > 0
+        ? 'Corrigez ou videz d’abord le lien refusé : il n’est pas enregistré, et la confirmation porte sur la fiche enregistrée.'
       : noLine
         ? 'Ajoutez d’abord au moins un ingrédient.'
         : stale
