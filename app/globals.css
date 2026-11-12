@@ -1,13 +1,7 @@
-/* Hauteur du bandeau « site en construction » (components/shared/DevBanner).
-   La passer à `0px` le fait disparaître et rend sa place à chaque en-tête. */
+/* Hauteur de l'ancien bandeau « site en construction », retiré. Les en-têtes
+   et mises en page y font encore référence : la variable reste à `0px`. */
 :root {
-  --lf-dev-banner: 3.25rem;
-}
-
-@media (min-width: 640px) {
-  :root {
-    --lf-dev-banner: 2.25rem;
-  }
+  --lf-dev-banner: 0px;
 }
 
 body {

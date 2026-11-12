@@ -5,7 +5,6 @@ import { type ReactNode } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/shared/CookieBanner'
-import DevBanner from '@/components/shared/DevBanner'
 
 /* Espaces connectés et parcours d'inscription : ils portent leur propre
    chrome (sidebar / topbar), la navbar et le footer publics n'y ont pas leur
@@ -19,7 +18,6 @@ export default function PublicChrome({ children }: { children: ReactNode }) {
   // Le choix des cookies est demandé partout, espaces connectés compris.
   return (
     <>
-      <DevBanner />
       {!hideChrome && <Navbar />}
       <main className="min-h-screen">{children}</main>
       {!hideChrome && <Footer />}
