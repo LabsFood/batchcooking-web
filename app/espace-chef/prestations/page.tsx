@@ -90,6 +90,7 @@ import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { useDishes } from '@/lib/api/chef-catalog'
 import EatBeforeCard from '@/components/chef/prestation/EatBeforeCard'
+import GroceriesDone from '@/components/chef/prestation/GroceriesDone'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -611,7 +612,13 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             {(m.meals?.length ?? 0) > 0 && <EatBeforeCard booking={m} />}
 
             {/* ── La liste de courses ─────────────────────────────────── */}
-            <ShoppingCard missionId={m.id} onOpenFull={() => setCourses(true)} />
+            <ShoppingCard
+              missionId={m.id}
+              groceriesOpen={
+                m.status === 'confirmed' || m.status === 'shopping' || m.status === 'cooking'
+              }
+              onOpenFull={() => setCourses(true)}
+            />
 
             {/* ── Les photos ─────────────────────────────────────────── */}
             {(m.status === 'cooking' ||
@@ -1111,9 +1118,12 @@ const ETAT_LISTE: Record<ShoppingListStatus, string> = {
 
 function ShoppingCard({
   missionId,
+  groceriesOpen,
   onOpenFull,
 }: {
   missionId: string
+  /** Recettes lot 4 : « Courses faites » se valide tant que la prestation est à venir ou en cours. */
+  groceriesOpen: boolean
   onOpenFull: () => void
 }) {
   const toast = useToast()
@@ -1210,6 +1220,15 @@ function ShoppingCard({
                 </button>
               )}
             </div>
+          )}
+
+          {!liste?.shoppingByClient && (
+            <GroceriesDone
+              key={`${liste?.groceries?.validatedAt ?? ''}|${liste?.groceries?.amountCents ?? ''}`}
+              missionId={missionId}
+              groceries={liste?.groceries}
+              open={groceriesOpen}
+            />
           )}
 
           {(dejaLa.length > 0 || commentees.length > 0) && (

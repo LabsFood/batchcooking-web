@@ -45,6 +45,14 @@ const TITRES: Record<string, string> = {
     'Vos recettes sont passées au nouveau format : quelques lignes sont à vérifier.',
   // Recettes lot 3 (LF-0272) : les plats sont livrés.
   'conservation.ready': 'Vos plats sont livrés : voici jusqu’à quand les manger.',
+  // Recettes lot 4 (LF-0285) : les rappels de la liste de courses.
+  'shopping_list.reminder_send':
+    'Une prestation approche : envoyez la liste de courses à votre client.',
+  'shopping_list.reminder_answer':
+    'Vérifiez votre liste de courses et renvoyez-la avant demain midi.',
+  'shopping_list.frozen': 'Votre liste de courses est figée : votre batch cooker fait les courses.',
+  'groceries.reminder':
+    'La liste est figée : faites les courses et validez-les avant la prestation.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -62,6 +70,10 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   ingredient_merged: () => '/espace-chef/ingredients',
   recipes_migrated: () => '/espace-chef/recettes',
   'conservation.ready': () => '/espace-client/conservation',
+  'shopping_list.reminder_send': () => '/espace-chef/prestations',
+  'shopping_list.reminder_answer': () => '/espace-client/courses',
+  'shopping_list.frozen': () => '/espace-client/courses',
+  'groceries.reminder': () => '/espace-chef/prestations',
 }
 
 export const notificationHref = (type: string, subjectId = ''): string | undefined =>

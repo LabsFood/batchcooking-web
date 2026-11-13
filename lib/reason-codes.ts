@@ -32,6 +32,9 @@ export const REASON_TEXT = {
   EAT_BEFORE_CLOSED:
     'Les dates « à manger avant » se modifient jusqu’à 24 h après la fin de la prestation.',
   CONSERVATION_NOT_READY: 'La fiche de conservation est disponible une fois les plats livrés.',
+  // Recettes lot 4.
+  GROCERIES_NOT_OPEN:
+    'Les courses se valident sur une prestation confirmée, en courses ou en cuisine.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
   SHOPPING_LIST_UPDATED:
