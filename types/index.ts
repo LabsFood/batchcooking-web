@@ -136,9 +136,4 @@ export interface ShoppingList {
 
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
-export interface FAQItem {
-  id: string
-  question: string
-  answer: string
-  category: 'service' | 'tarifs' | 'réservation' | 'recettes' | 'fiscal'
-}
+

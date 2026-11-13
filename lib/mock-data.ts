@@ -1,4 +1,4 @@
-import type { Meal, Recipe, Chef, Plan, Testimonial, FAQItem } from '@/types'
+import type { Meal, Recipe, Chef, Plan, Testimonial } from '@/types'
 
 // ─── Plans / Formules ─────────────────────────────────────────────────────────
 
@@ -342,81 +342,3 @@ export const TESTIMONIALS: Testimonial[] = [
 
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
-export const FAQ_ITEMS: FAQItem[] = [
-  {
-    id: 'f1',
-    question: 'Qu’est-ce que le batch cooking à domicile exactement ?',
-    answer:
-      'Le service consiste en une intervention à votre domicile pour préparer l’ensemble de vos repas de la semaine en une seule session de 2 h à 3 h. L’objectif : vous libérer des contraintes quotidiennes de la cuisine, sans renoncer au fait maison.',
-    category: 'service',
-  },
-  {
-    id: 'f2',
-    question: 'Proposez-vous les menus ou dois-je choisir moi-même ?',
-    answer:
-      'Lab’s Food propose chaque semaine des menus de saison variés. Vous gardez la possibilité de soumettre vos propres suggestions de plats. Selon la complexité de la recette demandée (temps de préparation prolongé, techniques spécifiques), un ajustement tarifaire pourra être appliqué par rapport au forfait standard.',
-    category: 'recettes',
-  },
-  {
-    id: 'f3',
-    question: 'Qui est responsable de l’achat des ingrédients ?',
-    answer:
-      'À ce jour, la gestion des courses incombe exclusivement au client. Une liste d’ingrédients précise et détaillée vous est transmise. Vous gardez la maîtrise totale de votre budget, le choix des fournisseurs (bio, producteurs locaux…) et la provenance des produits que vous consommez.',
-    category: 'service',
-  },
-  {
-    id: 'f4',
-    question: 'Quel matériel dois-je fournir ?',
-    answer:
-      'L’essentiel des équipements requis est listé dans la section "Matériel" du site (page Menu et FAQ). À l’envoi de la liste de courses, un rappel spécifique du matériel nécessaire pour les recettes choisies est systématiquement inclus, pour s’assurer que tout est prêt à l’arrivée de la cheffe.',
-    category: 'service',
-  },
-  {
-    id: 'f5',
-    question: 'La cheffe peut-elle apporter du matériel complémentaire ?',
-    answer:
-      'Oui. Si vous ne possédez pas un ustensile spécifique indispensable à une recette, Lab’s Food peut fournir le matériel nécessaire, sous réserve qu’il soit disponible dans le kit mobile de la cheffe. Signalez-nous tout manque d’équipement lors de la validation du menu.',
-    category: 'service',
-  },
-  {
-    id: 'f6',
-    question: 'La cheffe peut-elle apporter des épices ou des condiments ?',
-    answer:
-      'Oui, l’intervenante peut apporter une sélection d’épices, dans la limite de ce qui est disponible dans son kit mobile.',
-    category: 'service',
-  },
-  {
-    id: 'f7',
-    question: 'La cuisine est-elle nettoyée après la prestation ?',
-    answer:
-      'Oui. Chaque session se termine par le nettoyage des plans de travail et de la vaisselle utilisée pendant la prestation.',
-    category: 'service',
-  },
-  {
-    id: 'f8',
-    question: 'Dans quelles zones intervenez-vous ?',
-    answer:
-      'À ce jour, Lab’s Food déploie ses services sur l’ensemble de la Côte d’Azur. Les cuisinier·es se déplacent directement à votre domicile au sein de cette zone géographique.',
-    category: 'service',
-  },
-  {
-    id: 'f9',
-    question: 'Y a-t-il des frais de déplacement supplémentaires ?',
-    answer: 'Non. Aucun frais de déplacement n’est facturé en supplément.',
-    category: 'tarifs',
-  },
-  {
-    id: 'f10',
-    question: 'Que comprend exactement le tarif ?',
-    answer:
-      'Le tarif couvre uniquement la prestation de la cheffe à votre domicile (déplacement + préparation des repas). Les ingrédients restent à votre charge.',
-    category: 'tarifs',
-  },
-  {
-    id: 'f11',
-    question: 'Puis-je annuler une prestation une fois le devis signé ?',
-    answer:
-      'La signature d’un devis constitue un engagement ferme et valide définitivement la réservation — il n’y a donc pas d’annulation stricte. En cas d’imprévu, un report est systématiquement proposé. La nouvelle intervention devra avoir lieu dans un délai de 30 jours maximum à compter de votre demande de report.',
-    category: 'réservation',
-  },
-]
