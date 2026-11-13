@@ -43,6 +43,8 @@ const TITRES: Record<string, string> = {
   ingredient_merged: 'Votre ingrédient a été remplacé par un ingrédient de la liste commune.',
   recipes_migrated:
     'Vos recettes sont passées au nouveau format : quelques lignes sont à vérifier.',
+  // Recettes lot 3 (LF-0272) : les plats sont livrés.
+  'conservation.ready': 'Vos plats sont livrés : voici jusqu’à quand les manger.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -59,6 +61,7 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   ingredient_validated: () => '/espace-chef/ingredients',
   ingredient_merged: () => '/espace-chef/ingredients',
   recipes_migrated: () => '/espace-chef/recettes',
+  'conservation.ready': () => '/espace-client/conservation',
 }
 
 export const notificationHref = (type: string, subjectId = ''): string | undefined =>

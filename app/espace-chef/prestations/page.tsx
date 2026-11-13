@@ -89,6 +89,7 @@ import { InfoPopover } from '@/components/shared/InfoPopover'
 import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { useDishes } from '@/lib/api/chef-catalog'
+import EatBeforeCard from '@/components/chef/prestation/EatBeforeCard'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -557,7 +558,20 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
-            <Card title="Plats de la prestation">
+            <Card
+              title="Plats de la prestation"
+              action={
+                m.menuFrozen ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
+                    Menu figé
+                    <InfoPopover label="Pourquoi le menu est-il figé ?">
+                      À 3 jours de la prestation, le menu est figé : les plats ne changent
+                      plus, sauf un plat à remplacer pour une allergie du client.
+                    </InfoPopover>
+                  </span>
+                ) : undefined
+              }
+            >
               {(m.meals?.length ?? 0) === 0 ? (
                 <Empty text="Aucun plat rattaché à cette prestation." />
               ) : (
@@ -571,6 +585,12 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                         <span className="block text-xs text-ink-soft">
                           {bm.portions} portion{bm.portions > 1 ? 's' : ''}
                           {bm.recipeVersion != null && ` · recette v${bm.recipeVersion}`}
+                          {bm.recipeVersion != null && (
+                            <InfoPopover label="Qu’est-ce que la version figée ?">
+                              Le client a validé cette version. Elle reste figée pour sa
+                              prestation ; vos modifications créent une nouvelle version.
+                            </InfoPopover>
+                          )}
                         </span>
                       </span>
                       <button
@@ -586,6 +606,9 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </ul>
               )}
             </Card>
+
+            {/* ── Les dates « à manger avant » (lot 3) ─────────────────── */}
+            {(m.meals?.length ?? 0) > 0 && <EatBeforeCard booking={m} />}
 
             {/* ── La liste de courses ─────────────────────────────────── */}
             <ShoppingCard missionId={m.id} onOpenFull={() => setCourses(true)} />

@@ -25,9 +25,13 @@ export const REASON_TEXT = {
     'Chaque étape a un type : préparation, cuisson, refroidissement ou mise en boîte.',
   ALLERGENS_REQUIRED:
     'Déclarez les allergènes du plat, ou la mention « aucun des 14 allergènes ».',
-  PHOTO_MISSING:
-    'Une vraie photo du plat est demandée, pas une image générée. Elle ne bloque pas encore la publication.',
+  // BLK-32, décision du 13/11 : la photo bloque la publication.
+  PHOTO_MISSING: 'Une vraie photo du plat est nécessaire pour publier, pas une image générée.',
   MENU_FROZEN: 'À 3 jours de la prestation, le menu est figé.',
+  // Recettes lot 3.
+  EAT_BEFORE_CLOSED:
+    'Les dates « à manger avant » se modifient jusqu’à 24 h après la fin de la prestation.',
+  CONSERVATION_NOT_READY: 'La fiche de conservation est disponible une fois les plats livrés.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
   SHOPPING_LIST_UPDATED:
