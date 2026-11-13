@@ -326,8 +326,12 @@ export default function ChefShowcasePage() {
             <Langues choisies={langues} onChange={setLangues} />
 
             <Zones
-              zones={applicationAnswers(application.data).interventionZones ?? []}
-              modifiable={enInstruction}
+              zones={
+                (approuve && chef?.interventionZones?.length
+                  ? chef.interventionZones
+                  : applicationAnswers(application.data).interventionZones) ?? []
+              }
+              modifiable={enInstruction || approuve}
             />
           </Card>
 
@@ -517,36 +521,21 @@ interface ZoneLue {
 /**
  * Là où le batch cooker accepte de se déplacer.
  *
- * Elles ne vivent pas sur le profil mais sur la candidature, et l'API ne les
- * rouvre qu'avant la décision : « the visibility flags, the SAP route and the
- * zones are set at approval and cannot be sent here ». C'est le rayon de
- * déplacement, juste au-dessus, qui reste réglable.
- *
- * L'écran les montre quand même ici, parce que c'est l'endroit où l'on vient
- * voir ce qu'un client voit — et il dit où les modifier quand c'est encore
- * possible, à qui les demander quand ce n'est plus le cas.
+ * Avant la décision elles sont celles de la candidature ; une fois approuvé, le
+ * batch cooker les règle seul (`PATCH /me/chef-profile/zones`). Dans les deux cas
+ * l'édition se fait depuis le dossier, avec le même sélecteur.
  */
 function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean }) {
   return (
     <div className="mt-5 border-t border-[rgba(31,42,55,0.07)] pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-navy">Mes zones d’intervention</p>
-        {modifiable ? (
-          <Link
-            href="/espace-chef/dossier?section=zones"
-            className="text-xs font-semibold text-terra underline-offset-2 hover:underline"
-          >
-            Modifier mes zones
-          </Link>
-        ) : (
-          <span
-            title="Aucun endpoint ne permet encore de modifier les zones après l’approbation."
-            className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-soft"
-          >
-            <Lock className="h-3 w-3" aria-hidden />
-            Modification N/A
-          </span>
-        )}
+        <Link
+          href="/espace-chef/dossier?section=zones"
+          className="text-xs font-semibold text-terra underline-offset-2 hover:underline"
+        >
+          Modifier mes zones
+        </Link>
       </div>
 
       {zones.length === 0 ? (
@@ -556,7 +545,14 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
         </p>
       ) : (
         <ul className="mt-2.5 space-y-2">
-          {zones.map((z, i) => (
+          {[...zones]
+            .sort((a, b) =>
+              (a.regionLabel ?? a.regionCode ?? '').localeCompare(
+                b.regionLabel ?? b.regionCode ?? '',
+                'fr',
+              ),
+            )
+            .map((z, i) => (
             <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
               <span className="min-w-0">
@@ -565,7 +561,11 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
                 </span>
                 <span className="block text-[13px] leading-relaxed text-ink-mid">
                   {z.scope === 'cities' && z.cities?.length
-                    ? z.cities.map((c) => c.name).filter(Boolean).join(', ')
+                    ? z.cities
+                        .map((c) => c.name)
+                        .filter(Boolean)
+                        .sort((a, b) => (a ?? '').localeCompare(b ?? '', 'fr'))
+                        .join(', ')
                     : 'Toute la région'}
                 </span>
               </span>
@@ -576,17 +576,10 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
 
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         {modifiable ? (
-          <>Modifiables tant que votre candidature est en cours d’instruction.</>
+          <>Modifiables à tout moment : les clients de ces zones vous voient dès l’enregistrement.</>
         ) : (
           <>
-            Fixées à l’approbation.{' '}
-            <Link
-              href="/espace-chef/messagerie"
-              className="font-semibold text-terra underline"
-            >
-              Demandez-nous
-            </Link>{' '}
-            pour les changer.
+            Elles se règlent une fois votre candidature approuvée.
           </>
         )}
       </p>
@@ -598,9 +591,10 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
 
 /**
  * Un critère de choix réel : on fait entrer quelqu'un dans sa cuisine pour
- * quatre heures. Le référentiel est fermé côté API — vingt-quatre codes — et
- * l'écran se contente de les cocher : un champ libre aurait donné « Anglais »,
- * « anglais » et « EN » dans la même liste.
+ * quatre heures. Le référentiel est fermé côté API — toutes les langues ISO
+ * 639-1, une liste à recherche — et l'écran se contente de les cocher : un
+ * champ libre aurait donné « Anglais », « anglais » et « EN » dans la même
+ * liste.
  */
 function Langues({
   choisies,

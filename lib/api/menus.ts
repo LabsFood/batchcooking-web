@@ -276,6 +276,8 @@ export interface ChefPublic extends WeekChef {
    * réservable que sur demande.
    */
   serviceOffers?: PublicServiceOffer[]
+  /** CGV art. 3.2 : l'identité légale, dans la mesure où elle est renseignée. */
+  legalIdentity?: import('./contract').ChefLegalIdentity | null
 }
 
 /**

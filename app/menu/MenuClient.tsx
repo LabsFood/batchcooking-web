@@ -180,7 +180,9 @@ export default function MenuClient() {
               Décrivez vos envies, vos allergies et votre budget : les batch cookers disponibles vous répondent avec
               une proposition chiffrée.
             </p>
-            <ReserveButton href="/espace-client/personnalisation">
+            {/* Dans p-10 sur 375 px, le libellé ne tient pas sur une ligne : il passe
+                à la ligne au lieu d'élargir la page. */}
+            <ReserveButton href="/espace-client/personnalisation" className="whitespace-normal text-balance">
               Faire une demande sur mesure
               <ArrowRight className="icon-arrow h-4 w-4" />
             </ReserveButton>

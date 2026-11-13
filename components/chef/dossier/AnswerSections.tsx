@@ -19,6 +19,9 @@ import { NO_SAP_MESSAGE, isValidSiret, type Zone } from '@/lib/chef/application'
 import PhoneField from '@/components/shared/PhoneField'
 import { formatE164, isValidE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
+import { useMeProfile } from '@/lib/api/me-profile'
+import { useUpdateChefZones } from '@/lib/api/chef-profile'
+import type { ChefProfile } from '@/lib/api/types'
 import {
   applicationAnswers,
   applicationPatchMessage,
@@ -58,6 +61,19 @@ const SAP_LABEL: Record<string, string> = {
   'type-a': 'Déclaration SAP à mon nom',
   'type-b': 'Par ma coopérative SAP',
 }
+
+type ZoneLue = NonNullable<ChefApplication['interventionZones']>[number]
+
+/** Régions par libellé, villes par nom : l'ordre alphabétique, toujours. */
+const parOrdreAlpha = (zones: ZoneLue[]): ZoneLue[] =>
+  zones
+    .map((z) => ({
+      ...z,
+      cities: [...(z.cities ?? [])].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'fr')),
+    }))
+    .sort((a, b) =>
+      (a.regionLabel ?? a.regionCode ?? '').localeCompare(b.regionLabel ?? b.regionCode ?? '', 'fr'),
+    )
 
 /* ── La coquille d'une section ─────────────────────────────────────────────── */
 
@@ -188,12 +204,21 @@ export default function AnswerSections({
 }) {
   const toast = useToast()
   const update = useUpdateApplication()
+  const majZones = useUpdateChefZones()
+  const profil = useMeProfile()
   const [erreur, setErreur] = useState<string | null>(null)
 
   const a = applicationAnswers(app)
 
   // L'API n'ouvre le PATCH que pendant l'instruction.
   const modifiable = app?.status === 'submitted' || app?.status === 'changes-requested'
+  // Une fois approuvé, les zones se règlent sur le profil (`PATCH /me/chef-profile/zones`).
+  const approuvee = app?.status === 'approved'
+  const chef =
+    profil.data?.profileType === 'chef' ? (profil.data.profile as ChefProfile | null) : null
+  const zonesLues = parOrdreAlpha(
+    (approuvee && chef?.interventionZones?.length ? chef.interventionZones : a.interventionZones) ?? [],
+  )
 
   const [ouverte, setOuverte] = useState<Quelle>(modifiable ? (section ?? null) : null)
 
@@ -219,9 +244,7 @@ export default function AnswerSections({
     if (quelle === 'identity') {
       return 'Votre candidature est approuvée : votre nom et votre téléphone se modifient désormais depuis votre vitrine.'
     }
-    if (quelle === 'zones') {
-      return 'Fixées à l’approbation : modification N/A pour l’instant. Votre rayon de déplacement, lui, reste réglable depuis votre vitrine.'
-    }
+    if (quelle === 'zones') return undefined
     return 'Votre candidature est approuvée : cette réponse ne se modifie plus ici. Écrivez-nous pour la corriger.'
   }
 
@@ -250,7 +273,7 @@ export default function AnswerSections({
 
   // ── Zones ─────────────────────────────────────────────────────────────────
   const [zones, setZones] = useState<Zone[]>(() =>
-    (a.interventionZones ?? []).map((z) => ({
+    zonesLues.map((z) => ({
       regionCode: z.regionCode ?? '',
       wholeRegion: z.scope !== 'cities',
       cities: (z.cities ?? []).map((c) => ({
@@ -285,7 +308,7 @@ export default function AnswerSections({
       setCoop('yes')
     } else {
       setZones(
-        (r.interventionZones ?? []).map((z) => ({
+        zonesLues.map((z) => ({
           regionCode: z.regionCode ?? '',
           wholeRegion: z.scope !== 'cities',
           cities: (z.cities ?? []).map((c) => ({
@@ -636,7 +659,7 @@ export default function AnswerSections({
         verrou={verrouDe('zones')}
         onOuvrir={() => ouvrir('zones')}
         onFermer={() => setOuverte(null)}
-        enCours={update.isPending}
+        enCours={update.isPending || majZones.isPending}
         erreur={erreur}
         onEnregistrer={() => {
           if (zones.length === 0) {
@@ -652,24 +675,31 @@ export default function AnswerSections({
             )
             return
           }
-          envoyer(
-            {
-              interventionZones: zones.map((z) => ({
-                regionCode: z.regionCode,
-                regionLabel: regionLabel(z.regionCode),
-                scope: z.wholeRegion ? 'region' : 'cities',
-                cities: z.wholeRegion ? [] : z.cities,
-              })),
-            },
-            'Vos zones',
-          )
+          const interventionZones = zones.map((z) => ({
+            regionCode: z.regionCode,
+            regionLabel: regionLabel(z.regionCode),
+            scope: z.wholeRegion ? ('region' as const) : ('cities' as const),
+            cities: z.wholeRegion ? [] : z.cities,
+          }))
+          if (approuvee) {
+            setErreur(null)
+            majZones.mutate(interventionZones, {
+              onSuccess: () => {
+                setOuverte(null)
+                toast.success('Zones enregistrées', 'Les clients de ces zones vous voient dès maintenant.')
+              },
+              onError: (e) => setErreur(applicationPatchMessage(e)),
+            })
+            return
+          }
+          envoyer({ interventionZones }, 'Vos zones')
         }}
         lecture={
-          (a.interventionZones?.length ?? 0) === 0 ? (
+          zonesLues.length === 0 ? (
             <p className="text-sm text-ink-soft">Aucune zone renseignée.</p>
           ) : (
             <ul className="space-y-2.5">
-              {a.interventionZones?.map((z, i) => (
+              {zonesLues.map((z, i) => (
                 <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
                   <span className="min-w-0">

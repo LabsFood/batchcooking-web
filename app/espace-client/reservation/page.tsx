@@ -55,6 +55,9 @@ import {
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
 import { track } from '@/lib/analytics'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
+import { ChefLegalBlock } from '@/components/client/ChefLegalBlock'
+import { consentGaps, neededGaps, type ContractGap } from '@/lib/api/contract'
 
 /*
  * Trois étapes, plus quatre : la confirmation n'appartient plus à ce tunnel.
@@ -189,6 +192,21 @@ function ReservationFlow() {
   const prix = tarif.data ?? null
 
   const creer = useCreateBooking()
+  // CGV V1 (art. 5.1) : trois cases séparées, jamais cochées d'avance.
+  const terms = profil.data?.contractTerms
+  const [ticks, setTicks] = useState<Ticks>({})
+  const [manquantes, setManquantes] = useState<ContractGap[]>([])
+  const cases = Array.from(
+    new Set([
+      ...neededGaps({
+        chefShops: !!offre?.shoppingIncluded && !coursesParMoi,
+        startsAt: creneauIso,
+        windowDays: 21,
+      }),
+      ...manquantes,
+    ]),
+  )
+  const casesOk = !terms || allTicked(cases, ticks)
 
   /** Ouvrir une carte. Changer de chef repart de zéro : les plats cochés
       appartiennent à la carte précédente, pas à celle-ci. */
@@ -238,6 +256,7 @@ function ReservationFlow() {
         addressCity: city,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
+        ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
         ...(selectedMeals.length > 0
           ? { meals: selectedMeals.slice(0, MAX_DISHES).map((mealId) => ({ mealId })) }
           : {}),
@@ -258,6 +277,15 @@ function ReservationFlow() {
           if (body?.code === 'ALLERGEN_CONFLICT') setRefuses(body.conflicts?.map((c) => c.mealId) ?? [])
           if (body?.code === 'ALLERGENS_UNVERIFIED') setRefuses(body.mealIds ?? [])
           if (body?.code === 'ALLERGIES_NOT_DECLARED') profil.refetch()
+          const gaps = consentGaps(body)
+          if (gaps) {
+            // Des textes plus récents : on les relit, et le client recoche.
+            if (terms && gaps.version !== terms.version) {
+              setTicks({})
+              profil.refetch()
+            }
+            setManquantes(gaps.missing)
+          }
           setErreur(
             reasonText(body) ?? apiMessage(e, 'La réservation n’a pas pu être enregistrée.'),
           )
@@ -659,7 +687,12 @@ function ReservationFlow() {
                     <li>
                       <strong className="font-semibold text-navy">3.</strong> Tant
                       que rien n’est réglé, vous pouvez tout annuler sans frais
-                      depuis « Mes commandes ».
+                      depuis « Mes sessions ».
+                    </li>
+                    <li>
+                      <strong className="font-semibold text-navy">4.</strong> Une
+                      fois la session payée, vous avez <strong>14 jours</strong> pour
+                      vous rétracter : bouton « Se rétracter » dans Mes sessions.
                     </li>
                   </ol>
                 </div>
@@ -716,10 +749,26 @@ function ReservationFlow() {
                   </div>
                 )}
 
+                <ChefLegalBlock
+                  identity={fiche.data?.legalIdentity}
+                  displayName={chef?.chef.displayName}
+                />
+
+                {terms && (
+                  <ContractBoxes
+                    terms={terms}
+                    gaps={cases}
+                    ticks={ticks}
+                    onChange={setTicks}
+                    missing={manquantes}
+                  />
+                )}
+
                 <button
                   type="button"
                   onClick={reserver}
                   disabled={
+                    !casesOk ||
                     creer.isPending ||
                     !offre ||
                     !creneauIso ||
@@ -727,7 +776,7 @@ function ReservationFlow() {
                   }
                   className="btn btn-primary w-full justify-center disabled:opacity-60"
                 >
-                  {creer.isPending ? 'Enregistrement…' : 'Réserver et payer'}
+                  {creer.isPending ? 'Enregistrement…' : 'Commander avec obligation de paiement'}
                   {!creer.isPending && <ArrowRight className="h-4 w-4 icon-arrow" />}
                 </button>
                 <button
@@ -1126,7 +1175,10 @@ function SummaryCard({
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
           {prix ? (
             <>
-              <Row label="Prestation" value={offerEuros(prix.priceCents)} />
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                Prestation
+              </p>
+              <Row label="Formule" value={offerEuros(prix.priceCents)} />
               {prix.extraPersonsCents > 0 && (
                 <Row
                   label={`+ ${persons - prix.rules.includedPersons} personne${persons - prix.rules.includedPersons > 1 ? 's' : ''}`}
@@ -1140,7 +1192,18 @@ function SummaryCard({
                 />
               )}
               {prix.shoppingFeeCents > 0 && (
-                <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
+                <>
+                  {/* CGV 10 : le forfait est le temps du batch cooker, il ouvre droit
+                      au crédit d'impôt ; les ingrédients sont des débours, à part. */}
+                  <p className="pt-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                    Courses
+                  </p>
+                  <Row label="Forfait courses" value={offerEuros(prix.shoppingFeeCents)} />
+                  <p className="text-[11px] leading-relaxed text-white/55">
+                    Courses (ingrédients) : payées à part par carte, au montant exact, sans
+                    marge. Elles n’ouvrent pas droit au crédit d’impôt.
+                  </p>
+                </>
               )}
               <div className="pt-3 border-t border-white/10">
                 <Prix

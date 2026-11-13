@@ -11,12 +11,23 @@ import posthog from 'posthog-js'
  * Sans NEXT_PUBLIC_POSTHOG_KEY (dev, preview), tout est sans effet.
  */
 export const CONSENT_KEY = 'labsfood.cookies.v1'
+/** Six mois (≈ 182 jours). */
+const CONSENT_MAX_AGE_MS = 182 * 24 * 3600 * 1000
+/** Le lien « Gérer mes cookies » rouvre le bandeau par cet événement. */
+export const OPEN_COOKIES_EVENT = 'labsfood:cookies-open'
+/** Rouvre le choix des cookies, depuis n'importe quelle page. */
+export function openCookieSettings(): void {
+  window.dispatchEvent(new Event(OPEN_COOKIES_EVENT))
+}
 
 export type ConsentChoice = 'accepted' | 'declined'
 
 export function readConsent(): ConsentChoice | null {
   try {
     const saved = JSON.parse(window.localStorage.getItem(CONSENT_KEY) ?? 'null')
+    // Politique de confidentialité §15 : un choix vaut 6 mois, puis on redemande.
+    const at = Date.parse(saved?.at ?? '')
+    if (!Number.isFinite(at) || Date.now() - at > CONSENT_MAX_AGE_MS) return null
     return saved?.choice === 'accepted' || saved?.choice === 'declined' ? saved.choice : null
   } catch {
     return null

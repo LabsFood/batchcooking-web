@@ -339,6 +339,3 @@ export const TESTIMONIALS: Testimonial[] = [
     verified: true,
   },
 ]
-
-// ─── FAQ ──────────────────────────────────────────────────────────────────────
-

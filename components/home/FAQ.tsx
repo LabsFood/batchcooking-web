@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Mail, Minus, Phone, Plus } from 'lucide-react'
-import { FAQ_SECTIONS, questionsAccueil, type FaqQuestion, type FaqReponse } from '@/lib/faq'
+import { ArrowRight, ExternalLink, Mail, Minus, Phone, Plus } from 'lucide-react'
+import { FAQ_SECTIONS, questionsAccueil, type FaqQuestion } from '@/lib/faq'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Les questions fréquentes.
@@ -194,7 +194,7 @@ function Item({
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <Reponse reponse={question.reponse} />
+            <Reponse question={question} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -202,7 +202,8 @@ function Item({
   )
 }
 
-function Reponse({ reponse }: { reponse: FaqReponse }) {
+function Reponse({ question }: { question: FaqQuestion }) {
+  const reponse = question.reponse
   return (
     <div className="space-y-3 px-5 pb-5 sm:px-6 sm:pb-6 sm:pr-12">
       {reponse.texte && <p className="leading-relaxed text-ink-mid">{reponse.texte}</p>}
@@ -262,6 +263,31 @@ function Reponse({ reponse }: { reponse: FaqReponse }) {
         <p className="rounded-xl bg-mint/45 px-4 py-3 text-[13px] leading-relaxed text-mint-ink">
           <strong className="font-semibold">Bon à savoir :</strong> {reponse.note}
         </p>
+      )}
+
+      {/* Sur l'avantage fiscal, une affirmation sans sa source ne vaut rien :
+          le lecteur doit pouvoir aller lire le texte lui-même. */}
+      {question.sources && question.sources.length > 0 && (
+        <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+            Sources
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {question.sources.map((s) => (
+              <li key={s.href}>
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-start gap-1.5 text-[13px] leading-relaxed text-ink-mid underline-offset-2 hover:text-navy hover:underline"
+                >
+                  {s.label}
+                  <ExternalLink className="mt-1 h-3 w-3 shrink-0 opacity-60" aria-hidden />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )

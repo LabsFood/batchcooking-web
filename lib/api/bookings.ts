@@ -106,7 +106,11 @@ export interface Booking {
   createdAt?: string
   mealsCount?: number | null
   client?: { id: string; name: string | null; avatarUrl?: string | null } | null
-  chef?: { id: string; displayName: string | null } | null
+  chef?: {
+    id: string
+    displayName: string | null
+    legalIdentity?: import('./contract').ChefLegalIdentity | null
+  } | null
   serviceOffer?: { id: string; name: string | null } | null
   formule?: { id: string; name: string | null } | null
   /** Moyens que ce client peut utiliser avec ce batch cooker. */
@@ -129,6 +133,14 @@ export interface Booking {
   allergyCheckReasons?: AllergyReason[]
   /** Détail seulement : les plats qui contiennent un allergène du client, à remplacer. */
   allergyConflicts?: { mealId: string; allergens: string[] }[]
+  /** CGV V1, détail seulement : les cases cochées et la conclusion. */
+  contract?: import('./contract').BookingContract
+  /** CGV V1, vue client : le droit de rétractation. */
+  withdrawal?: import('./contract').BookingWithdrawal | null
+  /** Liste : la date d'envoi de la rétractation. */
+  withdrawnAt?: string | null
+  /** CGV V1, vue client : les documents du contrat. */
+  documents?: { kind: import('./contract').BookingDocumentKind; filename: string }[]
 }
 
 export interface PageMeta {
@@ -213,6 +225,8 @@ export interface NewBooking {
   notes?: string
   shoppingByClient?: boolean
   meals?: { mealId: string; portions?: number }[]
+  /** CGV V1 : les cases cochées, exigées à partir du 21/11/2026. */
+  consents?: import('./contract').ContractConsents
 }
 
 /**
@@ -691,6 +705,48 @@ export interface MissionRecipeSheet {
    * prestation ne bouge.
    */
   version: { pinned: number; current: number; newerAvailable: boolean }
+  /**
+   * Ce que le batch cooker a écrit de CE plat dans CETTE prestation : comment
+   * le réchauffer, comment le garder. À côté des consignes de la recette, sans
+   * les remplacer. Absent d'une API d'avant le 10/11.
+   */
+  notes?: { reheating: string | null; storage: string | null }
+}
+
+/** Les statuts où le batch cooker peut écrire ses notes : il cuisine, ou c'est fait. */
+export const DISH_NOTES_OPEN: BookingStatus[] = ['cooking', 'delivered', 'completed']
+
+export interface DishNotes {
+  reheatingNote: string | null
+  storageNote: string | null
+}
+
+/**
+ * `PUT /chef-missions/{id}/dishes/{dishId}/notes` — les notes du batch cooker
+ * sur un plat de la prestation. Un champ absent reste, un champ vide s'efface.
+ * `409 PRESTATION_NOT_STARTED` avant qu'il soit en cuisine.
+ */
+export function useSaveDishNotes() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      dishId,
+      notes,
+    }: {
+      missionId: string
+      dishId: string
+      notes: Partial<DishNotes>
+    }) =>
+      apiFetch<DishNotes>(`/chef-missions/${missionId}/dishes/${dishId}/notes`, {
+        method: 'PUT',
+        body: notes,
+      }),
+    onSuccess: (_saved, { missionId }) =>
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId, 'recipe-sheet'] }),
+  })
 }
 
 export function useMissionRecipeSheet(

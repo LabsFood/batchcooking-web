@@ -1,8 +1,6 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
 import { useToast } from '@/components/shared/Toaster'
@@ -30,14 +28,6 @@ export default function NouveauPlatPage() {
 
   return (
     <ChefPage title="Nouveau plat" subtitle="Le nom et le temps de préparation suffisent pour commencer.">
-      <Link
-        href="/espace-chef/recettes"
-        className="mb-5 inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        Mes plats
-      </Link>
-
       <DishForm
         dish={null}
         onSave={save}

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
+import ChefLegalForm from '@/components/chef/ChefLegalForm'
 import { useToast } from '@/components/shared/Toaster'
 import { apiMessage } from '@/lib/api/messages'
 import {
@@ -505,6 +506,8 @@ function PayoutMode() {
             )}
           </Card>
         </div>
+
+        <ChefLegalForm />
 
         <p className="flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

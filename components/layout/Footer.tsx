@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
 import ReserveButton from '@/components/shared/ReserveButton'
+import CookieSettingsLink from './CookieSettingsLink'
 
 const LINKS = {
   service: [
@@ -15,14 +16,17 @@ const LINKS = {
   ],
   about: [
     { label: 'À propos', href: '/a-propos' },
-    { label: 'Témoignages', href: '/#testimonials' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Contact', href: '/contact' },
   ],
   legal: [
     { label: 'Mentions légales', href: '/mentions-legales' },
+    { label: 'Comment fonctionne la plateforme', href: '/mentions-legales#fonctionnement' },
+    { label: 'CGU', href: '/cgu' },
     { label: 'CGV', href: '/cgv' },
     { label: 'Confidentialité', href: '/confidentialite' },
+    { label: 'Se rétracter', href: '/espace-client/commandes' },
+    { label: 'Signaler un contenu', href: 'mailto:signalement@labsfood.fr' },
   ],
 }
 
@@ -106,7 +110,7 @@ export default function Footer() {
           style={{ background: 'radial-gradient(circle, rgba(217,105,65,0.18), transparent 70%)' }} /> */}
 
         <div className="container-xl relative">
-          {/* Top : Brand statement + Newsletter */}
+          {/* Top : Brand statement */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-14 border-b border-white/10">
             {/* Brand statement */}
             <div className="lg:col-span-7">
@@ -124,36 +128,6 @@ export default function Footer() {
               </p>
             </div>
 
-            {/* Newsletter */}
-            <div className="lg:col-span-5 lg:pl-10 lg:border-l lg:border-white/10">
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terra mb-4">
-                Newsletter
-              </p>
-              <h4 className="font-display text-2xl text-white font-bold mb-3 leading-tight">
-                Restez informé de nos nouveautés
-              </h4>
-              <p className="text-sm text-cream-soft/65 mb-6">
-                Nouveaux batch cookers, nouveaux plats et actualités de Lab&apos;s Food, directement dans votre boîte mail.
-              </p>
-              <form className="flex flex-col sm:flex-row gap-2 mb-4">
-                <input
-                  type="email"
-                  required
-                  placeholder="votre@email.fr"
-                  className="flex-1 px-5 py-3.5 bg-white/[0.06] border border-white/15 rounded-full text-white placeholder:text-white/35 text-sm outline-none focus:border-terra focus:bg-white/[0.1] transition-all"
-                />
-                <button
-                  type="submit"
-                  className="bg-terra hover:bg-terra-deep text-white font-semibold uppercase text-xs tracking-[0.08em] rounded-full px-6 py-3.5 transition-all hover:shadow-[0_10px_24px_-8px_rgba(217,105,65,0.6)] flex items-center justify-center gap-2"
-                >
-                  S&apos;inscrire
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </form>
-              <p className="text-xs text-cream-soft/45">
-                Pas de spam. Désabonnement en 1 clic.
-              </p>
-            </div>
           </div>
 
           {/* Middle : Contact + Links */}
@@ -177,7 +151,7 @@ export default function Footer() {
                   <span className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center">
                     <Phone className="w-4 h-4" />
                   </span>
-                  <span className="text-sm">Lun–Ven · 9h–17h</span>
+                  <a href="tel:+33749755684" className="text-sm hover:text-white">07 49 75 56 84 · Lun–Ven 9h–17h</a>
                 </li>
                 <li className="flex items-center gap-3 text-cream-soft">
                   <span className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center">
@@ -222,6 +196,7 @@ export default function Footer() {
             {/* Legal */}
             <FooterColumn title="Légal">
               {LINKS.legal.map((l) => <FooterLink key={l.href} {...l} />)}
+              <CookieSettingsLink />
             </FooterColumn>
           </div>
 
@@ -241,9 +216,9 @@ export default function Footer() {
           {/* Bottom bar */}
           <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cream-soft/55">
-              <p>© {new Date().getFullYear()} Lab&apos;s Food</p>
+              <p>© {new Date().getFullYear()} LAB&apos;S FOOD - BATCHCOOKING</p>
               <span className="hidden md:inline opacity-30">·</span>
-              <p>Service à la Personne agréé · N° SAP-XXXXXX</p>
+              <p>LAB&apos;S FOOD - BATCHCOOKING SASU · 200 rue de la Croix Nivert, 75015 Paris</p>
             </div>
             <div className="flex items-center gap-3 text-xs text-cream-soft/55">
               <span>Paiement sécurisé</span>

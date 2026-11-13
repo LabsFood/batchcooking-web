@@ -6,6 +6,12 @@
    remplace un jour par un appel d'API en faisant le ménage des faux jeux de
    données.
 
+   Deux FAQ ont été écrites en parallèle et fusionnées ici : celle du document
+   validé par l'équipe, qui fait foi sur le service, et celle de `develop`, qui
+   apportait les questions sur les allergies, le fonctionnement de la
+   plateforme, et surtout les sources légales — Légifrance, BOFiP, Urssaf.
+   Les onze questions d'origine, que le document corrigeait, ont été retirées.
+
    Deux usages, une seule source :
    - la page `/faq` déroule tout, section par section ;
    - la page d'accueil n'en montre qu'une poignée, choisie dans `FAQ_ACCUEIL`.
@@ -14,6 +20,9 @@
    « bon à savoir » et un petit tableau. Tout est optionnel : la plupart des
    réponses sont une phrase, et c'est très bien.
    ───────────────────────────────────────────────────────────────────────────── */
+
+import { SOURCES } from './sources'
+import type { FAQSource } from './types'
 
 export interface FaqReponse {
   /** Le corps de la réponse. */
@@ -32,6 +41,8 @@ export interface FaqQuestion {
   id: string
   question: string
   reponse: FaqReponse
+  /** Textes de loi et pages officielles, affichés en lien sous la réponse. */
+  sources?: readonly FAQSource[]
 }
 
 export interface FaqSection {
@@ -223,6 +234,140 @@ export const FAQ_SECTIONS: FaqSection[] = [
             'Dites-le simplement à votre batch cooker par la messagerie. Il en tiendra compte pour vos prochains menus.',
         },
       },
+      {
+        id: 'r10',
+        question: 'Les régimes et les saisons affichés sur les plats sont-ils fiables ?',
+        reponse: {
+          texte:
+            'Ils sont calculés d’après les ingrédients de la recette, selon les produits habituellement achetés. Une marque différente peut contenir une trace : en cas d’allergie ou de régime strict, déclarez-le et dites-le au batch cooker. Halal et casher sont déclarés par le batch cooker, pas calculés.',
+        },
+      },
+      {
+        id: 'r11',
+        question: 'Que voit-on d’une recette sur le site ?',
+        reponse: {
+          texte:
+            'Le nom, la description, la photo, les régimes, les saisons et les profils du plat. Les temps de préparation, la recette détaillée et les notes personnelles du batch cooker restent privés.',
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'allergies',
+    titre: 'Allergies et consentement',
+    questions: [
+      {
+        id: 'r1',
+        question: 'Dois-je déclarer mes allergies pour réserver ?',
+        reponse: {
+          texte:
+            'Oui. Avant de valider un menu, vous indiquez vos allergies parmi les 14 allergènes réglementaires (et d’autres si besoin), ou vous précisez que vous n’en avez aucune. Sans cette déclaration, la réservation ne peut pas être validée. Vous la faites une fois, depuis « Bien démarrer » ou votre profil.',
+        },
+      },
+      {
+        id: 'r2',
+        question: 'Pourquoi me demande-t-on mon consentement ?',
+        reponse: {
+          texte:
+            'Une allergie est une donnée de santé. Nous l’enregistrons seulement avec votre accord, pour écarter les plats qui la contiennent et la transmettre au batch cooker qui cuisine pour vous. Si vous n’avez aucune allergie, aucun consentement n’est demandé.',
+        },
+      },
+      {
+        id: 'r3',
+        question: 'Puis-je retirer mon consentement ?',
+        reponse: {
+          texte:
+            'Oui, à tout moment depuis votre profil. Vos allergies sont alors effacées, et vous devrez les déclarer à nouveau avant de valider un prochain menu.',
+        },
+      },
+      {
+        id: 'r4',
+        question: 'Que se passe-t-il si un plat contient un allergène que j’ai déclaré ?',
+        reponse: {
+          texte:
+            'Le plat est refusé : il ne peut pas entrer dans votre menu. Un plat dont les allergènes n’ont pas encore été vérifiés est refusé de la même façon si vous avez déclaré des allergies.',
+        },
+      },
+      {
+        id: 'r5',
+        question: 'Et si je déclare une nouvelle allergie après avoir réservé ?',
+        reponse: {
+          texte:
+            'Vos menus déjà validés sont revérifiés aussitôt. Un plat devenu incompatible est signalé « à remplacer », vous recevez une notification, et le plat peut être remplacé par un autre, compatible.',
+        },
+      },
+      {
+        id: 'r6',
+        question: 'Le batch cooker connaît-il mes allergies ?',
+        reponse: {
+          texte:
+            'Oui, il voit vos allergies sur la prestation, avec leur statut vérifié. Elles ne sont jamais affichées publiquement.',
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'recettes-plateforme',
+    titre: 'Les recettes sur la plateforme',
+    questions: [
+      {
+        id: 'r12',
+        question: 'Quand une recette est-elle « Prête » ?',
+        reponse: {
+          texte:
+            'Quand elle a un type de plat, un temps de cuisson, au moins un ingrédient, des étapes avec leur type, une conservation, un mode de réchauffage et des allergènes confirmés. L’écran liste ce qui manque. Une courte description est demandée en plus pour publier.',
+        },
+      },
+      {
+        id: 'r13',
+        question: 'Pourquoi dois-je reconfirmer les allergènes ?',
+        reponse: {
+          texte:
+            'Ajouter, retirer ou renommer un ingrédient efface la confirmation : le plat doit être revérifié avant d’être réservé par un client allergique. Changer seulement une quantité ne l’efface pas.',
+        },
+      },
+      {
+        id: 'r14',
+        question: 'Qu’est-ce qu’une version de recette ?',
+        reponse: {
+          texte:
+            'Une fois la recette Prête, chaque enregistrement crée une nouvelle version. Les prestations déjà validées gardent la version du moment : vos modifications ne changent pas un menu déjà accepté.',
+        },
+      },
+      {
+        id: 'r15',
+        question: 'Y a-t-il des limites à une recette ?',
+        reponse: {
+          texte:
+            'Oui : 60 ingrédients, 40 étapes et 2 000 caractères par étape au plus.',
+        },
+      },
+      {
+        id: 'r16',
+        question: 'Puis-je dupliquer un plat ou un menu ?',
+        reponse: {
+          texte:
+            'Oui. La copie s’appelle « (copie) », reste en brouillon et n’est jamais publiée d’office. Pour un plat, les allergènes sont à confirmer à nouveau. Un menu copié reprend les mêmes plats, sans les dupliquer.',
+        },
+      },
+      {
+        id: 'r17',
+        question: 'Puis-je adapter un ingrédient de la liste commune ?',
+        reponse: {
+          texte:
+            'Oui. Depuis « Mes ingrédients », vous adoptez une entrée de la liste commune et corrigez votre version (nom, mois de saison, régimes). Vos plats se classent alors depuis votre version.',
+        },
+      },
+      {
+        id: 'r18',
+        question: 'Puis-je télécharger ma fiche recette ?',
+        reponse: {
+          texte:
+            'Oui, en PDF, depuis le formulaire de la recette.',
+        },
+      },
     ],
   },
 
@@ -276,6 +421,14 @@ export const FAQ_SECTIONS: FaqSection[] = [
         reponse: {
           texte:
             'Ce n’est pas obligatoire. Pour la première fois, nous vous conseillons d’être là pour accueillir votre batch cooker et lui montrer votre cuisine. Ensuite, vous convenez ensemble de l’accès à votre logement : remise de clés, boîte à clés, voisin ou gardien. Rien ne se fait sans votre accord.',
+        },
+      },
+      {
+        id: 'r7',
+        question: 'À quoi sert « Bien démarrer » ?',
+        reponse: {
+          texte:
+            'C’est la liste de vos premiers pas : coordonnées, adresse, allergies, goûts et première session. Elle indique où vous en êtes (par exemple « 2 étapes sur 5 ») et ne bloque rien, sauf l’étape allergies, nécessaire pour valider un menu.',
         },
       },
     ],
@@ -378,6 +531,22 @@ export const FAQ_SECTIONS: FaqSection[] = [
             'Signalez-le à votre batch cooker : il les retire de la liste pour éviter les achats en double.',
         },
       },
+      {
+        id: 'r8',
+        question: 'Comment fonctionne la liste de courses ?',
+        reponse: {
+          texte:
+            'Le batch cooker vous envoie la liste des ingrédients de vos plats, rangée par rayon. Vous cochez « J’ai déjà » pour ce que vous avez, ajoutez un commentaire si besoin, puis renvoyez votre liste. Vous recevez une notification à chaque envoi.',
+        },
+      },
+      {
+        id: 'r9',
+        question: 'Jusqu’à quand puis-je modifier ma liste de courses ?',
+        reponse: {
+          texte:
+            'Jusqu’à midi la veille de la prestation. Si le batch cooker vous envoie une nouvelle version entre-temps, répondez sur cette dernière version : une réponse à une ancienne liste est refusée.',
+        },
+      },
     ],
   },
 
@@ -408,6 +577,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         id: 'credit-dimpot',
+        sources: [SOURCES.cgi199sexdecies, SOURCES.codeTravailD7231, SOURCES.bofipRepas],
         question: 'Ai-je droit à un crédit d’impôt ?',
         reponse: {
           texte:
@@ -422,6 +592,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         id: 'avance-immediate',
+        sources: [SOURCES.urssafAvanceImmediate, SOURCES.servicePublic],
         question: 'L’avance immédiate est-elle proposée ?',
         reponse: {
           texte:
@@ -438,6 +609,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         id: 'activer-avance-immediate',
+        sources: [SOURCES.urssafAvanceImmediate],
         question: 'Comment activer l’avance immédiate ?',
         reponse: {
           liste: [
@@ -464,6 +636,33 @@ export const FAQ_SECTIONS: FaqSection[] = [
           texte:
             'Oui. Toutes vos factures sont disponibles dans votre espace client, à télécharger quand vous le souhaitez.',
         },
+      },
+      {
+        id: 'f15',
+        question: 'L’intervenant doit-il être déclaré ?',
+        reponse: {
+          texte:
+            'Oui. L’activité de services à la personne doit être déclarée (article L. 7232-1-1 du Code du travail) pour que vous puissiez bénéficier du crédit d’impôt. Une dérogation à l’activité exclusive (article L. 7232-1-2) permet notamment aux micro-entrepreneurs d’exercer d’autres activités. Votre attestation fiscale annuelle indique la déclaration de chaque batch cooker.',
+        },
+        sources: [SOURCES.cgi199sexdecies, SOURCES.codeTravailL7232, SOURCES.bofipDeclaration],
+      },
+      {
+        id: 'f18',
+        question: 'Et si je n’utilise pas l’avance immédiate ?',
+        reponse: {
+          texte:
+            'Vous payez le prix complet et recevez une attestation fiscale annuelle. Vous reportez le total de vos dépenses de services à la personne en case 7DB de votre déclaration de revenus. Le crédit vous est versé l’été suivant, avec un acompte de 60 % possible en janvier.',
+        },
+        sources: [SOURCES.impotsEmploiDomicile, SOURCES.servicePublic],
+      },
+      {
+        id: 'f19',
+        question: 'Les aides que je perçois sont-elles déduites ?',
+        reponse: {
+          texte:
+            'Oui. Le crédit d’impôt porte uniquement sur ce qui reste à votre charge : les aides reçues (APA, PCH, CESU préfinancé…) se reportent en case 7DR et ne comptent pas dans la base. Ces informations sont générales : votre situation fiscale se confirme auprès de l’administration fiscale.',
+        },
+        sources: [SOURCES.impotsEmploiDomicile, SOURCES.cgi199sexdecies],
       },
     ],
   },

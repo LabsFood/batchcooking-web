@@ -38,6 +38,9 @@ import {
 } from '@/lib/api/payments'
 import { PAYMENT_METHODS } from '@/lib/client/payments'
 import MockSettlement from './MockSettlement'
+import { useMeProfile } from '@/lib/api/me-profile'
+import { consentGaps, useBookingConsents, type ContractGap } from '@/lib/api/contract'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Règlement d'une prestation réalisée (FLOW-03).
@@ -168,6 +171,34 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
   const link = useRequestUrssafLink(data.bookingId)
   const pending = checkout.isPending || declare.isPending || settle.isPending
 
+  /* CGV V1 : une réservation posée par le batch cooker ou l'équipe n'a pas
+     encore les cases du client. Tout départ de paiement répond alors 409
+     `CONTRACT_CONSENT_REQUIRED` : on montre les cases demandées, on les
+     enregistre, puis le client relance son paiement. */
+  const terms = useMeProfile().data?.contractTerms
+  const consent = useBookingConsents()
+  const [gaps, setGaps] = useState<ContractGap[]>([])
+  const [ticks, setTicks] = useState<Ticks>({})
+  const caughtGaps = (cause: unknown) => {
+    const g = consentGaps(cause instanceof ApiError ? cause.body : null)
+    if (!g) return false
+    setGaps(g.missing)
+    return true
+  }
+  function saveConsents() {
+    if (!terms) return
+    consent.mutate(
+      { id: data.bookingId, consents: consentsOf(terms, ticks) },
+      {
+        onSuccess: () => {
+          setGaps([])
+          setError(null)
+        },
+        onError: (cause) => setError(errorText(cause, 'Les cases n’ont pas été enregistrées. Réessayez.')),
+      },
+    )
+  }
+
   const remaining = data.amounts.remainingCents
   const chosen = data.methods.find((m) => m.id === method) ?? null
   const titresCents = Math.round((Number(cesuAmount.replace(',', '.')) || 0) * 100)
@@ -181,6 +212,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
       // On quitte le site : le bouton reste verrouillé jusqu'à la redirection.
       onSuccess: (session) => window.location.assign(session.url),
       onError: (cause) =>
+        caughtGaps(cause) ||
         setError(
           errorText(
             cause,
@@ -222,6 +254,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
       { amountCents: titresCents, medium, issuer, proofUploadId, clientProofRef: preuveRef },
       {
         onError: (cause) =>
+          caughtGaps(cause) ||
           setError(errorText(cause, 'La déclaration n’a pas été enregistrée. Réessayez dans un instant.')),
       },
     )
@@ -233,6 +266,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
       onSuccess: () => setConfirming(false),
       onError: (cause) => {
         setConfirming(false)
+        if (caughtGaps(cause)) return
         setError(
           errorText(cause, 'La confirmation n’est pas passée. Rien n’a été transmis à l’URSSAF — réessayez.'),
         )
@@ -255,6 +289,21 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
         <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-navy lg:text-4xl">
           Régler la prestation
         </h1>
+        {terms && gaps.length > 0 && (
+          <div className="mt-4 space-y-3 rounded-2xl border border-amber/40 bg-amber-soft/60 p-4">
+            <p className="text-sm font-semibold text-navy">
+              Avant de payer, acceptez les conditions de cette prestation
+            </p>
+            <ContractBoxes terms={terms} gaps={gaps} ticks={ticks} onChange={setTicks} missing={gaps} />
+            <button
+              onClick={saveConsents}
+              disabled={consent.isPending || !allTicked(gaps, ticks)}
+              className="btn btn-primary text-xs disabled:opacity-60"
+            >
+              Valider, puis payer avec obligation de paiement
+            </button>
+          </div>
+        )}
         <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-mid">
           <span className="inline-flex items-center gap-1.5">
             <ChefHat className="h-4 w-4 text-amber" /> {data.chef.displayName}
