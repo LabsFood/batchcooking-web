@@ -99,6 +99,12 @@ export interface Booking {
    * sur sa propre ligne, jamais fondu dans le prix.
    */
   shoppingFeeCents?: number | null
+  /** Les suppléments, à part du prix de la formule : personnes et plats en plus. */
+  extraPersonsCents?: number | null
+  extraMealsCents?: number | null
+  /** Recettes lot 4 : le batch cooker a confirmé les courses, et le total du ticket s'il l'a saisi. */
+  groceriesValidatedAt?: string | null
+  groceriesAmountCents?: number | null
   /** Ce que le client paie : prestation + courses. */
   amountTtc: number
   /** Après crédit d'impôt — **calculé par l'API**, plus par nous. */
@@ -598,6 +604,14 @@ export interface MissionShoppingList {
   version?: number
   sentAt?: string | null
   finalReceivedAt?: string | null
+  /** Recettes lot 4 : « Courses faites », et le total du ticket s'il a été saisi. */
+  groceries?: Groceries
+}
+
+export interface Groceries {
+  validatedAt: string | null
+  /** Centimes. À titre d'information : aucun paiement des courses pour l'instant. */
+  amountCents: number | null
 }
 
 /**
@@ -772,6 +786,27 @@ export function useMissionRecipeSheet(
       ),
     enabled: !!missionId && !!dishId,
     retry: false,
+  })
+}
+
+/**
+ * `POST /chef-missions/{id}/groceries/validate` — « Courses faites » (lot 4). Le
+ * montant du ticket est facultatif ; confirmer de nouveau le remplace.
+ */
+export function useValidateGroceries() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ missionId, amountCents }: { missionId: string; amountCents: number | null }) =>
+      apiFetch<{ missionId: string; groceries: Groceries }>(
+        `/chef-missions/${missionId}/groceries/validate`,
+        { method: 'POST', body: { amountCents } },
+      ),
+    onSuccess: (_saved, { missionId }) => {
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId] })
+      qc.invalidateQueries({ queryKey: [...meKey, 'bookings'] })
+    },
   })
 }
 
