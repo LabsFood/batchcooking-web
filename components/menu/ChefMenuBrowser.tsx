@@ -48,6 +48,7 @@ import {
   useRegions,
 } from '@/lib/api/referentials'
 import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
+import { Prix } from '@/components/shared/Prix'
 
 /**
  * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
@@ -559,45 +560,107 @@ function moisRelatif(rang: number): string {
   return `Dans ${rang} mois`
 }
 
-/** Le filtre au mois : les flèches suffisent, il n'y a que trois mois à parcourir. */
+/**
+ * Le filtre au mois : les flèches, et le mois lui-même qui ouvre la liste.
+ *
+ * Retour de test du 09/11 : on cliquait sur le mois et rien ne s'ouvrait. Le
+ * libellé n'était qu'un affichage ; il ouvre maintenant les mois proposés,
+ * comme le champ de la semaine ouvre son calendrier.
+ */
 function MoisChamp({ filters }: { filters: MenuFilters }) {
   const { mois, setMois, moisListe } = filters
+  const [ouvert, setOuvert] = useState(false)
+  const boite = useRef<HTMLDivElement>(null)
   const rang = moisListe.indexOf(mois)
   const precedent = rang > 0 ? moisListe[rang - 1] : undefined
   const suivant = rang >= 0 && rang < moisListe.length - 1 ? moisListe[rang + 1] : undefined
 
+  useEffect(() => {
+    if (!ouvert) return
+    const dehors = (e: MouseEvent) => {
+      if (!boite.current?.contains(e.target as Node)) setOuvert(false)
+    }
+    const echap = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOuvert(false)
+    }
+    document.addEventListener('mousedown', dehors)
+    document.addEventListener('keydown', echap)
+    return () => {
+      document.removeEventListener('mousedown', dehors)
+      document.removeEventListener('keydown', echap)
+    }
+  }, [ouvert])
+
   return (
-    <div className="flex items-stretch gap-1.5">
-      <button
-        type="button"
-        onClick={() => precedent && setMois(precedent)}
-        disabled={!precedent}
-        aria-label="Mois précédent"
-        className={BOUTON_PAS}
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-      </button>
-      <div
-        aria-live="polite"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5"
-      >
-        <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-navy first-letter:uppercase">
-            {moisLabel(mois)}
+    <div ref={boite} className="relative">
+      <div className="flex items-stretch gap-1.5">
+        <button
+          type="button"
+          onClick={() => precedent && setMois(precedent)}
+          disabled={!precedent}
+          aria-label="Mois précédent"
+          className={BOUTON_PAS}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => setOuvert((v) => !v)}
+          aria-expanded={ouvert}
+          aria-haspopup="dialog"
+          aria-live="polite"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+        >
+          <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-navy first-letter:uppercase">
+              {moisLabel(mois)}
+            </span>
+            <span className="block text-xs text-ink-soft">{moisRelatif(rang)}</span>
           </span>
-          <span className="block text-xs text-ink-soft">{moisRelatif(rang)}</span>
-        </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => suivant && setMois(suivant)}
+          disabled={!suivant}
+          aria-label="Mois suivant"
+          className={BOUTON_PAS}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => suivant && setMois(suivant)}
-        disabled={!suivant}
-        aria-label="Mois suivant"
-        className={BOUTON_PAS}
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
+
+      {ouvert && (
+        <div
+          role="dialog"
+          aria-label="Choisir un mois"
+          className="absolute left-0 top-full z-40 mt-2 w-[16rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-[rgba(31,42,55,0.1)] bg-paper p-3 shadow-[0_24px_60px_-24px_rgba(31,42,55,0.45)]"
+        >
+          <p className="px-1 text-sm font-semibold text-navy">Choisissez un mois</p>
+          <ul className="mt-2 space-y-1">
+            {moisListe.map((m, i) => (
+              <li key={m}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMois(m)
+                    setOuvert(false)
+                  }}
+                  aria-pressed={m === mois}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                    m === mois ? 'bg-navy text-white' : 'text-navy hover:bg-cream-soft'
+                  }`}
+                >
+                  <span className="first-letter:uppercase">{moisLabel(m)}</span>
+                  <span className={`text-xs ${m === mois ? 'text-white/70' : 'text-ink-soft'}`}>
+                    {moisRelatif(i)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
@@ -782,8 +845,8 @@ export function MenuFilterDrawer({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,92vw)] flex-col bg-cream focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,92vw)] flex-col bg-cream focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-center justify-between gap-3 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4">
             <div>
               <Dialog.Title className="font-display text-lg font-bold text-navy">
@@ -1123,14 +1186,16 @@ export function MenuCard({
         <>
           {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
           <div aria-hidden className="min-h-5 flex-1" />
-          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-4">
-            <div className="flex items-end justify-between gap-3">
+          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-5">
+            {/* Alignés en haut : « 3 créneaux libres » tombait sinon sur la
+                dernière ligne du prix et se lisait comme sa suite. */}
+            <div className="flex items-start justify-between gap-4">
               <Tarif prix={prix} apresCredit={apresCredit} />
               <Places slotsLeft={menu.slotsLeft} />
             </div>
             {/* Côte à côte quand la carte est large (une par ligne), l'une sous
                 l'autre quand elles sont deux par ligne. */}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row xl:flex-col">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row xl:flex-col">
               <button
                 type="button"
                 onClick={onOpen}
@@ -1149,9 +1214,9 @@ export function MenuCard({
           </footer>
         </>
       ) : (
-        <footer className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-4">
+        <footer className="mt-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-t border-[rgba(31,42,55,0.08)] px-5 py-5">
           <Tarif prix={prix} apresCredit={apresCredit} />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Places slotsLeft={menu.slotsLeft} />
             <button type="button" onClick={onOpen} className="btn btn-primary px-5 py-2.5 text-xs">
               {openLabel}
@@ -1164,26 +1229,13 @@ export function MenuCard({
 }
 
 function Tarif({ prix, apresCredit }: { prix: string | null; apresCredit: string | null }) {
-  if (!prix) return <p className="text-xs text-ink-soft">Tarif sur demande</p>
-  return (
-    <div>
-      <p className="text-xs text-ink-soft">À partir de</p>
-      <p className="font-display text-xl font-bold text-navy">
-        {prix}
-        {apresCredit && (
-          <span className="ml-1.5 font-sans text-xs font-medium text-terra">
-            soit {apresCredit} après crédit d’impôt
-          </span>
-        )}
-      </p>
-    </div>
-  )
+  return <Prix lead="À partir de" apresCredit={apresCredit} total={prix} taille="sm" />
 }
 
 function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
-      className={`text-xs ${
+      className={`shrink-0 whitespace-nowrap text-xs leading-none ${
         slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-terra' : 'text-ink-soft'
       }`}
     >
@@ -1244,8 +1296,8 @@ export function MenuDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-50 flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-6 sm:rounded-3xl lg:inset-x-[10%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-50 flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-6 sm:rounded-3xl lg:inset-x-[10%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-4 data-[state=closed]:[animation-duration:120ms]">
           {menu && (
             <>
               <header className="flex items-start gap-4 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">

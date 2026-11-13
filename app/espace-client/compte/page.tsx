@@ -2,21 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CreditCard, Home, Info, MapPin, Pencil, ShieldCheck } from 'lucide-react'
+import { CreditCard, Home, Info, MapPin, Pencil } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import { apiMessage } from '@/lib/api/messages'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import type { ClientProfile } from '@/lib/api/types'
-import {
-  centimes,
-  useFiscalAttestation,
-  useMyUrssafLinks,
-  URSSAF_LABEL,
-  URSSAF_TON,
-} from '@/lib/api/fiscal'
+import { centimes, useFiscalAttestation } from '@/lib/api/fiscal'
 
-type Tab = 'addresses' | 'payments' | 'urssaf' | 'invoices' | 'fiscal'
+type Tab = 'addresses' | 'payments' | 'invoices' | 'fiscal'
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>('addresses')
@@ -28,7 +22,6 @@ export default function AccountPage() {
           [
             { id: 'addresses' as Tab, label: 'Adresses' },
             { id: 'payments' as Tab, label: 'Moyens de paiement' },
-            { id: 'urssaf' as Tab, label: 'Avance immédiate' },
             { id: 'invoices' as Tab, label: 'Factures' },
             { id: 'fiscal' as Tab, label: 'Attestation fiscale' },
           ]
@@ -51,8 +44,6 @@ export default function AccountPage() {
 
       {tab === 'payments' && <MoyensDePaiement />}
 
-      {tab === 'urssaf' && <AvanceImmediate />}
-
       {tab === 'invoices' && <Factures />}
 
       {tab === 'fiscal' && <Attestation />}
@@ -65,7 +56,7 @@ export default function AccountPage() {
 /** Une facture par paiement par carte, au nom du batch cooker. */
 function Factures() {
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
@@ -91,7 +82,7 @@ function Adresse() {
   const ligne = [p?.addressStreet, ville].filter(Boolean).join(', ')
 
   return (
-    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-lg font-bold text-navy">Mon adresse</h2>
         <Link href="/espace-client/parametres" className="btn btn-outline text-xs px-3.5 py-2">
@@ -132,7 +123,7 @@ function Adresse() {
  */
 function MoyensDePaiement() {
   return (
-    <section className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <h2 className="font-display text-lg font-bold text-navy mb-4">Moyens de paiement</h2>
       <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
         <CreditCard className="mx-auto h-5 w-5 text-ink-soft" aria-hidden />
@@ -143,94 +134,6 @@ function MoyensDePaiement() {
           sur ce même écran.
         </p>
       </div>
-    </section>
-  )
-}
-
-/* ── Avance immédiate ──────────────────────────────────────────────────────── */
-
-/**
- * Les rattachements URSSAF, un par batch cooker.
- *
- * L'avance immédiate ne se règle pas une fois pour le compte : elle se demande
- * auprès de chaque batch cooker, et l'URSSAF instruit. C'est la raison pour
- * laquelle cet écran liste des lignes et non un interrupteur.
- *
- * La demande, elle, part depuis l'écran de paiement d'une prestation — c'est
- * là qu'elle a un sens, et c'est là que le batch cooker est connu.
- */
-function AvanceImmediate() {
-  const liens = useMyUrssafLinks()
-
-  return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
-      <h2 className="mb-1 font-display text-lg font-bold text-navy">
-        Avance immédiate — mes rattachements
-      </h2>
-      <p className="mb-4 text-sm leading-relaxed text-ink-mid">
-        L’avance immédiate de crédit d’impôt se met en place{' '}
-        <strong>pour chaque batch cooker séparément</strong> : ce n’est pas un
-        réglage global de votre compte.
-      </p>
-
-      <div className="mb-5 flex items-start gap-3 rounded-2xl border border-mint-deep/40 bg-mint/40 px-4 py-3">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-mint-ink" aria-hidden />
-        <p className="text-xs leading-relaxed text-mint-ink">
-          Avec un rattachement actif, vous ne payez que 50 % du montant :
-          l’URSSAF verse directement l’autre moitié au batch cooker. Aucune
-          avance de trésorerie de votre part, aucune déclaration à faire.
-        </p>
-      </div>
-
-      {liens.isPending ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
-      ) : liens.isError ? (
-        <p className="text-sm text-ink-soft">{apiMessage(liens.error)}</p>
-      ) : (liens.data ?? []).length === 0 ? (
-        <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
-          <p className="text-sm text-ink-mid">Aucun rattachement pour l’instant.</p>
-          <p className="mx-auto mt-1 max-w-prose text-xs leading-relaxed text-ink-soft">
-            La demande se fait au moment de régler une prestation : choisissez
-            « avance immédiate » sur l’écran de paiement, et l’URSSAF instruit.
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-2.5">
-          {(liens.data ?? []).map((l) => (
-            <li
-              key={l.id}
-              className="flex items-center gap-3 rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cream-soft">
-                <ShieldCheck className="h-4 w-4 text-terra" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-navy">
-                  {l.chefName ?? 'Batch cooker'}
-                </p>
-                <p className="text-xs text-ink-soft">
-                  Demandé le {new Date(l.requestedAt).toLocaleDateString('fr-FR')}
-                  {l.decidedAt
-                    ? ` · réponse le ${new Date(l.decidedAt).toLocaleDateString('fr-FR')}`
-                    : ''}
-                </p>
-                {l.refusalReason && (
-                  <p className="mt-0.5 text-xs leading-relaxed text-red-700">
-                    {l.refusalReason}
-                  </p>
-                )}
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                  URSSAF_TON[l.status] ?? 'bg-cream-deep text-ink-mid'
-                }`}
-              >
-                {URSSAF_LABEL[l.status] ?? l.status}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   )
 }
@@ -254,7 +157,7 @@ function Attestation() {
   const vide = a.error instanceof ApiError && a.error.status === 404
 
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="card-shell rounded-3xl p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-navy">

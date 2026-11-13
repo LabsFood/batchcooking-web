@@ -34,15 +34,19 @@ const NAV: {
   Icon: typeof LayoutDashboard
   badge?: string
   children?: { href: string; label: string }[]
+  /** Des routes qui appartiennent à la section sans y avoir d'entrée. */
+  aussi?: string[]
 }[] = [
   { href: '/espace-client', label: 'Accueil', Icon: LayoutDashboard },
   {
     href: '/espace-client/menus',
     label: 'Réserver',
     Icon: ChefHat,
+    // La réservation n'a plus d'entrée propre : on y entre depuis une carte.
+    // Elle reste rattachée à cette section pour que la navigation suive.
+    aussi: ['/espace-client/reservation'],
     children: [
       { href: '/espace-client/menus', label: 'Menus & plats' },
-      { href: '/espace-client/reservation', label: 'Composer ma session' },
       { href: '/espace-client/personnalisation', label: 'Demande sur-mesure' },
     ],
   },
@@ -75,6 +79,7 @@ const NAV: {
 function sectionActive(pathname: string, item: (typeof NAV)[number]) {
   if (item.href === '/espace-client') return pathname === item.href
   if (pathname.startsWith(item.href)) return true
+  if ((item.aussi ?? []).some((h) => pathname.startsWith(h))) return true
   return (item.children ?? []).some((c) => pathname.startsWith(c.href))
 }
 
@@ -92,7 +97,7 @@ export default function DashboardSidebar() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-6 self-start h-[calc(100vh-3rem)] ml-6 my-6">
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-[calc(var(--lf-dev-banner)+1.5rem)] self-start h-[calc(100vh-var(--lf-dev-banner)-3rem)] ml-6 my-6">
       <div className="flex flex-col h-full bg-navy text-white rounded-3xl overflow-hidden">
         <div className="flex flex-col h-full">
           {/* Logo */}
@@ -199,6 +204,7 @@ export default function DashboardSidebar() {
           <div className="p-4 space-y-2">
             <ReserveButton
               asChild
+              href="/espace-client/menus?reserve=1"
               className="group flex w-full items-center justify-between rounded-2xl bg-amber px-4 py-3 text-sm font-semibold text-navy transition-colors hover:bg-amber-deep"
             >
               <span className="flex items-center gap-2">

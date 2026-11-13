@@ -49,6 +49,23 @@ export const REASON_TEXT = {
   INGREDIENT_NOT_PENDING:
     'Cet ingrédient a été validé ou remplacé entre-temps : rechargez la page.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
+  ADDRESS_NOT_FOUND:
+    'Cette adresse est introuvable dans ce code postal. Vérifiez le numéro et le nom de la rue.',
+  ADDRESS_CITY_MISMATCH:
+    'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
+  CONTRACT_CONSENT_REQUIRED:
+    'Cochez les cases demandées pour commander : elles valent acceptation du contrat.',
+  WITHDRAWAL_NOT_CONCLUDED:
+    'Cette prestation n’est pas encore payée : vous pouvez l’annuler sans frais.',
+  WITHDRAWAL_ALREADY_SENT: 'Votre rétractation a déjà été envoyée.',
+  BOOKING_CANCELLED: 'Cette prestation est annulée.',
+  WITHDRAWAL_PERIOD_OVER: 'Le délai de rétractation de 14 jours est passé.',
+  WITHDRAWAL_EXECUTED:
+    'La prestation a été entièrement réalisée à votre demande : le droit de rétractation ne s’applique plus.',
+  CHANGED_MEANWHILE: 'La prestation vient de changer : rechargez la page et réessayez.',
+  DOCUMENT_NOT_FOUND: 'Ce document n’est pas disponible pour cette prestation.',
+  GEO_UNAVAILABLE:
+    'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 } as const
 
 /** Les allergènes d'un ingrédient sont exigés (ou « aucun ») : la phrase du dialogue, de la page et de leurs refus. */

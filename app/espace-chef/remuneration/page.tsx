@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
+import ChefLegalForm from '@/components/chef/ChefLegalForm'
 import { useToast } from '@/components/shared/Toaster'
 import { apiMessage } from '@/lib/api/messages'
 import {
@@ -380,54 +381,62 @@ function PayoutMode() {
                   </p>
                 )}
 
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <button
-                  onClick={() =>
-                    lien.mutate(undefined, {
-                      onSuccess: (r) => {
-                        if (r?.url) window.location.href = r.url
-                        else toast.error('Stripe n’a pas renvoyé de lien')
-                      },
-                      onError: (e) =>
-                        toast.error('Le lien n’a pas pu être créé', apiMessage(e)),
-                    })
-                  }
-                  disabled={lien.isPending}
-                  className="btn btn-outline flex-1 justify-center text-xs"
-                >
-                  {lien.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  {stripe.data?.stripeAccountId
-                    ? 'Ouvrir mon compte Stripe'
-                    : 'Créer mon compte Stripe'}
-                </button>
-                {stripe.data?.detailsSubmitted && (
+                {/* Empilés, et non côte à côte : `.btn` ne coupe pas ses
+                    libellés, il les masque (`nowrap` + `overflow: hidden`).
+                    Dans une carte de demi-largeur, deux pilules en capitales
+                    espacées se tronquent sans rien dire. */}
+                <div className="mt-3 space-y-2">
                   <button
                     onClick={() =>
-                      tableauDeBord.mutate(undefined, {
+                      lien.mutate(undefined, {
                         onSuccess: (r) => {
                           if (r?.url) window.location.href = r.url
                           else toast.error('Stripe n’a pas renvoyé de lien')
                         },
                         onError: (e) =>
-                          toast.error('Le tableau de bord n’a pas pu s’ouvrir', apiMessage(e)),
+                          toast.error('Le lien n’a pas pu être créé', apiMessage(e)),
                       })
                     }
-                    disabled={tableauDeBord.isPending}
-                    className="btn btn-outline flex-1 justify-center text-xs"
+                    disabled={lien.isPending}
+                    className="btn btn-outline w-full justify-center text-xs"
                   >
-                    {tableauDeBord.isPending ? (
+                    {lien.isPending ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                     ) : (
                       <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                     )}
-                    Mon tableau de bord Stripe
+                    {stripe.data?.stripeAccountId
+                      ? 'Mon compte Stripe'
+                      : 'Créer mon compte Stripe'}
                   </button>
-                )}
+                  {stripe.data?.detailsSubmitted && (
+                    <button
+                      onClick={() =>
+                        tableauDeBord.mutate(undefined, {
+                          onSuccess: (r) => {
+                            if (r?.url) window.location.href = r.url
+                            else toast.error('Stripe n’a pas renvoyé de lien')
+                          },
+                          onError: (e) =>
+                            toast.error('Le tableau de bord n’a pas pu s’ouvrir', apiMessage(e)),
+                        })
+                      }
+                      disabled={tableauDeBord.isPending}
+                      className="btn btn-outline w-full justify-center text-xs"
+                    >
+                      {tableauDeBord.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      Tableau de bord Stripe
+                    </button>
+                  )}
                 </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                  Stripe vérifie votre identité et vos coordonnées bancaires.
+                  Lab’s Food ne les conserve pas.
+                </p>
               </>
             )}
           </Card>
@@ -497,6 +506,8 @@ function PayoutMode() {
             )}
           </Card>
         </div>
+
+        <ChefLegalForm />
 
         <p className="flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

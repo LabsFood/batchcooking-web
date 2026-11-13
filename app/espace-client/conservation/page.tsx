@@ -1,15 +1,33 @@
 'use client'
 
-import { Flame, Info, Refrigerator, Snowflake, Timer } from 'lucide-react'
-import { DISH_CARE } from '@/lib/client/mock'
+import Link from 'next/link'
+import { ChefHat, Flame, Info, MessageSquareQuote, Refrigerator } from 'lucide-react'
+import {
+  longDate,
+  useMissionRecipeSheet,
+  useMyBookings,
+  type Booking,
+  type BookingMeal,
+} from '@/lib/api/bookings'
+import { useReheatModes } from '@/lib/api/referentials'
+import { REHEAT_MODES, reheatingLine, storageLine } from '@/lib/recipe-fields'
 
 /**
- * Réchauffage & conservation (CL-09).
+ * Réchauffage & conservation (CL-09), prestation par prestation.
  *
- * Fiche dérivée de la recette — jamais la recette elle-même (§ 6.5) : on
- * n'affiche que le mode de réchauffage, la conservation et le conditionnement.
+ * Jusqu'au 10/11 la page montrait des fiches d'exemple, dérivées des recettes.
+ * Retour de test du 09/11 : ces consignes valent pour une prestation réalisée,
+ * pas pour une recette dans l'absolu. On liste donc les prestations terminées
+ * et, pour chaque plat cuisiné, les consignes de sa fiche **et** les notes que
+ * le batch cooker a écrites pour cette prestation-là.
+ *
+ * Jamais la recette elle-même (§ 6.5) : seulement réchauffage et conservation.
+ * La fiche n'est remise qu'après la prestation, d'où le filtre `completed`.
  */
 export default function ConservationPage() {
+  const q = useMyBookings({ status: 'completed', limit: 6 })
+  const prestations = (q.data?.data ?? []).filter((b) => (b.meals?.length ?? 0) > 0)
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-mint-deep/40 bg-mint/40 px-4 py-3 flex items-start gap-3">
@@ -20,80 +38,128 @@ export default function ConservationPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {DISH_CARE.map((d) => (
-          <section
-            key={d.id}
-            className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]"
-          >
-            <h3 className="font-display text-lg font-bold text-navy mb-4">{d.dish}</h3>
-
-            <div className="rounded-2xl bg-cream-soft p-4 mb-4">
-              <p className="text-[10px] uppercase tracking-wide text-ink-soft mb-2">
-                Réchauffage
-              </p>
-              <div className="flex items-center gap-4">
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
-                  <Flame className="w-4 h-4 text-terra" /> {d.reheatMode}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-ink-mid">
-                  <Timer className="w-4 h-4 text-ink-soft" /> {d.reheatTime}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <Box
-                Icon={Refrigerator}
-                label="Réfrigérateur"
-                value={`${d.fridgeDays} jour${d.fridgeDays > 1 ? 's' : ''}`}
-              />
-              <Box
-                Icon={Snowflake}
-                label="Congélateur"
-                value={d.freezerMonths ? `${d.freezerMonths} mois` : 'Déconseillé'}
-                muted={!d.freezerMonths}
-              />
-            </div>
-
-            <p className="text-xs text-ink-mid">
-              <span className="text-ink-soft">Conditionnement : </span>
-              {d.container}
-            </p>
-
-            {d.tip && (
-              <div className="mt-3 rounded-xl border border-amber/30 bg-amber-soft/40 px-3.5 py-2.5">
-                <p className="text-xs text-ink-mid leading-relaxed">
-                  <span className="font-semibold text-navy">Astuce du chef — </span>
-                  {d.tip}
-                </p>
-              </div>
-            )}
-          </section>
-        ))}
-      </div>
+      {q.isPending ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-48 animate-pulse rounded-3xl bg-cream-soft" />
+          ))}
+        </div>
+      ) : q.isError ? (
+        <p className="card-shell rounded-3xl p-6 text-sm text-ink-mid">
+          Vos fiches n’ont pas pu être chargées. Réessayez dans un instant.
+        </p>
+      ) : prestations.length === 0 ? (
+        <div className="card-shell rounded-3xl p-6">
+          <p className="font-display text-lg font-bold text-navy">Pas encore de fiche</p>
+          <p className="mt-1 text-sm leading-relaxed text-ink-mid">
+            Après chaque prestation terminée, vous retrouvez ici, plat par plat, comment
+            réchauffer et conserver ce que votre batch cooker a cuisiné.
+          </p>
+          <Link href="/espace-client/commandes" className="btn btn-outline mt-4 text-xs">
+            Voir mes sessions
+          </Link>
+        </div>
+      ) : (
+        prestations.map((b) => <Prestation key={b.id} booking={b} />)
+      )}
     </div>
   )
 }
 
-function Box({
+function Prestation({ booking }: { booking: Booking }) {
+  return (
+    <section aria-labelledby={`presta-${booking.id}`}>
+      <h2
+        id={`presta-${booking.id}`}
+        className="mb-3 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-navy first-letter:uppercase"
+      >
+        {longDate(booking.bookingDate ?? booking.startsAt)}
+        {booking.chef?.displayName && (
+          <span className="inline-flex items-center gap-1 font-normal text-ink-mid">
+            <ChefHat className="h-3.5 w-3.5 text-amber" aria-hidden /> {booking.chef.displayName}
+          </span>
+        )}
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {booking.meals!.map((meal) => (
+          <DishCare key={meal.mealId} bookingId={booking.id} meal={meal} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function DishCare({ bookingId, meal }: { bookingId: string; meal: BookingMeal }) {
+  const sheet = useMissionRecipeSheet(bookingId, meal.mealId)
+  const modes = useReheatModes(REHEAT_MODES)
+  const f = sheet.data
+
+  const rechauffage = f ? reheatingLine(f.recipe.reheating, modes) : null
+  const conservation = f ? storageLine(f.recipe.storage) : null
+  const notes = f?.notes
+
+  return (
+    <article className="card-shell rounded-3xl p-5 lg:p-6">
+      <h3 className="font-display text-lg font-bold text-navy mb-4">
+        {f?.dish.name ?? meal.name ?? 'Plat'}
+      </h3>
+
+      {sheet.isPending ? (
+        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
+      ) : sheet.isError || !f ? (
+        <p className="text-sm text-ink-mid">La fiche de ce plat n’est pas disponible.</p>
+      ) : (
+        <div className="space-y-3">
+          <Ligne Icon={Flame} titre="Réchauffage" texte={rechauffage} />
+          {f.recipe.reheating?.note && (
+            <p className="-mt-1 pl-7 text-xs leading-relaxed text-ink-mid">{f.recipe.reheating.note}</p>
+          )}
+          <Ligne Icon={Refrigerator} titre="Conservation" texte={conservation} />
+
+          {(notes?.reheating || notes?.storage) && (
+            <div className="rounded-xl border border-amber/30 bg-amber-soft/40 px-3.5 py-2.5">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-navy">
+                <MessageSquareQuote className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                Le mot de votre batch cooker, pour cette prestation
+              </p>
+              {notes.reheating && (
+                <p className="text-xs leading-relaxed text-ink-mid">
+                  <span className="font-semibold">Réchauffage — </span>
+                  {notes.reheating}
+                </p>
+              )}
+              {notes.storage && (
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-mid">
+                  <span className="font-semibold">Conservation — </span>
+                  {notes.storage}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  )
+}
+
+function Ligne({
   Icon,
-  label,
-  value,
-  muted,
+  titre,
+  texte,
 }: {
   Icon: typeof Flame
-  label: string
-  value: string
-  muted?: boolean
+  titre: string
+  texte: string | null
 }) {
   return (
-    <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-3 text-center">
-      <Icon className={`w-4 h-4 mx-auto mb-1.5 ${muted ? 'text-ink-soft' : 'text-terra'}`} />
-      <p className={`font-display text-base font-bold ${muted ? 'text-ink-soft' : 'text-navy'}`}>
-        {value}
-      </p>
-      <p className="text-[10px] uppercase tracking-wide text-ink-soft mt-0.5">{label}</p>
+    <div className="flex items-start gap-3 rounded-2xl bg-cream-soft p-3.5">
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${texte ? 'text-terra' : 'text-ink-soft'}`} aria-hidden />
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-ink-soft">{titre}</p>
+        <p className={`text-sm ${texte ? 'font-semibold text-navy' : 'text-ink-soft'}`}>
+          {texte ?? 'Non précisé sur la fiche.'}
+        </p>
+      </div>
     </div>
   )
 }

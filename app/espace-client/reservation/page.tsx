@@ -30,7 +30,13 @@ import {
 } from '@/components/menu/ChefMenuBrowser'
 import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
-import { useChefSlots, useCreateBooking } from '@/lib/api/bookings'
+import {
+  afterTaxFromClientPrice,
+  usePricingRules,
+  useChefSlots,
+  useCreateBooking,
+} from '@/lib/api/bookings'
+import { Prix } from '@/components/shared/Prix'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile } from '@/lib/api/types'
 import CityField from '@/components/chef/application/CityField'
@@ -48,6 +54,10 @@ import {
   type OfferPrice,
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
+import { track } from '@/lib/analytics'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
+import { ChefLegalBlock } from '@/components/client/ChefLegalBlock'
+import { consentGaps, neededGaps, type ContractGap } from '@/lib/api/contract'
 
 /*
  * Trois étapes, plus quatre : la confirmation n'appartient plus à ce tunnel.
@@ -87,6 +97,10 @@ function ReservationFlow() {
   const [step, setStep] = useState<StepId>('chef')
 
   const filters = useMenuFilters()
+  // Le reste à charge de chaque formule, avant même que l'API ne chiffre la
+  // session : la liste des formules annonce le prix dans le même ordre que
+  // partout ailleurs.
+  const regles = usePricingRules().data
   const [openMenu, setOpenMenu] = useState<WeekCard | null>(null)
   const diets = useDiets([])
   const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
@@ -178,6 +192,21 @@ function ReservationFlow() {
   const prix = tarif.data ?? null
 
   const creer = useCreateBooking()
+  // CGV V1 (art. 5.1) : trois cases séparées, jamais cochées d'avance.
+  const terms = profil.data?.contractTerms
+  const [ticks, setTicks] = useState<Ticks>({})
+  const [manquantes, setManquantes] = useState<ContractGap[]>([])
+  const cases = Array.from(
+    new Set([
+      ...neededGaps({
+        chefShops: !!offre?.shoppingIncluded && !coursesParMoi,
+        startsAt: creneauIso,
+        windowDays: 21,
+      }),
+      ...manquantes,
+    ]),
+  )
+  const casesOk = !terms || allTicked(cases, ticks)
 
   /** Ouvrir une carte. Changer de chef repart de zéro : les plats cochés
       appartiennent à la carte précédente, pas à celle-ci. */
@@ -227,12 +256,16 @@ function ReservationFlow() {
         addressCity: city,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
+        ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
         ...(selectedMeals.length > 0
           ? { meals: selectedMeals.slice(0, MAX_DISHES).map((mealId) => ({ mealId })) }
           : {}),
       },
       {
-        onSuccess: (b) => router.push(`/espace-client/commandes/${b.id}/paiement`),
+        onSuccess: (b) => {
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals })
+          router.push(`/espace-client/commandes/${b.id}/paiement`)
+        },
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
              que de recopier une phrase anglaise. */
@@ -244,6 +277,15 @@ function ReservationFlow() {
           if (body?.code === 'ALLERGEN_CONFLICT') setRefuses(body.conflicts?.map((c) => c.mealId) ?? [])
           if (body?.code === 'ALLERGENS_UNVERIFIED') setRefuses(body.mealIds ?? [])
           if (body?.code === 'ALLERGIES_NOT_DECLARED') profil.refetch()
+          const gaps = consentGaps(body)
+          if (gaps) {
+            // Des textes plus récents : on les relit, et le client recoche.
+            if (terms && gaps.version !== terms.version) {
+              setTicks({})
+              profil.refetch()
+            }
+            setManquantes(gaps.missing)
+          }
           setErreur(
             reasonText(body) ?? apiMessage(e, 'La réservation n’a pas pu être enregistrée.'),
           )
@@ -255,7 +297,7 @@ function ReservationFlow() {
   return (
     <div className="space-y-6">
       {/* Stepper */}
-      <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
+      <div className="card-shell rounded-3xl p-5">
         <div className="relative grid grid-cols-4 gap-2">
           <div className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]" />
           <div
@@ -295,7 +337,10 @@ function ReservationFlow() {
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      {/* Une seule cellule de grille : l'étape qui part et celle qui arrive se
+          superposent le temps du fondu, sans s'empiler ni laisser de vide. */}
+      <div className="grid">
+      <AnimatePresence>
         {step === 'chef' && (
           <StepCard
             key="chef"
@@ -420,11 +465,17 @@ function ReservationFlow() {
                                   : 'courses à votre charge'}
                               </span>
                             </span>
-                            <span className="shrink-0 text-right">
-                              <span className="block font-display text-lg font-bold text-navy">
-                                {offerEuros(o.priceCents)}
-                              </span>
-                            </span>
+                            <Prix
+                              apresCredit={
+                                regles
+                                  ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
+                                  : null
+                              }
+                              total={offerEuros(o.priceCents)}
+                              taille="sm"
+                              align="right"
+                              className="shrink-0"
+                            />
                           </button>
                         )
                       })}
@@ -636,7 +687,12 @@ function ReservationFlow() {
                     <li>
                       <strong className="font-semibold text-navy">3.</strong> Tant
                       que rien n’est réglé, vous pouvez tout annuler sans frais
-                      depuis « Mes commandes ».
+                      depuis « Mes sessions ».
+                    </li>
+                    <li>
+                      <strong className="font-semibold text-navy">4.</strong> Une
+                      fois la session payée, vous avez <strong>14 jours</strong> pour
+                      vous rétracter : bouton « Se rétracter » dans Mes sessions.
                     </li>
                   </ol>
                 </div>
@@ -693,10 +749,26 @@ function ReservationFlow() {
                   </div>
                 )}
 
+                <ChefLegalBlock
+                  identity={fiche.data?.legalIdentity}
+                  displayName={chef?.chef.displayName}
+                />
+
+                {terms && (
+                  <ContractBoxes
+                    terms={terms}
+                    gaps={cases}
+                    ticks={ticks}
+                    onChange={setTicks}
+                    missing={manquantes}
+                  />
+                )}
+
                 <button
                   type="button"
                   onClick={reserver}
                   disabled={
+                    !casesOk ||
                     creer.isPending ||
                     !offre ||
                     !creneauIso ||
@@ -704,7 +776,7 @@ function ReservationFlow() {
                   }
                   className="btn btn-primary w-full justify-center disabled:opacity-60"
                 >
-                  {creer.isPending ? 'Enregistrement…' : 'Réserver et payer'}
+                  {creer.isPending ? 'Enregistrement…' : 'Commander avec obligation de paiement'}
                   {!creer.isPending && <ArrowRight className="h-4 w-4 icon-arrow" />}
                 </button>
                 <button
@@ -733,6 +805,7 @@ function ReservationFlow() {
         )}
 
       </AnimatePresence>
+      </div>
 
       {/* La carte d'un chef : meme composant que sur le site public. Ici elle
           enchaine sur la suite de la reservation au lieu d'ouvrir la connexion. */}
@@ -775,7 +848,7 @@ function StepCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-paper rounded-3xl p-6 lg:p-8 border border-[rgba(31,42,55,0.06)]"
+      className="col-start-1 row-start-1 card-shell rounded-3xl p-6 lg:p-8"
     >
       <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
@@ -1102,7 +1175,10 @@ function SummaryCard({
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
           {prix ? (
             <>
-              <Row label="Prestation" value={offerEuros(prix.priceCents)} />
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                Prestation
+              </p>
+              <Row label="Formule" value={offerEuros(prix.priceCents)} />
               {prix.extraPersonsCents > 0 && (
                 <Row
                   label={`+ ${persons - prix.rules.includedPersons} personne${persons - prix.rules.includedPersons > 1 ? 's' : ''}`}
@@ -1116,19 +1192,29 @@ function SummaryCard({
                 />
               )}
               {prix.shoppingFeeCents > 0 && (
-                <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
+                <>
+                  {/* CGV 10 : le forfait est le temps du batch cooker, il ouvre droit
+                      au crédit d'impôt ; les ingrédients sont des débours, à part. */}
+                  <p className="pt-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                    Courses
+                  </p>
+                  <Row label="Forfait courses" value={offerEuros(prix.shoppingFeeCents)} />
+                  <p className="text-[11px] leading-relaxed text-white/55">
+                    Courses (ingrédients) : payées à part par carte, au montant exact, sans
+                    marge. Elles n’ouvrent pas droit au crédit d’impôt.
+                  </p>
+                </>
               )}
-              <div className="pt-3 border-t border-white/10 flex items-baseline justify-between">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-white/55">
-                  Total TTC
-                </span>
-                <span className="font-display text-3xl font-bold">
-                  {offerEuros(prix.amountTtc)}
-                </span>
+              <div className="pt-3 border-t border-white/10">
+                <Prix
+                  apresCredit={offerEuros(prix.amountAfterTax)}
+                  total={offerEuros(prix.amountTtc)}
+                  lead="Ce que vous payez"
+                  tone="dark"
+                  taille="lg"
+                  align="right"
+                />
               </div>
-              <p className="text-[11px] text-amber font-semibold text-right">
-                soit {offerEuros(prix.amountAfterTax)} après crédit d&apos;impôt
-              </p>
             </>
           ) : offre ? (
             /* En attendant la réponse de l'API : le prix de l'offre seule,

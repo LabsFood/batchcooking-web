@@ -52,5 +52,14 @@ export const COUNTRIES: { code: string; label: string }[] = [
   { code: 'CA', label: 'Canada' },
 ]
 
+/**
+ * La même liste, rangée pour l'œil : c'est elle que les listes déroulantes
+ * doivent parcourir. `COUNTRIES` garde son ordre de saisie, groupé par
+ * région du monde, qui reste utile à la lecture du fichier.
+ */
+export const COUNTRIES_ALPHA: { code: string; label: string }[] = [...COUNTRIES].sort(
+  (a, b) => a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }),
+)
+
 export const countryLabel = (code?: string | null) =>
   COUNTRIES.find((c) => c.code === code)?.label ?? code ?? ''

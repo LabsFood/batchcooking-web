@@ -46,8 +46,14 @@ import {
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
+import { Prix } from '@/components/shared/Prix'
 import { useChefPublic } from '@/lib/api/menus'
 import { apiMessage } from '@/lib/api/messages'
+import { reasonText } from '@/lib/reason-codes'
+import { ApiError } from '@/lib/api/client'
+import { InfoPopover } from '@/components/shared/InfoPopover'
+import { ChefLegalBlock } from '@/components/client/ChefLegalBlock'
+import { DOCUMENT_LABEL, useBookingDocument, useWithdrawal } from '@/lib/api/contract'
 import { usePaymentStatus } from '@/lib/api/payments'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -139,6 +145,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const repondre = useAnswerReschedule('client')
   const ics = useBookingIcs()
   const [aAnnuler, setAAnnuler] = useState(false)
+  const retract = useWithdrawal()
+  const document = useBookingDocument()
+  const [aRetracter, setARetracter] = useState(false)
+  const retractation = b.withdrawal ?? null
 
   const ttc = euros(b.amountTtc ?? b.priceCents)
   /* Les courses ont leur ligne : l'API les facture à part depuis le 17/10, et
@@ -165,7 +175,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
    * à l'autre. Le bouton reste donc offert sur une prestation confirmée, et
    * l'API répond `409` si elle a commencé — le message est affiché tel quel.
    */
-  const annulable = (b.status === 'pending' && !b.paidCents) || b.status === 'confirmed'
+  const annulable =
+    ((b.status === 'pending' && !b.paidCents) || b.status === 'confirmed') &&
+    // CGV V1 : pendant le délai, la rétractation (gratuite) passe devant l'annulation.
+    !retractation?.open
 
   /** Un report proposé par le batch cooker attend une réponse. */
   const report =
@@ -325,13 +338,14 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </button>
             )}
           </div>
-          {ttc && (
-            <div className="flex flex-col items-start lg:items-end">
-              <p className="font-display text-3xl font-bold text-amber">{ttc}</p>
-              {reste && (
-                <p className="text-xs text-white/60">soit {reste} après crédit d’impôt</p>
-              )}
-            </div>
+          {(ttc || reste) && (
+            <Prix
+              apresCredit={reste}
+              total={ttc}
+              tone="dark"
+              taille="lg"
+              className="shrink-0 lg:text-right"
+            />
           )}
         </div>
       </motion.div>
@@ -360,7 +374,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       )}
 
       {/* ── Suivi ────────────────────────────────────────────────────────── */}
-      <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6 lg:p-7">
+      <section className="rounded-3xl card-shell p-6 lg:p-7">
         <h3 className="mb-5 font-display text-lg font-bold text-navy">
           Suivi de la commande
         </h3>
@@ -424,7 +438,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-2">
           {/* ── Plats ──────────────────────────────────────────────────── */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+          <div className="rounded-3xl card-shell p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
               <span className="ml-auto">
@@ -461,7 +475,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {(b.photos?.length ?? 0) > 0 && <PhotosSession photos={b.photos!} />}
 
           {/* ── Liste de courses ───────────────────────────────────────── */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+          <div className="rounded-3xl card-shell p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
@@ -526,7 +540,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
         {/* ── Colonne de droite ─────────────────────────────────────────── */}
         <aside className="space-y-4">
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+          <div className="rounded-3xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
@@ -558,7 +572,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           </div>
 
           {b.addressLine && (
-            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <div className="rounded-3xl card-shell p-5">
               <h4 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-navy">
                 <MapPin className="h-4 w-4 text-amber" aria-hidden /> Où
               </h4>
@@ -570,7 +584,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           )}
 
           {!aRegler && b.status !== 'cancelled' && (
-            <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+            <div className="rounded-3xl card-shell p-5">
               <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
                 <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
               </h4>
@@ -589,21 +603,83 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             </div>
           )}
 
+          {/* ── Rétractation (CGV art. 15) : visible tout le délai ─────────── */}
+          {retractation?.open && retractation.availableUntil && (
+            <div className="rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+              <h4 className="font-display text-base font-bold text-navy">
+                Droit de rétractation
+                <InfoPopover label="Comment ça marche ?">
+                  Vous pouvez vous rétracter sans donner de motif pendant 14 jours après
+                  la confirmation. Nous vous remboursons sous 14 jours, par le même
+                  moyen de paiement. Si vous avez demandé que la prestation commence
+                  pendant ce délai, la part déjà réalisée reste due.
+                </InfoPopover>
+              </h4>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-ink-mid">
+                Jusqu’au {longDate(retractation.availableUntil)} à minuit.
+              </p>
+              <button
+                onClick={() => setARetracter(true)}
+                className="btn btn-primary mt-3 w-full justify-center text-xs"
+              >
+                Se rétracter
+              </button>
+            </div>
+          )}
+          {retractation?.submittedAt && (
+            <div className="rounded-3xl card-shell p-5 text-[13px] leading-relaxed text-ink-mid">
+              <h4 className="font-display text-base font-bold text-navy">Rétractation envoyée</h4>
+              <p className="mt-1.5">
+                Le {longDate(retractation.submittedAt)}. Un accusé de réception vous a été
+                envoyé par e-mail.
+                {retractation.refundCents != null &&
+                  ` Remboursement prévu : ${euros(retractation.refundCents)}, sous 14 jours.`}
+              </p>
+            </div>
+          )}
+
           {/* Les documents de la réservation : la facture de chaque paiement par
               carte, demain le mandat de débours. Hors de « Règlement » : une
               commande partagée CESU + carte reste `pending`, et sa part carte a
               déjà sa facture. */}
-          <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5">
+          <div className="rounded-3xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <FileText className="h-4 w-4 text-amber" aria-hidden /> Documents
               <PaymentInvoicesInfo side="client" />
             </h4>
+            {(b.documents ?? []).length > 0 && (
+              <ul className="mb-3 space-y-1.5">
+                {b.documents!.map((d) => (
+                  <li key={d.kind}>
+                    <button
+                      onClick={() =>
+                        document.mutate(
+                          { id: b.id, kind: d.kind, filename: d.filename },
+                          {
+                            onError: (e) =>
+                              toast.error(
+                                'Le document n’a pas pu être téléchargé',
+                                reasonText(e instanceof ApiError ? e.body : null) ?? apiMessage(e),
+                              ),
+                          },
+                        )
+                      }
+                      className="text-left text-[13px] font-semibold text-navy underline underline-offset-2"
+                    >
+                      {DOCUMENT_LABEL[d.kind]}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <PaymentInvoiceList
               side="client"
               bookingId={b.id}
               emptyText="Aucun document pour l’instant. La facture s’ajoute ici dès qu’elle est émise."
             />
           </div>
+
+          <ChefLegalBlock identity={b.chef?.legalIdentity} displayName={b.chef?.displayName} />
 
           <Link
             href="/espace-client/messages"
@@ -637,6 +713,38 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           )}
         </aside>
       </div>
+
+      {retractation && (
+        <ConfirmDialog
+          open={aRetracter}
+          onClose={() => setARetracter(false)}
+          onConfirm={() =>
+            retract.mutate(b.id, {
+              onSuccess: () => {
+                setARetracter(false)
+                toast.success('Rétractation envoyée', 'L’accusé de réception part par e-mail.')
+              },
+              onError: (e) => {
+                setARetracter(false)
+                toast.error(
+                  'La rétractation a été refusée',
+                  reasonText(e instanceof ApiError ? e.body : null) ?? apiMessage(e),
+                )
+              },
+            })
+          }
+          pending={retract.isPending}
+          tone="danger"
+          title="Confirmer la rétractation ?"
+          lead={`« Je vous notifie par la présente ma rétractation du contrat portant sur la prestation de services ${b.reference ?? ''}. »`}
+          detail={
+            retractation.amountDueCents == null
+              ? 'La prestation est en cours : la part déjà réalisée est fixée par notre équipe, qui vous rembourse le reste sous 14 jours, par le même moyen de paiement.'
+              : `Reste dû : ${euros(retractation.amountDueCents)}. Remboursement : ${euros(retractation.refundCents) ?? '0 €'}, sous 14 jours, par le même moyen de paiement.`
+          }
+          confirmLabel="Confirmer la rétractation"
+        />
+      )}
 
       <ConfirmDialog
         open={aAnnuler}
@@ -726,7 +834,7 @@ function CheckoutOutcome() {
  */
 function PhotosSession({ photos }: { photos: BookingPhoto[] }) {
   return (
-    <div className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-6">
+    <div className="rounded-3xl card-shell p-6">
       <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
         <Camera className="h-4 w-4 text-amber" aria-hidden /> Photos de la session
       </h3>

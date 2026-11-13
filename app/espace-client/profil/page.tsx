@@ -116,6 +116,12 @@ function ProfileForm({
   const me = useMe()
   const update = useUpdateMeProfile()
   const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
+  /* Politique de confidentialité V1 §5 : les régimes peuvent révéler la santé ou
+     la religion. Ils ne s'enregistrent qu'avec le consentement à la version en
+     cours, par une case séparée, jamais cochée d'avance. */
+  const dejaConsenti = !!consent && profile?.healthConsentVersion === consent.version
+  const [consentRegimes, setConsentRegimes] = useState(false)
+  const consentManquant = prefs.diets.length > 0 && !dejaConsenti && !consentRegimes
 
   const addTo = (key: 'diets' | 'dislikes' | 'favorites', value: string) => {
     if (!value.trim()) return
@@ -136,6 +142,7 @@ function ProfileForm({
       // borne les adultes à 1 au moins : le compteur fait de même.
       householdAdults: Math.min(20, Math.max(1, prefs.household.adults)),
       householdKids: Math.min(20, Math.max(0, prefs.household.kids)),
+      ...(consentRegimes && consent ? { consent: true, consentVersion: consent.version } : {}),
     }
     update.mutate(patch)
   }
@@ -162,7 +169,7 @@ function ProfileForm({
           </div>
         </div>
 
-        <div className="bg-paper rounded-3xl p-5 border border-[rgba(31,42,55,0.06)]">
+        <div className="card-shell rounded-3xl p-5">
           <p className="eyebrow mb-3">Foyer</p>
           <div className="grid grid-cols-2 gap-3">
             <Counter
@@ -181,7 +188,7 @@ function ProfileForm({
 
         <button
           onClick={save}
-          disabled={update.isPending}
+          disabled={update.isPending || consentManquant}
           className="btn btn-primary w-full justify-center disabled:opacity-60"
         >
           {update.isPending ? (
@@ -213,6 +220,23 @@ function ProfileForm({
             suggest={SUGGEST.diets}
             onAdd={(v) => addTo('diets', v)}
           />
+          {prefs.diets.length > 0 && !dejaConsenti && consent && (
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[rgba(31,42,55,0.1)] p-3 text-[13px] leading-relaxed text-ink-mid">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-navy"
+                checked={consentRegimes}
+                onChange={(e) => setConsentRegimes(e.target.checked)}
+              />
+              <span>{consent.text}</span>
+            </label>
+          )}
+          {consentManquant && consent && (
+            <p className="mt-2 text-xs text-ink-soft">
+              Sans ce consentement, retirez vos régimes pour enregistrer le reste : vous
+              pourrez les indiquer vous-même à votre batch cooker.
+            </p>
+          )}
         </Card>
 
         {/* Enregistrées à part, avec consentement : le bouton « Enregistrer » du
@@ -291,7 +315,7 @@ function Card({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.4 }}
-      className="bg-paper rounded-3xl p-5 lg:p-6 border border-[rgba(31,42,55,0.06)]"
+      className="card-shell rounded-3xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
         <div>

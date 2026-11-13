@@ -1,13 +1,7 @@
-/* Hauteur du bandeau « site en construction » (components/shared/DevBanner).
-   La passer à `0px` le fait disparaître et rend sa place à chaque en-tête. */
+/* Hauteur de l'ancien bandeau « site en construction », retiré. Les en-têtes
+   et mises en page y font encore référence : la variable reste à `0px`. */
 :root {
-  --lf-dev-banner: 3.25rem;
-}
-
-@media (min-width: 640px) {
-  :root {
-    --lf-dev-banner: 2.25rem;
-  }
+  --lf-dev-banner: 0px;
 }
 
 body {
@@ -53,6 +47,11 @@ body {
     --cream-deep: #E5ECF1;
     /* contrast bg */
     --paper: #FFFFFF;
+    /* Le fond des espaces connectés. Les cartes sont blanches : si le fond
+       l'est aussi, plus rien ne se détache et l'écran part en bouillie
+       claire. Un cran plus bas que `cream-soft`, assez pour que la carte
+       pose une ombre lisible sans virer au gris d'administration. */
+    --shell: #EDF2F7;
 
     /* Text */
     --ink: #1F2A37;
@@ -235,6 +234,16 @@ body {
     transform: translateY(-4px);
   }
 
+  /* La carte d'un tableau de bord : posée sur `--shell`, elle se détache par
+     une ombre portée — un décalage et un flou, pas un halo. */
+  .card-shell {
+    background: var(--paper);
+    border: 1px solid rgba(31, 42, 55, 0.07);
+    box-shadow:
+      0 1px 2px rgba(31, 42, 55, 0.04),
+      0 10px 28px -18px rgba(31, 42, 55, 0.22);
+  }
+
   /* Decorative dots row (Delish ornamental separator) */
   .dot-row {
     display: inline-flex;
@@ -362,10 +371,6 @@ body {
     box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.6);
   }
 
-  .btn-primary:active {
-    transform: translateY(-1px);
-  }
-
   .btn-navy {
     background: var(--navy);
     color: #FFFFFF;
@@ -375,10 +380,6 @@ body {
     background: #001A38;
     transform: translateY(-3px);
     box-shadow: 0 18px 36px -12px rgba(44, 62, 80, 0.5);
-  }
-
-  .btn-navy:active {
-    transform: translateY(-1px);
   }
 
   .btn-outline {
@@ -414,6 +415,19 @@ body {
     background: #D68B0E;
     transform: translateY(-3px);
     box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.5);
+  }
+
+  /* Pressed: the button gives under the finger. After the :hover rules so it
+     wins; a short duration so the press answers at once, the release keeps
+     the slower curve above. */
+  .btn:active,
+  .btn-primary:active,
+  .btn-navy:active,
+  .btn-outline:active,
+  .btn-outline-light:active,
+  .btn-amber:active {
+    transform: scale(0.97);
+    transition-duration: 0.1s;
   }
 
   .btn-ghost {
@@ -780,6 +794,13 @@ body {
 }
 
 .cl-footer {
+  display: none !important;
+}
+
+/* Le premier écran a déjà le titre de la page. Les suivants gardent celui de
+   Clerk : c'est lui qui dit « lien envoyé » ou « code envoyé ». */
+.cl-signIn-start .cl-header,
+.cl-signUp-start .cl-header {
   display: none !important;
 }
 

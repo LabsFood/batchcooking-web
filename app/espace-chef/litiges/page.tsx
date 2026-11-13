@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, MessageCircle, PhoneCall, Plus, X } from 'lucide-react'
+import { CheckCircle2, Info, MessageCircle, PhoneCall, Plus, X } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import { DISPUTE_SUBJECTS, type DisputeSubject } from '@/lib/chef/mock'
 import { MAX_BODY_LENGTH, messagingErrorText, useWriteToSupport } from '@/lib/api/messaging'
+import { useMeProfile } from '@/lib/api/me-profile'
+import type { ChefProfile, MeProfile } from '@/lib/api/types'
 import { useChefApproved } from '@/lib/chef/approval'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +35,37 @@ const CALLBACK_SLOTS = [
 
 /** La place de l'en-tête du message, sous la limite de l'API. */
 const MAX_DESCRIPTION = MAX_BODY_LENGTH - 200
+/** Un rappel porte en plus les coordonnées (environ 300 caractères au plus). */
+const MAX_CALLBACK_QUESTION = MAX_DESCRIPTION - 400
+
+/* Les coordonnées d'un rappel. Elles partent dans le message, ligne par
+   ligne, pour que l'équipe puisse les reporter dans le CRM. */
+type Coords = { prenom: string; nom: string; telephone: string; ville: string }
+
+const COORD_FIELDS: {
+  key: keyof Coords
+  label: string
+  autoComplete: string
+  maxLength: number
+  type?: string
+}[] = [
+  { key: 'prenom', label: 'Prénom', autoComplete: 'given-name', maxLength: 60 },
+  { key: 'nom', label: 'Nom', autoComplete: 'family-name', maxLength: 60 },
+  { key: 'telephone', label: 'Téléphone', autoComplete: 'tel', maxLength: 20, type: 'tel' },
+  { key: 'ville', label: 'Ville', autoComplete: 'address-level2', maxLength: 80 },
+]
+
+/** Ce que le compte sait déjà, pour préremplir. */
+function knownCoords(data: MeProfile | undefined): Coords {
+  const [prenom = '', ...rest] = (data?.user.fullName ?? '').trim().split(/\s+/)
+  const chef = data?.profileType === 'chef' ? (data.profile as ChefProfile | null) : null
+  return {
+    prenom,
+    nom: rest.join(' '),
+    telephone: data?.user.phone ?? '',
+    ville: chef?.city ?? '',
+  }
+}
 
 export default function ChefDisputesPage() {
   const { candidate } = useChefApproved()
@@ -43,16 +76,30 @@ export default function ChefDisputesPage() {
   const [missionRef, setMissionRef] = useState('')
   const [description, setDescription] = useState('')
   const [slot, setSlot] = useState(CALLBACK_SLOTS[0].id)
+  // Politique de confidentialité V1 §4 et §14 : rappel = consentement préalable, case dédiée.
+  const [rappelOk, setRappelOk] = useState(false)
   const write = useWriteToSupport()
+  const profil = useMeProfile()
+  const [coordEdits, setCoordEdits] = useState<Partial<Coords>>({})
+  const coords: Coords = { ...knownCoords(profil.data), ...coordEdits }
 
   const current = subjects.find((s) => s.id === subject) ?? subjects[0]
-  const canSend = description.trim().length >= 10 && !write.isPending
+  const hasQuestion = description.trim().length >= 10
+  const canSend = hasQuestion && !write.isPending
+
+  // Pas de rappel vide : une question, ou des coordonnées complètes.
+  const coordsComplete =
+    COORD_FIELDS.every((f) => coords[f.key].trim()) &&
+    coords.telephone.replace(/\D/g, '').length >= 9
+  const callbackReady = hasQuestion || coordsComplete
 
   const reset = () => {
     setForm('none')
     write.reset()
     setDescription('')
     setMissionRef('')
+    setCoordEdits({})
+    setRappelOk(false)
   }
 
   const toggle = (next: 'dispute' | 'callback') => {
@@ -60,9 +107,25 @@ export default function ChefDisputesPage() {
     write.reset()
   }
 
+  // Le formulaire s'ouvre sous la carte : sur un petit écran, hors de vue.
+  const formRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (form !== 'none') formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [form])
+
   const sendCallback = () => {
     const quand = CALLBACK_SLOTS.find((s) => s.id === slot)?.label
-    write.mutate(`Demande de rappel — ${quand}\n\n${description.trim()}`)
+    const lignes = COORD_FIELDS.filter((f) => coords[f.key].trim()).map(
+      (f) => `${f.label} : ${coords[f.key].trim()}`,
+    )
+    const question = description.trim()
+    // La preuve du consentement reste dans le fil de support (conservée 1 an au plus).
+    const accord = `Consentement au rappel : oui, le ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`
+    write.mutate(
+      [`Demande de rappel — ${quand}`, ...lignes, accord, ...(question ? ['', question] : [])].join(
+        '\n',
+      ),
+    )
   }
 
   const sendDispute = () => {
@@ -83,11 +146,17 @@ export default function ChefDisputesPage() {
         <Card
           title="Écrire à l’équipe"
           action={
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => toggle('callback')} className="btn btn-outline px-4 py-2 text-xs">
+            <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto">
+              <button
+                onClick={() => toggle('callback')}
+                className="btn btn-outline justify-center px-4 py-2.5 text-xs"
+              >
                 <PhoneCall className="h-3.5 w-3.5" aria-hidden /> Être rappelé
               </button>
-              <button onClick={() => toggle('dispute')} className="btn btn-primary px-4 py-2 text-xs">
+              <button
+                onClick={() => toggle('dispute')}
+                className="btn btn-primary justify-center px-4 py-2.5 text-xs"
+              >
                 <Plus className="h-3.5 w-3.5" aria-hidden />{' '}
                 {candidate ? 'Écrire au support' : 'Ouvrir un litige'}
               </button>
@@ -98,11 +167,15 @@ export default function ChefDisputesPage() {
             Vos demandes arrivent dans le fil du support, dans votre messagerie : l’équipe y
             répond, et vous y retrouvez tout l’historique.
           </p>
-          <Link href="/espace-chef/messagerie" className="btn btn-outline mt-3 text-xs">
+          <Link
+            href="/espace-chef/messagerie"
+            className="btn btn-outline mt-3 w-full justify-center text-xs sm:w-auto"
+          >
             <MessageCircle className="h-3.5 w-3.5" aria-hidden /> Ouvrir la messagerie
           </Link>
         </Card>
 
+        <div ref={formRef} className="scroll-mt-24">
         {/* Demande de rappel */}
         {form === 'callback' && (
           <Card
@@ -120,15 +193,14 @@ export default function ChefDisputesPage() {
             {write.isSuccess ? (
               <Sent
                 title="Demande de rappel envoyée"
-                text="Nous vous appelons au numéro de votre compte, sur le créneau choisi."
+                text="Nous vous appelons sur le créneau choisi."
                 conversationId={write.data.id}
                 onDone={reset}
               />
             ) : (
               <div className="space-y-4">
                 <p className="text-[13px] leading-relaxed text-ink-mid">
-                  Pour une question rapide, laissez-nous vous appeler : pas de dossier à ouvrir. Nous utilisons le
-                  numéro enregistré sur votre compte.
+                  Pour une question rapide, laissez-nous vous appeler : pas de dossier à ouvrir.
                 </p>
                 <div>
                   <p className="mb-2 text-sm font-semibold text-navy">Quand vous rappeler ?</p>
@@ -148,23 +220,68 @@ export default function ChefDisputesPage() {
                   </div>
                 </div>
                 <div>
+                  <p className="mb-2 text-sm font-semibold text-navy">Vos coordonnées</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {COORD_FIELDS.map((f) => (
+                      <div key={f.key}>
+                        <label htmlFor={`callback-${f.key}`} className="mb-1 block text-xs text-ink-mid">
+                          {f.label}
+                        </label>
+                        <input
+                          id={`callback-${f.key}`}
+                          type={f.type ?? 'text'}
+                          autoComplete={f.autoComplete}
+                          maxLength={f.maxLength}
+                          value={coords[f.key]}
+                          onChange={(e) => setCoordEdits((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          className="input-base"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label htmlFor="callback-reason" className="mb-1.5 block text-sm font-semibold text-navy">
                     Votre question
                   </label>
                   <textarea
                     id="callback-reason"
                     rows={3}
-                    maxLength={MAX_DESCRIPTION}
+                    maxLength={MAX_CALLBACK_QUESTION}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="En deux mots, pour préparer l’appel…"
                     className="input-base resize-none"
                   />
                 </div>
+                {!callbackReady && (
+                  <p
+                    id="callback-hint"
+                    role="status"
+                    className="flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-[13px] leading-relaxed text-navy"
+                  >
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-terra" aria-hidden />
+                    Pour être rappelé, posez votre question en quelques mots, ou renseignez vos
+                    coordonnées : prénom, nom, téléphone et ville.
+                  </p>
+                )}
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[rgba(31,42,55,0.1)] p-3 text-[13px] leading-relaxed text-ink-mid">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-navy"
+                    checked={rappelOk}
+                    onChange={(e) => setRappelOk(e.target.checked)}
+                  />
+                  <span>
+                    J’accepte que Lab’s Food me rappelle au numéro indiqué, au sujet de cette
+                    demande. Je peux retirer cet accord à tout moment, y compris pendant l’appel.
+                  </span>
+                </label>
                 {error}
                 <button
                   onClick={sendCallback}
-                  disabled={!canSend}
+                  disabled={!callbackReady || !rappelOk || write.isPending}
+                  aria-describedby={callbackReady ? undefined : 'callback-hint'}
                   className="btn btn-primary w-full justify-center text-sm disabled:opacity-50"
                 >
                   {write.isPending ? 'Envoi…' : 'Demander un rappel'}
@@ -261,6 +378,7 @@ export default function ChefDisputesPage() {
             )}
           </Card>
         )}
+        </div>
       </div>
     </ChefPage>
   )

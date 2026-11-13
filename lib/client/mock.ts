@@ -1,40 +1,12 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    Données simulées des nouveaux modules du dashboard client (spec v2).
 
-   Couvre : carte culinaire (CL-01), liste de courses autonome (CL-05),
+   Couvre : liste de courses autonome (CL-05),
    réchauffage & conservation (CL-09), moyens de paiement et rattachements
    URSSAF (CL-12 / § 6.1), litiges (CL-03), annuaire des batch cookers (CL-02).
    ───────────────────────────────────────────────────────────────────────────── */
 
 const iso = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString()
-
-// ── Carte culinaire (CL-01) ─────────────────────────────────────────────────
-
-export interface ExploredCountry {
-  code: string
-  name: string
-  flag: string
-  /**
-   * Code ISO 3166-1 numerique, sous forme de chaine.
-   * C'est la cle utilisee par world-atlas pour identifier un pays sur la carte.
-   */
-  iso: string
-  dishes: string[]
-  firstAt: string
-}
-
-/** Total de pays reconnus — la carte affiche « explorés / 195 ». */
-export const TOTAL_COUNTRIES = 195
-
-export const EXPLORED_COUNTRIES: ExploredCountry[] = [
-  { code: 'FR', iso: '250', name: 'France', flag: '🇫🇷', dishes: ['Poulet rôti aux herbes', 'Bœuf bourguignon'], firstAt: iso(-120) },
-  { code: 'IT', iso: '380', name: 'Italie', flag: '🇮🇹', dishes: ['Risotto aux champignons', 'Lasagnes'], firstAt: iso(-90) },
-  { code: 'IN', iso: '356', name: 'Inde', flag: '🇮🇳', dishes: ['Curry de lentilles corail'], firstAt: iso(-60) },
-  { code: 'MA', iso: '504', name: 'Maroc', flag: '🇲🇦', dishes: ['Tajine de légumes'], firstAt: iso(-45) },
-  { code: 'JP', iso: '392', name: 'Japon', flag: '🇯🇵', dishes: ['Saumon teriyaki'], firstAt: iso(-30) },
-  { code: 'MX', iso: '484', name: 'Mexique', flag: '🇲🇽', dishes: ['Chili sin carne'], firstAt: iso(-14) },
-  { code: 'TH', iso: '764', name: 'Thaïlande', flag: '🇹🇭', dishes: ['Pad thaï'], firstAt: iso(-7) },
-]
 
 // ── Liste de courses (CL-05) ────────────────────────────────────────────────
 

@@ -9,11 +9,7 @@ import { feature } from 'topojson-client'
 import type { Topology } from 'topojson-specification'
 import type { Feature, Geometry } from 'geojson'
 import worldAtlas from 'world-atlas/countries-110m.json'
-import {
-  EXPLORED_COUNTRIES,
-  TOTAL_COUNTRIES,
-  type ExploredCountry,
-} from '@/lib/client/mock'
+import { useCulinaryMap, type ExploredCountry } from '@/lib/api/me-dashboard'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Carte culinaire (CL-01).
@@ -68,8 +64,11 @@ function useWorld() {
 
 export default function CulinaryMap() {
   const [open, setOpen] = useState(false)
-  const explored = EXPLORED_COUNTRIES.length
-  const ratio = (explored / TOTAL_COUNTRIES) * 100
+  const { data } = useCulinaryMap()
+  const countries = data?.explored ?? []
+  const total = data?.total ?? 195
+  const explored = countries.length
+  const ratio = (explored / total) * 100
 
   return (
     <>
@@ -91,7 +90,7 @@ export default function CulinaryMap() {
           <span className="block text-xs font-semibold uppercase tracking-wide text-amber">Ma carte culinaire</span>
           <span className="mt-0.5 block font-display text-2xl font-bold leading-none">
             {explored}
-            <span className="text-lg text-white/40"> / {TOTAL_COUNTRIES}</span>
+            <span className="text-lg text-white/40"> / {total}</span>
             <span className="ml-2 text-xs font-normal text-white/60">pays explorés</span>
           </span>
           <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
@@ -104,14 +103,24 @@ export default function CulinaryMap() {
         </span>
       </button>
 
-      <MapDialog open={open} onOpenChange={setOpen} />
+      <MapDialog open={open} onOpenChange={setOpen} countries={countries} total={total} />
     </>
   )
 }
 
 // ── Carte plein écran ───────────────────────────────────────────────────────
 
-function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function MapDialog({
+  open,
+  onOpenChange,
+  countries: exploredList,
+  total,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  countries: ExploredCountry[]
+  total: number
+}) {
   const { countries, graticule, outline, centroidOf } = useWorld()
   const [selected, setSelected] = useState<ExploredCountry | null>(null)
   const [hover, setHover] = useState<{ name: string; explored?: ExploredCountry; x: number; y: number } | null>(null)
@@ -121,8 +130,8 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
   const dragging = useRef<{ x: number; y: number } | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
 
-  const exploredByIso = useMemo(() => new Map(EXPLORED_COUNTRIES.map((c) => [c.iso, c])), [])
-  const explored = EXPLORED_COUNTRIES.length
+  const exploredByIso = useMemo(() => new Map(exploredList.map((c) => [c.iso, c])), [exploredList])
+  const explored = exploredList.length
 
   const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k))
   const reset = () => setView({ k: 1, x: 0, y: 0 })
@@ -168,13 +177,13 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-3xl bg-navy text-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)] focus:outline-none sm:inset-6 lg:inset-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/80 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
+        <Dialog.Content className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-3xl bg-navy text-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)] focus:outline-none sm:inset-6 lg:inset-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
             <div>
               <Dialog.Title className="font-display text-xl font-bold leading-tight">Ma carte culinaire</Dialog.Title>
               <Dialog.Description className="text-xs text-white/55">
-                {explored} pays sur {TOTAL_COUNTRIES} · survolez, cliquez, zoomez
+                {explored} pays sur {total} · survolez, cliquez, zoomez
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -204,7 +213,7 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
                   setHover(null)
                 }}
                 role="img"
-                aria-label={`Carte du monde, ${explored} pays explorés sur ${TOTAL_COUNTRIES}`}
+                aria-label={`Carte du monde, ${explored} pays explorés sur ${total}`}
               >
                 <defs>
                   <linearGradient id="exploredFill" x1="0" y1="0" x2="0" y2="1">
@@ -285,8 +294,13 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
                 Pays explorés
               </p>
+              {exploredList.length === 0 && (
+                <p className="text-sm text-white/60">
+                  Aucun pays pour l&apos;instant : la carte se colore une fois votre première prestation terminée.
+                </p>
+              )}
               <ul className="space-y-1.5">
-                {EXPLORED_COUNTRIES.map((c) => {
+                {exploredList.map((c) => {
                   const on = selected?.code === c.code
                   return (
                     <li key={c.code}>
@@ -330,7 +344,7 @@ function MapDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: bo
 
               <p className="mt-4 text-[11px] leading-relaxed text-white/40">
                 Un pays se colore dès qu&apos;un de ses plats entre dans votre frigo. Il reste{' '}
-                {TOTAL_COUNTRIES - explored} pays à goûter.
+                {total - explored} pays à goûter.
               </p>
             </aside>
           </div>

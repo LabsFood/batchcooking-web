@@ -19,6 +19,38 @@ export function useMeProfile() {
   })
 }
 
+/** Une étape du « Bien démarrer » du client (LF-0221), dans l'ordre de l'API. */
+export interface OnboardingStep {
+  code: 'contact_details' | 'address' | 'allergies' | 'tastes' | 'first_booking'
+  done: boolean
+  /** `menu_validation` : un menu ne peut pas être validé avant cette étape. */
+  requiredFor?: 'menu_validation'
+}
+
+export interface Onboarding {
+  steps: OnboardingStep[]
+  completed: number
+  total: number
+  allDone: boolean
+}
+
+/**
+ * `GET /me/onboarding` — ce que le client est invité à faire après la création de
+ * son compte. Rien n'y bloque. Rangé sous la clé du profil : chaque mise à jour du
+ * profil le relit.
+ */
+export function useMyOnboarding() {
+  const apiFetch = useApiFetch()
+  const { isLoaded, isSignedIn } = useAuth()
+  const meKey = useMeKey()
+
+  return useQuery({
+    queryKey: [...meKey, 'profile', 'onboarding'],
+    queryFn: () => apiFetch<Onboarding>('/me/onboarding'),
+    enabled: isLoaded && !!isSignedIn,
+  })
+}
+
 /** Corps de `PUT /me/profile/allergies` : une liste avec consentement, ou « aucune ». */
 export interface AllergyDeclaration {
   none?: boolean
@@ -43,6 +75,7 @@ export function useDeclareAllergies() {
       apiFetch<MeProfile>('/me/profile/allergies', { method: 'PUT', body }),
     onSuccess: (profile) => {
       qc.setQueryData([...meKey, 'profile'], profile)
+      qc.invalidateQueries({ queryKey: [...meKey, 'profile', 'onboarding'] })
       // Le statut des réservations change avec : on les relit.
       qc.invalidateQueries({ queryKey: [...meKey, 'bookings'] })
       qc.invalidateQueries({ queryKey: [...meKey, 'booking'] })

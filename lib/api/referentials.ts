@@ -38,13 +38,37 @@ async function fetchRef<K extends string, T extends RefItem = RefItem>(
 /** Ces référentiels changent de loin en loin : une heure de fraîcheur suffit. */
 const HOUR = 60 * 60 * 1000
 
+/**
+ * Par ordre alphabétique français.
+ *
+ * L'API rend ces listes dans l'ordre où elles ont été saisies, ce qui n'est
+ * un ordre pour personne : dans une liste déroulante de cent communes ou de
+ * vingt-quatre langues, on cherche un nom, pas un rang. `localeCompare` en
+ * `fr` range Égypte avec les E et Île-de-France avec les I, ce qu'un tri brut
+ * sur les points de code ne fait pas.
+ *
+ * À ne pas appliquer aux référentiels dont l'ordre porte un sens — les types
+ * d'étape vont de la préparation à la mise en boîte, pas de C à R.
+ */
+const COLLATEUR = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
+
+function parNom<T>(items: T[], nom: (item: T) => string): T[] {
+  return [...items].sort((a, b) => COLLATEUR.compare(nom(a), nom(b)))
+}
+
+const alphabetique = (items: RefItem[]) => parNom(items, (i) => i.label)
+
 export function useRegions(fallback: RefItem[]) {
   const q = useQuery({
     queryKey: ['referentials', 'regions'],
     queryFn: () => fetchRef('regions', 'regions'),
     staleTime: HOUR,
   })
-  return { regions: q.data ?? fallback, fromApi: q.isSuccess, isPending: q.isPending }
+  return {
+    regions: alphabetique(q.data ?? fallback),
+    fromApi: q.isSuccess,
+    isPending: q.isPending,
+  }
 }
 
 /** Communes correspondant à un code postal, selon la base officielle. */
@@ -57,7 +81,41 @@ export function useCommunes(postcode: string) {
     queryFn: async ({ signal }) => {
       const res = await fetch(`https://geo.api.gouv.fr/communes?codePostal=${postcode}&fields=nom`, { signal })
       if (!res.ok) throw new Error(`geo.api.gouv.fr ${res.status}`)
-      return ((await res.json()) as { nom: string }[]).map((commune) => commune.nom)
+      const noms = ((await res.json()) as { nom: string }[]).map((c) => c.nom)
+      return parNom(noms, (n) => n)
+    },
+  })
+}
+
+/** Une commune d'une région, telle que `interventionZones[].cities` l'attend. */
+export interface RegionCommune {
+  name: string
+  insee: string
+  department: string
+}
+
+/**
+ * Toutes les communes d'une région, par ordre alphabétique (l'API trie).
+ *
+ * `GET /referentials/regions/{code}/communes` : la base officielle, relayée et
+ * gardée 24 h par l'API. Jusqu'au 10/11 on n'avait que quelques villes de
+ * référence par région, et le reste à chercher : une candidate de Mérignac ne
+ * trouvait pas sa ville en dépliant sa région. N'appeler qu'à l'ouverture
+ * d'une région : la plus grande pèse plusieurs milliers de lignes.
+ */
+export function useRegionCommunes(regionCode: string, enabled = true) {
+  return useQuery({
+    queryKey: ['referentials', 'communes', regionCode],
+    enabled: enabled && !!API_URL,
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`${API_URL}/referentials/regions/${regionCode}/communes`, {
+        headers: { Accept: 'application/json' },
+        signal,
+      })
+      if (!res.ok) throw new Error(`Communes de la région ${regionCode} indisponibles (${res.status}).`)
+      return ((await res.json()) as { communes: RegionCommune[] }).communes ?? []
     },
   })
 }
@@ -74,9 +132,10 @@ export function useDiets(fallback: RefItem[] = []) {
 /**
  * Les langues qu'un batch cooker peut déclarer parler avec ses clients.
  *
- * Référentiel fermé côté API — vingt-quatre codes, du français au wolof. Un
- * champ libre aurait donné « Anglais », « anglais », « EN » et « English »
- * dans la même liste, et aucun filtre possible.
+ * Référentiel fermé côté API — toutes les langues ISO 639-1 (184 depuis le
+ * 10/11), nommées en français. Un champ libre aurait donné « Anglais »,
+ * « anglais », « EN » et « English » dans la même liste, et aucun filtre
+ * possible.
  */
 export function useLanguages(fallback: RefItem[] = []) {
   const q = useQuery({
@@ -84,7 +143,7 @@ export function useLanguages(fallback: RefItem[] = []) {
     queryFn: () => fetchRef('languages', 'languages'),
     staleTime: HOUR,
   })
-  return q.data ?? fallback
+  return alphabetique(q.data ?? fallback)
 }
 
 export function useAllergens(fallback: RefItem[] = []) {

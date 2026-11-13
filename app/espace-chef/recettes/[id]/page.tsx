@@ -3,7 +3,7 @@
 import { use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
 import { useToast } from '@/components/shared/Toaster'
@@ -84,14 +84,6 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
           : 'Le brouillon s’enregistre tout seul.'
       }
     >
-      <Link
-        href="/espace-chef/recettes"
-        className="mb-5 inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        Mes plats
-      </Link>
-
       <DishForm
         dish={dish}
         variantOfName={dishes.data?.find((x) => x.id === dish.variantOfId)?.name ?? null}

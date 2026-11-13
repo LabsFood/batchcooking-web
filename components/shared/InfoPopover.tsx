@@ -41,7 +41,7 @@ export function InfoPopover({
       <Popover.Portal>
         {/* Au-dessus des panneaux en z-50 (fiche recette, tiroirs). */}
         <Popover.Positioner sideOffset={6} collisionPadding={8} className="z-[70]">
-          <Popover.Popup className="max-w-[18rem] rounded-xl border border-[rgba(31,42,55,0.08)] bg-paper px-3.5 py-2.5 text-left text-[12px] font-normal normal-case leading-relaxed tracking-normal text-ink-mid shadow-[0_12px_40px_-12px_rgba(31,42,55,0.35)] outline-none transition-opacity duration-100 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0">
+          <Popover.Popup className="max-w-[18rem] rounded-xl border border-[rgba(31,42,55,0.08)] bg-paper px-3.5 py-2.5 text-left text-[12px] font-normal normal-case leading-relaxed tracking-normal text-ink-mid shadow-[0_12px_40px_-12px_rgba(31,42,55,0.35)] outline-none origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out data-[ending-style]:[transition-duration:120ms] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0">
             {children}
           </Popover.Popup>
         </Popover.Positioner>

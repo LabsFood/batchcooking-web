@@ -189,8 +189,19 @@ export function useAcceptOffer() {
   const apiFetch = useApiFetch()
   const refresh = useRefreshQuotes('quotes')
   return useMutation({
-    mutationFn: ({ quoteId, offerId }: { quoteId: string; offerId: string }) =>
-      apiFetch<Quote>(`/me/quotes/${quoteId}/offers/${offerId}/accept`, { method: 'POST' }),
+    mutationFn: ({
+      quoteId,
+      offerId,
+      consents,
+    }: {
+      quoteId: string
+      offerId: string
+      consents?: import('./contract').ContractConsents
+    }) =>
+      apiFetch<Quote>(`/me/quotes/${quoteId}/offers/${offerId}/accept`, {
+        method: 'POST',
+        body: consents ? { consents } : {},
+      }),
     // Une offre échue ou déjà traitée : la liste affichée n'est plus la bonne.
     onSettled: refresh,
   })
