@@ -3,12 +3,12 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  Carrot,
   LayoutDashboard,
   FileText,
   CalendarRange,
   CalendarDays,
   UtensilsCrossed,
+  Carrot,
   Tag,
   Store,
   Wallet,

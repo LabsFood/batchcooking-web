@@ -25,9 +25,13 @@ export const REASON_TEXT = {
     'Chaque étape a un type : préparation, cuisson, refroidissement ou mise en boîte.',
   ALLERGENS_REQUIRED:
     'Déclarez les allergènes du plat, ou la mention « aucun des 14 allergènes ».',
-  PHOTO_MISSING:
-    'Une vraie photo du plat est demandée, pas une image générée. Elle ne bloque pas encore la publication.',
+  // BLK-32, décision du 13/11 : la photo bloque la publication.
+  PHOTO_MISSING: 'Une vraie photo du plat est nécessaire pour publier, pas une image générée.',
   MENU_FROZEN: 'À 3 jours de la prestation, le menu est figé.',
+  // Recettes lot 3.
+  EAT_BEFORE_CLOSED:
+    'Les dates « à manger avant » se modifient jusqu’à 24 h après la fin de la prestation.',
+  CONSERVATION_NOT_READY: 'La fiche de conservation est disponible une fois les plats livrés.',
   SHOPPING_LIST_NOT_SENT: 'Le batch cooker n’a pas encore envoyé la liste de courses.',
   SHOPPING_LIST_FROZEN: 'La date limite est passée : la liste ne peut plus être modifiée.',
   SHOPPING_LIST_UPDATED:
@@ -37,6 +41,17 @@ export const REASON_TEXT = {
   LIMIT_REACHED: 'Limite atteinte.',
   AI_FORMAT_INVALID:
     'La recette proposée ne respecte pas le format standard, même après plusieurs essais. Essayez une autre demande.',
+  DUPLICATE_INGREDIENT_LINE:
+    'Un même ingrédient figure sur plusieurs lignes : fusionnez-les en une seule.',
+  RECIPE_CONFLICT:
+    'Cette recette a été modifiée ailleurs (un autre onglet, ou Lab’s Food a mis à jour un ingrédient). Rechargez pour voir la dernière version.',
+  INGREDIENT_NOT_LINKED:
+    'Des ingrédients ne sont pas reliés à la liste commune : reliez-les avant de confirmer les allergènes.',
+  INGREDIENT_ALREADY_LISTED: 'Cet ingrédient figure déjà dans la liste : reliez-le plutôt que de le recréer.',
+  INGREDIENT_CAP_REACHED:
+    'Vous avez créé beaucoup d’ingrédients ces dernières 24 heures : réessayez plus tard.',
+  INGREDIENT_NOT_PENDING:
+    'Cet ingrédient a été validé ou remplacé entre-temps : rechargez la page.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
   ADDRESS_NOT_FOUND:
     'Cette adresse est introuvable dans ce code postal. Vérifiez le numéro et le nom de la rue.',
@@ -56,6 +71,10 @@ export const REASON_TEXT = {
   GEO_UNAVAILABLE:
     'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 } as const
+
+/** Les allergènes d'un ingrédient sont exigés (ou « aucun ») : la phrase du dialogue, de la page et de leurs refus. */
+export const INGREDIENT_ALLERGENS_REQUIRED_TEXT =
+  'Cochez ses allergènes, ou indiquez qu’il n’en contient aucun.'
 
 export type ReasonCode = keyof typeof REASON_TEXT
 

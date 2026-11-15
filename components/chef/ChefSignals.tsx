@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from 'react'
 import {
   BookOpen,
+  Carrot,
   CalendarDays,
   CalendarRange,
   FileText,
@@ -52,6 +53,7 @@ const PAGES: { href: string; label: string; Icon: PaletteItem['Icon']; keywords:
   { href: '/espace-chef/prestations', label: 'Prestations', Icon: CalendarRange, keywords: 'sessions missions' },
   { href: '/espace-chef/agenda', label: 'Agenda', Icon: CalendarDays, keywords: 'disponibilites planning calendrier' },
   { href: '/espace-chef/recettes', label: 'Menus & recettes', Icon: UtensilsCrossed, keywords: 'plats catalogue' },
+  { href: '/espace-chef/ingredients', label: 'Mes ingrédients', Icon: Carrot, keywords: 'liste commune en attente crees' },
   { href: '/espace-chef/recettes/nouveau', label: 'Écrire un plat', Icon: BookOpen, keywords: 'nouveau creer recette' },
   { href: '/espace-chef/tarifs', label: 'Mes tarifs', Icon: Tag, keywords: 'prix grille' },
   { href: '/espace-chef/vitrine', label: 'Ma vitrine', Icon: Store, keywords: 'page publique semaines' },

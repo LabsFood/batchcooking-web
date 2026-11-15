@@ -57,7 +57,67 @@ const CHAMPS: Record<string, string> = {
   serviceRadiusKm: 'le rayon d’intervention',
   weekly: 'les horaires',
   exceptions: 'les exceptions',
+  // Une recette (Recettes §4, §5.2).
+  recipe: 'la recette',
+  steps: 'les étapes',
+  text: 'le texte',
+  qty: 'la quantité',
+  unit: 'l’unité',
+  aisle: 'le rayon',
+  link: 'le lien',
+  precision: 'la précision',
+  preparation: 'la préparation',
+  group: 'le groupe',
+  rawText: 'le texte d’origine',
+  catalogIngredientId: 'l’ingrédient de la liste commune',
+  temperature: 'la température',
+  minutes: 'la durée',
+  container: 'le contenant',
+  modes: 'les modes de réchauffage',
+  method: 'le lieu de conservation',
+  days: 'le nombre de jours',
+  freezable: 'la réponse « congelable »',
+  freezerMonths: 'les mois de congélation',
+  thawing: 'la décongélation',
+  prepMinutes: 'le temps de préparation',
+  cookMinutes: 'le temps de cuisson',
+  customDiets: 'les autres régimes',
+  customAllergens: 'les autres allergènes',
+  addedAllergens: 'les allergènes ajoutés',
+  declaredDiets: 'les régimes déclarés',
+  equipment: 'le matériel',
+  personalTags: 'les étiquettes personnelles',
+  profiles: 'les profils',
+  seasonsOverride: 'les saisons choisies',
+  lockVersion: 'la version lue',
 }
+
+/** Les champs d'une recette dont le nom seul serait ambigu (deux « contenant », deux « durée »). */
+const CHEMINS: Record<string, string> = {
+  'recipe.reheating.note': 'les consignes de réchauffage',
+  'recipe.reheating.temperature': 'la température de réchauffage',
+  'recipe.reheating.minutes': 'la durée de réchauffage',
+  'recipe.reheating.container': 'le contenant de réchauffage',
+  'recipe.storage.days': 'les jours de conservation',
+  'recipe.storage.container': 'le contenant de conservation',
+  'recipe.storage.thawing': 'la façon de décongeler',
+}
+
+/** L'élément d'une liste, au singulier : « du 3ᵉ ingrédient », « de la 2ᵉ étape ». */
+const ELEMENTS: Record<string, { nom: string; feminin?: boolean }> = {
+  ingredients: { nom: 'ingrédient' },
+  steps: { nom: 'étape', feminin: true },
+  meals: { nom: 'plat' },
+  exceptions: { nom: 'exception', feminin: true },
+}
+
+/** « les ingrédients » → « des ingrédients », « la recette » → « de la recette ». */
+const de = (nom: string) =>
+  nom.startsWith('les ')
+    ? `des ${nom.slice(4)}`
+    : nom.startsWith('le ')
+      ? `du ${nom.slice(3)}`
+      : `de ${nom}`
 
 /** Ce que la règle violée veut dire, sans jargon. */
 const REGLES: Record<string, string> = {
@@ -78,27 +138,41 @@ const REGLES: Record<string, string> = {
   isDateString: 'n’est pas une date valide',
   arrayMaxSize: 'contient trop d’éléments',
   arrayMinSize: 'n’en contient pas assez',
+  arrayUnique: 'contient un doublon',
+  isPositive: 'doit être au-dessus de zéro',
+  isIn: 'a une valeur que l’API n’accepte pas',
   whitelistValidation: 'n’existe pas côté API',
 }
 
 /**
- * `meals.0.portions` → « les portions du 1ᵉʳ plat ».
+ * `meals.0.portions` → « le nombre de portions du 1ᵉʳ plat » ;
+ * `recipe.ingredients.3.link` (ou `recipe.ingredients[3].link`) → « le lien du 4ᵉ ingrédient ».
  *
  * L'API indexe à partir de zéro ; un humain compte à partir de un.
  */
 export function champLabel(field: string): string {
-  const parts = field.split('.')
+  const chemin = field.replace(/\[(\d+)\]/g, '.$1')
+  if (CHEMINS[chemin]) return CHEMINS[chemin]
+  const parts = chemin.split('.')
   const feuille = parts[parts.length - 1]
-  const nom = CHAMPS[feuille] ?? `« ${feuille} »`
-
   const index = parts.findIndex((p) => /^\d+$/.test(p))
-  if (index > 0) {
-    const parent = CHAMPS[parts[index - 1]] ?? parts[index - 1]
-    const rang = Number(parts[index]) + 1
-    const ordinal = rang === 1 ? '1ᵉʳ' : `${rang}ᵉ`
-    return `${nom} du ${ordinal} élément de ${parent}`
+  if (index <= 0) return CHAMPS[feuille] ?? `« ${feuille} »`
+
+  const parentKey = parts[index - 1]
+  const rang = Number(parts[index]) + 1
+  const element = ELEMENTS[parentKey]
+  const ordinal = rang === 1 ? (element?.feminin ? '1ʳᵉ' : '1ᵉʳ') : `${rang}ᵉ`
+  const parent = CHAMPS[parentKey] ?? parentKey
+  // `customDiets.2` : l'élément lui-même est en cause.
+  if (index === parts.length - 1) {
+    return element
+      ? `${element.feminin ? 'la' : 'le'} ${ordinal} ${element.nom}`
+      : `le ${ordinal} élément ${de(parent)}`
   }
-  return nom
+  const nom = CHAMPS[feuille] ?? `« ${feuille} »`
+  return element
+    ? `${nom} ${element.feminin ? 'de la' : 'du'} ${ordinal} ${element.nom}`
+    : `${nom} du ${ordinal} élément ${de(parent)}`
 }
 
 /** Une erreur de champ, en une phrase. */

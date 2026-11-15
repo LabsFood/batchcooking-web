@@ -9,27 +9,20 @@
    saisit sa recette, la fiche et la liste se construisent à partir de là.
    ───────────────────────────────────────────────────────────────────────────── */
 
-export const UNITS = ['g', 'kg', 'ml', 'cl', 'l', 'pièce', 'c. à soupe', 'c. à café', 'pincée', 'botte', 'gousse'] as const
-export type Unit = (typeof UNITS)[number]
+import { AISLES, TO_TASTE, displayQuantity, roundForDisplay } from '@/lib/recipe-fields'
 
-/** Rayons de la liste de courses, dans l'ordre d'un parcours en magasin. */
-export const AISLES = [
-  'Fruits et légumes',
-  'Boucherie',
-  'Poissonnerie',
-  'Crèmerie',
-  'Épicerie salée',
-  'Épicerie sucrée',
-  'Boulangerie',
-  'Surgelés',
-  'Boissons',
-] as const
-export type Aisle = (typeof AISLES)[number]
+// Les unités (14 codes) et les rayons viennent de `lib/recipe-fields.ts` : une
+// seule liste, celle de l'API, pour la saisie comme pour la liste de courses.
+
+/** Un code d'unité (`g`, `clove`, `to_taste`…). */
+export type Unit = string
+/** Un code de rayon (`fruits-legumes`…). */
+export type Aisle = string
 
 export interface Ingredient {
   name: string
-  /** Quantité pour `ChefDish.portions` portions. */
-  qty: number
+  /** Quantité pour `ChefDish.portions` portions ; `null` pour « selon le goût ». */
+  qty: number | null
   unit: Unit
   aisle: Aisle
 }
@@ -88,17 +81,11 @@ export interface ShoppingGroup {
   lines: ShoppingLine[]
 }
 
-/** Arrondi lisible en rayon : au gramme près n'a pas de sens sur un paquet de riz. */
-function roundQty(qty: number, unit: Unit): number {
-  if (unit === 'g' || unit === 'ml') return qty >= 100 ? Math.round(qty / 10) * 10 : Math.round(qty)
-  if (unit === 'kg' || unit === 'l') return Math.round(qty * 100) / 100
-  if (unit === 'pièce' || unit === 'botte' || unit === 'gousse') return Math.ceil(qty)
-  return Math.round(qty * 2) / 2
-}
-
 /**
  * Liste de courses d'un ensemble de plats, mise à l'échelle des portions
- * commandées puis dédoublonnée par ingrédient et unité.
+ * commandées puis dédoublonnée par ingrédient et unité. On additionne les
+ * quantités exactes et l'on n'arrondit qu'à la fin (§4.12). Une ligne « selon
+ * le goût » n'a pas de nombre : elle reste dans la liste, sans quantité.
  */
 export function buildShoppingList(
   items: { recipe: Recipe; basePortions: number; portions: number }[],
@@ -109,35 +96,34 @@ export function buildShoppingList(
     const factor = basePortions > 0 ? portions / basePortions : 1
     for (const ing of recipe.ingredients) {
       const key = `${ing.name.toLowerCase().trim()}|${ing.unit}`
+      const qty = ing.unit === TO_TASTE || ing.qty == null ? 0 : ing.qty * factor
       const existing = merged.get(key)
-      if (existing) existing.qty += ing.qty * factor
-      else merged.set(key, { name: ing.name.trim(), qty: ing.qty * factor, unit: ing.unit, aisle: ing.aisle })
+      if (existing) existing.qty += qty
+      else merged.set(key, { name: ing.name.trim(), qty, unit: ing.unit, aisle: ing.aisle })
     }
   }
 
   const groups = new Map<Aisle, ShoppingLine[]>()
   for (const line of merged.values()) {
-    line.qty = roundQty(line.qty, line.unit)
+    line.qty = roundForDisplay(line.qty, line.unit)
     const bucket = groups.get(line.aisle)
     if (bucket) bucket.push(line)
     else groups.set(line.aisle, [line])
   }
 
-  return AISLES.filter((a) => groups.has(a)).map((aisle) => ({
-    aisle,
-    lines: (groups.get(aisle) ?? []).sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-  }))
+  // Les rayons connus dans l'ordre du magasin, puis ceux que la liste ne connaît pas.
+  const order = [...AISLES, ...[...groups.keys()].filter((a) => !AISLES.includes(a))]
+  return order
+    .filter((a) => groups.has(a))
+    .map((aisle) => ({
+      aisle,
+      lines: (groups.get(aisle) ?? []).sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    }))
 }
 
-/** Quantité affichée : « 1,5 kg », « 250 g », « 3 pièces ». */
-export function formatQty(qty: number, unit: Unit): string {
-  const n = Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace('.', ',')
-  if (unit === 'pièce') return `${n} ${qty > 1 ? 'pièces' : 'pièce'}`
-  if (unit === 'botte') return `${n} ${qty > 1 ? 'bottes' : 'botte'}`
-  if (unit === 'gousse') return `${n} ${qty > 1 ? 'gousses' : 'gousse'}`
-  if (unit === 'pincée') return `${n} ${qty > 1 ? 'pincées' : 'pincée'}`
-  return `${n} ${unit}`
-}
+/** Quantité affichée : « 1,5 kg », « 250 g », « 3 pièces », « selon le goût ». */
+export const formatQty = (qty: number, unit: Unit) =>
+  displayQuantity(unit === TO_TASTE ? null : qty, unit)
 
 export const reheatingLabel = (r: Reheating) =>
   [r.mode, r.temperature ? `${r.temperature} °C` : null, `${r.minutes} min`].filter(Boolean).join(' · ')

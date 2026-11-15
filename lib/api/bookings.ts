@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useApiFetch } from './client'
+import { useApiBlob, useApiFetch } from './client'
 import { useMeKey } from './keys'
 import { pushPhoto } from './photos'
 import type { Reheating } from './chef-catalog'
@@ -49,8 +49,11 @@ export interface BookingMeal {
   mealId: string
   name?: string | null
   portions: number
-  /** Version de recette épinglée au moment de la réservation. */
+  /** Version de recette épinglée quand le menu a été écrit (lot 3). */
   recipeVersion?: number | null
+  /** Lot 3 : les allergènes du plat à ce moment-là, gardés pour cette prestation. `null` : pas encore figés. */
+  allergensSnapshot?: string[] | null
+  pinnedAt?: string | null
 }
 
 export interface BookingPhoto {
@@ -133,6 +136,9 @@ export interface Booking {
   allergyCheckReasons?: AllergyReason[]
   /** Détail seulement : les plats qui contiennent un allergène du client, à remplacer. */
   allergyConflicts?: { mealId: string; allergens: string[] }[]
+  /** Lot 3 : à 72 h du début, les plats ne se modifient plus (`MENU_FROZEN`). Calculé par l'API. */
+  menuFrozen?: boolean
+  frozenSince?: string
   /** CGV V1, détail seulement : les cases cochées et la conclusion. */
   contract?: import('./contract').BookingContract
   /** CGV V1, vue client : le droit de rétractation. */
@@ -766,6 +772,111 @@ export function useMissionRecipeSheet(
       ),
     enabled: !!missionId && !!dishId,
     retry: false,
+  })
+}
+
+/* ── Conservation (Recettes lot 3) ──────────────────────────────────────────── */
+
+/** La date « à manger avant » d'un plat, telle que l'API la calcule. */
+export interface EatBefore {
+  /** `YYYY-MM-DD` : celle du batch cooker si posée, sinon celle proposée. */
+  date: string | null
+  /** Jour de la prestation + jours au frais de la recette figée. */
+  proposed: string | null
+  setByChef: boolean
+  setAt: string | null
+  fridgeDays: number | null
+  /** Au-delà du seuil réglé dans la console (4 jours par défaut) : une alerte, jamais un blocage. */
+  fridgeAlert: boolean
+}
+
+export interface ConservationDish {
+  mealId: string
+  name: string
+  storage: {
+    method: string | null
+    days: number | null
+    container: string | null
+    freezable: boolean | null
+    freezerMonths: number | null
+    thawing: string | null
+  } | null
+  reheating: Reheating | null
+  notes: { storage: string | null; reheating: string | null }
+  eatBefore: EatBefore
+}
+
+export interface DateChange {
+  mealId: string
+  value: string | null
+  changedAt: string
+  /** Le batch cooker ne lit que le rôle ; la console, aussi le nom. */
+  changedBy: { role: 'chef' | 'admin' | null; id?: string | null; name?: string | null }
+}
+
+export interface ConservationSheet {
+  bookingId: string
+  startsAt: string
+  status: BookingStatus
+  fridgeAlertDays: number
+  /** Du plus court au plus long délai. */
+  dishes: ConservationDish[]
+  /** Batch cooker et console seulement. */
+  history?: DateChange[]
+}
+
+/**
+ * `GET /chef-missions/{id}/conservation` — le client la lit une fois les plats
+ * livrés (`409 CONSERVATION_NOT_READY` avant) ; le batch cooker à tout moment.
+ */
+export function useConservation(missionId: string | undefined, enabled = true) {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'mission', missionId, 'conservation'],
+    queryFn: () => apiFetch<ConservationSheet>(`/chef-missions/${missionId}/conservation`),
+    enabled: !!missionId && enabled,
+    retry: false,
+  })
+}
+
+/** `PUT /chef-missions/{id}/dishes/{dishId}/eat-before` — `null` revient à la date proposée. */
+export function useSetEatBefore() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      dishId,
+      date,
+    }: {
+      missionId: string
+      dishId: string
+      date: string | null
+    }) =>
+      apiFetch<ConservationDish>(`/chef-missions/${missionId}/dishes/${dishId}/eat-before`, {
+        method: 'PUT',
+        body: { date },
+      }),
+    onSuccess: (_saved, { missionId }) =>
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId, 'conservation'] }),
+  })
+}
+
+/** `GET /chef-missions/{id}/conservation.pdf` — même accès que la fiche. */
+export function useConservationPdf() {
+  const apiBlob = useApiBlob()
+  return useMutation({
+    mutationFn: async ({ missionId, day }: { missionId: string; day: string }) => {
+      const pdf = await apiBlob(`/chef-missions/${missionId}/conservation.pdf`)
+      const url = URL.createObjectURL(pdf)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `conservation-${day}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }
 

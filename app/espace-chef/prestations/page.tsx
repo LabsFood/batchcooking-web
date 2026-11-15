@@ -35,18 +35,20 @@ import { atTime, dayKey, durationLabel } from '@/lib/time'
 import { useOwnSlots } from '@/lib/api/agenda'
 import {
   aisleLabel,
-  AISLES,
+  displayQuantity,
   REHEAT_MODES,
-  UNITS,
+  TO_TASTE,
   reheatingLine,
   storageLine,
 } from '@/lib/recipe-fields'
 import {
   refLabel,
+  useAisles,
   useAllergens,
   useDiets,
   useReheatModes,
   useStepTypes,
+  useUnits,
 } from '@/lib/api/referentials'
 import { countryLabel } from '@/lib/chef/countries'
 import {
@@ -87,6 +89,7 @@ import { InfoPopover } from '@/components/shared/InfoPopover'
 import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { useDishes } from '@/lib/api/chef-catalog'
+import EatBeforeCard from '@/components/chef/prestation/EatBeforeCard'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -555,7 +558,20 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             {(m.allergyConflicts?.length ?? 0) > 0 && <ChefConflicts booking={m} />}
 
             {/* ── Les plats ───────────────────────────────────────────── */}
-            <Card title="Plats de la prestation">
+            <Card
+              title="Plats de la prestation"
+              action={
+                m.menuFrozen ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
+                    Menu figé
+                    <InfoPopover label="Pourquoi le menu est-il figé ?">
+                      À 3 jours de la prestation, le menu est figé : les plats ne changent
+                      plus, sauf un plat à remplacer pour une allergie du client.
+                    </InfoPopover>
+                  </span>
+                ) : undefined
+              }
+            >
               {(m.meals?.length ?? 0) === 0 ? (
                 <Empty text="Aucun plat rattaché à cette prestation." />
               ) : (
@@ -569,6 +585,12 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                         <span className="block text-xs text-ink-soft">
                           {bm.portions} portion{bm.portions > 1 ? 's' : ''}
                           {bm.recipeVersion != null && ` · recette v${bm.recipeVersion}`}
+                          {bm.recipeVersion != null && (
+                            <InfoPopover label="Qu’est-ce que la version figée ?">
+                              Le client a validé cette version. Elle reste figée pour sa
+                              prestation ; vos modifications créent une nouvelle version.
+                            </InfoPopover>
+                          )}
                         </span>
                       </span>
                       <button
@@ -584,6 +606,9 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </ul>
               )}
             </Card>
+
+            {/* ── Les dates « à manger avant » (lot 3) ─────────────────── */}
+            {(m.meals?.length ?? 0) > 0 && <EatBeforeCard booking={m} />}
 
             {/* ── La liste de courses ─────────────────────────────────── */}
             <ShoppingCard missionId={m.id} onOpenFull={() => setCourses(true)} />
@@ -1094,6 +1119,8 @@ function ShoppingCard({
   const toast = useToast()
   const query = useMissionShoppingList(missionId)
   const envoyer = useSendMissionShoppingList()
+  // Les rayons en vigueur (l'API), à défaut la liste fixe.
+  const aisles = useAisles()
   const groupes = query.data?.groups ?? []
   const lignes = groupes.reduce((n, g) => n + g.lines.length, 0)
   const corrigees = groupes.reduce((n, g) => n + g.lines.filter((l) => l.edited).length, 0)
@@ -1210,7 +1237,7 @@ function ShoppingCard({
                 key={g.aisle}
                 className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy"
               >
-                {aisleLabel(g.aisle)}
+                {aisleLabel(g.aisle, aisles)}
                 <span className="ml-1.5 tabular-nums text-ink-soft">{g.lines.length}</span>
               </li>
             ))}
@@ -1233,6 +1260,8 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
   const query = useMissionShoppingList(missionId)
   const save = useSaveMissionShoppingList()
   const reset = useResetMissionShoppingList()
+  const units = useUnits()
+  const aisles = useAisles()
 
   type Row = MissionLine & { aisle: string }
   const [brouillon, setBrouillon] = useState<Row[] | null>(null)
@@ -1305,25 +1334,42 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 aria-label={`Ingrédient ${i + 1}`}
                 className="input-base min-w-32 flex-1 py-2"
               />
-              <input
-                type="number"
-                step="any"
-                min={0}
-                value={Number.isFinite(l.qty) ? l.qty : ''}
-                onChange={(e) => changer(i, { qty: Number(e.target.value) })}
-                aria-label={`Quantité de ${l.name || 'la ligne'}`}
-                className="input-base w-20 shrink-0 py-2"
-              />
+              {l.unit === TO_TASTE ? (
+                <span className="w-20 shrink-0 px-1 text-[11px] leading-tight text-ink-soft">
+                  sans quantité
+                </span>
+              ) : (
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  value={Number.isFinite(l.qty) ? l.qty : ''}
+                  onChange={(e) => changer(i, { qty: Number(e.target.value) })}
+                  aria-label={`Quantité de ${l.name || 'la ligne'}`}
+                  className="input-base w-20 shrink-0 py-2"
+                />
+              )}
               <select
                 value={l.unit}
-                onChange={(e) => changer(i, { unit: e.target.value })}
+                onChange={(e) =>
+                  changer(i, {
+                    unit: e.target.value,
+                    // « selon le goût » n'a pas de nombre : l'API le lit comme zéro.
+                    ...(e.target.value === TO_TASTE
+                      ? { qty: 0 }
+                      : // En quittant « selon le goût », la quantité repart vide : pas un « 0 » affiché.
+                        l.unit === TO_TASTE
+                        ? { qty: Number.NaN }
+                        : {}),
+                  })
+                }
                 aria-label={`Unité de ${l.name || 'la ligne'}`}
                 className="input-base w-24 shrink-0 py-2"
               >
                 <option value="">Unité</option>
-                {UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                {units.map((u) => (
+                  <option key={u.code} value={u.code}>
+                    {u.label}
                   </option>
                 ))}
               </select>
@@ -1334,9 +1380,9 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 className="input-base w-36 shrink-0 py-2"
               >
                 <option value="">Rayon</option>
-                {AISLES.map((a) => (
-                  <option key={a} value={a}>
-                    {aisleLabel(a)}
+                {aisles.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.label}
                   </option>
                 ))}
               </select>
@@ -1361,7 +1407,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
       <button
         type="button"
         onClick={() =>
-          setBrouillon([...lignes, { name: '', qty: 1, unit: 'g', aisle: AISLES[0] }])
+          setBrouillon([...lignes, { name: '', qty: 1, unit: 'g', aisle: aisles[0]?.code ?? '' }])
         }
         className="btn btn-outline mt-3 text-xs"
       >
@@ -1598,7 +1644,7 @@ function RecipeSheetDialog({
                       >
                         <span className="text-navy">{ing.name}</span>
                         <span className="shrink-0 tabular-nums text-ink-mid">
-                          {ing.qty.toLocaleString('fr-FR')} {ing.unit}
+                          {displayQuantity(ing.qty, ing.unit)}
                           {ing.aisle && (
                             <span className="ml-2 text-ink-soft">{aisleLabel(ing.aisle)}</span>
                           )}

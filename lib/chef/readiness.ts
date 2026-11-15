@@ -4,6 +4,9 @@
    L'API calcule la liste de ce qui manque et nomme chaque point par un `code`
    et un `field` : on traduit d'après eux, jamais d'après `message`, qui reste
    en anglais pour les développeurs.
+
+   Le même `field` sert à retrouver le champ à l'écran (`fieldTarget`) : un seul
+   endroit connaît la correspondance entre un chemin de l'API et un id du DOM.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const CHAMP: Record<string, string> = {
@@ -11,34 +14,226 @@ const CHAMP: Record<string, string> = {
   category: 'la place dans le repas',
   portions: 'le nombre de portions',
   cookMinutes: 'le temps de cuisson (0 si le plat ne cuit pas)',
-  'recipe.ingredients': 'au moins un ingrédient',
+  'recipe.ingredients': 'au moins un ingrédient (un visible par le client pour publier)',
   'recipe.steps': 'au moins une étape',
   'recipe.storage': 'la conservation : où, et combien de jours',
+  'recipe.storage.freezable': 'si le plat se congèle, oui ou non',
+  'recipe.storage.freezerMonths': 'la durée de congélation, en mois',
+  'recipe.storage.thawing': 'la façon de décongeler le plat',
   'recipe.reheating': 'un mode de réchauffage',
+  'recipe.reheating.note': 'les consignes de réchauffage',
   description: 'une description courte',
 }
 
 /** `recipe.steps[2]` → 2 ; null pour un autre champ. */
 const rang = (field: string) => {
-  const m = /\[(\d+)\]$/.exec(field)
+  const m = /\[(\d+)\](?:\.\w+)?$/.exec(field)
   return m ? Number(m[1]) : null
+}
+
+/** Le détail d'une ligne d'ingrédient en faute : `recipe.ingredients[3].qty` → qty. */
+const detailLigne = (field: string) => /^recipe\.ingredients\[\d+\]\.(\w+)$/.exec(field)?.[1] ?? null
+
+const DETAIL_LIGNE: Record<string, string> = {
+  name: 'le nom',
+  qty: 'la quantité',
+  unit: 'l’unité',
+  aisle: 'le rayon',
 }
 
 /** Un point manquant, comme il s'écrit dans une liste : « le type de l’étape 2 ». */
 export function problemText(p: { code: string; field: string }): string {
   const i = rang(p.field)
+  const n = (i ?? 0) + 1
   switch (p.code) {
     case 'INGREDIENT_TO_VERIFY':
-      return `l’ingrédient n° ${(i ?? 0) + 1}, encore à vérifier`
+      return `l’ingrédient n° ${n}, encore à vérifier`
+    case 'INGREDIENT_NOT_LINKED':
+      return `l’ingrédient n° ${n}, à relier à la liste commune (choisissez-le dans les suggestions, ou créez-le)`
+    case 'INGREDIENT_INCOMPLETE':
+      return `l’ingrédient n° ${n}, dont les allergènes ne sont pas encore renseignés dans la liste commune`
     case 'STEP_TYPE_MISSING':
-      return `le type de l’étape ${(i ?? 0) + 1}`
+      return `le type de l’étape ${n}`
     case 'ALLERGENS_REQUIRED':
       return 'les allergènes, ou la mention « aucun »'
     case 'ALLERGENS_UNVERIFIED':
       return 'la confirmation des allergènes'
+    case 'DECLARED_DIET_NOT_ALLOWED':
+      return 'le régime halal ou casher déclaré : il demande des ingrédients sans porc, tous reliés à la liste commune'
     case 'PHOTO_MISSING':
       return 'une vraie photo du plat'
+    case 'NO_COMMON_SEASON':
+      return 'les saisons : les ingrédients n’ont aucun mois en commun, choisissez les mois à la main'
+    case 'FRIDGE_LONG':
+      return 'une conservation très longue au réfrigérateur : vérifiez qu’elle est sûre'
+    case 'VALIDATION_FAILED': {
+      const detail = detailLigne(p.field)
+      if (detail) return `${DETAIL_LIGNE[detail] ?? detail} de l’ingrédient n° ${n}`
+      return CHAMP[p.field] ?? p.field
+    }
     default:
       return CHAMP[p.field] ?? p.field
   }
+}
+
+/** Les champs d'une ligne qui ont leur propre id à l'écran ; les autres mènent au nom. */
+const LINE_PARTS = new Set(['qty', 'unit', 'aisle', 'link', 'precision', 'preparation', 'group'])
+
+/**
+ * L'id du champ à l'écran pour un `field` de l'API, ou null s'il n'y en a pas.
+ *
+ * Deux écritures du même chemin arrivent : `recipe.ingredients[3].qty` (« Prête »,
+ * 422) et `recipe.ingredients.3.qty` (le détail d'un 400). Les deux sont lues.
+ *
+ * `rows` ramène le rang d'une ligne de l'API (ligne enregistrée) à la ligne
+ * affichée, `stepRows` celui d'une étape : la liste peut avoir des lignes
+ * incomplètes que l'API n'a jamais reçues. Sans eux, le rang est pris tel quel.
+ * `code` précise le point : la confirmation des allergènes a son propre bouton.
+ */
+export function fieldTarget(
+  field: string,
+  opts: { rows?: number[]; stepRows?: number[]; code?: string } = {},
+): string | null {
+  const shownRows = opts.rows
+  if (opts.code === 'ALLERGENS_UNVERIFIED') return 'confirm-allergens'
+  if (opts.code === 'FRIDGE_LONG') return 'storage-days'
+  const path = field.replace(/\.(\d+)(?=\.|$)/g, '[$1]')
+  const line = /^recipe\.ingredients\[(\d+)\](?:\.(\w+))?$/.exec(path)
+  if (line) {
+    const k = Number(line[1])
+    const row = shownRows ? shownRows[k] : k
+    if (row === undefined) return 'ingredients'
+    const part = line[2] && LINE_PARTS.has(line[2]) ? line[2] : 'name'
+    return `ingredient-${row}-${part}`
+  }
+  const step = /^recipe\.steps\[(\d+)\](?:\.(\w+))?$/.exec(path)
+  if (step) {
+    const row = opts.stepRows ? opts.stepRows[Number(step[1])] : Number(step[1])
+    if (row === undefined) return 'steps'
+    const part = step[2] === 'text' ? 'text' : step[2] === 'durationMinutes' ? 'minutes' : 'type'
+    return `step-${row}-${part}`
+  }
+  // `customDiets[2]` : l'élément d'une liste libre mène à la liste.
+  switch (path.replace(/\[\d+\]$/, '')) {
+    case 'prepMinutes':
+      return 'dish-prep'
+    case 'country':
+      return 'dish-country'
+    case 'difficulty':
+      return 'dish-difficulty'
+    case 'equipment':
+      return 'dish-equipment'
+    case 'customDiets':
+      return 'dish-custom-diets'
+    case 'customAllergens':
+      return 'dish-custom-allergens'
+    case 'addedAllergens':
+      return 'dish-allergens'
+    case 'personalTags':
+      return 'dish-tags'
+    case 'profiles':
+      return 'dish-profiles'
+    case 'seasonsOverride':
+      return 'dish-seasons'
+    case 'recipe.reheating.modes':
+    case 'recipe.reheating.mode':
+      return 'reheat-modes'
+    case 'recipe.reheating.temperature':
+      return 'reheat-temperature'
+    case 'recipe.reheating.minutes':
+      return 'reheat-minutes'
+    case 'recipe.reheating.container':
+      return 'reheat-container'
+    case 'recipe.storage.method':
+      return 'storage-method'
+    case 'recipe.storage.days':
+      return 'storage-days'
+    case 'recipe.storage.container':
+      return 'storage-container'
+  }
+  switch (field) {
+    case 'name':
+      return 'dish-name'
+    case 'description':
+      return 'dish-description'
+    case 'category':
+      return 'dish-category'
+    case 'portions':
+      return 'dish-portions'
+    case 'cookMinutes':
+      return 'dish-cook'
+    case 'imageUrl':
+      return 'dish-photo'
+    case 'classification':
+      return 'dish-seasons'
+    case 'declaredDiets':
+      return 'dish-declared-diets'
+    case 'allergens':
+      return 'dish-allergens'
+    case 'recipe.ingredients':
+      return 'ingredients'
+    case 'recipe.steps':
+      return 'steps'
+    case 'recipe.storage':
+      return 'storage-method'
+    case 'recipe.storage.freezable':
+      return 'storage-freezable'
+    case 'recipe.storage.freezerMonths':
+      return 'storage-months'
+    case 'recipe.storage.thawing':
+      return 'storage-thawing'
+    case 'recipe.reheating':
+      return 'reheat-modes'
+    case 'recipe.reheating.note':
+      return 'reheat-note'
+    default:
+      return null
+  }
+}
+
+/** Les champs qui prennent le focus ; les « ? » d'aide (`data-info-trigger`) n'en sont pas. */
+const FOCUSABLE =
+  'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not([data-info-trigger])'
+
+const CONTROL = 'input, select, textarea, button'
+
+/**
+ * Fait défiler jusqu'au champ et lui donne le focus (le premier champ actif d'un
+ * bloc, jamais un bouton d'aide). Si le champ n'est pas affiché (la quantité
+ * d'une ligne « selon le goût », le rayon d'une ligne reliée), c'est le nom de
+ * la ligne qui le reçoit.
+ *
+ * Un bouton désactivé ne prend pas le focus : c'est son explication
+ * (`aria-describedby`) qui le reçoit, sinon ce qui l'entoure, lui-même. Jamais
+ * un champ voisin : pour « Confirmer les allergènes », ce serait une case
+ * d'allergène, qu'une frappe d'espace cocherait.
+ */
+export function focusField(id: string): void {
+  if (typeof document === 'undefined') return
+  let el = document.getElementById(id)
+  if (!el) {
+    const row = /^ingredient-(\d+)-/.exec(id)
+    if (row) el = document.getElementById(`ingredient-${row[1]}-name`)
+    const step = /^step-(\d+)-/.exec(id)
+    if (step) el = document.getElementById(`step-${step[1]}-text`)
+  }
+  if (!el) return
+
+  let target: HTMLElement
+  if ((el as HTMLButtonElement).disabled) {
+    const reason = (el.getAttribute('aria-describedby') ?? '')
+      .split(/\s+/)
+      .map((ref) => (ref ? document.getElementById(ref) : null))
+      .find((x): x is HTMLElement => x !== null)
+    target = reason ?? el.parentElement ?? el
+  } else if (el.matches(CONTROL)) {
+    target = el
+  } else {
+    target = el.querySelector<HTMLElement>(FOCUSABLE) ?? el
+  }
+  if (!target.matches(CONTROL) && !target.hasAttribute('tabindex')) {
+    target.setAttribute('tabindex', '-1')
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  target.focus({ preventScroll: true })
 }

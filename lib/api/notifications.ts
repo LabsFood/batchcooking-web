@@ -37,6 +37,14 @@ const TITRES: Record<string, string> = {
   'shopping_list.final_received': 'Un client a renvoyé sa liste de courses',
   'allergy.conflict': 'Un plat de votre commande est à remplacer (allergie)',
   'mission.allergy_conflict': 'Un plat d’une prestation est à remplacer (allergie du client)',
+  recipe_allergens_changed:
+    'Les allergènes de ce plat ont changé (liste commune mise à jour) : confirmez-les à nouveau.',
+  ingredient_validated: 'Votre ingrédient a rejoint la liste commune.',
+  ingredient_merged: 'Votre ingrédient a été remplacé par un ingrédient de la liste commune.',
+  recipes_migrated:
+    'Vos recettes sont passées au nouveau format : quelques lignes sont à vérifier.',
+  // Recettes lot 3 (LF-0272) : les plats sont livrés.
+  'conservation.ready': 'Vos plats sont livrés : voici jusqu’à quand les manger.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -48,6 +56,12 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'shopping_list.final_received': () => '/espace-chef/prestations',
   'allergy.conflict': (id) => `/espace-client/commandes/${id}`,
   'mission.allergy_conflict': () => '/espace-chef/prestations',
+  // Le sujet est le plat : sa fiche, où l'on confirme de nouveau les allergènes.
+  recipe_allergens_changed: (id) => (id ? `/espace-chef/recettes/${id}` : '/espace-chef/recettes'),
+  ingredient_validated: () => '/espace-chef/ingredients',
+  ingredient_merged: () => '/espace-chef/ingredients',
+  recipes_migrated: () => '/espace-chef/recettes',
+  'conservation.ready': () => '/espace-client/conservation',
 }
 
 export const notificationHref = (type: string, subjectId = ''): string | undefined =>

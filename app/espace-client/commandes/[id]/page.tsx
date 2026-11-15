@@ -441,7 +441,18 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           <div className="rounded-3xl card-shell p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
-              <span className="ml-auto">
+              <span className="ml-auto flex items-center gap-2">
+                {b.menuFrozen && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
+                    Menu figé
+                    <InfoPopover label="Pourquoi le menu est-il figé ?">
+                      À 3 jours de la prestation, le menu est figé : vos plats ne changent
+                      plus, et votre batch cooker les cuisine tels que vous les avez choisis.
+                      Seul un plat devenu incompatible avec une allergie déclarée peut être
+                      remplacé.
+                    </InfoPopover>
+                  </span>
+                )}
                 <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
               </span>
             </h3>
