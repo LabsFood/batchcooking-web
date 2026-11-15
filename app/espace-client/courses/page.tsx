@@ -442,6 +442,18 @@ function Reponse({
                 </InfoPopover>
               </p>
             )}
+            {/* Recettes lot 4 : le batch cooker a validé les courses. */}
+            {liste.groceries?.validatedAt && (
+              <p className="mt-2 text-[13px] text-mint-ink">
+                Courses faites par votre batch cooker
+                {liste.groceries.amountCents != null &&
+                  ` · ticket de ${(liste.groceries.amountCents / 100).toLocaleString('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR',
+                  })}, à titre d’information`}
+                .
+              </p>
+            )}
           </div>
 
           {modifiable && (

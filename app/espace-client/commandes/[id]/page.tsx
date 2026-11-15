@@ -155,6 +155,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
      elles disparaîtraient dans un total. */
   const prestation = euros(b.priceCents)
   const forfaitCourses = b.shoppingFeeCents ? euros(b.shoppingFeeCents) : null
+  // Recettes lot 4 (LF-0293) : chaque ligne du récapitulatif à part, expliquée.
+  const supplementCents = (b.extraPersonsCents ?? 0) + (b.extraMealsCents ?? 0)
+  const supplement = supplementCents > 0 ? euros(supplementCents) : null
+  const totalCourses = b.groceriesAmountCents != null ? euros(b.groceriesAmountCents) : null
   const reste = euros(b.amountAfterTax)
   const credit =
     b.amountTtc != null && b.amountAfterTax != null
@@ -558,10 +562,27 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             {ttc ? (
               <>
               <ul className="space-y-2 text-sm text-ink-mid">
-                {forfaitCourses && prestation ? (
+                {(forfaitCourses || supplement) && prestation ? (
                   <>
-                    <Row label="Prestation" value={prestation} />
-                    <Row label="Courses" value={forfaitCourses} />
+                    <Row
+                      label="Formule de prestation"
+                      value={prestation}
+                      info="Le prix du service du batch cooker, selon la formule choisie."
+                    />
+                    {forfaitCourses && (
+                      <Row
+                        label="Forfait courses"
+                        value={forfaitCourses}
+                        info="Rémunère le temps que votre batch cooker passe à faire vos courses. Il fait partie de la prestation : il figure sur la facture et ouvre droit au crédit d’impôt. Le prix des produits n’y est pas compris."
+                      />
+                    )}
+                    {supplement && (
+                      <Row
+                        label="Supplément"
+                        value={supplement}
+                        info="Personnes ou plats ajoutés au-delà de ce que la formule couvre."
+                      />
+                    )}
                     <Row label="Total TTC" value={ttc} />
                   </>
                 ) : (
@@ -575,6 +596,15 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
                   Vous faites les courses vous-même : aucun forfait n’est facturé.
                 </p>
+              )}
+              {!b.shoppingByClient && (b.groceriesValidatedAt || totalCourses) && (
+                <ul className="mt-3 space-y-2 border-t border-[rgba(31,42,55,0.07)] pt-3 text-sm text-ink-mid">
+                  <Row
+                    label="Total des courses"
+                    value={totalCourses ?? 'Courses faites'}
+                    info="Le prix des ingrédients achetés pour vous, d’après le ticket de votre batch cooker. Il n’est pas compris dans le total ci-dessus : hors facture et hors crédit d’impôt. Affiché à titre d’information."
+                  />
+                </ul>
               )}
               </>
             ) : (
@@ -885,15 +915,21 @@ function Row({
   value,
   bold,
   accent,
+  info,
 }: {
   label: string
   value: string
   bold?: boolean
   accent?: boolean
+  /** L'explication de la ligne, dans un popover (lot 4). */
+  info?: string
 }) {
   return (
     <li className="flex items-baseline justify-between gap-3">
-      <span className="text-ink-soft">{label}</span>
+      <span className="inline-flex items-center gap-1 text-ink-soft">
+        {label}
+        {info && <InfoPopover label={`Qu’est-ce que « ${label} » ?`}>{info}</InfoPopover>}
+      </span>
       <span
         className={`text-right tabular-nums ${
           accent ? 'text-amber-deep' : bold ? 'font-bold text-navy' : 'text-navy'
