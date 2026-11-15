@@ -460,7 +460,7 @@ function ReservationFlow() {
                                 {offerDuration(o.durationMinutes)} sur place ·{' '}
                                 {o.shoppingIncluded
                                   ? o.shoppingFeeCents > 0
-                                    ? `courses ${offerEuros(o.shoppingFeeCents)}`
+                                    ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`
                                     : 'courses offertes'
                                   : 'courses à votre charge'}
                               </span>

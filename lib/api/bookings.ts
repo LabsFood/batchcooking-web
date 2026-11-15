@@ -534,6 +534,8 @@ export interface PricingRules {
   /** Points de base : `1500` = 15 %. */
   commissionBps: number
   taxCreditBps: number
+  /** Recettes lot 6 : le plafond du Budget Courses et le forfait courses conseillé, en centimes. */
+  groceries?: { budgetMaxCents: number; recommendedShoppingFeeMinCents: number }
 }
 
 /**
