@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import DatePicker from '@/components/shared/DatePicker'
 import { Prix } from '@/components/shared/Prix'
+import OfferDishes from '@/components/shared/OfferDishes'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import { useMeProfile } from '@/lib/api/me-profile'
@@ -728,6 +729,14 @@ function RequestCard({ quote }: { quote: Quote }) {
           </Note>
         )}
 
+        {quote.status === 'accepted' && (
+          <OfferDishes
+            dishes={quote.offers.find((o) => o.status === 'accepted')?.dishes ?? []}
+            allergy={null}
+            viewer="client"
+          />
+        )}
+
         {error && (
           <p role="alert" className="mt-3 text-sm leading-relaxed text-red-800">
             {error}
@@ -762,6 +771,12 @@ function RequestCard({ quote }: { quote: Quote }) {
               {offer.conditions}
             </p>
           )}
+          <OfferDishes
+            dishes={offer.dishes ?? []}
+            allergy={offer.allergy}
+            viewer="client"
+            talkHref={`/espace-client/messages?quote=${quote.id}`}
+          />
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-ink-soft">
             <Clock className="h-3.5 w-3.5" aria-hidden /> Valable jusqu’au{' '}
             {dayLabel(offer.validUntil)}

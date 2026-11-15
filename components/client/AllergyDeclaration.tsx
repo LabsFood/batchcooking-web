@@ -13,7 +13,7 @@ import type { ClientProfile } from '@/lib/api/types'
 import { REASON_TEXT, reasonText } from '@/lib/reason-codes'
 
 /** Les 14 allergènes réglementaires, au cas où la liste de l'API tarde. */
-const ALLERGENS: RefItem[] = [
+export const ALLERGENS: RefItem[] = [
   { code: 'gluten', label: 'Céréales contenant du gluten' },
   { code: 'crustaceans', label: 'Crustacés' },
   { code: 'eggs', label: 'Œufs' },
