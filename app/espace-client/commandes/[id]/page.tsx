@@ -45,6 +45,8 @@ import {
   type BookingPhoto,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
+import OptionalBadge from '@/components/shared/OptionalBadge'
+import { useAisles } from '@/lib/api/referentials'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { Prix } from '@/components/shared/Prix'
 import { useChefPublic } from '@/lib/api/menus'
@@ -191,6 +193,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       : null
 
   const groupes = courses.data?.groups ?? []
+  // Les rayons en vigueur (l'API), dans l'ordre du magasin, à défaut la liste fixe.
+  const aisles = useAisles()
 
   return (
     <div className="space-y-6">
@@ -518,7 +522,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   <div key={g.aisle || gi}>
                     {g.aisle && (
                       <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
-                        {aisleLabel(g.aisle)}
+                        {aisleLabel(g.aisle, aisles)}
                       </p>
                     )}
                     <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -527,7 +531,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                           key={`${l.name}-${li}`}
                           className="flex items-center justify-between gap-2 rounded-xl bg-cream-soft px-3 py-2 text-sm"
                         >
-                          <span className="min-w-0 text-navy">{l.name}</span>
+                          <span className="min-w-0 text-navy">
+                            {l.name}
+                            {l.optional && <OptionalBadge />}
+                          </span>
                           <span className="shrink-0 text-xs tabular-nums text-ink-soft">
                             {l.qty > 0
                               ? `${l.qty.toLocaleString('fr-FR')} ${l.unit}`.trim()

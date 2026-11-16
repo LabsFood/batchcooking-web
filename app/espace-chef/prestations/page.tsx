@@ -1,5 +1,6 @@
 'use client'
 
+import OptionalBadge from '@/components/shared/OptionalBadge'
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -1388,6 +1389,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 aria-label={`Ingrédient ${i + 1}`}
                 className="input-base min-w-32 flex-1 py-2"
               />
+              {l.optional && <OptionalBadge />}
               {l.unit === TO_TASTE ? (
                 <span className="w-20 shrink-0 px-1 text-[11px] leading-tight text-ink-soft">
                   sans quantité
