@@ -88,6 +88,7 @@ const MESSAGES: Record<string, string> = {
   BOOKING_NOT_DUE: 'Cette prestation n’a pas encore eu lieu.',
   CHEF_UNAVAILABLE: 'Ce batch cooker ne peut pas recevoir de paiement pour le moment. Réessayez plus tard.',
   URSSAF_REQUEST_PENDING: 'Votre demande est déjà transmise à l’URSSAF.',
+  URSSAF_DOSSIER_MISSING: 'L’avance immédiate demande d’abord votre dossier URSSAF, dans Mon compte.',
   URSSAF_UNAVAILABLE: 'L’URSSAF ne répond pas pour le moment. Réessayez, ou choisissez un autre moyen.',
 }
 
@@ -482,8 +483,10 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
             (confirming ? (
               <div className="mt-5 rounded-2xl bg-white/10 p-4 text-[13px] leading-relaxed">
                 <p>
-                  Vous confirmez que la prestation du {longDate(data.startsAt)} a bien eu lieu. La demande part à
-                  l’URSSAF : rien n’est encaissé ici.
+                  Vous confirmez que la prestation du {longDate(data.startsAt)} a bien eu lieu.{' '}
+                  {chosen?.intermediary
+                    ? `Lab’s Food transmet la demande à l’URSSAF par ${chosen.intermediary} : rien n’est encaissé ici.`
+                    : 'La demande part à l’URSSAF : rien n’est encaissé ici.'}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button onClick={confirmAdvance} disabled={pending} className="btn btn-amber flex-1 justify-center text-xs disabled:opacity-60">
@@ -531,6 +534,11 @@ function MethodCard({
   children?: React.ReactNode
 }) {
   const spec = PAYMENT_METHODS[option.id]
+  // Voie manuelle : la coopérative par laquelle passe l'avance est nommée.
+  const label =
+    option.id === 'urssaf' && option.intermediary
+      ? `${spec.label} (crédit d’impôt 50 %) par ${option.intermediary}`
+      : spec.label
   const Icon = METHOD_ICON[option.id]
   return (
     <div>
@@ -562,7 +570,7 @@ function MethodCard({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="font-display text-base font-bold text-navy">{spec.label}</span>
+            <span className="font-display text-base font-bold text-navy">{label}</span>
             {option.available &&
               (option.id === 'urssaf' ? (
                 <span className="font-display text-lg font-bold text-terra">Rien à payer</span>
@@ -584,6 +592,11 @@ function MethodCard({
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-4 text-[13px] text-ink-mid">
           <Info className="h-3.5 w-3.5 shrink-0 text-amber-deep" />
           {option.reason}
+          {option.reasonCode === 'URSSAF_DOSSIER_MISSING' && (
+            <Link href="/espace-client/compte/avance-immediate" className="font-semibold text-navy underline">
+              Remplir mon dossier
+            </Link>
+          )}
           {option.reasonCode === 'URSSAF_LINK_NONE' && (
             <button onClick={onRequestLink} disabled={linking} className="font-semibold text-navy underline disabled:opacity-60">
               {linking ? 'Demande en cours…' : 'Demander le rattachement'}

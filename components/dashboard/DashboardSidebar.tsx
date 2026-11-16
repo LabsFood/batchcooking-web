@@ -68,6 +68,7 @@ const NAV: {
     Icon: UserCircle2,
     children: [
       { href: '/espace-client/compte', label: 'Adresses & paiement' },
+      { href: '/espace-client/compte/avance-immediate', label: 'Avance immédiate' },
       { href: '/espace-client/profil', label: 'Profil & goûts' },
       { href: '/espace-client/statistiques', label: 'Mes statistiques' },
       { href: '/espace-client/parametres', label: 'Paramètres' },

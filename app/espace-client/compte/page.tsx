@@ -8,10 +8,11 @@ import { apiMessage } from '@/lib/api/messages'
 import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
+import DossierUrssaf from '@/components/client/DossierUrssaf'
 import type { ClientProfile } from '@/lib/api/types'
 import { centimes, useFiscalAttestation } from '@/lib/api/fiscal'
 
-type Tab = 'addresses' | 'payments' | 'invoices' | 'fiscal'
+type Tab = 'addresses' | 'payments' | 'advance' | 'invoices' | 'fiscal'
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>('addresses')
@@ -23,6 +24,7 @@ export default function AccountPage() {
           [
             { id: 'addresses' as Tab, label: 'Adresses' },
             { id: 'payments' as Tab, label: 'Moyens de paiement' },
+            { id: 'advance' as Tab, label: 'Avance immédiate' },
             { id: 'invoices' as Tab, label: 'Factures' },
             { id: 'fiscal' as Tab, label: 'Attestation fiscale' },
           ]
@@ -44,6 +46,8 @@ export default function AccountPage() {
       {tab === 'addresses' && <Adresse />}
 
       {tab === 'payments' && <MoyensDePaiement />}
+
+      {tab === 'advance' && <DossierUrssaf />}
 
       {tab === 'invoices' && <Factures />}
 
