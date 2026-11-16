@@ -21,10 +21,14 @@ export function useMeProfile() {
 
 /** Une étape du « Bien démarrer » du client (LF-0221), dans l'ordre de l'API. */
 export interface OnboardingStep {
-  code: 'contact_details' | 'address' | 'allergies' | 'tastes' | 'first_booking'
+  code: 'contact_details' | 'address' | 'allergies' | 'tastes' | 'urssaf_dossier' | 'first_booking'
   done: boolean
-  /** `menu_validation` : un menu ne peut pas être validé avant cette étape. */
-  requiredFor?: 'menu_validation'
+  /**
+   * `menu_validation` : un menu ne peut pas être validé avant cette étape.
+   * `immediate_advance` : l'avance immédiate attend cette étape (listée seulement
+   * quand l'avance est proposée).
+   */
+  requiredFor?: 'menu_validation' | 'immediate_advance'
 }
 
 export interface Onboarding {

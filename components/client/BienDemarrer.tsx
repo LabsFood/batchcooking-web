@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
    étape est faite dès que l'information existe (l'API le calcule, `GET
    /me/onboarding`) ; aucune ne bloque le reste de l'espace. Seule la
    déclaration d'allergies conditionne la validation d'un menu, et l'étape le dit.
+   Le dossier URSSAF n'apparaît que si l'avance immédiate est proposée : sans
+   lui, elle ne peut pas être ouverte.
 
    La liste disparaît une fois tout fait.
    ───────────────────────────────────────────────────────────────────────────── */
@@ -43,6 +45,13 @@ const ETAPES: Record<
     texte: 'Ce que vous aimez, ce que vous évitez, votre goût pour le piquant : vos menus vous ressembleront.',
     href: '/espace-client/profil',
     action: 'Personnaliser',
+  },
+  urssaf_dossier: {
+    titre: 'Votre dossier URSSAF',
+    texte:
+      'Pour régler en avance immédiate : votre état civil et le compte que l’URSSAF prélèvera. À remplir une fois.',
+    href: '/espace-client/compte/avance-immediate',
+    action: 'Remplir',
   },
   first_booking: {
     titre: 'Votre première session',
@@ -108,6 +117,14 @@ export default function BienDemarrer() {
                 >
                   {e.titre}
                   <span className="sr-only">{step.done ? ' : fait' : ' : à faire'}</span>
+                  {!step.done && step.requiredFor === 'immediate_advance' && (
+                    <InfoPopover label="Pourquoi ce dossier ?">
+                      Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de
+                      suite et l’URSSAF prélève le reste sur votre compte. Pour vous inscrire
+                      auprès d’elle, Lab’s Food a besoin de votre état civil et de ce compte.
+                      Vous pouvez réserver et payer autrement sans ce dossier.
+                    </InfoPopover>
+                  )}
                   {!step.done && step.requiredFor === 'menu_validation' && (
                     <InfoPopover label="Pourquoi cette étape compte-t-elle ?">
                       Vos allergies sont vérifiées contre chaque plat. Tant que vous
