@@ -2,9 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { fade } from '@/lib/motion'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import {
   CalendarCheck,
   CalendarDays,
@@ -43,13 +41,21 @@ import {
 } from '@/lib/api/menus'
 import {
   refLabel,
+  useAllergens,
   useDiets,
   useLanguages,
   useRecipeProfiles,
   useRegions,
 } from '@/lib/api/referentials'
-import { seasonsLine } from '@/lib/recipe-fields'
+import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
+
+/**
+ * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
+ * cuisine : la fiche le dit, comme l'étiquette d'un produit (§4.8).
+ */
+const TRACES_DIETS = new Set(['gluten-free', 'lactose-free'])
+const TRACES_NOTE = 'traces possibles pendant la préparation'
 
 /** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
 const DIET_LABEL: Record<string, string> = {
@@ -110,7 +116,7 @@ function LanguesChip({ codes }: { codes: string[] }) {
 function LanguesLigne({ codes }: { codes: string[] }) {
   return (
     <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-      <Languages className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+      <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
       Parle {useLangueLabels(codes)}
     </p>
   )
@@ -791,7 +797,7 @@ export function MenuFilterSidebar({
             <button
               type="button"
               onClick={filters.reset}
-              className="hit text-xs font-semibold text-amber-ink underline underline-offset-4"
+              className="text-xs font-semibold text-amber-ink underline underline-offset-4"
             >
               Tout effacer
             </button>
@@ -852,7 +858,7 @@ export function MenuFilterDrawer({
             </div>
             <Dialog.Close
               aria-label="Fermer les filtres"
-              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>
@@ -882,56 +888,14 @@ export function MenuFilterDrawer({
   )
 }
 
-/**
- * Le squelette d'une carte : mêmes zones que `MenuCard` (en-tête chef, titre,
- * trois plats, pastilles, pied), pour que la grille ne bouge pas à l'arrivée.
- */
-function MenuCardSkeleton() {
+/** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
+export function MenusLoading() {
   return (
-    <SkeletonCard className="flex flex-col p-0">
-      <div className="flex items-start gap-4 p-5 pb-4">
-        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
-        <div className="flex-1 space-y-2 pt-1">
-          <Skeleton className="h-5 w-40 max-w-full" />
-          <Skeleton className="h-4 w-56 max-w-full" />
-        </div>
-      </div>
-      <div className="px-5">
-        <Skeleton className="h-6 w-2/3" />
-        <Skeleton className="mt-2 h-5 w-full" />
-        <Skeleton className="mt-1 h-5 w-4/5" />
-      </div>
-      <div className="mt-4 space-y-px px-5">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-3 px-2 py-2">
-            <Skeleton className="h-12 w-12 shrink-0 rounded-lg" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-4 w-3/5" />
-              <Skeleton className="h-3.5 w-2/5" />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 flex gap-1.5 px-5">
-        <Skeleton className="h-6 w-32 rounded-full" />
-        <Skeleton className="h-6 w-28 rounded-full" />
-      </div>
-      <div className="mt-5 flex items-center justify-between gap-4 border-t border-[rgba(31,42,55,0.08)] px-5 py-5">
-        <Skeleton className="h-10 w-28" />
-        <Skeleton className="h-10 w-36 rounded-full" />
-      </div>
-    </SkeletonCard>
-  )
-}
-
-/** Le squelette d'attente : quatre cartes, dans la grille réelle (`xl:grid-cols-2`, comme les cartes). */
-export function MenusLoading({ className }: { className?: string }) {
-  return (
-    <SkeletonGroup className={cn('grid grid-cols-1 gap-6 xl:grid-cols-2', className)}>
-      {[0, 1, 2, 3].map((i) => (
-        <MenuCardSkeleton key={i} />
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-[26rem] animate-pulse rounded-2xl bg-paper" />
       ))}
-    </SkeletonGroup>
+    </div>
   )
 }
 
@@ -1093,8 +1057,9 @@ export function MenuCard({
 
   return (
     <motion.article
-      // fondu : la carte arrive en 180 ms, sans décalage
-      {...fade}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.06, 0.24), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper transition-colors hover:border-[rgba(31,42,55,0.18)]"
     >
       {/*
@@ -1128,7 +1093,7 @@ export function MenuCard({
             {/* Le CESU préfinancé change ce que le client paiera réellement :
                 il se voit dès la carte, pas au moment de payer. */}
             {menu.chef.acceptsCesu && (
-              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-ink">
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-deep">
                 CESU accepté
               </span>
             )}
@@ -1205,6 +1170,8 @@ export function MenuCard({
             className="rounded-full bg-mint/60 px-2.5 py-1 text-xs font-medium text-mint-ink"
           >
             Toute la carte {dietLabel(d).toLowerCase()}
+            {/* La promesse la plus forte de la page : la mention des traces la suit aussi. */}
+            {TRACES_DIETS.has(d) && `, ${TRACES_NOTE}`}
           </span>
         ))}
         {menu.shoppingIncluded && (
@@ -1351,7 +1318,7 @@ export function MenuDialog({
                 </div>
                 <Dialog.Close
                   aria-label="Fermer"
-                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <X className="h-4 w-4" />
                 </Dialog.Close>
@@ -1503,7 +1470,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
       <dl className="mt-5 space-y-2.5 border-t border-[rgba(31,42,55,0.08)] pt-4 text-[13px]">
         {faits.map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex gap-2">
-            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
             <dt className="shrink-0 text-ink-soft">{label}&nbsp;:</dt>
             <dd className="min-w-0 text-navy">{value}</dd>
           </div>
@@ -1516,13 +1483,13 @@ function ChefPanel({ card }: { card: WeekCard }) {
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
           {card.chef.acceptsCesu && (
             <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-              <Wallet className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+              <Wallet className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
               Accepte le CESU préfinancé
             </p>
           )}
           {card.chef.badges.length > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
               {card.chef.badges.join(', ')}
             </p>
           )}
@@ -1535,7 +1502,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
       {(chef?.menus?.length ?? 0) > 1 && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            <Globe2 className="h-3.5 w-3.5 text-amber-ink" aria-hidden /> Ses autres cartes
+            <Globe2 className="h-3.5 w-3.5 text-amber" aria-hidden /> Ses autres cartes
           </p>
           <ul className="space-y-1 text-[13px] text-ink-mid">
             {chef?.menus
@@ -1565,6 +1532,11 @@ function DishRow({
   dietLabel: (code: string) => string
 }) {
   const profiles = useRecipeProfiles()
+  // Le repli des quatorze : un client lit « Lait », jamais le code `milk`.
+  const allergenList = useAllergens(REGULATED_ALLERGENS)
+  const conditional = new Set(dish.conditionalAllergens ?? [])
+  // Les allergènes hors des quatorze (le sarrasin) : un client allergique doit les lire aussi.
+  const customAllergens = dish.customAllergens ?? []
   return (
     <li>
       <button
@@ -1608,7 +1580,9 @@ function DishRow({
             {/* Recettes §4.8 : les régimes calculés d'après les ingrédients quand
                 le calcul se fait, sinon ceux indiqués par le batch cooker ; puis
                 ceux qu'il déclare (halal, casher), les saisons et les profils. */}
+            {/* « Sans gluten » et « sans lactose » d'abord : coupés par le plafond, leur mention de traces disparaîtrait avec eux. */}
             {[...(dish.computedDiets ?? dish.diets), ...(dish.declaredDiets ?? [])]
+              .sort((a, b) => Number(TRACES_DIETS.has(b)) - Number(TRACES_DIETS.has(a)))
               .slice(0, 3)
               .map((tag) => (
                 <span
@@ -1616,6 +1590,7 @@ function DishRow({
                   className="rounded-full bg-cream-soft px-2 py-0.5 text-xs text-navy"
                 >
                   {DIET_LABEL[tag] ?? dietLabel(tag)}
+                  {TRACES_DIETS.has(tag) && `, ${TRACES_NOTE}`}
                 </span>
               ))}
             {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
@@ -1633,16 +1608,32 @@ function DishRow({
             ))}
             {/* Toute la ligne est un bouton : pas de popover à l'intérieur. */}
             {dish.computedDiets && dish.computedDiets.length > 0 && (
-              <span className="text-xs text-ink-soft">
+              <span className="text-xs italic text-ink-soft">
                 régimes selon les produits achetés
               </span>
             )}
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
-            {dish.allergens.length > 0 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
-                {dish.allergens.join(', ')}
-              </span>
+            {dish.allergens.length > 0 || customAllergens.length > 0 ? (
+              <>
+                {dish.allergens.map((code) => (
+                  <span
+                    key={code}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+                  >
+                    {refLabel(allergenList, code)}
+                    {conditional.has(code) && ', si l’ingrédient facultatif est utilisé'}
+                  </span>
+                ))}
+                {customAllergens.map((name) => (
+                  <span
+                    key={`autre-${name}`}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </>
             ) : dish.allergensNone ? (
               <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs text-mint-ink">
                 Sans allergène déclaré

@@ -36,6 +36,8 @@ export interface WeekDish {
   diets: string[]
   customDiets: string[]
   allergens: string[]
+  /** Parmi `allergens`, ceux qui ne viennent que d'un ingrédient facultatif : « si utilisé ». */
+  conditionalAllergens?: string[]
   allergensNone: boolean
   customAllergens: string[]
   /** §4.8 : calculés d'après les ingrédients ; null tant que le calcul ne se fait pas. */

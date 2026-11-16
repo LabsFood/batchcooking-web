@@ -1,5 +1,6 @@
 'use client'
 
+import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -232,7 +233,7 @@ export default function ChefPricingPage() {
                               <ShoppingBasket className="tabular-nums h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {o.shoppingIncluded
                                 ? o.shoppingFeeCents > 0
-                                  ? `Courses ${offerEuros(o.shoppingFeeCents)}`
+                                  ? `Forfait courses ${offerEuros(o.shoppingFeeCents)}`
                                   : 'Courses offertes'
                                 : 'Sans les courses'}
                             </span>
@@ -537,6 +538,16 @@ function OfferForm({
                 <Gift className="h-3 w-3" aria-hidden /> Les courses sont offertes.
               </p>
             )}
+            {/* Recettes lot 6 : un conseil, jamais un refus. */}
+            {rules?.groceries && rules.groceries.recommendedShoppingFeeMinCents > 0 && (
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-soft">
+                {offerEuros(rules.groceries.recommendedShoppingFeeMinCents)} minimum recommandé
+                <InfoPopover label="À quoi sert le forfait courses ?">
+                  Il rémunère votre temps de courses. La commission est la même que sur la
+                  prestation. Le prix des produits n’y est pas compris.
+                </InfoPopover>
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -611,7 +622,7 @@ function Apercu({
 
       <Detail label="Prestation" value={offerEuros(offre.priceCents)} />
       <Detail
-        label="Courses"
+        label="Forfait courses"
         value={
           offre.shoppingIncluded
             ? courses > 0
