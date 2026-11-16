@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/bookings'
 import { ApiError } from '@/lib/api/client'
 import { aisleLabel, displayQuantity } from '@/lib/recipe-fields'
+import OptionalBadge from '@/components/shared/OptionalBadge'
 import { reasonText } from '@/lib/reason-codes'
 import { STORES } from '@/lib/client/mock'
 import { Hint } from '@/components/shared/Hint'
@@ -326,6 +327,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
                           }`}
                         >
                           {l.name}
+                          {l.optional && <OptionalBadge />}
                           {l.edited && (
                             <span
                               title="Ligne corrigée par votre batch cooker"

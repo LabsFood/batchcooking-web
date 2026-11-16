@@ -573,6 +573,8 @@ export interface MissionLine {
   alreadyHave?: boolean
   /** Réponse du client : son commentaire sur la ligne. */
   comment?: string | null
+  /** Facultative dans toutes les recettes qui la demandent : affichée avec un badge. */
+  optional?: true
 }
 
 /**
