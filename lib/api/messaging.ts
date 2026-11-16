@@ -397,6 +397,28 @@ export function useOpenForBooking() {
   })
 }
 
+/**
+ * Ouvre (ou retrouve) le fil entre le client et le batch cooker d'une demande
+ * sur-mesure, avant toute acceptation : pour parler d'un plat ou d'une allergie.
+ */
+export function useOpenForQuote() {
+  const apiFetch = useApiFetch()
+  const queryClient = useQueryClient()
+  const keys = useMessagingKeys()
+
+  return useMutation({
+    mutationFn: (quoteId: string) =>
+      apiFetch<ConversationDetail>('/me/conversations', {
+        method: 'POST',
+        body: { quoteId },
+      }),
+    onSuccess: (conversation) => {
+      queryClient.setQueryData(keys.conversation(conversation.id), conversation)
+      void queryClient.invalidateQueries({ queryKey: keys.conversations })
+    },
+  })
+}
+
 // ── Pièces jointes ──────────────────────────────────────────────────────────
 
 interface SignedUpload {

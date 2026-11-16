@@ -53,6 +53,9 @@ const TITRES: Record<string, string> = {
   'shopping_list.frozen': 'Votre liste de courses est figée : votre batch cooker fait les courses.',
   'groceries.reminder':
     'La liste est figée : faites les courses et validez-les avant la prestation.',
+  // Sur-mesure (15/11) : les plats express d'une prestation livrée.
+  'express_dish.decide':
+    'Prestation livrée : gardez ou retirez les plats express écrits pour cette demande.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -74,6 +77,7 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'shopping_list.reminder_answer': () => '/espace-client/courses',
   'shopping_list.frozen': () => '/espace-client/courses',
   'groceries.reminder': () => '/espace-chef/prestations',
+  'express_dish.decide': () => '/espace-chef/recettes#plats-express',
 }
 
 export const notificationHref = (type: string, subjectId = ''): string | undefined =>
