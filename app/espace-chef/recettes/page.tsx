@@ -14,13 +14,13 @@ import {
   Pencil,
   Plus,
   RotateCw,
-  Sparkles,
   Trash2,
   Users,
   UtensilsCrossed,
   X,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { InfoPopover } from '@/components/shared/InfoPopover'
@@ -137,7 +137,7 @@ export default function RecettesPage() {
 // ── Plats ───────────────────────────────────────────────────────────────────
 
 function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
-  if (query.isPending) return <Skeleton />
+  if (query.isPending) return <TabSkeleton layout="plats" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
 
   const dishes = query.data ?? []
@@ -229,7 +229,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
           ) : (
             <ImageIcon className="h-5 w-5 text-ink-soft" aria-hidden />
           )}
-          <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
             {photo.isPending ? '…' : dish.imageUrl ? 'Changer' : 'Ajouter'}
           </span>
           <input
@@ -254,16 +254,16 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
 
           <p className="mt-1 flex flex-wrap items-center gap-1.5">
             {dish.readiness?.ready ? (
-              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[11px] font-semibold text-mint-ink">
+              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs font-semibold text-mint-ink">
                 Prête · version {dish.recipeVersion}
               </span>
             ) : (
-              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[11px] font-semibold text-ink-mid">
+              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs font-semibold text-ink-mid">
                 Pas encore Prête
               </span>
             )}
             {dish.readiness?.problems.some((p) => p.code === 'ALLERGENS_UNVERIFIED') && (
-              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-[#8B6200]">
                 Allergènes à confirmer
               </span>
             )}
@@ -276,7 +276,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
           </p>
 
           {dish.variantOfId && (
-            <p className="mt-0.5 text-[11px] italic text-ink-soft">
+            <p className="mt-0.5 text-xs text-ink-soft">
               {variantOfName ? `Variante de « ${variantOfName} »` : 'Variante d’un autre plat'}
             </p>
           )}
@@ -302,25 +302,25 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
 
           <div className="mt-2 flex flex-wrap gap-1.5">
             {dish.diets.map((d) => (
-              <span key={d} className="rounded-full bg-mint/50 px-2 py-0.5 text-[11px] text-mint-ink">
+              <span key={d} className="rounded-full bg-mint/50 px-2 py-0.5 text-xs text-mint-ink">
                 {refLabel(diets, d)}
               </span>
             ))}
             {dish.customDiets.map((d) => (
               <span
                 key={d}
-                className="rounded-full bg-mint/40 px-2 py-0.5 text-[11px] italic text-mint-ink"
+                className="rounded-full bg-mint/40 px-2 py-0.5 text-xs text-mint-ink"
               >
                 {d}
               </span>
             ))}
             {dish.allergensNone ? (
-              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[11px] text-navy">
+              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs text-navy">
                 Sans allergène
               </span>
             ) : (
               dish.allergens.slice(0, 3).map((a) => (
-                <span key={a} className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+                <span key={a} className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
                   {refLabel(allergens, a)}
                 </span>
               ))
@@ -343,7 +343,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
       {/* Ce qui manque pour publier, dit avant d'être refusé (§4.11). */}
       {dish.status !== 'published' && blockers.length > 0 && (
         <p className="flex items-start gap-2 bg-cream-soft px-4 py-2.5 text-[13px] leading-relaxed text-ink-mid">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-deep" aria-hidden />
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
           Pour publier, il manque {blockers.join(', ')}.
         </p>
       )}
@@ -477,7 +477,7 @@ function MenusTab({
   const create = useCreateMenu()
   const [composing, setComposing] = useState(false)
 
-  if (query.isPending) return <Skeleton />
+  if (query.isPending) return <TabSkeleton layout="cartes" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos menus" />
 
   const menus = query.data ?? []
@@ -573,7 +573,7 @@ function MenuForm({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-[13px] font-semibold text-navy">
-            Titre de la carte <span className="text-terra">*</span>
+            Titre de la carte <span className="text-amber-ink">*</span>
           </span>
           <input
             value={title}
@@ -746,7 +746,7 @@ function DishPicker({
     return (
       <p className="rounded-xl bg-cream-soft px-3.5 py-3 text-sm text-ink-mid">
         Écrivez d’abord un plat : une carte se compose des vôtres.{' '}
-        <Link href="/espace-chef/recettes/nouveau" className="font-semibold text-terra">
+        <Link href="/espace-chef/recettes/nouveau" className="font-semibold text-amber-ink">
           Nouveau plat
         </Link>
       </p>
@@ -777,7 +777,7 @@ function DishPicker({
             type="button"
             onClick={() => setPlace(null)}
             aria-pressed={place === null}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
               place === null ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
             }`}
           >
@@ -789,7 +789,7 @@ function DishPicker({
               type="button"
               onClick={() => setPlace(c.code)}
               aria-pressed={place === c.code}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                 place === c.code
                   ? 'bg-navy text-white'
                   : 'bg-cream-soft text-ink-mid hover:text-navy'
@@ -840,7 +840,7 @@ function DishPicker({
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-sm font-semibold text-navy">{d.name}</span>
                       <span
-                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${STATUS_STYLE[d.status].text}`}
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${STATUS_STYLE[d.status].text}`}
                       >
                         <span
                           aria-hidden
@@ -850,7 +850,7 @@ function DishPicker({
                       </span>
                     </span>
 
-                    <span className="mt-0.5 block text-[11px] text-ink-soft">
+                    <span className="mt-0.5 block text-xs text-ink-soft">
                       {[
                         countryLabel(d.country) || 'Origine à préciser',
                         `${d.portions} portions`,
@@ -872,18 +872,18 @@ function DishPicker({
                       {d.diets.slice(0, 4).map((x) => (
                         <span
                           key={x}
-                          className="rounded-full bg-mint/50 px-2 py-0.5 text-[10px] text-mint-ink"
+                          className="rounded-full bg-mint/50 px-2 py-0.5 text-xs text-mint-ink"
                         >
                           {refLabel(diets, x)}
                         </span>
                       ))}
                       {d.allergensNone && (
-                        <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-navy">
+                        <span className="rounded-full bg-paper px-2 py-0.5 text-xs text-navy">
                           Sans allergène
                         </span>
                       )}
                       {d.status === 'draft' && blockers.length > 0 && (
-                        <span className="text-[10px] font-semibold text-amber-deep">
+                        <span className="text-xs font-semibold text-amber-ink">
                           publier la carte le publiera : il manque {blockers.length} chose
                           {blockers.length > 1 ? 's' : ''}
                         </span>
@@ -919,7 +919,7 @@ function DishPicker({
               <li key={d.id} className="flex items-center gap-2 rounded-xl bg-cream-soft p-2">
                 <span
                   aria-hidden
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-paper text-[10px] font-semibold tabular-nums text-navy"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-paper text-xs font-semibold tabular-nums text-navy"
                 >
                   {i + 1}
                 </span>
@@ -1032,7 +1032,7 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
           ) : (
             <ImageIcon className="h-5 w-5 text-ink-soft" aria-hidden />
           )}
-          <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
             {photo.isPending ? '…' : menu.imageUrl ? 'Changer' : 'Couverture'}
           </span>
           <input
@@ -1072,7 +1072,7 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
                 })
               }
               disabled={removePhoto.isPending}
-              className="mt-1.5 text-[11px] text-ink-soft underline-offset-2 hover:text-red-700 hover:underline"
+              className="hit mt-1.5 text-xs text-ink-soft underline-offset-2 hover:text-red-700 hover:underline"
             >
               Retirer la couverture
             </button>
@@ -1175,7 +1175,7 @@ function MenuCard({ menu, dishes }: { menu: Menu; dishes: Dish[] }) {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-mid hover:text-navy"
+            className="hit inline-flex items-center gap-1.5 text-xs font-semibold text-ink-mid hover:text-navy"
           >
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
             {open ? 'Masquer les plats' : `Voir les ${menu.dishes.length} plats`}
@@ -1280,7 +1280,7 @@ function MenuDishRow({ dish }: { dish: MenuDish }) {
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_STYLE[dish.status].dot}`}
           />
         </p>
-        <p className="truncate text-[11px] text-ink-soft">
+        <p className="truncate text-xs text-ink-soft">
           {[
             countryLabel(dish.country) || null,
             `${dish.portions} portions`,
@@ -1294,13 +1294,13 @@ function MenuDishRow({ dish }: { dish: MenuDish }) {
             .join(' · ')}
         </p>
         {dish.diets.length > 0 && (
-          <p className="mt-0.5 truncate text-[11px] text-mint-ink">
+          <p className="mt-0.5 truncate text-xs text-mint-ink">
             {dish.diets.map((d) => refLabel(diets, d)).join(', ')}
           </p>
         )}
       </div>
       {!dish.readiness?.ready && (
-        <span className="shrink-0 text-[10px] font-semibold text-amber-deep">
+        <span className="shrink-0 text-xs font-semibold text-amber-ink">
           pas encore Prête
         </span>
       )}
@@ -1356,7 +1356,7 @@ function SuggestionsTab() {
     )
   }
 
-  if (query.isPending) return <Skeleton />
+  if (query.isPending) return <TabSkeleton layout="propositions" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="les propositions" />
 
   const { dishes = [], menus = [] } = query.data ?? {}
@@ -1364,7 +1364,7 @@ function SuggestionsTab() {
   if (dishes.length === 0 && menus.length === 0) {
     return (
       <Empty
-        icon={Sparkles}
+        icon={UtensilsCrossed}
         title="Rien à vous proposer aujourd’hui"
         text="Lab’s Food publie des plats et des cartes prêts à adopter. Quand il y en aura, ils apparaîtront ici."
       />
@@ -1480,7 +1480,7 @@ function SuggestionCard({
           <img
             src={dish.imageUrl}
             alt=""
-            className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            className="aspect-[4/3] w-full object-cover"
           />
         ) : (
           <span
@@ -1502,13 +1502,13 @@ function SuggestionCard({
             {dish.name}
           </button>
           {dish.category && (
-            <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-mid">
+            <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-mid">
               {refLabel(categoryList, dish.category)}
             </span>
           )}
         </p>
 
-        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ink-soft">
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-soft">
           <span>{countryLabel(dish.country) || 'Origine à préciser'}</span>
           <span className="inline-flex items-center gap-1">
             <Users className="h-3 w-3" aria-hidden /> {dish.portions}
@@ -1532,18 +1532,18 @@ function SuggestionCard({
           {dish.diets.slice(0, 3).map((d) => (
             <span
               key={d}
-              className="rounded-full bg-mint/50 px-2 py-0.5 text-[11px] text-mint-ink"
+              className="rounded-full bg-mint/50 px-2 py-0.5 text-xs text-mint-ink"
             >
               {refLabel(dietList, d)}
             </span>
           ))}
           {dish.allergensNone ? (
-            <span className="rounded-full bg-cream-soft px-2 py-0.5 text-[11px] text-navy">
+            <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs text-navy">
               Sans allergène
             </span>
           ) : (
             dish.allergens.slice(0, 2).map((a) => (
-              <span key={a} className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+              <span key={a} className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
                 {refLabel(allergenList, a)}
               </span>
             ))
@@ -1683,7 +1683,7 @@ function SuggestionDialog({
             <button
               onClick={onClose}
               aria-label="Fermer"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream-soft text-ink-mid hover:text-navy"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream-soft text-ink-mid hover:text-navy"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1719,7 +1719,7 @@ function SuggestionDialog({
                 {dish.customDiets.map((d) => (
                   <span
                     key={d}
-                    className="rounded-full bg-mint/40 px-2.5 py-1 text-[12px] italic text-mint-ink"
+                    className="rounded-full bg-mint/40 px-2.5 py-1 text-xs text-mint-ink"
                   >
                     {d}
                   </span>
@@ -1734,7 +1734,7 @@ function SuggestionDialog({
                 Aucun des 14 allergènes réglementés — déclaré explicitement.
               </p>
             ) : dish.allergens.length === 0 && dish.customAllergens.length === 0 ? (
-              <p className="text-[13px] text-amber-deep">
+              <p className="text-[13px] text-amber-ink">
                 Non renseignés. À vérifier avant de publier votre copie.
               </p>
             ) : (
@@ -1750,7 +1750,7 @@ function SuggestionDialog({
                 {dish.customAllergens.map((a) => (
                   <span
                     key={a}
-                    className="rounded-full bg-red-50 px-2.5 py-1 text-[12px] italic text-red-700"
+                    className="rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700"
                   >
                     {a}
                   </span>
@@ -1805,7 +1805,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl bg-cream-soft p-2.5">
-      <dt className="flex items-center justify-center gap-0.5 text-[10px] uppercase tracking-wide text-ink-soft">
+      <dt className="flex items-center justify-center gap-0.5 text-xs uppercase tracking-wide text-ink-soft">
         {label}
         {prive && (
           <InfoPopover label={`Qui voit la ${label} ?`}>
@@ -1821,7 +1821,7 @@ function Stat({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-4">
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
         {title}
       </p>
       {children}
@@ -1831,12 +1831,82 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ── États partagés ──────────────────────────────────────────────────────────
 
-function Skeleton() {
+/**
+ * Le chargement d'un onglet, à la forme de ses cartes : plats (grille à deux
+ * colonnes, photo + texte + pied), cartes (une par ligne), propositions
+ * (grille à trois colonnes, photo en tête).
+ */
+function TabSkeleton({ layout }: { layout: 'plats' | 'cartes' | 'propositions' }) {
+  if (layout === 'propositions') {
+    return (
+      <SkeletonGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <SkeletonCard key={i} className="p-0">
+            <Skeleton className="aspect-[4/3] w-full rounded-none rounded-t-2xl" />
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-9 w-28 rounded-full" />
+            </div>
+          </SkeletonCard>
+        ))}
+      </SkeletonGroup>
+    )
+  }
+
+  if (layout === 'cartes') {
+    return (
+      <SkeletonGroup>
+        <TabHeaderSkeleton />
+        <div className="mt-4 space-y-4">
+        {[0, 1, 2].map((i) => (
+          <SkeletonCard key={i} className="space-y-3">
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-4 w-2/3" />
+            <div className="flex gap-2">
+              <Skeleton className="h-12 w-12 rounded-lg" />
+              <Skeleton className="h-12 w-12 rounded-lg" />
+              <Skeleton className="h-12 w-12 rounded-lg" />
+            </div>
+          </SkeletonCard>
+        ))}
+        </div>
+      </SkeletonGroup>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-36 animate-pulse rounded-2xl bg-paper" />
+    <SkeletonGroup>
+      <TabHeaderSkeleton />
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {Array.from({ length: 4 }, (_, i) => (
+        <SkeletonCard key={i} className="p-0">
+          <div className="flex gap-4 p-4">
+            <Skeleton className="h-24 w-24 shrink-0 rounded-xl" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-5 w-1/2 rounded-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+            </div>
+          </div>
+          <div className="flex gap-2 border-t border-[rgba(31,42,55,0.07)] px-4 py-3">
+            <Skeleton className="h-9 w-24 rounded-full" />
+            <Skeleton className="h-9 w-24 rounded-full" />
+          </div>
+        </SkeletonCard>
       ))}
+      </div>
+    </SkeletonGroup>
+  )
+}
+
+/** La ligne « n plats » + bouton, au-dessus des listes de plats et de cartes. */
+function TabHeaderSkeleton() {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Skeleton className="h-5 w-44" />
+      <Skeleton className="h-11 w-36 rounded-full" />
     </div>
   )
 }

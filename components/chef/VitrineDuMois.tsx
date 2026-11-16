@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Check, Eye, Loader2, Save } from 'lucide-react'
 import { useToast } from '@/components/shared/Toaster'
 import { apiMessage } from '@/lib/api/messages'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useMenus, useSetShowcaseWeeks, useShowcaseWeeks } from '@/lib/api/chef-catalog'
 import { useChefShowcase } from '@/lib/api/menus'
 
@@ -78,7 +79,11 @@ export default function VitrineDuMois({
   }
 
   if (semaines.isPending) {
-    return <div className="h-40 animate-pulse rounded-2xl bg-cream-soft" />
+    return (
+      <SkeletonGroup>
+        <Skeleton className="h-40 rounded-2xl" />
+      </SkeletonGroup>
+    )
   }
 
   if (semaines.isError) {

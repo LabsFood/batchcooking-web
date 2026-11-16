@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { DURATION, EASE_OUT, fade, fadeUp } from '@/lib/motion'
 import {
   AlertCircle,
   ArrowLeft,
@@ -23,6 +24,7 @@ import { useCommunes } from '@/lib/api/referentials'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
 import { Hint } from '@/components/shared/Hint'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { formatE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
 import {
@@ -320,7 +322,7 @@ function ApplicationForm({
               {STEPS.map((s, i) => (
                 <span
                   key={s.id}
-                  className={`h-1 rounded-full transition-colors duration-300 ${i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
+                  className={`h-1 rounded-full transition-colors duration-200 ${i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
                     }`}
                 />
               ))}
@@ -339,13 +341,13 @@ function ApplicationForm({
                     {i < STEPS.length - 1 && (
                       <span
                         aria-hidden
-                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-300 ${i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
+                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-200 ${i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
                           }`}
                       />
                     )}
                     <span
                       aria-hidden
-                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-300 ${current
+                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 ${current
                         ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
                         : isDone
                           ? 'bg-navy text-white'
@@ -380,9 +382,8 @@ function ApplicationForm({
         <section className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11">
           <motion.div
             key={step}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            // fondu : l'étape arrive en 180 ms
+            {...fade}
           >
             {step === 'identity' && (
               <Step
@@ -524,9 +525,10 @@ function ApplicationForm({
 
                 {values.workStatus === 'other' && (
                   <motion.div
+                    // slow-out : le bloc se déplie en 180 ms
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: DURATION.fast, ease: EASE_OUT }}
                     className="overflow-hidden"
                   >
                     <div className="pt-5">
@@ -639,9 +641,10 @@ function ApplicationForm({
 
                   {values.sapDeclared === 'yes' && (
                     <motion.div
+                      // slow-out : le bloc se déplie en 180 ms
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: DURATION.fast, ease: EASE_OUT }}
                       className="overflow-hidden"
                     >
                       <div className="space-y-4 pt-5">
@@ -663,9 +666,10 @@ function ApplicationForm({
 
                   {values.sapDeclared === 'no' && (
                     <motion.div
+                      // slow-out : le bloc se déplie en 180 ms
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: DURATION.fast, ease: EASE_OUT }}
                       className="overflow-hidden"
                     >
                       <fieldset className="space-y-4 pt-5">
@@ -764,7 +768,7 @@ function ApplicationForm({
                           key={z.regionCode}
                           className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-xs text-navy"
                         >
-                          <MapPin className="h-3 w-3 text-amber-deep" aria-hidden />
+                          <MapPin className="h-3 w-3 text-amber-ink" aria-hidden />
                           <span className="font-semibold">{regionLabel(z.regionCode)}</span>
                           <span className="text-ink-mid">
                             {z.wholeRegion ? 'toute la région' : z.cities.map((c) => c.name).join(', ')}
@@ -823,11 +827,11 @@ function ApplicationForm({
                     />
                     <span className="text-[13px] leading-relaxed text-ink-mid">
                       J’accepte que Lab’s Food traite mes données pour étudier ma candidature, et j’ai lu la{' '}
-                      <Link href="/confidentialite" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
+                      <Link href="/confidentialite" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink">
                         politique de confidentialité
                       </Link>{' '}
                       et les{' '}
-                      <Link href="/cgv" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
+                      <Link href="/cgv" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink">
                         conditions générales
                       </Link>
                       .
@@ -848,7 +852,7 @@ function ApplicationForm({
                     <summary className="cursor-pointer list-none px-4 py-3 text-xs font-semibold text-white/90 marker:hidden">
                       Payload envoyé à l’API <span className="font-normal text-white/50">· visible en développement</span>
                     </summary>
-                    <pre className="max-h-80 overflow-auto px-4 pb-4 font-mono text-[11px] leading-relaxed">
+                    <pre className="max-h-80 overflow-auto px-4 pb-4 font-mono text-xs leading-relaxed">
                       {`POST /chef-applications\n\n${JSON.stringify(
                         buildPayload(values, '<horodaté à l’envoi>'),
                         null,
@@ -867,7 +871,7 @@ function ApplicationForm({
               <button
                 type="button"
                 onClick={() => goTo(index - 1)}
-                className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
               </button>
@@ -921,8 +925,10 @@ function Shell() {
           aria-busy
           className="min-h-[520px] rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11"
         >
-          <div className="h-8 w-56 animate-pulse rounded-lg bg-cream-soft" />
-          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded bg-cream-soft" />
+          <SkeletonGroup>
+            <Skeleton className="h-8 w-56 rounded-lg" />
+            <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+          </SkeletonGroup>
         </section>
       </main>
     </div>
@@ -958,9 +964,8 @@ function Confirmation({
       <Header />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          // slow-out : la confirmation se pose en 240 ms
+          {...fadeUp()}
           className="w-full max-w-lg rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-7 sm:p-10"
         >
           <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-amber">
@@ -986,7 +991,7 @@ function Confirmation({
                   <li key={d.type} className="flex items-baseline gap-2 text-[13px] text-navy">
                     <span className="min-w-0 flex-1">{d.label}</span>
                     {d.required && (
-                      <span className="shrink-0 text-[11px] font-semibold text-terra">
+                      <span className="shrink-0 text-xs font-semibold text-amber-ink">
                         obligatoire
                       </span>
                     )}
@@ -1110,7 +1115,7 @@ function Review({ title, onEdit, children }: { title: string; onEdit: () => void
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-full px-2.5 py-1 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+          className="rounded-full px-2.5 py-1 text-xs font-semibold text-amber-ink hover:bg-amber-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
         >
           Modifier
         </button>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import { useToast } from '@/components/shared/Toaster'
+import { SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
@@ -160,13 +161,13 @@ export default function ChefShowcasePage() {
   if (profil.isPending) {
     return (
       <ChefPage title="Ma vitrine">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+        <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
           <div className="space-y-5">
-            <div className="h-64 animate-pulse rounded-3xl bg-paper" />
-            <div className="h-48 animate-pulse rounded-3xl bg-paper" />
+            <SkeletonCard className="h-64 rounded-3xl" />
+            <SkeletonCard className="h-48 rounded-3xl" />
           </div>
-          <div className="h-80 animate-pulse rounded-3xl bg-paper" />
-        </div>
+          <SkeletonCard className="h-80 rounded-3xl" />
+        </SkeletonGroup>
       </ChefPage>
     )
   }
@@ -205,7 +206,7 @@ export default function ChefShowcasePage() {
                     : 'Suivez votre dossier pour savoir ce qu’il reste à faire.'}{' '}
                   <Link
                     href="/espace-chef/dossier"
-                    className="font-semibold text-terra underline"
+                    className="font-semibold text-amber-ink underline"
                   >
                     Mon dossier
                   </Link>
@@ -313,7 +314,7 @@ export default function ChefShowcasePage() {
                     onChange={(e) => setRayon(Number(e.target.value))}
                     className="flex-1 accent-amber"
                   />
-                  <span className="w-16 shrink-0 text-right font-mono text-sm tabular-nums text-navy">
+                  <span className="w-16 shrink-0 text-right text-sm tabular-nums text-navy">
                     {rayon} km
                   </span>
                 </div>
@@ -352,7 +353,7 @@ export default function ChefShowcasePage() {
           <Card
             title="Mon compte"
             action={
-              <span className="text-[11px] uppercase tracking-wide text-ink-soft">
+              <span className="text-xs uppercase tracking-wide text-ink-soft">
                 Non public
               </span>
             }
@@ -427,7 +428,7 @@ export default function ChefShowcasePage() {
               {Object.values(PAYMENT_METHOD_LABEL).map((l) => (
                 <span
                   key={l}
-                  className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-ink-soft"
+                  className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-ink-soft"
                 >
                   {l}
                 </span>
@@ -450,7 +451,7 @@ export default function ChefShowcasePage() {
           <div className="overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.08)] bg-paper">
             <div className="flex items-center gap-2 border-b border-[rgba(31,42,55,0.08)] bg-cream-soft px-4 py-2.5">
               <Eye className="h-3.5 w-3.5 text-ink-soft" aria-hidden />
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                 Aperçu client
               </p>
             </div>
@@ -487,7 +488,7 @@ export default function ChefShowcasePage() {
                 </p>
               )}
 
-              <span className="inline-flex rounded-full bg-mint px-2 py-1 text-[10px] font-medium text-mint-ink">
+              <span className="inline-flex rounded-full bg-mint px-2 py-1 text-xs font-medium text-mint-ink">
                 Crédit d’impôt 50 %
               </span>
 
@@ -498,7 +499,7 @@ export default function ChefShowcasePage() {
               >
                 Réserver une session
               </button>
-              <p className="mt-2 text-center text-[11px] text-ink-soft">
+              <p className="mt-2 text-center text-xs text-ink-soft">
                 Aperçu — le bouton n’est pas actif ici.
               </p>
             </div>
@@ -532,7 +533,7 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
         <p className="text-sm font-semibold text-navy">Mes zones d’intervention</p>
         <Link
           href="/espace-chef/dossier?section=zones"
-          className="text-xs font-semibold text-terra underline-offset-2 hover:underline"
+          className="hit text-xs font-semibold text-amber-ink underline-offset-2 hover:underline"
         >
           Modifier mes zones
         </Link>
@@ -554,7 +555,7 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
             )
             .map((z, i) => (
             <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-navy">
                   {z.regionLabel ?? z.regionCode}

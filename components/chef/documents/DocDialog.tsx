@@ -43,7 +43,7 @@ export default function DocDialog({
             )}
             <Dialog.Close
               aria-label="Fermer"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="hit flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>

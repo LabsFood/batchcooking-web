@@ -30,6 +30,7 @@ import { aisleLabel } from '@/lib/recipe-fields'
 import { reasonText } from '@/lib/reason-codes'
 import { STORES } from '@/lib/client/mock'
 import { Hint } from '@/components/shared/Hint'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 
@@ -60,6 +61,27 @@ import { useToast } from '@/components/shared/Toaster'
 /** Les étapes où une liste de courses sert encore à quelque chose. */
 const A_VENIR = ['confirmed', 'shopping', 'cooking']
 
+/** Deux rayons de quatre lignes (`py-2.5` + texte = 40 px), dans la grille des vrais rayons. */
+function RayonsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      {[0, 1].map((i) => (
+        <SkeletonCard key={i} className="rounded-3xl">
+          <div className="mb-3 flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-xl" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+          <div className="space-y-1.5">
+            {[0, 1, 2, 3].map((j) => (
+              <Skeleton key={j} className="h-10 rounded-xl" />
+            ))}
+          </div>
+        </SkeletonCard>
+      ))}
+    </div>
+  )
+}
+
 export default function ShoppingListPage() {
   const commandes = useMyBookings({ limit: 50 })
   const [choisie, setChoisie] = useState<string | null>(null)
@@ -74,17 +96,23 @@ export default function ShoppingListPage() {
   const active = concernees.find((b) => b.id === choisie) ?? concernees[0] ?? null
 
   if (commandes.isPending) {
+    // Le bandeau (session, compteur, boutons) puis les rayons, comme la liste réelle.
     return (
-      <div className="flex items-center justify-center rounded-3xl card-shell py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
-      </div>
+      <SkeletonGroup className="space-y-5">
+        <SkeletonCard className="rounded-3xl lg:p-6">
+          <Skeleton className="mb-2 h-4 w-40" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="mt-1 h-4 w-72 max-w-full" />
+        </SkeletonCard>
+        <RayonsSkeleton />
+      </SkeletonGroup>
     )
   }
 
   if (!active) {
     return (
       <div className="rounded-3xl card-shell p-10 text-center">
-        <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber" aria-hidden />
+        <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber-ink" aria-hidden />
         <p className="font-display text-xl font-bold text-navy">
           Aucune session en préparation
         </p>
@@ -184,7 +212,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
               {booking.startsAt ? sessionLabel(booking) : 'Prochaine session'}
             </p>
             {courses.isPending ? (
-              <p className="font-display text-2xl font-bold text-ink-soft">…</p>
+              <Skeleton className="h-8 w-56" />
             ) : (
               <p className="font-display text-2xl font-bold text-navy">
                 {restants} article{restants > 1 ? 's' : ''} à acheter
@@ -231,7 +259,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
 
         <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
 
-        <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft">
           « Faire mes courses » copie la liste restante dans le presse-papier puis
           ouvre {store.name} — il ne reste qu&apos;à la coller dans la recherche.
         </p>
@@ -239,9 +267,9 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
 
       {/* ── Les rayons ───────────────────────────────────────────────────── */}
       {courses.isPending ? (
-        <div className="flex items-center justify-center rounded-3xl card-shell py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
-        </div>
+        <SkeletonGroup>
+          <RayonsSkeleton />
+        </SkeletonGroup>
       ) : courses.isError ? (
         <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
           La liste n’a pas pu être chargée. Elle se calcule depuis les recettes :
@@ -262,12 +290,12 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
-                  <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
+                  <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
                 </span>
                 <h3 className="font-display text-base font-bold text-navy">
                   {aisleLabel(aisle) ?? aisle}
                 </h3>
-                <span className="text-[11px] text-ink-soft">({lines.length})</span>
+                <span className="text-xs text-ink-soft">({lines.length})</span>
               </div>
 
               <ul className="space-y-1.5">
@@ -303,11 +331,11 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
                               title="Ligne corrigée par votre batch cooker"
                               className="ml-1.5 inline-flex translate-y-px"
                             >
-                              <Pencil className="h-3 w-3 text-amber-deep" aria-hidden />
+                              <Pencil className="h-3 w-3 text-amber-ink" aria-hidden />
                             </span>
                           )}
                         </span>
-                        <span className="shrink-0 font-mono text-xs text-ink-soft">
+                        <span className="tabular-nums shrink-0 text-xs text-ink-soft">
                           {quantite(l)}
                         </span>
                       </button>
@@ -463,7 +491,7 @@ function Reponse({
         </div>
 
         {modifiable && modifie && (
-          <p className="mt-3 text-[12px] font-semibold text-amber-deep">
+          <p className="mt-3 text-[12px] font-semibold text-amber-ink">
             Modifications non envoyées : votre batch cooker voit encore la version
             précédente.
           </p>
@@ -502,12 +530,12 @@ function Reponse({
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
-                  <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
+                  <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
                 </span>
                 <h3 className="font-display text-base font-bold text-navy">
                   {aisleLabel(aisle) ?? aisle}
                 </h3>
-                <span className="text-[11px] text-ink-soft">({lines.length})</span>
+                <span className="text-xs text-ink-soft">({lines.length})</span>
               </div>
 
               <ul className="space-y-1.5">
@@ -548,7 +576,7 @@ function Reponse({
                             {l.name}
                             {m.alreadyHave && <span className="sr-only"> (j’ai déjà)</span>}
                           </span>
-                          <span className="shrink-0 font-mono text-xs text-ink-soft">
+                          <span className="tabular-nums shrink-0 text-xs text-ink-soft">
                             {quantite(l)}
                           </span>
                         </button>
@@ -557,7 +585,7 @@ function Reponse({
                             type="button"
                             onClick={() => setOuverts((o) => [...o, k])}
                             aria-label={`Commenter ${l.name}`}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+                            className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
                           >
                             <MessageSquare className="h-4 w-4" aria-hidden />
                           </button>
@@ -574,7 +602,7 @@ function Reponse({
                             className="input-base mt-1 w-full py-1.5 text-[13px]"
                           />
                         ) : (
-                          <p className="ml-11 mt-0.5 text-[12px] italic text-ink-mid">
+                          <p className="ml-11 mt-0.5 text-xs text-ink-mid">
                             « {m.comment} »
                           </p>
                         ))}
@@ -596,7 +624,7 @@ function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
   if (autres.length < 2) return null
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.06)] pt-4">
-      <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft">
+      <span className="text-xs uppercase tracking-[0.12em] text-ink-soft">
         Autre session
       </span>
       {autres.map((b) => (

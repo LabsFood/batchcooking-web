@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronDown, LogOut, Sparkles, Menu } from 'lucide-react'
+import { ChevronDown, LogOut, UserCircle2, Menu } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { PaletteIconTrigger, PaletteTrigger } from '@/components/shared/CommandPalette'
 import { AlertBell } from '@/components/shared/AlertDrawer'
@@ -137,13 +137,13 @@ export default function DashboardTopbar() {
               <div className="border-b border-[rgba(31,42,55,0.08)] pb-2">
                 <AvatarEditor />
                 {roleLabel && (
-                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-deep">
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-[0.1em] text-amber-ink">
                     {roleLabel}
                   </p>
                 )}
               </div>
               <Link href="/espace-client/profil" className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg">
-                <Sparkles className="w-4 h-4 text-amber" /> Mon profil
+                <UserCircle2 className="w-4 h-4 text-amber-ink" /> Mon profil
               </Link>
               <Link href="/espace-client/parametres" className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg">
                 Paramètres
@@ -156,7 +156,7 @@ export default function DashboardTopbar() {
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg"
               >
-                <LogOut className="w-4 h-4 text-amber" /> Déconnexion
+                <LogOut className="w-4 h-4 text-amber-ink" /> Déconnexion
               </button>
             </div>
           )}

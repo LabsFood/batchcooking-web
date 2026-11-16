@@ -36,7 +36,7 @@ export default function ApprovalGate({ quoi }: { quoi: string }) {
   return (
     <Card className="!border-amber/40 !bg-amber-soft/50">
       <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
-        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
         {quoi} après validation de votre dossier
       </p>
       <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-mid">

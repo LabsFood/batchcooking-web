@@ -87,7 +87,7 @@ export default function MenuClient() {
             style={{ fontSize: 'clamp(2.2rem, 5.4vw, 4rem)', letterSpacing: '-0.02em' }}
           >
             Choisissez votre batch cooker,{' '}
-            <span className="font-medium italic text-terra">composez votre menu.</span>
+            <span className="text-amber">composez votre menu.</span>
           </h1>
           <p className="max-w-2xl text-lg leading-relaxed text-white/75 [text-wrap:pretty]">
             Chaque batch cooker a sa propre carte. Indiquez vos dates, votre région et vos envies :
@@ -173,7 +173,7 @@ export default function MenuClient() {
           {/* Demande sur-mesure */}
           <div className="mt-16 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-10 text-center">
             <span className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
-              <ChefHat className="h-7 w-7 text-terra" aria-hidden />
+              <ChefHat className="h-7 w-7 text-amber-ink" aria-hidden />
             </span>
             <h2 className="mb-3 font-display text-2xl font-bold text-navy">Aucune carte ne vous ressemble ?</h2>
             <p className="mx-auto mb-6 max-w-md leading-relaxed text-ink-mid">

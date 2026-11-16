@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
   AlertTriangle,
   ArrowDown,
@@ -295,22 +294,15 @@ export default function DishForm({
     >
       <Link
         href={backHref}
-        className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
+        className="hit inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
         Mes plats
       </Link>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <div
         className="relative overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-7"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-amber/25 blur-3xl"
-        />
         <h2 className="relative font-display text-2xl font-bold leading-tight lg:text-3xl">
           {dish ? dish.name : 'Nouveau plat'}
         </h2>
@@ -342,7 +334,7 @@ export default function DishForm({
                   : `Version ${dish.recipeVersion}`}
           </p>
         )}
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Le plat ──────────────────────────────────────────────────────── */}
@@ -609,7 +601,7 @@ export default function DishForm({
                               : [...d.seasonsOverride, i + 1].sort((a, b) => a - b),
                           )
                         }
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                           on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
                         }`}
                       >
@@ -623,7 +615,7 @@ export default function DishForm({
                 <button
                   type="button"
                   onClick={() => set('seasonsOverride', [])}
-                  className="mt-2 text-xs text-ink-mid underline underline-offset-2 hover:text-navy"
+                  className="hit mt-2 text-xs text-ink-mid underline underline-offset-2 hover:text-navy"
                 >
                   Revenir aux saisons calculées
                 </button>
@@ -1026,7 +1018,7 @@ function AllergenCheck({ dish, dirty }: { dish: Dish; dirty: boolean }) {
     <div className="rounded-xl bg-cream-soft px-3.5 py-3">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
         <ShieldCheck
-          className={`h-4 w-4 shrink-0 ${dish.allergensVerifiedAt ? 'text-mint-ink' : 'text-amber-deep'}`}
+          className={`h-4 w-4 shrink-0 ${dish.allergensVerifiedAt ? 'text-mint-ink' : 'text-amber-ink'}`}
           aria-hidden
         />
         <span className="font-semibold text-navy">
@@ -1269,7 +1261,7 @@ function PhotoField({ dish }: { dish: Dish | null }) {
             Retirer
           </button>
         )}
-        <span className="text-[11px] text-ink-soft">JPG, PNG ou WebP</span>
+        <span className="text-xs text-ink-soft">JPG, PNG ou WebP</span>
       </div>
 
       {erreur && (
@@ -1379,7 +1371,7 @@ function IngredientRows({
                   type="button"
                   onClick={() => onChange(value.filter((_, j) => j !== i))}
                   aria-label={`Retirer ${ing.name || 'cet ingrédient'}`}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -1403,7 +1395,7 @@ function IngredientRows({
                     Quantité fixe
                   </label>
                   {ing.toVerify && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-[11px] font-semibold text-[#8B6200]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-xs font-semibold text-[#8B6200]">
                       À vérifier
                       <button
                         type="button"
@@ -1464,7 +1456,7 @@ function IngredientName({
         className={`input-base w-full ${row.catalogIngredientId ? 'pr-16' : ''}`}
       />
       {row.catalogIngredientId && (
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-mint/60 px-1.5 py-0.5 text-[10px] font-semibold text-mint-ink">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-mint/60 px-1.5 py-0.5 text-xs font-semibold text-mint-ink">
           liste
         </span>
       )}
@@ -1486,7 +1478,7 @@ function IngredientName({
               >
                 {m.name}
                 {m.aliases.length > 0 && (
-                  <span className="ml-1.5 text-[11px] text-ink-soft">{m.aliases.join(', ')}</span>
+                  <span className="ml-1.5 text-xs text-ink-soft">{m.aliases.join(', ')}</span>
                 )}
               </button>
             </li>
@@ -1578,7 +1570,7 @@ function StepRows({
                   onClick={() => move(i, -1)}
                   disabled={i === 0}
                   aria-label={`Monter l’étape ${i + 1}`}
-                  className="flex h-7 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-cream-soft hover:text-navy disabled:opacity-30"
+                  className="hit flex h-7 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-cream-soft hover:text-navy disabled:opacity-30"
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>
@@ -1587,7 +1579,7 @@ function StepRows({
                   onClick={() => move(i, 1)}
                   disabled={i === value.length - 1}
                   aria-label={`Descendre l’étape ${i + 1}`}
-                  className="flex h-7 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-cream-soft hover:text-navy disabled:opacity-30"
+                  className="hit flex h-7 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-cream-soft hover:text-navy disabled:opacity-30"
                 >
                   <ArrowDown className="h-3.5 w-3.5" />
                 </button>
@@ -1595,7 +1587,7 @@ function StepRows({
                   type="button"
                   onClick={() => onChange(value.filter((_, j) => j !== i))}
                   aria-label={`Retirer l’étape ${i + 1}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
+                  className="hit flex h-9 w-9 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -1661,7 +1653,7 @@ function Field({
     <label className={`block ${className}`}>
       <span className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
         {label}
-        {required && <span className="text-terra"> *</span>}
+        {required && <span className="text-amber-ink"> *</span>}
         {popover}
       </span>
       {children}

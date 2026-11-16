@@ -24,6 +24,7 @@ import {
   Users,
 } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ProposerPrestation from '@/components/chef/ProposerPrestation'
 import DocDialog from '@/components/chef/documents/DocDialog'
@@ -186,11 +187,11 @@ export default function ChefMissionsPage() {
             </div>
 
             {query.isPending ? (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <SkeletonGroup className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="h-44 animate-pulse rounded-3xl bg-paper" />
+                  <MissionCardSkeleton key={i} />
                 ))}
-              </div>
+              </SkeletonGroup>
             ) : missions.length === 0 ? (
               <Card>
                 <Empty text="Aucune prestation pour l’instant. Elles apparaîtront ici dès qu’un client réservera avec vous." />
@@ -198,7 +199,7 @@ export default function ChefMissionsPage() {
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   Pour être réservable, il faut des horaires de travail posés
                   dans votre{' '}
-                  <Link href="/espace-chef/agenda" className="font-semibold text-terra">
+                  <Link href="/espace-chef/agenda" className="font-semibold text-amber-ink">
                     agenda
                   </Link>{' '}
                   — sans eux, aucun créneau n’est proposé aux clients.
@@ -234,6 +235,30 @@ export default function ChefMissionsPage() {
 
 // ── La carte d'une prestation ───────────────────────────────────────────────
 
+/** Même découpage que `MissionCard` : client + statut, date, plats, pied avec le bouton. */
+function MissionCardSkeleton() {
+  return (
+    <SkeletonCard className="flex flex-col rounded-3xl p-5 lg:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-5 w-56 max-w-full" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <Skeleton className="h-12 w-20" />
+      </div>
+      <div className="mt-3 flex gap-1.5">
+        <Skeleton className="h-6 w-24 rounded-full" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-9 w-20 rounded-full" />
+      </div>
+    </SkeletonCard>
+  )
+}
+
 function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => void }) {
   const portions = bookingPortions(m)
   const plats = (m.meals ?? []).map((x) => x.name).filter(Boolean) as string[]
@@ -248,7 +273,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
             <p className="font-display text-lg font-bold text-navy">
               {m.client?.name ?? 'Client'}
             </p>
-            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
               {bookingStatusText(m.status)}
             </span>
           </div>
@@ -272,7 +297,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
         </div>
         {net && (
           <div className="shrink-0 text-right">
-            <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+            <p className="text-xs uppercase tracking-wide text-ink-soft">
               {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
             </p>
             <p className="font-display text-xl font-bold text-navy">{net}</p>
@@ -283,7 +308,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
       {plats.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {plats.map((nom) => (
-            <span key={nom} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
+            <span key={nom} className="rounded-full bg-cream-soft px-2.5 py-1 text-xs text-navy">
               {nom}
             </span>
           ))}
@@ -291,7 +316,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
-        <p className="text-[11px] text-ink-soft">
+        <p className="text-xs text-ink-soft">
           {m.reschedule?.status === 'pending'
             ? 'Un report attend une réponse'
             : suite
@@ -324,10 +349,16 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
   if (query.isPending) {
     return (
       <ChefPage title="Prestation">
-        <div className="space-y-4">
-          <div className="h-32 animate-pulse rounded-3xl bg-paper" />
-          <div className="h-64 animate-pulse rounded-3xl bg-paper" />
-        </div>
+        <SkeletonGroup className="space-y-5">
+          <SkeletonCard className="rounded-3xl p-5 lg:p-6">
+            <Skeleton className="h-7 w-1/3" />
+            <Skeleton className="mt-2 h-5 w-1/2" />
+          </SkeletonCard>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <SkeletonCard className="h-64 rounded-3xl p-5 lg:p-6" />
+            <SkeletonCard className="h-64 rounded-3xl p-5 lg:p-6" />
+          </div>
+        </SkeletonGroup>
       </ChefPage>
     )
   }
@@ -387,7 +418,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
         {report && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
             <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
-              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
               Le client propose un autre horaire
             </p>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-mid">
@@ -439,7 +470,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             <Card>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                  <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
                     {bookingStatusText(m.status)}
                   </span>
                   <p className="mt-2 font-display text-xl font-bold capitalize text-navy">
@@ -449,12 +480,12 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
                 {net && (
                   <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+                    <p className="text-xs uppercase tracking-wide text-ink-soft">
                       {m.commissionEstimated ? 'Net estimé' : 'Net perçu'}
                     </p>
                     <p className="font-display text-2xl font-bold text-navy">{net}</p>
                     {ttc && commission && (
-                      <p className="text-[11px] text-ink-soft">
+                      <p className="text-xs text-ink-soft">
                         Client {ttc} · commission {commission}
                       </p>
                     )}
@@ -575,7 +606,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
                         onClick={() =>
                           setFiche({ dishId: bm.mealId, nom: bm.name ?? 'ce plat' })
                         }
-                        className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40"
+                        className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-amber-ink hover:bg-amber-soft/40"
                       >
                         Fiche recette
                       </button>
@@ -645,7 +676,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
             <Card title="Le client">
               <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-                <UserRound className="h-4 w-4 text-amber-deep" aria-hidden />
+                <UserRound className="h-4 w-4 text-amber-ink" aria-hidden />
                 {m.client?.name ?? 'Client'}
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
@@ -867,7 +898,11 @@ function RescheduleCard({
 
           <div className="mt-2">
             {slots.isPending ? (
-              <div className="h-8 animate-pulse rounded-full bg-cream-soft" />
+              <SkeletonGroup className="flex flex-wrap gap-1.5">
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-[2.125rem] w-16 rounded-full" />
+                ))}
+              </SkeletonGroup>
             ) : manuel ? (
               <TimeField
                 id="report-heure"
@@ -895,7 +930,7 @@ function RescheduleCard({
               setManuel(!manuel)
               setChoisi(null)
             }}
-            className="mt-2 text-[12px] font-semibold text-terra hover:underline"
+            className="mt-2 text-[12px] font-semibold text-amber-ink hover:underline"
           >
             {manuel
               ? 'Revenir à mes créneaux libres'
@@ -1037,7 +1072,7 @@ function PhotosCard({ booking: m }: { booking: Booking }) {
               <button
                 onClick={() => setARetirer(p.id)}
                 aria-label={`Retirer ${p.caption ?? 'la photo'}`}
-                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-navy/75 text-white opacity-0 transition-opacity hover:bg-navy focus-visible:opacity-100 group-hover:opacity-100"
+                className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-navy/75 text-white opacity-0 transition-opacity hover:bg-navy focus-visible:opacity-100 group-hover:opacity-100"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -1125,11 +1160,11 @@ function ShoppingCard({
       }
     >
       {query.isPending ? (
-        <div className="space-y-2">
+        <SkeletonGroup className="space-y-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-8 animate-pulse rounded-xl bg-cream-soft" />
+            <Skeleton key={i} className="h-8 rounded-xl" />
           ))}
-        </div>
+        </SkeletonGroup>
       ) : query.isError ? (
         <p className="text-[13px] leading-relaxed text-ink-mid">
           La liste n’a pas pu être lue. Elle se calcule depuis les recettes de la
@@ -1208,7 +1243,7 @@ function ShoppingCard({
             {groupes.map((g) => (
               <li
                 key={g.aisle}
-                className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy"
+                className="rounded-full bg-cream-soft px-2.5 py-1 text-xs text-navy"
               >
                 {aisleLabel(g.aisle)}
                 <span className="ml-1.5 tabular-nums text-ink-soft">{g.lines.length}</span>
@@ -1249,11 +1284,11 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
 
   if (query.isPending) {
     return (
-      <div className="space-y-2">
+      <SkeletonGroup className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-10 animate-pulse rounded-xl bg-cream-soft" />
+          <Skeleton key={i} className="h-10 rounded-xl" />
         ))}
-      </div>
+      </SkeletonGroup>
     )
   }
 
@@ -1284,7 +1319,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
           ne voit vos corrections qu’après « Envoyer la mise à jour ».
         </p>
         {query.data?.persons != null && (
-          <span className="shrink-0 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-mid">
+          <span className="shrink-0 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold text-ink-mid">
             {query.data.persons} personnes
           </span>
         )}
@@ -1341,7 +1376,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 ))}
               </select>
               {l.edited && !modifie && (
-                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-deep">
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-amber-ink">
                   corrigée
                 </span>
               )}
@@ -1349,7 +1384,7 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                 type="button"
                 onClick={() => setBrouillon(lignes.filter((_, j) => j !== i))}
                 aria-label={`Retirer ${l.name || 'cette ligne'}`}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
+                className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-50 hover:text-red-700"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -1491,11 +1526,11 @@ function RecipeSheetDialog({
       >
         <div className="p-5 sm:p-6">
           {query.isPending ? (
-            <div className="space-y-3">
+            <SkeletonGroup className="space-y-3">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-10 animate-pulse rounded-xl bg-cream-soft" />
+                <Skeleton key={i} className="h-10 rounded-xl" />
               ))}
-            </div>
+            </SkeletonGroup>
           ) : query.isError || !f ? (
             <p className="text-sm leading-relaxed text-ink-mid">
               Cette fiche n’a pas pu être lue. Elle n’existe que pour un plat de
@@ -1548,7 +1583,7 @@ function RecipeSheetDialog({
                     {f.dish.customDiets.map((d) => (
                       <span
                         key={d}
-                        className="rounded-full bg-mint/40 px-2.5 py-1 text-[12px] italic text-mint-ink"
+                        className="rounded-full bg-mint/40 px-2.5 py-1 text-xs text-mint-ink"
                       >
                         {d}
                       </span>
@@ -1563,7 +1598,7 @@ function RecipeSheetDialog({
                     Aucun des 14 allergènes réglementés.
                   </p>
                 ) : f.dish.allergens.length === 0 && f.dish.customAllergens.length === 0 ? (
-                  <p className="text-[13px] text-amber-deep">Non renseignés sur ce plat.</p>
+                  <p className="text-[13px] text-amber-ink">Non renseignés sur ce plat.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {f.dish.allergens.map((a) => (
@@ -1577,7 +1612,7 @@ function RecipeSheetDialog({
                     {f.dish.customAllergens.map((a) => (
                       <span
                         key={a}
-                        className="rounded-full bg-red-50 px-2.5 py-1 text-[12px] italic text-red-700"
+                        className="rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700"
                       >
                         {a}
                       </span>
@@ -1618,13 +1653,13 @@ function RecipeSheetDialog({
                       <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed">
                         <span
                           aria-hidden
-                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-cream-deep text-[10px] font-semibold tabular-nums text-navy"
+                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-cream-deep text-xs font-semibold tabular-nums text-navy"
                         >
                           {i + 1}
                         </span>
                         <span className="text-ink-mid">
                           {(s.type || s.durationMinutes) && (
-                            <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                            <span className="mr-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
                               {[
                                 s.type ? refLabel(stepTypes, s.type) : null,
                                 s.durationMinutes ? `${s.durationMinutes} min` : null,
@@ -1809,7 +1844,7 @@ function DishNotesForm({
 function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
         {titre}
       </p>
       {children}
@@ -1828,11 +1863,11 @@ function Info2({
 }) {
   return (
     <div className="flex gap-2.5">
-      <span className="mt-0.5 shrink-0 text-amber-deep" aria-hidden>
+      <span className="mt-0.5 shrink-0 text-amber-ink" aria-hidden>
         {icon}
       </span>
       <div className="min-w-0">
-        <dt className="text-[11px] uppercase tracking-wide text-ink-soft">{label}</dt>
+        <dt className="text-xs uppercase tracking-wide text-ink-soft">{label}</dt>
         <dd className="text-[13px] font-medium text-navy">{value}</dd>
       </div>
     </div>

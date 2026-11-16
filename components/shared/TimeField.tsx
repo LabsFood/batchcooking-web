@@ -60,7 +60,7 @@ export default function TimeField({
 
   return (
     <label className={cn('block', className)} htmlFor={id}>
-      <span className="mb-1 block text-[11px] text-ink-soft">{label}</span>
+      <span className="mb-1 block text-xs text-ink-soft">{label}</span>
       <select
         id={id}
         value={value}
@@ -158,8 +158,8 @@ export function TimeRange({
         />
         <span
           className={cn(
-            'mb-0.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold',
-            invalide ? 'bg-amber-soft text-amber-deep' : 'bg-cream-soft text-ink-mid',
+            'mb-0.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold',
+            invalide ? 'bg-amber-soft text-amber-ink' : 'bg-cream-soft text-ink-mid',
           )}
         >
           <Clock className="h-3 w-3" aria-hidden />
@@ -178,7 +178,7 @@ export function TimeRange({
                 disabled={disabled}
                 onClick={() => onChange({ from: p.from, to: p.to })}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  'rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
                   actif
                     ? 'border-navy bg-navy text-white'
                     : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy',
@@ -192,7 +192,7 @@ export function TimeRange({
       )}
 
       {invalide && (
-        <p className="text-[12px] text-amber-deep">
+        <p className="text-[12px] text-amber-ink">
           {duree <= 0
             ? 'La fin doit venir après le début.'
             : `Comptez au moins ${durationLabel(minDuration)} sur place.`}

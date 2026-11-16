@@ -21,7 +21,7 @@ function clerkMessage(e: unknown): string {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[0.12em] text-ink-soft mb-2">{label}</p>
       {children}
     </div>
   )
@@ -99,7 +99,7 @@ export default function ChangePassword() {
           placeholder="Minimum 8 caractères"
         />
       </Field>
-      <p className="text-[11px] text-ink-soft">Tes autres appareils seront déconnectés.</p>
+      <p className="text-xs text-ink-soft">Tes autres appareils seront déconnectés.</p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <button onClick={change} disabled={pending || !next || (hasPassword && !current)} className="btn btn-primary text-xs">
         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}

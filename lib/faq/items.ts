@@ -60,7 +60,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'f8',
     question: 'Dans quelles zones intervenez-vous ?',
     answer:
-      'À ce jour, Lab’s Food déploie ses services sur l’ensemble de la Côte d’Azur. Les cuisinier·es se déplacent directement à votre domicile au sein de cette zone géographique.',
+      'Partout en France. Les cuisinier·es se déplacent directement à votre domicile, quelle que soit votre région.',
     category: 'service',
   },
   {

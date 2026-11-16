@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { SignIn } from '@clerk/nextjs'
 import Logo from '@/components/shared/Logo'
+import AuthSkeleton from '@/components/shared/AuthSkeleton'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
 import Image from 'next/image'
@@ -20,7 +21,7 @@ function LoginInner() {
 
           <h1 className="font-display font-bold text-navy leading-tight mb-3"
             style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)', letterSpacing: '-0.02em' }}>
-            Bon retour <span className="text-terra italic font-medium">!</span>
+            Bon retour !
           </h1>
           <p className="text-ink-mid mb-8">
             Clients et batch cookers se connectent ici : votre espace s&apos;ouvre selon votre profil.
@@ -38,13 +39,13 @@ function LoginInner() {
           <div className="mt-8 space-y-3 border-t border-[rgba(31,42,55,0.08)] pt-6">
             <p className="text-center text-sm text-ink-mid">
               Pas encore de compte ?{' '}
-              <Link href="/auth/register" className="font-semibold text-terra hover:underline">
+              <Link href="/auth/register" className="font-semibold text-amber-ink hover:underline">
                 Créer mon compte client
               </Link>
             </p>
             <p className="text-center text-sm text-ink-mid">
               Vous cuisinez ?{' '}
-              <Link href="/devenir-chef" className="font-semibold text-terra hover:underline">
+              <Link href="/devenir-chef" className="font-semibold text-amber-ink hover:underline">
                 Devenir batch cooker
               </Link>
               <span className="mt-1 block text-xs text-ink-soft">
@@ -85,7 +86,7 @@ function LoginInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthSkeleton />}>
       <LoginInner />
     </Suspense>
   )

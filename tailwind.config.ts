@@ -25,6 +25,8 @@ const config: Config = {
           DEFAULT: '#F39C12',
           deep: '#D68B0E',
           soft: '#FCE3B5',
+          /** Ambre pour du TEXTE sur fond clair (≥ 4,5:1). */
+          ink: '#9A5B00',
         },
         mint: {
           DEFAULT: '#D1F2EB',
@@ -42,7 +44,7 @@ const config: Config = {
         ink: {
           DEFAULT: '#1F2A37',
           mid: '#4B5867',
-          soft: '#7B8794',
+          soft: '#5F6B7A',
         },
         border: 'rgba(31,42,55,0.10)',
       },
@@ -63,35 +65,19 @@ const config: Config = {
         '120': '30rem',
       },
       animation: {
-        'fade-up': 'fade-up 0.6s ease forwards',
-        'fade-in': 'fade-in 0.4s ease forwards',
-        'shimmer': 'shimmer 2s linear infinite',
-        'float': 'float 6s ease-in-out infinite',
+        // slow-out : se pose en 240 ms (fade-up), 180 ms (fade-in)
+        'fade-up': 'fade-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'fade-in': 'fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
         'fade-up': {
-          from: { opacity: '0', transform: 'translateY(20px)' },
+          from: { opacity: '0', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
         'fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
-        },
-      },
-      backgroundImage: {
-        'gold-gradient': 'linear-gradient(135deg, #C79A3E 0%, #DDB96A 50%, #C79A3E 100%)',
-        'gold-shimmer': 'linear-gradient(90deg, transparent 0%, rgba(199,154,62,0.3) 50%, transparent 100%)',
-        'dark-gradient': 'linear-gradient(180deg, #0C0A08 0%, #16130E 100%)',
-        'hero-overlay': 'linear-gradient(to right, rgba(12,10,8,0.95) 40%, rgba(12,10,8,0.5) 100%)',
-        'grain': "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
       },
       borderRadius: {
         lg: 'var(--radius)',

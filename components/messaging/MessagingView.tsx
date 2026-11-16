@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Headset, Loader2, MessageCircle, UserRound } from 'lucide-react'
+import { Headset, MessageCircle, UserRound } from 'lucide-react'
 import {
   useConversations,
   useMarkRead,
@@ -11,7 +11,8 @@ import {
   type Conversation,
 } from '@/lib/api/messaging'
 import { cn } from '@/lib/utils'
-import Thread from './Thread'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
+import Thread, { BubblesSkeleton } from './Thread'
 import { contextLine, previewOf, shortWhen } from './format'
 
 /**
@@ -85,11 +86,7 @@ export default function MessagingView({
   const hasSupport = list.some((c) => c.type === 'support')
 
   if (conversations.isPending) {
-    return (
-      <p className="flex items-center justify-center gap-2 py-16 text-sm text-ink-soft">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Chargement de la messagerie…
-      </p>
-    )
+    return <MessagingSkeleton />
   }
 
   if (conversations.isError) {
@@ -179,6 +176,37 @@ export default function MessagingView({
   )
 }
 
+/** La liste (300 px, rangées de 82 px) et le fil ouvert, comme à l'arrivée des données. */
+export function MessagingSkeleton() {
+  return (
+    <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr]">
+      <div className="overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper">
+        <div className="divide-y divide-[rgba(31,42,55,0.06)]">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="space-y-0.5 px-4 py-3.5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-48 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden h-[72vh] min-h-[520px] rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:block lg:p-6">
+        <div className="flex items-center gap-3 border-b border-[rgba(31,42,55,0.08)] pb-4">
+          <Skeleton className="h-11 w-11 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+        </div>
+        <div className="py-4">
+          <BubblesSkeleton />
+        </div>
+      </div>
+    </SkeletonGroup>
+  )
+}
+
 function ConversationRow({
   conversation,
   active,
@@ -208,21 +236,21 @@ function ConversationRow({
         </p>
         {conversation.unreadCount > 0 && (
           <span
-            className="rounded-full bg-amber px-1.5 py-0.5 text-[10px] font-bold text-navy"
+            className="rounded-full bg-amber px-1.5 py-0.5 text-xs font-bold text-navy"
             aria-label={`${conversation.unreadCount} non lu${conversation.unreadCount > 1 ? 's' : ''}`}
           >
             {conversation.unreadCount}
           </span>
         )}
       </div>
-      <p className="text-[11px] text-ink-soft">{contextLine(conversation)}</p>
+      <p className="text-xs text-ink-soft">{contextLine(conversation)}</p>
       <p className="mt-0.5 flex items-baseline justify-between gap-2 text-xs text-ink-mid">
         <span className="min-w-0 truncate">
           {lastIsMine && 'Vous : '}
           {previewOf(conversation.lastMessage)}
         </span>
         {conversation.lastMessageAt && (
-          <span className="shrink-0 text-[10px] text-ink-soft">
+          <span className="shrink-0 text-xs text-ink-soft">
             {shortWhen(conversation.lastMessageAt)}
           </span>
         )}

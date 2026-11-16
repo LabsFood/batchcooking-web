@@ -1,9 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import { Globe2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { fadeUpInView } from '@/lib/motion'
 
 type Photo = {
   src: string
@@ -34,96 +33,46 @@ const ROW_B: Photo[] = [
 ]
 
 export default function FoodCarousel() {
-  const ref = useRef<HTMLElement | null>(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
-
   return (
-    <section
-      ref={ref}
-      className="relative overflow-hidden section-cream-soft py-20 lg:py-28"
-    >
+    <section className="relative overflow-hidden section-cream-soft py-20 lg:py-28">
       {/* Header */}
       <div className="container-xl relative">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="max-w-2xl mx-auto text-center mb-12 lg:mb-14"
-        >
-          <p className="eyebrow mb-5 justify-center">Gastronomie</p>
+        {/* slow-out : l'en-tête se pose en 240 ms */}
+        <motion.div {...fadeUpInView()} className="max-w-2xl mx-auto text-center mb-12 lg:mb-14">
           <h2 className="h-section">
             Cuisines du monde
           </h2>
         </motion.div>
       </div>
 
-      {/* Marquee — Row A (left → right) */}
-      <Row photos={ROW_A} direction="left" />
-
-      {/* Marquee — Row B (right → left) */}
-      <Row photos={ROW_B} direction="right" className="mt-5 lg:mt-7" />
-
-      {/* Edge fade masks */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 lg:w-24 bg-gradient-to-r from-cream-soft to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 lg:w-24 bg-gradient-to-l from-cream-soft to-transparent" />
+      {/* Deux rangées que l'on fait défiler au doigt ou à la molette : rien ne bouge seul. */}
+      <Row photos={ROW_A} />
+      <Row photos={ROW_B} className="mt-5 lg:mt-7" />
     </section>
   )
 }
 
-function Row({
-  photos,
-  direction,
-  className = '',
-}: {
-  photos: Photo[]
-  direction: 'left' | 'right'
-  className?: string
-}) {
-  // Duplicate so the translate -50% can loop seamlessly.
-  const items = [...photos, ...photos]
+function Row({ photos, className = '' }: { photos: Photo[]; className?: string }) {
   return (
-    <div className={`relative overflow-hidden ${className}`}>
-      <div
-        className="flex gap-4 lg:gap-6 w-max"
-        style={{
-          animation: `${direction === 'left' ? 'food-marquee-left' : 'food-marquee-right'} 60s linear infinite`,
-        }}
-      >
-        {items.map((p, i) => (
-          // La seconde moitié n'est qu'une copie pour la boucle : lecteurs d'écran
-          // et ordre de tabulation ne la voient pas.
-          <PhotoCard key={`${p.src}-${i}`} photo={p} decorative={i >= photos.length} />
+    <div className={`overflow-x-auto snap-x snap-mandatory ${className}`}>
+      <div className="flex gap-4 lg:gap-6 w-max px-6 lg:px-10">
+        {photos.map((p) => (
+          <PhotoCard key={p.src} photo={p} />
         ))}
       </div>
-      <style jsx>{`
-        @keyframes food-marquee-left {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-        @keyframes food-marquee-right {
-          from { transform: translateX(-50%); }
-          to   { transform: translateX(0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          div > div { animation: none !important; }
-        }
-      `}</style>
     </div>
   )
 }
 
-function PhotoCard({ photo, decorative }: { photo: Photo; decorative: boolean }) {
+function PhotoCard({ photo }: { photo: Photo }) {
   return (
-    <figure
-      aria-hidden={decorative || undefined}
-      className="relative flex-shrink-0 w-[260px] lg:w-[340px] aspect-square rounded-3xl overflow-hidden bg-paper shadow-[0_18px_36px_-18px_rgba(31,42,55,0.25)]"
-    >
+    <figure className="relative flex-shrink-0 snap-start w-[260px] lg:w-[340px] aspect-square rounded-3xl overflow-hidden bg-paper shadow-[0_18px_36px_-18px_rgba(31,42,55,0.25)]">
       <Image
         src={photo.src}
-        alt={decorative ? '' : photo.alt}
+        alt={photo.alt}
         fill
         sizes="(min-width: 1024px) 340px, 260px"
-        className="object-cover transition-transform duration-700 hover:scale-105"
+        className="object-cover"
       />
     </figure>
   )

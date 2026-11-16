@@ -3,8 +3,7 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowRight, ChefHat, Sparkles } from 'lucide-react'
+import { ArrowRight, ChefHat, Info } from 'lucide-react'
 import {
   MenuCard,
   MenuDialog,
@@ -55,18 +54,16 @@ function DashboardMenusInner() {
   return (
     <div className="space-y-8">
       {reserveMode && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber-soft/60 p-4"
         >
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
           <p className="text-sm leading-relaxed text-navy">
             <span className="font-semibold">D’abord le batch cooker, ensuite ses plats.</span>{' '}
             Ouvrez la carte de celui dont la cuisine vous parle, cochez vos plats, et la
             réservation reprend là où vous en êtes.
           </p>
-        </motion.div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10">
@@ -123,7 +120,7 @@ function DashboardMenusInner() {
           {/* Demande sur-mesure : la même porte de sortie que sur le site. */}
           <div className="mt-12 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-8 text-center">
             <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
-              <ChefHat className="h-6 w-6 text-terra" aria-hidden />
+              <ChefHat className="h-6 w-6 text-amber-ink" aria-hidden />
             </span>
             <h2 className="mb-2 font-display text-xl font-bold text-navy">
               Aucune carte ne vous ressemble ?

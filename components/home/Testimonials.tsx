@@ -1,14 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { Star, Quote, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TESTIMONIALS } from '@/lib/mock-data'
 import Image from 'next/image'
+import { DURATION, EASE_IN, EASE_OUT, fadeUpInView } from '@/lib/motion'
 
 export default function Testimonials() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-80px' })
   const [active, setActive] = useState(0)
 
   const next = () => setActive((a) => (a + 1) % TESTIMONIALS.length)
@@ -17,18 +16,15 @@ export default function Testimonials() {
   const t = TESTIMONIALS[active]
 
   return (
-    <section id="testimonials" className="section-padding section-cream relative overflow-hidden" ref={ref}>
+    <section id="testimonials" className="section-padding section-cream relative overflow-hidden">
       <div className="container-xl relative">
         <motion.div
-          initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView()}
           className="text-center max-w-2xl mx-auto mb-14"
         >
-          <p className="eyebrow mb-5 justify-center">Témoignages</p>
           <h2 className="h-section">
-            Ils nous ont <span className="accent">fait confiance.</span>
+            Ils nous ont fait confiance.
           </h2>
         </motion.div>
 
@@ -40,17 +36,12 @@ export default function Testimonials() {
           <AnimatePresence>
             <motion.div
               key={active}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              // slow-out : l'avis arrive en 240 ms, l'ancien s'efface en 180 ms
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: DURATION.base, ease: EASE_OUT } }}
+              exit={{ opacity: 0, transition: { duration: DURATION.fast, ease: EASE_IN } }}
               className="col-start-1 row-start-1 relative bg-paper rounded-3xl p-10 lg:p-14 border border-[rgba(31,26,20,0.06)] shadow-[0_30px_60px_-30px_rgba(31,26,20,0.2)]"
             >
-              <Quote
-                className="absolute top-8 right-8 lg:top-12 lg:right-12 text-terra opacity-15"
-                style={{ width: 72, height: 72 }}
-              />
-
               {/* Stars */}
               <div className="flex gap-1 mb-7">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -79,7 +70,7 @@ export default function Testimonials() {
                     className="w-14 h-14 rounded-full object-cover border-2 border-cream"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-cream-deep flex items-center justify-center font-display text-xl font-bold text-terra">
+                  <div className="w-14 h-14 rounded-full bg-cream-deep flex items-center justify-center font-display text-xl font-bold text-amber-ink">
                     {t.clientName.charAt(0)}
                   </div>
                 )}
@@ -87,7 +78,6 @@ export default function Testimonials() {
                   <p className="text-navy font-semibold">{t.clientName}</p>
                   {/* <p className="text-ink-soft text-sm">{t.clientCity} · Formule {t.planUsed}</p> */}
                 </div>
-                <span className="hidden md:inline-flex chip chip-amber">Avis vérifié</span>
               </div>
             </motion.div>
           </AnimatePresence>
@@ -97,7 +87,7 @@ export default function Testimonials() {
           <div className="flex items-center justify-center gap-3 mt-10">
             <button
               onClick={prev}
-              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-terra transition-all flex items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-ink transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
               aria-label="Précédent"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -109,16 +99,19 @@ export default function Testimonials() {
                 <button
                   key={i}
                   onClick={() => setActive(i)}
-                  className={`h-2 rounded-full transition-all ${active === i ? 'w-8 bg-terra' : 'w-2 bg-ink-soft/30 hover:bg-ink-soft/50'
-                    }`}
+                  className="flex h-10 items-center px-1"
                   aria-label={`Témoignage ${i + 1}`}
-                />
+                >
+                  <span
+                    className={`block h-2 rounded-full transition-[width,background-color] duration-200 ${active === i ? 'w-8 bg-terra' : 'w-2 bg-ink-soft/30'}`}
+                  />
+                </button>
               ))}
             </div>
 
             <button
               onClick={next}
-              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-terra transition-all flex items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-ink transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
               aria-label="Suivant"
             >
               <ChevronRight className="w-5 h-5" />
@@ -128,10 +121,8 @@ export default function Testimonials() {
 
         {/* Aggregate stats */}
         <motion.div
-          initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView(0.08)}
           className="mt-20 grid grid-cols-2 gap-6 max-w-xl mx-auto"
         >
           {/* Note moyenne et nombre d'avis retirés : le module d'avis n'existe
@@ -141,7 +132,7 @@ export default function Testimonials() {
             { value: '90%', label: 'Renouvellement' },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <p className="font-display text-4xl lg:text-5xl font-bold text-terra leading-none">
+              <p className="font-display text-4xl lg:text-5xl font-bold text-amber-ink leading-none">
                 {s.value}
               </p>
               <p className="text-ink-mid text-sm mt-2">{s.label}</p>

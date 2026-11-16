@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import * as Sentry from '@sentry/nextjs'
+import { MotionConfig } from 'framer-motion'
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { setAnalyticsUser } from '@/lib/analytics'
@@ -61,10 +62,13 @@ export default function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthCacheReset />
       <ObservabilityIdentity />
-      <ReservationGateProvider>
-        <Toaster>{children}</Toaster>
-        <LoginRequiredModal />
-      </ReservationGateProvider>
+      {/* Mouvement réduit : Framer Motion coupe les déplacements si l'OS le demande. */}
+      <MotionConfig reducedMotion="user">
+        <ReservationGateProvider>
+          <Toaster>{children}</Toaster>
+          <LoginRequiredModal />
+        </ReservationGateProvider>
+      </MotionConfig>
       {/* Devtools React Query — exclus du bundle de production. */}
       {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />

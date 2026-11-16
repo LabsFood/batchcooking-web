@@ -78,7 +78,7 @@ export default function PhoneField({
       >
         <span>
           {label}
-          {required && <span className="text-terra"> *</span>}
+          {required && <span className="text-amber-ink"> *</span>}
         </span>
         {optional && <span className="text-xs font-normal text-ink-soft">Facultatif</span>}
       </label>

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
+import { DURATION, EASE_OUT } from '@/lib/motion'
 import { X, Check, ArrowRight, ArrowUpRight } from 'lucide-react'
 
 const STEPS = [
@@ -65,9 +66,10 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
         aria-modal="true"
         aria-labelledby="avantage-fiscal-title"
         onClick={(e) => e.stopPropagation()}
-        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+        // slow-out : le dialogue monte de 8 px en 240 ms
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: DURATION.base, ease: EASE_OUT }}
         className="relative flex max-h-[92dvh] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_40px_100px_-20px_rgba(31,42,55,0.45)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl"
       >
         {/* En-tête : toujours visible, jamais écrasé par le contenu */}
@@ -76,12 +78,12 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
             ref={closeRef}
             onClick={onClose}
             aria-label="Fermer"
-            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber"
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
 
-          <p className="pr-10 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-deep">
+          <p className="pr-10 text-xs font-semibold uppercase tracking-[0.12em] text-amber-ink">
             Service à la personne · Avance immédiate
           </p>
           <h2
@@ -89,8 +91,7 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
             className="mt-2.5 pr-8 font-display font-bold leading-[1.05] text-navy"
             style={{ fontSize: 'clamp(1.5rem, 5.5vw, 1.95rem)', letterSpacing: '-0.02em' }}
           >
-            Vous ne payez que{' '}
-            <span className="italic font-medium text-amber-deep">la moitié.</span>
+            Vous ne payez que la moitié.
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ink-mid">
             Le batch cooking à domicile est éligible au crédit d&apos;impôt Service à la
@@ -106,17 +107,17 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
           <div className="flex items-stretch gap-3 rounded-2xl bg-amber-soft/50 p-4">
             <div className="flex-1">
               <p className="text-xs text-ink-mid">Une session à</p>
-              <p className="mt-0.5 font-display text-2xl font-bold leading-none text-ink-soft line-through decoration-ink-soft/50">
+              <p className="tabular-nums mt-0.5 font-display text-2xl font-bold leading-none text-ink-soft line-through decoration-ink-soft/50">
                 150 €
               </p>
             </div>
-            <ArrowRight className="mt-4 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+            <ArrowRight className="mt-4 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
             <div className="flex-1">
               <p className="text-xs text-ink-mid">Sur votre compte</p>
-              <p className="mt-0.5 font-display text-2xl font-bold leading-none text-navy">75 €</p>
+              <p className="tabular-nums mt-0.5 font-display text-2xl font-bold leading-none text-navy">75 €</p>
             </div>
           </div>
-          <p className="mt-2.5 text-xs leading-relaxed text-ink-soft">
+          <p className="tabular-nums mt-2.5 text-xs leading-relaxed text-ink-soft">
             L&apos;Urssaf verse les 75 € restants directement à Lab&apos;s Food.
           </p>
 
@@ -144,7 +145,7 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs italic text-ink-soft">
+            <p className="mt-4 text-xs text-ink-soft">
               Sans réponse de votre part sous 48 h, la demande est automatiquement validée.
             </p>
           </section>
@@ -167,9 +168,9 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
 
             <div className="mt-4 rounded-2xl bg-cream-soft p-4 text-[13px] leading-relaxed text-ink-mid">
               <p>
-                <strong className="font-semibold text-navy">Plafond annuel :</strong> 12 000 € de
+                <strong className="tabular-nums font-semibold text-navy">Plafond annuel :</strong> 12 000 € de
                 dépenses par foyer fiscal, soit jusqu&apos;à{' '}
-                <strong className="font-semibold text-navy">6 000 € de réduction</strong>. Majoré
+                <strong className="tabular-nums font-semibold text-navy">6 000 € de réduction</strong>. Majoré
                 de 1 500 € par enfant à charge ou personne de plus de 65 ans (plafond maximum
                 15 000 €).
               </p>
@@ -177,7 +178,7 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
                 href="https://www.impots.gouv.fr/portail/particulier/emploi-domicile"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2.5 inline-flex items-center gap-1 font-semibold text-navy underline underline-offset-2 hover:text-amber-deep"
+                className="mt-2.5 inline-flex items-center gap-1 font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
               >
                 Détails sur impots.gouv.fr
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
@@ -196,7 +197,7 @@ export default function AvantageFiscalModal({ isOpen, onClose }: Props) {
               height={100}
               className="h-5 w-auto"
             />
-            <p className="mt-1.5 hidden text-[11px] leading-snug text-ink-soft sm:block">
+            <p className="mt-1.5 hidden text-xs leading-snug text-ink-soft sm:block">
               On vous guide dans l&apos;activation lors de la première session.
             </p>
           </div>

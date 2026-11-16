@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import { fade } from '@/lib/motion'
 import * as Dialog from '@radix-ui/react-dialog'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import {
   CalendarCheck,
   CalendarDays,
@@ -99,7 +101,7 @@ function useLangueLabels(codes: string[]): string {
 
 function LanguesChip({ codes }: { codes: string[] }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
+    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
       <Languages className="h-3 w-3" aria-hidden /> {useLangueLabels(codes)}
     </span>
   )
@@ -108,7 +110,7 @@ function LanguesChip({ codes }: { codes: string[] }) {
 function LanguesLigne({ codes }: { codes: string[] }) {
   return (
     <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-      <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+      <Languages className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
       Parle {useLangueLabels(codes)}
     </p>
   )
@@ -466,7 +468,7 @@ function SemaineChamp({ filters }: { filters: MenuFilters }) {
           aria-haspopup="dialog"
           className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
         >
-          <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+          <CalendarDays className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-navy">
               {periodeCourte(choisie.from, choisie.to)}
@@ -603,7 +605,7 @@ function MoisChamp({ filters }: { filters: MenuFilters }) {
           aria-live="polite"
           className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
         >
-          <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+          <CalendarDays className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-navy first-letter:uppercase">
               {moisLabel(mois)}
@@ -789,7 +791,7 @@ export function MenuFilterSidebar({
             <button
               type="button"
               onClick={filters.reset}
-              className="text-xs font-semibold text-terra underline underline-offset-4"
+              className="hit text-xs font-semibold text-amber-ink underline underline-offset-4"
             >
               Tout effacer
             </button>
@@ -817,7 +819,7 @@ export function MenuFilterButton({
       <SlidersHorizontal className="h-4 w-4" aria-hidden />
       Filtrer les cartes
       {n > 0 && (
-        <span className="rounded-full bg-terra px-1.5 text-[11px] font-bold text-white">{n}</span>
+        <span className="rounded-full bg-terra px-1.5 text-xs font-bold text-white">{n}</span>
       )}
     </button>
   )
@@ -850,7 +852,7 @@ export function MenuFilterDrawer({
             </div>
             <Dialog.Close
               aria-label="Fermer les filtres"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>
@@ -880,14 +882,56 @@ export function MenuFilterDrawer({
   )
 }
 
-/** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
-export function MenusLoading() {
+/**
+ * Le squelette d'une carte : mêmes zones que `MenuCard` (en-tête chef, titre,
+ * trois plats, pastilles, pied), pour que la grille ne bouge pas à l'arrivée.
+ */
+function MenuCardSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-[26rem] animate-pulse rounded-2xl bg-paper" />
+    <SkeletonCard className="flex flex-col p-0">
+      <div className="flex items-start gap-4 p-5 pb-4">
+        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
+        <div className="flex-1 space-y-2 pt-1">
+          <Skeleton className="h-5 w-40 max-w-full" />
+          <Skeleton className="h-4 w-56 max-w-full" />
+        </div>
+      </div>
+      <div className="px-5">
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="mt-2 h-5 w-full" />
+        <Skeleton className="mt-1 h-5 w-4/5" />
+      </div>
+      <div className="mt-4 space-y-px px-5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-2 py-2">
+            <Skeleton className="h-12 w-12 shrink-0 rounded-lg" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-3/5" />
+              <Skeleton className="h-3.5 w-2/5" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-1.5 px-5">
+        <Skeleton className="h-6 w-32 rounded-full" />
+        <Skeleton className="h-6 w-28 rounded-full" />
+      </div>
+      <div className="mt-5 flex items-center justify-between gap-4 border-t border-[rgba(31,42,55,0.08)] px-5 py-5">
+        <Skeleton className="h-10 w-28" />
+        <Skeleton className="h-10 w-36 rounded-full" />
+      </div>
+    </SkeletonCard>
+  )
+}
+
+/** Le squelette d'attente : quatre cartes, dans la grille réelle (`xl:grid-cols-2`, comme les cartes). */
+export function MenusLoading({ className }: { className?: string }) {
+  return (
+    <SkeletonGroup className={cn('grid grid-cols-1 gap-6 xl:grid-cols-2', className)}>
+      {[0, 1, 2, 3].map((i) => (
+        <MenuCardSkeleton key={i} />
       ))}
-    </div>
+    </SkeletonGroup>
   )
 }
 
@@ -1049,9 +1093,8 @@ export function MenuCard({
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.06, 0.24), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      // fondu : la carte arrive en 180 ms, sans décalage
+      {...fade}
       className="flex flex-col overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper transition-colors hover:border-[rgba(31,42,55,0.18)]"
     >
       {/*
@@ -1078,14 +1121,14 @@ export function MenuCard({
               {menu.chef.displayName}
             </h2>
             {menu.chef.newcomer && (
-              <span className="rounded-full bg-mint px-2 py-0.5 text-[10px] font-semibold text-mint-ink">
+              <span className="rounded-full bg-mint px-2 py-0.5 text-xs font-semibold text-mint-ink">
                 Nouveau
               </span>
             )}
             {/* Le CESU préfinancé change ce que le client paiera réellement :
                 il se voit dès la carte, pas au moment de payer. */}
             {menu.chef.acceptsCesu && (
-              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[10px] font-semibold text-amber-deep">
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-ink">
                 CESU accepté
               </span>
             )}
@@ -1159,13 +1202,13 @@ export function MenuCard({
         {menu.coveredDiets.map((d) => (
           <span
             key={d}
-            className="rounded-full bg-mint/60 px-2.5 py-1 text-[11px] font-medium text-mint-ink"
+            className="rounded-full bg-mint/60 px-2.5 py-1 text-xs font-medium text-mint-ink"
           >
             Toute la carte {dietLabel(d).toLowerCase()}
           </span>
         ))}
         {menu.shoppingIncluded && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
+          <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
             <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
           </span>
         )}
@@ -1226,7 +1269,7 @@ function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
       className={`shrink-0 whitespace-nowrap text-xs leading-none ${
-        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-terra' : 'text-ink-soft'
+        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-amber-ink' : 'text-ink-soft'
       }`}
     >
       {placesLabel(slotsLeft)}
@@ -1308,7 +1351,7 @@ export function MenuDialog({
                 </div>
                 <Dialog.Close
                   aria-label="Fermer"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <X className="h-4 w-4" />
                 </Dialog.Close>
@@ -1436,7 +1479,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
         {card.chef.sessionsDone > 0
           ? `${card.chef.sessionsDone} session${card.chef.sessionsDone > 1 ? 's' : ''} réalisée${card.chef.sessionsDone > 1 ? 's' : ''}`
           : 'Aucune session pour l’instant'}
-        {card.chef.newcomer && <span className="text-terra"> · nouveau sur Lab’s Food</span>}
+        {card.chef.newcomer && <span className="text-amber-ink"> · nouveau sur Lab’s Food</span>}
       </p>
 
       {card.chef.rating != null ? (
@@ -1460,7 +1503,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
       <dl className="mt-5 space-y-2.5 border-t border-[rgba(31,42,55,0.08)] pt-4 text-[13px]">
         {faits.map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex gap-2">
-            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
             <dt className="shrink-0 text-ink-soft">{label}&nbsp;:</dt>
             <dd className="min-w-0 text-navy">{value}</dd>
           </div>
@@ -1473,13 +1516,13 @@ function ChefPanel({ card }: { card: WeekCard }) {
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
           {card.chef.acceptsCesu && (
             <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-              <Wallet className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+              <Wallet className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
               Accepte le CESU préfinancé
             </p>
           )}
           {card.chef.badges.length > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
               {card.chef.badges.join(', ')}
             </p>
           )}
@@ -1491,8 +1534,8 @@ function ChefPanel({ card }: { card: WeekCard }) {
 
       {(chef?.menus?.length ?? 0) > 1 && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            <Globe2 className="h-3.5 w-3.5 text-amber" aria-hidden /> Ses autres cartes
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft">
+            <Globe2 className="h-3.5 w-3.5 text-amber-ink" aria-hidden /> Ses autres cartes
           </p>
           <ul className="space-y-1 text-[13px] text-ink-mid">
             {chef?.menus
@@ -1570,38 +1613,38 @@ function DishRow({
               .map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] text-navy"
+                  className="rounded-full bg-cream-soft px-2 py-0.5 text-xs text-navy"
                 >
                   {DIET_LABEL[tag] ?? dietLabel(tag)}
                 </span>
               ))}
             {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
-              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-[10px] text-mint-ink">
+              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-xs text-mint-ink">
                 {seasonsLine(dish.seasonMonths ?? null)}
               </span>
             )}
             {(dish.profiles ?? []).slice(0, 2).map((p) => (
               <span
                 key={p}
-                className="rounded-full bg-amber-soft/60 px-2 py-0.5 text-[10px] text-[#8B6200]"
+                className="rounded-full bg-amber-soft/60 px-2 py-0.5 text-xs text-[#8B6200]"
               >
                 {refLabel(profiles, p)}
               </span>
             ))}
             {/* Toute la ligne est un bouton : pas de popover à l'intérieur. */}
             {dish.computedDiets && dish.computedDiets.length > 0 && (
-              <span className="text-[10px] italic text-ink-soft">
+              <span className="text-xs text-ink-soft">
                 régimes selon les produits achetés
               </span>
             )}
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
             {dish.allergens.length > 0 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700">
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
                 {dish.allergens.join(', ')}
               </span>
             ) : dish.allergensNone ? (
-              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[10px] text-mint-ink">
+              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs text-mint-ink">
                 Sans allergène déclaré
               </span>
             ) : null}

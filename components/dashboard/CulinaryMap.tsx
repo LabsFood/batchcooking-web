@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { motion } from 'framer-motion'
+import { fade } from '@/lib/motion'
 import { Globe2, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { geoNaturalEarth1, geoPath, geoGraticule10 } from 'd3-geo'
 import { feature } from 'topojson-client'
@@ -76,11 +77,7 @@ export default function CulinaryMap() {
         onClick={() => setOpen(true)}
         className="group relative flex w-full items-center gap-4 overflow-hidden rounded-3xl bg-navy p-5 text-left text-white transition-shadow hover:shadow-[0_24px_50px_-24px_rgba(31,42,55,0.7)]"
       >
-        <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber/15 blur-3xl" />
-
-        {/* Le point qui pulse : c'est lui qui donne envie d'ouvrir. */}
         <span className="relative flex h-12 w-12 shrink-0 items-center justify-center" aria-hidden>
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber/40 motion-reduce:animate-none" />
           <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber text-navy">
             <Globe2 className="h-5 w-5" />
           </span>
@@ -188,7 +185,7 @@ function MapDialog({
             </div>
             <Dialog.Close
               aria-label="Fermer la carte"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="hit flex h-9 w-9 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>
@@ -324,14 +321,14 @@ function MapDialog({
 
               {selected && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  // fondu : le détail du pays apparaît en 180 ms
+                  {...fade}
                   className="mt-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10"
                 >
                   <p className="flex items-center gap-2 font-display text-base font-bold">
                     <span className="text-lg leading-none">{selected.flag}</span> {selected.name}
                   </p>
-                  <p className="mt-2 text-[11px] uppercase tracking-wide text-white/45">Plats découverts</p>
+                  <p className="mt-2 text-xs uppercase tracking-wide text-white/45">Plats découverts</p>
                   <ul className="mt-1.5 space-y-1">
                     {selected.dishes.map((d) => (
                       <li key={d} className="rounded-lg bg-white/5 px-2.5 py-1.5 text-[13px] text-white/85">
@@ -342,7 +339,7 @@ function MapDialog({
                 </motion.div>
               )}
 
-              <p className="mt-4 text-[11px] leading-relaxed text-white/40">
+              <p className="mt-4 text-xs leading-relaxed text-white/40">
                 Un pays se colore dès qu&apos;un de ses plats entre dans votre frigo. Il reste{' '}
                 {total - explored} pays à goûter.
               </p>
@@ -369,7 +366,7 @@ function ZoomButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      className="hit flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
     >
       {children}
     </button>

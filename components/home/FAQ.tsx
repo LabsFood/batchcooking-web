@@ -1,16 +1,15 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Minus, Mail, ArrowUpRight } from 'lucide-react'
 import { FAQ_ITEMS, FAQ_CATEGORIES, type FAQItem } from '@/lib/faq'
+import { DURATION, EASE_IN, EASE_OUT, fadeUpInView } from '@/lib/motion'
 
 // « Toutes » est l'absence de filtre ; les autres catégories viennent de la bibliothèque FAQ.
 const FILTERS = [{ id: 'all', label: 'Toutes' }, ...FAQ_CATEGORIES]
 
 export default function FAQ() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-80px' })
   const [openId, setOpenId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string>('all')
 
@@ -21,20 +20,17 @@ export default function FAQ() {
   const toggle = (id: string) => setOpenId(openId === id ? null : id)
 
   return (
-    <section id="faq" className="section-padding section-paper" ref={ref}>
+    <section id="faq" className="section-padding section-paper">
       <div className="container-xl">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Left column */}
           <motion.div
-            initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
-            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : se pose en 240 ms
+            {...fadeUpInView()}
             className="lg:sticky lg:top-32 lg:self-start"
           >
-            <p className="eyebrow mb-5">FAQ</p>
             <h2 className="h-section mb-6">
-              Questions <span className="accent">fréquentes</span>
+              Questions fréquentes
             </h2>
             <p className="text-ink-mid leading-relaxed mb-8">
               Vous avez d&apos;autres questions ? Notre équipe est disponible
@@ -53,10 +49,10 @@ export default function FAQ() {
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`text-xs px-4 py-2 rounded-full border transition-all duration-200 font-medium ${
+                    className={`text-xs px-4 py-2 rounded-full border transition-colors duration-150 active:scale-[0.97] font-medium ${
                       activeCategory === cat.id
                         ? 'border-terra bg-terra text-white'
-                        : 'border-[rgba(31,26,20,0.12)] text-ink-mid hover:border-terra hover:text-terra'
+                        : 'border-[rgba(31,26,20,0.12)] text-ink-mid hover:border-terra hover:text-amber-ink'
                     }`}
                   >
                     {cat.label}
@@ -69,24 +65,22 @@ export default function FAQ() {
           {/* FAQ list */}
           <div className="lg:col-span-2">
             <motion.div
-              initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              // slow-out : se pose en 240 ms
+              {...fadeUpInView(0.08)}
               className="space-y-3"
             >
               <AnimatePresence mode="popLayout">
-                {filtered.map((item: FAQItem, i) => {
+                {filtered.map((item: FAQItem) => {
                   const isOpen = openId === item.id
                   return (
                     <motion.div
                       key={item.id}
                       layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.3, delay: i * 0.04 }}
-                      className={`rounded-2xl border transition-colors duration-300 overflow-hidden ${
+                      // slow-out : la question arrive en 180 ms, repart en 120 ms
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
+                      exit={{ opacity: 0, transition: { duration: DURATION.instant, ease: EASE_IN } }}
+                      className={`rounded-2xl border transition-colors duration-200 overflow-hidden ${
                         isOpen
                           ? 'border-terra bg-cream'
                           : 'border-[rgba(31,26,20,0.08)] bg-paper hover:border-[rgba(217,105,65,0.4)]'
@@ -97,11 +91,11 @@ export default function FAQ() {
                         className="w-full flex items-center justify-between gap-6 px-6 py-5 text-left"
                       >
                         <span className={`text-base font-semibold transition-colors duration-200 ${
-                          isOpen ? 'text-terra' : 'text-navy'
+                          isOpen ? 'text-amber-ink' : 'text-navy'
                         }`}>
                           {item.question}
                         </span>
-                        <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-200 ${
                           isOpen
                             ? 'bg-terra text-white'
                             : 'bg-cream-soft text-ink-mid'
@@ -116,10 +110,11 @@ export default function FAQ() {
                       <AnimatePresence>
                         {isOpen && (
                           <motion.div
+                            // slow-out : la réponse se déplie en 240 ms
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                            transition={{ duration: DURATION.base, ease: EASE_OUT }}
                             className="overflow-hidden"
                           >
                             <div className="px-6 pb-6 pr-16">
@@ -134,7 +129,7 @@ export default function FAQ() {
                                           href={source.href}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="inline-flex items-start gap-1.5 text-sm text-terra underline underline-offset-2 transition-colors hover:text-navy"
+                                          className="inline-flex items-start gap-1.5 text-sm text-amber-ink underline underline-offset-2 transition-colors hover:text-navy"
                                         >
                                           <span>{source.label}</span>
                                           <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -701,7 +701,7 @@ export default function AnswerSections({
             <ul className="space-y-2.5">
               {zonesLues.map((z, i) => (
                 <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-navy">
                       {z.regionLabel ?? z.regionCode}
@@ -724,7 +724,7 @@ export default function AnswerSections({
       {!modifiable && app?.status === 'approved' && (
         <p className="px-1 text-[13px] leading-relaxed text-ink-soft">
           Besoin de corriger une de ces réponses ? Écrivez-nous depuis la{' '}
-          <Link href="/espace-chef/messagerie" className="font-semibold text-terra underline">
+          <Link href="/espace-chef/messagerie" className="font-semibold text-amber-ink underline">
             messagerie
           </Link>
           .

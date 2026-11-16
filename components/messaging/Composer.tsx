@@ -197,7 +197,7 @@ export default function Composer({
               type="button"
               key={text}
               onClick={() => setDraft(text)}
-              className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-ink-mid transition-colors hover:bg-amber-soft hover:text-amber-deep"
+              className="rounded-full bg-cream-soft px-2.5 py-1 text-xs text-ink-mid transition-colors hover:bg-amber-soft hover:text-amber-ink"
             >
               {text}
             </button>

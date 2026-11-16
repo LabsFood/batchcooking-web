@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ChefHat, Flame, Info, MessageSquareQuote, Refrigerator } from 'lucide-react'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import {
   longDate,
   useMissionRecipeSheet,
@@ -39,11 +40,21 @@ export default function ConservationPage() {
       </div>
 
       {q.isPending ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-48 animate-pulse rounded-3xl bg-cream-soft" />
-          ))}
-        </div>
+        // Une prestation : sa date, puis des fiches à deux lignes (réchauffage, conservation).
+        <SkeletonGroup>
+          <Skeleton className="mb-3 h-5 w-56 bg-paper" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {[0, 1].map((i) => (
+              <SkeletonCard key={i} className="rounded-3xl lg:p-6">
+                <Skeleton className="mb-4 h-7 w-40" />
+                <div className="space-y-3">
+                  <Skeleton className="h-[4.25rem] rounded-2xl" />
+                  <Skeleton className="h-[4.25rem] rounded-2xl" />
+                </div>
+              </SkeletonCard>
+            ))}
+          </div>
+        </SkeletonGroup>
       ) : q.isError ? (
         <p className="card-shell rounded-3xl p-6 text-sm text-ink-mid">
           Vos fiches n’ont pas pu être chargées. Réessayez dans un instant.
@@ -76,7 +87,7 @@ function Prestation({ booking }: { booking: Booking }) {
         {longDate(booking.bookingDate ?? booking.startsAt)}
         {booking.chef?.displayName && (
           <span className="inline-flex items-center gap-1 font-normal text-ink-mid">
-            <ChefHat className="h-3.5 w-3.5 text-amber" aria-hidden /> {booking.chef.displayName}
+            <ChefHat className="h-3.5 w-3.5 text-amber-ink" aria-hidden /> {booking.chef.displayName}
           </span>
         )}
       </h2>
@@ -105,7 +116,10 @@ function DishCare({ bookingId, meal }: { bookingId: string; meal: BookingMeal })
       </h3>
 
       {sheet.isPending ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
+        <SkeletonGroup className="space-y-3">
+          <Skeleton className="h-[4.25rem] rounded-2xl" />
+          <Skeleton className="h-[4.25rem] rounded-2xl" />
+        </SkeletonGroup>
       ) : sheet.isError || !f ? (
         <p className="text-sm text-ink-mid">La fiche de ce plat n’est pas disponible.</p>
       ) : (
@@ -119,7 +133,7 @@ function DishCare({ bookingId, meal }: { bookingId: string; meal: BookingMeal })
           {(notes?.reheating || notes?.storage) && (
             <div className="rounded-xl border border-amber/30 bg-amber-soft/40 px-3.5 py-2.5">
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-navy">
-                <MessageSquareQuote className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                <MessageSquareQuote className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
                 Le mot de votre batch cooker, pour cette prestation
               </p>
               {notes.reheating && (
@@ -153,9 +167,9 @@ function Ligne({
 }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl bg-cream-soft p-3.5">
-      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${texte ? 'text-terra' : 'text-ink-soft'}`} aria-hidden />
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${texte ? 'text-amber-ink' : 'text-ink-soft'}`} aria-hidden />
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-ink-soft">{titre}</p>
+        <p className="text-xs uppercase tracking-wide text-ink-soft">{titre}</p>
         <p className={`text-sm ${texte ? 'font-semibold text-navy' : 'text-ink-soft'}`}>
           {texte ?? 'Non précisé sur la fiche.'}
         </p>

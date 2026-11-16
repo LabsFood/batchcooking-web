@@ -5,6 +5,7 @@ import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { euros, shortDate } from '@/lib/api/bookings'
 import { apiMessage } from '@/lib/api/messages'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useDownloadPaymentInvoice, usePaymentInvoices } from '@/lib/api/payment-invoices'
 
 type Side = 'client' | 'chef'
@@ -55,7 +56,11 @@ export function PaymentInvoiceList({
 
   // Sans `emptyText`, rien ne s'annonce : la plupart des commandes n'ont pas de facture.
   if (invoices.isPending) {
-    return emptyText ? <div className="h-14 animate-pulse rounded-xl bg-cream-soft" /> : null
+    return emptyText ? (
+      <SkeletonGroup>
+        <Skeleton className="h-14 rounded-xl" />
+      </SkeletonGroup>
+    ) : null
   }
   if (invoices.isError) {
     return <p className="text-[13px] text-ink-soft">{apiMessage(invoices.error)}</p>
@@ -72,12 +77,12 @@ export function PaymentInvoiceList({
   return (
     <div>
       {heading && (
-        <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+        <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
           {heading}
           <PaymentInvoicesInfo side={side} />
         </p>
       )}
-      <ul className="space-y-2">
+      <ul className="tabular-nums space-y-2">
         {rows.map((f) => {
           const enCours = download.isPending && download.variables === f.id
           const detail = [
@@ -108,7 +113,7 @@ export function PaymentInvoiceList({
                   <Receipt className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-navy">
+                  <span className="block truncate text-[13px] font-semibold tabular-nums text-navy">
                     Facture {f.invoiceNumber}
                   </span>
                   <span className="block text-xs text-ink-soft">{detail}</span>

@@ -22,8 +22,8 @@ export default function BrandPage() {
               lineHeight: 1,
             }}
           >
-            Charte graphique<br />
-            <span className="text-[#F39C12] italic">Lab&apos;s Food</span>
+            Charte graphique{' '}
+            <span className="text-[#F39C12]">Lab&apos;s Food</span>
           </h1>
           <p className="text-white/60 text-base max-w-xl font-body leading-relaxed">
             Référence officielle pour l&apos;identité visuelle du groupe Lab&apos;s Food.

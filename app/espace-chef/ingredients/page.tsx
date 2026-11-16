@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, Loader2, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { ApiError } from '@/lib/api/client'
@@ -69,7 +70,9 @@ export default function MesIngredientsPage() {
 
       <Card title={`Ma liste${mine.data ? ` (${mine.data.length})` : ''}`}>
         {mine.isPending && approved ? (
-          <div className="h-24 animate-pulse rounded-xl bg-cream-soft" />
+          <SkeletonGroup>
+            <Skeleton className="h-24 rounded-xl" />
+          </SkeletonGroup>
         ) : mine.isError ? (
           <p role="alert" className="text-sm text-red-700">
             {messageOf(mine.error)}

@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   ChefHat,
   Clock,
   Wallet,
-  TrendingUp,
-  Sparkles,
+  Soup,
   ArrowRight,
   ChefHat as ChefIcon,
   Salad,
@@ -15,6 +13,7 @@ import {
   Sprout,
 } from 'lucide-react'
 import Link from 'next/link'
+import { Skeleton } from '@/components/shared/Skeleton'
 import {
   bookingPortions,
   euros,
@@ -104,14 +103,16 @@ export default function StatistiquesPage() {
         <KpiTile
           Icon={ChefHat}
           label="Sessions"
-          value={query.isPending ? '…' : terminees.length}
+          value={terminees.length}
+          loading={query.isPending}
           sub="réalisées depuis ton inscription"
           tone="amber"
         />
         <KpiTile
-          Icon={Sparkles}
+          Icon={Soup}
           label="Portions cuisinées"
-          value={query.isPending ? '…' : portions}
+          value={portions}
+          loading={query.isPending}
           sub="fraîches & maison"
           tone="mint"
         />
@@ -119,6 +120,7 @@ export default function StatistiquesPage() {
           Icon={Clock}
           label="Heures gagnées"
           value={`${terminees.length * HEURES_PAR_SESSION} h`}
+          loading={query.isPending}
           sub={`à faire autre chose · ${HEURES_PAR_SESSION} h par session`}
           tone="navy"
         />
@@ -126,6 +128,7 @@ export default function StatistiquesPage() {
           Icon={Wallet}
           label="Crédit d’impôt"
           value={euros(credit) ?? '0 €'}
+          loading={query.isPending}
           sub="cumulé sur vos prestations"
           tone="amber"
         />
@@ -133,22 +136,16 @@ export default function StatistiquesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bars chart */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+        <section
           className="lg:col-span-2 bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]"
         >
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="eyebrow">Activité</p>
-              <h3 className="font-display text-xl font-bold text-navy mt-1">
+              <h3 className="font-display text-xl font-bold text-navy">
                 Plats / semaine
               </h3>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-mint/40 px-3 py-1 text-xs font-semibold text-mint-ink">
-              <TrendingUp className="h-3.5 w-3.5" /> 7 dernières semaines
-            </span>
+            <span className="text-xs text-ink-soft">7 dernières semaines</span>
           </div>
 
           <div className="h-44 flex items-end gap-2 lg:gap-3">
@@ -156,43 +153,36 @@ export default function StatistiquesPage() {
               const h = Math.round((w.meals / max) * 100)
               return (
                 <div key={w.week} className="flex flex-1 flex-col items-center gap-2">
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${h}%` }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                  <div
                     className="w-full rounded-t-2xl bg-gradient-to-b from-amber to-amber-deep relative"
-                    style={{ minHeight: w.meals === 0 ? 0 : 8 }}
+                    style={{ height: `${h}%`, minHeight: w.meals === 0 ? 0 : 8 }}
                   >
                     {w.meals > 0 && (
                       <span className="absolute -top-6 left-1/2 -translate-x-1/2 font-display text-sm font-bold text-navy">
                         {w.meals}
                       </span>
                     )}
-                  </motion.div>
-                  <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-soft">
+                  </div>
+                  <span className="text-xs uppercase tracking-[0.12em] text-ink-soft">
                     {w.week}
                   </span>
                 </div>
               )
             })}
           </div>
-        </motion.section>
+        </section>
 
         {/* Reserve next session CTA */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.05 }}
+        <section
           className="bg-navy text-white rounded-3xl p-6 relative overflow-hidden"
         >
-          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber/30 blur-3xl pointer-events-none" />
           <div className="relative">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-mono text-amber mb-2 flex items-center gap-1.5">
+            <p className="text-xs uppercase tracking-[0.12em] text-amber mb-2 flex items-center gap-1.5">
               <ChefIcon className="w-3.5 h-3.5" /> Prêt·e à relancer ?
             </p>
             <p className="font-display text-2xl font-bold leading-tight">
-              Une nouvelle semaine,<br />
-              <span className="text-amber italic font-medium">une cuisine nouvelle.</span>
+              Une nouvelle semaine,{' '}
+              <span className="text-amber">une cuisine nouvelle.</span>
             </p>
             <p className="text-white/65 text-sm mt-3 leading-relaxed">
               Continue d&apos;explorer le monde via tes plats. Le menu de la semaine est
@@ -206,14 +196,13 @@ export default function StatistiquesPage() {
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-        </motion.section>
+        </section>
       </div>
 
       {/* Highlights */}
       <section className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
         <div className="mb-5">
-          <p className="eyebrow">Bilan</p>
-          <h3 className="font-display text-xl font-bold text-navy mt-1">
+          <h3 className="font-display text-xl font-bold text-navy">
             Ce que tu gagnes vraiment
           </h3>
           <p className="text-xs text-ink-mid mt-1">
@@ -246,34 +235,38 @@ function KpiTile({
   value,
   sub,
   tone,
+  loading,
 }: {
   Icon: any
   label: string
   value: string | number
   sub: string
+  /** Les chiffres dépendent des sessions : tant qu'elles arrivent, un bloc à la hauteur du nombre. */
+  loading?: boolean
   tone: 'amber' | 'mint' | 'navy'
 }) {
   const styles =
     tone === 'amber'
-      ? 'bg-amber-soft text-amber-deep'
+      ? 'bg-amber-soft text-amber-ink'
       : tone === 'mint'
         ? 'bg-mint text-mint-ink'
         : 'bg-navy text-amber'
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
+    <div
       className="card-shell rounded-3xl p-5"
     >
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles} mb-4`}>
         <Icon className="w-4 h-4" />
       </div>
-      <p className="font-display text-3xl font-bold text-navy">{value}</p>
-      <p className="text-[11px] uppercase tracking-[0.16em] text-ink-soft mt-1.5 font-semibold">
+      {loading ? (
+        <Skeleton className="h-9 w-20" />
+      ) : (
+        <p className="font-display text-3xl font-bold text-navy">{value}</p>
+      )}
+      <p className="text-xs uppercase tracking-[0.16em] text-ink-soft mt-1.5 font-semibold">
         {label}
       </p>
       <p className="text-xs text-ink-soft mt-1">{sub}</p>
-    </motion.div>
+    </div>
   )
 }

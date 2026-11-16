@@ -57,7 +57,7 @@ export default function PresenceCarte() {
 
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber-soft/60 p-4">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
       <div className="min-w-0 text-sm">
         <p className="font-semibold text-navy">
           Vous n’apparaissez pas sur la carte de cette semaine

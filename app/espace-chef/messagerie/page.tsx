@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import ChefPage from '@/components/chef/ChefPage'
-import MessagingView from '@/components/messaging/MessagingView'
+import MessagingView, { MessagingSkeleton } from '@/components/messaging/MessagingView'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Messagerie.
@@ -16,7 +16,7 @@ export default function ChefMessagesPage() {
   return (
     <ChefPage title="Messagerie" subtitle="Un fil par client, plus le canal support.">
       {/* `useSearchParams` (fil ouvert dans l'URL) impose une frontière Suspense. */}
-      <Suspense fallback={null}>
+      <Suspense fallback={<MessagingSkeleton />}>
         <MessagingView
           placeholder="Écrire un message…"
           emptyText="Un fil s'ouvre avec chaque client dès qu'une prestation est réservée. En attendant, le support est joignable ici."

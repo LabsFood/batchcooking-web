@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
-import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users, X } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Users, Wallet, X } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
 import DatePicker from '@/components/shared/DatePicker'
@@ -72,7 +72,21 @@ export default function ChefOffersPage() {
 
         <Card title={`Demandes à traiter (${toAnswer.length})`}>
           {quotes.isPending ? (
-            <Empty text="Chargement…" />
+            // Deux demandes en grille, comme `RequestItem` : titre + détail, pastilles, action.
+            <SkeletonGroup className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {[0, 1].map((i) => (
+                <div key={i} className="rounded-2xl border border-transparent p-4">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="mt-1 h-4 w-1/2" />
+                  <div className="mt-3 flex gap-1.5">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="mt-3 h-5 w-full" />
+                  <Skeleton className="mt-4 h-10 w-36 rounded-full" />
+                </div>
+              ))}
+            </SkeletonGroup>
           ) : quotes.isError ? (
             <div className="py-8 text-center text-sm text-ink-soft">
               {quotes.error instanceof ApiError && quotes.error.status === 403
@@ -118,7 +132,7 @@ export default function ChefOffersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[620px]">
                 <thead>
-                  <tr className="text-left font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
+                  <tr className="text-left text-xs uppercase tracking-[0.12em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
                     <th className="pb-2 font-normal">Client</th>
                     <th className="pb-2 font-normal">Demande</th>
                     <th className="pb-2 font-normal">Net</th>
@@ -165,15 +179,15 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.cuisine}</span>
-        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.mealsCount} plats</span>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.cuisine}</span>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.mealsCount} plats</span>
         {quote.diet.map((d) => (
-          <span key={d} className="text-[11px] px-2.5 py-1 rounded-full bg-mint text-mint-ink">
+          <span key={d} className="text-xs px-2.5 py-1 rounded-full bg-mint text-mint-ink">
             {d}
           </span>
         ))}
         {quote.allergies.map((a) => (
-          <span key={a} className="text-[11px] px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+          <span key={a} className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700">
             ⚠ {a}
           </span>
         ))}
@@ -196,13 +210,13 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
           value={quote.desiredDate ? dayLabel(quote.desiredDate) : '—'}
         />
         <Mini
-          Icon={quote.budgetCents ? Sparkles : MapPin}
+          Icon={quote.budgetCents ? Wallet : MapPin}
           label={quote.budgetCents ? 'Budget' : 'Lieu'}
           value={quote.budgetCents ? centsToEuros(quote.budgetCents) : (quote.address.city ?? '—')}
         />
       </div>
       {quote.budgetCents != null && quote.address.city && (
-        <p className="mt-2 text-[11px] text-ink-soft inline-flex items-center gap-1">
+        <p className="mt-2 text-xs text-ink-soft inline-flex items-center gap-1">
           <MapPin className="w-3 h-3" /> {quote.address.postalCode} {quote.address.city}
         </p>
       )}
@@ -240,7 +254,7 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
               Annuler
             </button>
           </div>
-          <p className="text-[11px] text-ink-soft">
+          <p className="text-xs text-ink-soft">
             La demande quittera votre liste : l’équipe la confiera à un autre batch cooker.
           </p>
         </div>
@@ -251,7 +265,7 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
           </button>
           <button
             onClick={() => setDeclining(true)}
-            className="text-xs font-semibold text-ink-soft hover:text-red-700"
+            className="hit text-xs font-semibold text-ink-soft hover:text-red-700"
           >
             Décliner
           </button>
@@ -332,10 +346,8 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
   }
 
   return (
-    <motion.div
+    <div
       ref={panneau}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
       className="scroll-mt-24"
     >
       <Card
@@ -386,7 +398,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft"
+                    className="tabular-nums pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft"
                   >
                     €
                   </span>
@@ -486,7 +498,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   maxLength={2000}
                   className="input-base resize-y"
                 />
-                <p className="mt-1 text-right text-[11px] tabular-nums text-ink-soft">
+                <p className="mt-1 text-right text-xs tabular-nums text-ink-soft">
                   {conditions.length} / 2 000
                 </p>
               </Champ>
@@ -496,7 +508,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
             <aside className="h-fit rounded-2xl bg-navy p-5 text-white lg:sticky lg:top-24">
               <h3 className="font-display text-base font-bold text-white">Ce que dit cette offre</h3>
 
-              <dl className="mt-4">
+              <dl className="tabular-nums mt-4">
                 <Row label="Votre net perçu" value={centsToEuros(netCents)} strong />
                 {preview && rules.data && (
                   <Row
@@ -548,7 +560,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                 Envoyer l&apos;offre
               </button>
 
-              <p className="mt-3 text-[11px] leading-relaxed text-white/60">
+              <p className="mt-3 text-xs leading-relaxed text-white/60">
                 La prestation est réglée après coup : {clientName} paie une fois qu’elle a
                 eu lieu, jamais à l’acceptation de l’offre.
               </p>
@@ -556,7 +568,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
           </div>
         )}
       </Card>
-    </motion.div>
+    </div>
   )
 }
 
@@ -630,7 +642,7 @@ function ConfirmedItem({ quote }: { quote: Quote }) {
       <div className="mt-3 space-y-1.5 text-xs text-ink-mid">
         {quote.booking && (
           <p className="flex items-center gap-2">
-            <CalendarDays className="w-3.5 h-3.5 text-terra" />
+            <CalendarDays className="w-3.5 h-3.5 text-amber-ink" />
             {new Date(quote.booking.startsAt).toLocaleString('fr-FR', {
               weekday: 'long',
               day: 'numeric',
@@ -642,22 +654,22 @@ function ConfirmedItem({ quote }: { quote: Quote }) {
           </p>
         )}
         <p className="flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5 text-terra" />
+          <MapPin className="w-3.5 h-3.5 text-amber-ink" />
           {[quote.address.line, quote.address.postalCode, quote.address.city].filter(Boolean).join(', ')}
         </p>
         {quote.client?.phone && (
           <p className="flex items-center gap-2">
-            <Phone className="w-3.5 h-3.5 text-terra" /> {quote.client.phone}
+            <Phone className="w-3.5 h-3.5 text-amber-ink" /> {quote.client.phone}
           </p>
         )}
         {quote.client?.email && (
           <p className="flex items-center gap-2">
-            <Mail className="w-3.5 h-3.5 text-terra" /> {quote.client.email}
+            <Mail className="w-3.5 h-3.5 text-amber-ink" /> {quote.client.email}
           </p>
         )}
       </div>
       {accepted?.netCents != null && (
-        <p className="mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
+        <p className="tabular-nums mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
       )}
     </li>
   )
@@ -675,8 +687,8 @@ function OfferRow({ quote, offerId }: { quote: Quote; offerId: string }) {
     <tr>
       <td className="py-3 font-semibold text-navy">{quote.client?.name ?? 'Client'}</td>
       <td className="py-3 text-ink-mid">{quote.title}</td>
-      <td className="py-3 font-semibold text-navy">{offer.netCents != null ? centsToEuros(offer.netCents) : '—'}</td>
-      <td className="py-3 text-xs text-ink-soft">
+      <td className="tabular-nums py-3 font-semibold text-navy">{offer.netCents != null ? centsToEuros(offer.netCents) : '—'}</td>
+      <td className="tabular-nums py-3 text-xs text-ink-soft">
         {active ? `jusqu'au ${dayLabel(offer.validUntil)}` : '—'}
       </td>
       <td className="py-3">
@@ -687,7 +699,7 @@ function OfferRow({ quote, offerId }: { quote: Quote; offerId: string }) {
           <button
             disabled={withdraw.isPending}
             onClick={() => withdraw.mutate({ quoteId: quote.id, offerId: offer.id })}
-            className="text-xs font-semibold text-ink-soft hover:text-red-700 disabled:opacity-60"
+            className="hit text-xs font-semibold text-ink-soft hover:text-red-700 disabled:opacity-60"
           >
             {withdraw.isError ? 'Réessayer' : 'Retirer'}
           </button>
@@ -727,9 +739,9 @@ function Row({
 function Mini({ Icon, label, value }: { Icon: typeof Users; label: string; value: string }) {
   return (
     <div>
-      <Icon className="w-3.5 h-3.5 text-terra mx-auto mb-1" />
+      <Icon className="w-3.5 h-3.5 text-amber-ink mx-auto mb-1" />
       <p className="text-xs font-bold text-navy">{value}</p>
-      <p className="text-[10px] uppercase tracking-wide text-ink-soft">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-ink-soft">{label}</p>
     </div>
   )
 }

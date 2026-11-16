@@ -4,7 +4,6 @@ import Link from 'next/link'
 
 import { Suspense, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
 import {
   AlertTriangle,
   CalendarClock,
@@ -18,10 +17,12 @@ import {
   RotateCw,
   Upload,
 } from 'lucide-react'
+import ChefPageSkeleton from '@/components/chef/ChefPageSkeleton'
 import ChefPage from '@/components/chef/ChefPage'
 import AnswerSections from '@/components/chef/dossier/AnswerSections'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
+import { SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import DocumentPreviewDialog, {
   type PreviewSource,
 } from '@/components/chef/DocumentPreviewDialog'
@@ -71,11 +72,11 @@ const FAMILY_ORDER: DocumentFamily[] = ['blocking', 'conditional', 'recommended'
 /** Un statut se lit : le point porte la couleur, le fond reste du papier. */
 const DOC_STYLE: Record<DocumentStatus, { dot: string; text: string }> = {
   missing: { dot: 'bg-ink-soft/40', text: 'text-ink-soft' },
-  submitted: { dot: 'bg-amber', text: 'text-amber-deep' },
-  reviewing: { dot: 'bg-amber', text: 'text-amber-deep' },
+  submitted: { dot: 'bg-amber', text: 'text-amber-ink' },
+  reviewing: { dot: 'bg-amber', text: 'text-amber-ink' },
   valid: { dot: 'bg-mint-deep', text: 'text-mint-ink' },
   rejected: { dot: 'bg-red-500', text: 'text-red-700' },
-  expiring: { dot: 'bg-terra', text: 'text-terra' },
+  expiring: { dot: 'bg-terra', text: 'text-amber-ink' },
   expired: { dot: 'bg-red-500', text: 'text-red-700' },
 }
 
@@ -131,7 +132,7 @@ type Section = (typeof SECTIONS)[number]
  */
 export default function DossierPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<ChefPageSkeleton />}>
       <Dossier />
     </Suspense>
   )
@@ -150,15 +151,15 @@ function Dossier() {
   if (isPending) {
     return (
       <ChefPage title="Mon dossier">
-        <div className="mx-auto max-w-5xl space-y-4">
-          <div className="h-32 animate-pulse rounded-2xl bg-paper" />
-          <div className="h-12 w-72 animate-pulse rounded-full bg-paper" />
+        <SkeletonGroup className="mx-auto max-w-5xl space-y-4">
+          <SkeletonCard className="h-32" />
+          <SkeletonCard className="h-12 w-72 rounded-full p-0" />
           <div className="grid gap-4 sm:grid-cols-2">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-44 animate-pulse rounded-2xl bg-paper" />
+              <SkeletonCard key={i} className="h-44" />
             ))}
           </div>
-        </div>
+        </SkeletonGroup>
       </ChefPage>
     )
   }
@@ -261,10 +262,7 @@ function Dossier() {
     >
       <div className="mx-auto max-w-5xl space-y-6">
         {/* ── Où en est le dossier, sans faire défiler ─────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        <section
           className="relative overflow-hidden rounded-2xl bg-paper p-5 lg:p-6"
         >
           <span aria-hidden className={cn('absolute inset-y-0 left-0 w-[3px]', tone.rule)} />
@@ -323,14 +321,14 @@ function Dossier() {
                   ))}
                 </div>
                 {app?.reference && (
-                  <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                  <p className="mt-3 text-xs uppercase tracking-[0.12em] text-ink-soft">
                     {app.reference}
                   </p>
                 )}
               </div>
             )}
           </div>
-        </motion.section>
+        </section>
 
         {/* Un refus se lit avant tout le reste. */}
         {app?.refusal?.reason && (
@@ -386,7 +384,7 @@ function Dossier() {
               <Icon className="h-4 w-4" aria-hidden />
               {label}
               {n > 0 && (
-                <span className="rounded-full bg-amber px-1.5 font-mono text-[10px] font-bold text-navy">
+                <span className="tabular-nums rounded-full bg-amber px-1.5 text-xs font-bold text-navy">
                   {n}
                 </span>
               )}
@@ -487,7 +485,7 @@ function IconAction({
       disabled={disabled || busy}
       title={label}
       aria-label={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
     >
       {busy ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -686,7 +684,7 @@ function DocumentCard({
           <CalendarClock
             className={cn(
               'h-3.5 w-3.5 shrink-0',
-              doc.status === 'expired' ? 'text-red-500' : 'text-amber',
+              doc.status === 'expired' ? 'text-red-500' : 'text-amber-ink',
             )}
             aria-hidden
           />
@@ -786,7 +784,7 @@ function DocumentCard({
                 setExpiresOn('')
                 if (inputRef.current) inputRef.current.value = ''
               }}
-              className="text-xs text-ink-soft hover:text-navy"
+              className="hit text-xs text-ink-soft hover:text-navy"
             >
               Changer
             </button>
@@ -808,7 +806,7 @@ function DocumentCard({
           !candidate && (
             <Link
               href="/espace-chef/remuneration"
-              className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
+              className="hit text-xs font-semibold text-navy underline-offset-2 hover:underline"
             >
               Changer de compte bancaire
             </Link>

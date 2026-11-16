@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
   ArrowRight,
   CheckCircle2,
   Circle,
   ShoppingBasket,
-  Sparkles,
+  ClipboardList,
   Trophy,
 } from 'lucide-react'
 import {
@@ -27,6 +26,7 @@ import { previewOf } from '@/components/messaging/format'
 import CulinaryMap from '@/components/dashboard/CulinaryMap'
 import BienDemarrer from '@/components/client/BienDemarrer'
 import { Prix, PrixLigne } from '@/components/shared/Prix'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Accueil client.
@@ -116,16 +116,20 @@ export default function DashboardOverviewPage() {
       <BienDemarrer />
 
       {/* ── Ce qui arrive ─────────────────────────────────────────────── */}
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      <section
         className="overflow-hidden rounded-3xl bg-navy text-white"
       >
         <div className="grid grid-cols-1 gap-px bg-white/10 lg:grid-cols-[1.7fr_1fr]">
           <div className="bg-navy p-6 lg:p-8">
             {query.isPending ? (
-              <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+              // Mêmes hauteurs que le bloc « Prochaine session », en clair sur le navy.
+              <SkeletonGroup>
+                <Skeleton className="h-5 w-32 bg-white/10" />
+                <Skeleton className="mt-2 h-10 w-3/4 bg-white/10 lg:h-[3.125rem]" />
+                <Skeleton className="mt-3 h-5 w-2/3 bg-white/10" />
+                <Skeleton className="mt-5 h-5 w-1/2 bg-white/10" />
+                <Skeleton className="mt-7 h-10 w-44 rounded-none bg-white/10" />
+              </SkeletonGroup>
             ) : prochaine ? (
               <>
                 <p className="text-sm text-amber">Prochaine session</p>
@@ -190,7 +194,7 @@ export default function DashboardOverviewPage() {
 
           {/* Le montant et l'avancement : les deux questions qu'on se pose. */}
           {prochaine && (
-            <div className="flex flex-col gap-5 bg-navy p-6 lg:p-7">
+            <div className="tabular-nums flex flex-col gap-5 bg-navy p-6 lg:p-7">
               {(prochaine.amountAfterTax != null || prochaine.amountTtc != null) && (
                 <Prix
                   apresCredit={euros(prochaine.amountAfterTax)}
@@ -242,7 +246,7 @@ export default function DashboardOverviewPage() {
             </div>
           )}
         </div>
-      </motion.section>
+      </section>
 
       {/* ── Une prestation attend son règlement ───────────────────────── */}
       {aRegler && (
@@ -256,7 +260,7 @@ export default function DashboardOverviewPage() {
             </span>{' '}
             le {longDate(aRegler.startsAt)}. Cette réservation n’est pas encore réglée.
           </span>
-          <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold text-navy">
+          <span className="tabular-nums inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold text-navy">
             Régler
             <PrixLigne
               apresCredit={euros(aRegler.amountAfterTax)}
@@ -275,14 +279,29 @@ export default function DashboardOverviewPage() {
               <h3 className="font-display text-lg font-bold text-navy">Sessions récentes</h3>
               <Link
                 href="/espace-client/commandes"
-                className="text-xs font-semibold text-terra underline-offset-4 hover:underline"
+                className="hit text-xs font-semibold text-amber-ink underline-offset-4 hover:underline"
               >
                 Tout voir
               </Link>
             </div>
 
             {query.isPending ? (
-              <div className="h-32 animate-pulse rounded-2xl bg-paper" />
+              // Une ligne = 64 px (SessionRow) ; cinq lignes comme la liste réelle.
+              <SkeletonGroup>
+                <SkeletonCard className="divide-y divide-[rgba(31,42,55,0.08)] p-0 px-4">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div key={i} className="flex items-center gap-4 py-3.5">
+                      <Skeleton className="h-1.5 w-1.5 rounded-full" />
+                      <div className="flex-1 space-y-1">
+                        <Skeleton className="h-5 w-48 max-w-full" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                      <Skeleton className="hidden h-5 w-16 sm:block" />
+                      <Skeleton className="h-4 w-4" />
+                    </div>
+                  ))}
+                </SkeletonCard>
+              </SkeletonGroup>
             ) : toutes.length === 0 ? (
               <p className="border-t border-[rgba(31,42,55,0.08)] py-6 text-sm text-ink-soft">
                 Aucune session pour l’instant.
@@ -360,7 +379,7 @@ export default function DashboardOverviewPage() {
                     ? `/espace-client/messages?c=${lastThread.id}`
                     : '/espace-client/messages'
                 }
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-terra underline-offset-4 hover:underline"
+                className="hit mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-ink underline-offset-4 hover:underline"
               >
                 {lastThread ? 'Répondre' : 'Ouvrir la messagerie'}
                 <ArrowRight className="h-3 w-3" aria-hidden />
@@ -373,14 +392,14 @@ export default function DashboardOverviewPage() {
               <h3 className="mb-3 font-display text-lg font-bold text-navy">Demande sur-mesure</h3>
               <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
                 <p className="text-sm font-semibold text-navy">{demande.title}</p>
-                <p className="mt-1 text-xs text-ink-soft">
+                <p className="tabular-nums mt-1 text-xs text-ink-soft">
                   {demande.activeOffer
                     ? `Offre reçue · ${euros(demande.activeOffer.afterTaxCreditCents) ?? ''} après crédit d’impôt`
                     : 'En attente d’une offre'}
                 </p>
                 <Link
                   href="/espace-client/personnalisation"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-terra underline-offset-4 hover:underline"
+                  className="hit mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-ink underline-offset-4 hover:underline"
                 >
                   Voir la demande
                   <ArrowRight className="h-3 w-3" aria-hidden />
@@ -399,7 +418,7 @@ export default function DashboardOverviewPage() {
               />
               <Shortcut
                 href="/espace-client/personnalisation"
-                Icon={Sparkles}
+                Icon={ClipboardList}
                 title="Demande sur-mesure"
               />
               <Shortcut
@@ -436,7 +455,7 @@ function SessionRow({ booking: o }: { booking: Booking }) {
         </span>
       </span>
       {o.status === 'pending' && !o.paidCents ? (
-        <span className="whitespace-nowrap text-xs font-semibold text-terra">À régler</span>
+        <span className="tabular-nums whitespace-nowrap text-xs font-semibold text-amber-ink">À régler</span>
       ) : (
         <PrixLigne
           apresCredit={euros(o.amountAfterTax)}
@@ -458,7 +477,7 @@ function Figure({ label, value, accent }: { label: string; value: string; accent
       <dt className="text-sm text-ink-mid">{label}</dt>
       <dd
         className={`shrink-0 font-display text-lg font-bold tabular-nums ${
-          accent ? 'text-terra' : 'text-navy'
+          accent ? 'text-amber-ink' : 'text-navy'
         }`}
       >
         {value}

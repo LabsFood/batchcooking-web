@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { DURATION, EASE_IN, EASE_OUT } from '@/lib/motion'
 import { Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/shared/Logo'
@@ -62,12 +63,9 @@ export default function Navbar() {
 
   return (
     <>
-      <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      <header
         className={cn(
-          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 h-[72px] transition-all duration-300 lg:h-auto',
+          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 h-[72px] transition-[background-color,box-shadow,padding] duration-200 lg:h-auto',
           scrolled
             ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-0 lg:py-3'
             : 'bg-cream py-0 lg:py-5'
@@ -91,11 +89,11 @@ export default function Navbar() {
                     link.kind === 'recruit'
                       ? cn(
                         'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
-                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-terra' : 'text-navy hover:text-terra',
+                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-amber-ink' : 'text-navy hover:text-amber-ink',
                       )
                       : pathname === link.href
-                        ? 'text-terra'
-                        : 'text-ink-mid hover:text-terra',
+                        ? 'text-amber-ink'
+                        : 'text-ink-mid hover:text-amber-ink',
                   )}
                 >
                   {link.label}
@@ -127,7 +125,7 @@ export default function Navbar() {
                     className="w-7 h-7 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="w-7 h-7 rounded-full bg-navy text-amber font-bold text-[11px] flex items-center justify-center">
+                  <span className="w-7 h-7 rounded-full bg-navy text-amber font-bold text-xs flex items-center justify-center">
                     {initial}
                   </span>
                 )}
@@ -136,7 +134,7 @@ export default function Navbar() {
                     {firstName}
                   </span>
                   {roleLabel && (
-                    <span className="text-[9px] uppercase tracking-[0.12em] text-terra font-semibold mt-0.5">
+                    <span className="text-xs uppercase tracking-[0.12em] text-amber-ink font-semibold mt-0.5">
                       {roleLabel}
                     </span>
                   )}
@@ -159,7 +157,7 @@ export default function Navbar() {
           {/* ── Mobile burger ────────────────────────────────────────────── */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-terra focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-amber-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra lg:hidden"
             aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
@@ -167,17 +165,17 @@ export default function Navbar() {
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
-      </motion.header>
+      </header>
 
       {/* ── Mobile Menu ──────────────────────────────────────────────────── */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             id="mobile-navigation"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : le menu descend en 240 ms, remonte en 180 ms (slow-in)
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_OUT } }}
+            exit={{ opacity: 0, y: -8, transition: { duration: DURATION.fast, ease: EASE_IN } }}
             className="fixed inset-x-0 bottom-0 top-[calc(var(--lf-dev-banner)+72px)] z-40 flex flex-col bg-cream shadow-[0_18px_36px_rgba(31,42,55,0.14)] lg:hidden"
           >
             <nav aria-label="Navigation mobile" className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 sm:px-8">
@@ -206,7 +204,7 @@ export default function Navbar() {
                   <span className="block font-display text-xl font-semibold">Nous rejoindre</span>
                   <span className="mt-1 block text-sm text-white/75">Vous aimez cuisiner ?</span>
                 </span>
-                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber" />
+                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber-ink" />
               </Link>
             </nav>
 
