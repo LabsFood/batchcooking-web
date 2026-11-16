@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import { fadeUpInView } from '@/lib/motion'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    « Composez votre menu », sur la page d'accueil.
@@ -13,21 +14,17 @@ import { ArrowRight } from 'lucide-react'
    se font le choix du batch cooker, les filtres et la sélection des plats.
    ───────────────────────────────────────────────────────────────────────────── */
 
-const SORTIE = [0.16, 1, 0.3, 1] as const
-
 export default function FeaturedMenu() {
   return (
     <section className="section-padding section-cream relative">
       <div className="container-xl">
         <motion.div
-          initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.8, ease: SORTIE }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView()}
           className="mx-auto max-w-2xl text-center"
         >
           <h2 className="h-section">
-            Composez votre menu, <span className="accent">avec votre batch cooker.</span>
+            Composez votre menu, avec votre batch cooker.
           </h2>
           <p className="mx-auto mt-6 max-w-xl leading-relaxed text-ink-mid">
             Chaque batch cooker propose sa propre carte. Rendez-vous sur la page Menu : filtrez par

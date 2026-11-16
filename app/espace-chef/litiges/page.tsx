@@ -135,7 +135,7 @@ export default function ChefDisputesPage() {
   }
 
   const error = write.isError && (
-    <p role="alert" className="text-[13px] text-terra">
+    <p role="alert" className="text-[13px] text-amber-ink">
       {messagingErrorText(write.error)}
     </p>
   )
@@ -184,7 +184,7 @@ export default function ChefDisputesPage() {
               <button
                 onClick={reset}
                 aria-label="Fermer"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
+                className="hit flex h-8 w-8 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -260,7 +260,7 @@ export default function ChefDisputesPage() {
                     role="status"
                     className="flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-[13px] leading-relaxed text-navy"
                   >
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-terra" aria-hidden />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                     Pour être rappelé, posez votre question en quelques mots, ou renseignez vos
                     coordonnées : prénom, nom, téléphone et ville.
                   </p>
@@ -299,7 +299,7 @@ export default function ChefDisputesPage() {
               <button
                 onClick={reset}
                 aria-label="Fermer"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
+                className="hit flex h-8 w-8 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy"
               >
                 <X className="h-4 w-4" />
               </button>

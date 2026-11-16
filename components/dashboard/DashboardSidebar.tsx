@@ -138,7 +138,7 @@ export default function DashboardSidebar() {
                       {badge && (
                         <span
                           className={cn(
-                            'min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-[10px] font-mono font-semibold',
+                            'min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-xs font-semibold',
                             active ? 'bg-navy text-amber' : 'bg-amber text-navy',
                           )}
                         >
@@ -154,7 +154,7 @@ export default function DashboardSidebar() {
                           aria-controls={panelId}
                           aria-label={`${expanded ? 'Masquer' : 'Afficher'} les pages de ${label}`}
                           className={cn(
-                            'mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                            'hit mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
                             active ? 'hover:bg-navy/10' : 'hover:bg-white/10',
                           )}
                         >

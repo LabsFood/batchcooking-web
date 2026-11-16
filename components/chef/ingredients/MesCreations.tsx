@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from '@/components/shared/Skeleton'
 import { useEffect, useId, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Pencil, RotateCw } from "lucide-react";
 import { Card } from "@/components/chef/ChefPage";
@@ -51,7 +52,7 @@ export default function MesCreations() {
       </p>
 
       {query.isPending ? (
-        <div className="h-48 animate-pulse rounded-3xl bg-paper" />
+        <Skeleton className="h-48 rounded-3xl"/>
       ) : query.isError ? (
         <Card>
           <p role="alert" className="text-sm leading-relaxed text-red-700">
@@ -268,7 +269,7 @@ function PendingRow({
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-semibold text-navy">
             {i.name}
-            <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
+            <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-[#8B6200]">
               en attente
             </span>
           </p>

@@ -1119,10 +1119,6 @@ export default function DishForm({
         transition={{ duration: 0.4 }}
         className="relative overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-7"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-amber/25 blur-3xl"
-        />
         <h2 className="relative font-display text-2xl font-bold leading-tight lg:text-3xl">
           {dish ? dish.name : 'Nouveau plat'}
         </h2>
@@ -1452,7 +1448,7 @@ export default function DishForm({
                               : [...d.seasonsOverride, i + 1].sort((a, b) => a - b),
                           )
                         }
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                           on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
                         }`}
                       >
@@ -1796,7 +1792,7 @@ export default function DishForm({
               aria-describedby="storage-freezable-hint"
             >
               <legend className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
-                Congelable <span className="text-terra">*</span>
+                Congelable <span className="text-amber-ink">*</span>
                 <InfoPopover label="Pourquoi dire si le plat se congèle ?">
                   Le client lit la réponse dans sa fiche. Si le plat se congèle, dites pour
                   combien de mois et comment le décongeler. Une fiche écrite avant cette
@@ -2203,7 +2199,7 @@ function RecipeAllergens({
                     </span>
                   )}
                   {conditional.has(code) && (
-                    <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-semibold text-[#8B6200]">
+                    <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-[#8B6200]">
                       si l’ingrédient facultatif est utilisé
                     </span>
                   )}
@@ -2592,7 +2588,7 @@ function PhotoField({ dish }: { dish: Dish | null }) {
     return (
       <div className="flex items-start gap-3 rounded-xl bg-cream-soft px-3.5 py-3">
         <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
-        <p className="text-[12px] leading-relaxed text-ink-mid">
+        <p className="text-xs leading-relaxed text-ink-mid">
           Enregistrez d’abord le plat : l’envoi d’une photo a besoin de son
           identifiant. Le champ s’ouvre juste après.
         </p>
@@ -2660,11 +2656,11 @@ function PhotoField({ dish }: { dish: Dish | null }) {
             Retirer
           </button>
         )}
-        <span className="text-[11px] text-ink-soft">JPG, PNG ou WebP</span>
+        <span className="text-xs text-ink-soft">JPG, PNG ou WebP</span>
       </div>
 
       {erreur && (
-        <p role="alert" className="text-[12px] leading-relaxed text-red-700">
+        <p role="alert" className="text-xs leading-relaxed text-red-700">
           {erreur}
         </p>
       )}
@@ -2955,7 +2951,7 @@ function IngredientRows({
                     Caché au client
                   </label>
                   {ing.toVerify && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-[11px] font-semibold text-[#8B6200]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-2.5 py-1 text-xs font-semibold text-[#8B6200]">
                       À vérifier
                       {/* Une ligne incomplète qui ne serait plus « à vérifier » sortirait de
                           l'envoi, et la fiche la perdrait au prochain enregistrement. */}
@@ -3139,7 +3135,7 @@ function IngredientName({
         className={`input-base w-full ${row.catalogIngredientId ? 'pr-16' : ''}`}
       />
       {row.catalogIngredientId && (
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-mint/60 px-1.5 py-0.5 text-[10px] font-semibold text-mint-ink">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-mint/60 px-1.5 py-0.5 text-xs font-semibold text-mint-ink">
           liste
         </span>
       )}
@@ -3169,22 +3165,22 @@ function IngredientName({
                 <span className="flex flex-wrap items-center gap-1.5">
                   {m.name}
                   {m.private && (
-                    <span className="rounded-full bg-amber-soft px-1.5 py-0.5 text-[10px] font-semibold text-[#8B6200]">
+                    <span className="rounded-full bg-amber-soft px-1.5 py-0.5 text-xs font-semibold text-[#8B6200]">
                       à valider
                     </span>
                   )}
                 </span>
                 {m.aliases.length > 0 && (
-                  <span className="block text-[11px] text-ink-soft">{m.aliases.join(', ')}</span>
+                  <span className="block text-xs text-ink-soft">{m.aliases.join(', ')}</span>
                 )}
                 <span className="mt-0.5 flex flex-wrap gap-1">
                   {m.allergensNone ? (
-                    <span className="text-[11px] text-ink-soft">aucun allergène</span>
+                    <span className="text-xs text-ink-soft">aucun allergène</span>
                   ) : (
                     m.allergens.map((a) => (
                       <span
                         key={a}
-                        className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+                        className="rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700"
                       >
                         {refLabel(allergens, a)}
                       </span>
@@ -3444,7 +3440,7 @@ function Field({
     <label className={`block ${className}`}>
       <span className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
         {label}
-        {required && <span className="text-terra"> *</span>}
+        {required && <span className="text-amber-ink"> *</span>}
         {popover}
       </span>
       {children}
@@ -3458,7 +3454,7 @@ function Field({
 /** Un avertissement qui n'empêche rien, mais qu'il faut avoir lu. */
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p className="flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#8B6200]">
+    <p className="flex items-start gap-2 rounded-xl bg-amber-soft/60 px-3.5 py-2.5 text-xs leading-relaxed text-[#8B6200]">
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
       {children}
     </p>

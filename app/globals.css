@@ -34,6 +34,9 @@ body {
     --amber: #F39C12;
     --amber-deep: #D68B0E;
     --amber-soft: #FCE3B5;
+    /* Ambre pour du TEXTE sur fond clair (≈5,4:1 sur blanc). --amber reste pour
+       les fonds, les CTA et le texte sur marine. */
+    --amber-ink: #9A5B00;
     --peach: #FAD7A0;
     --mint: #D1F2EB;
     --mint-deep: #A7E0D0;
@@ -56,7 +59,8 @@ body {
     /* Text */
     --ink: #1F2A37;
     --ink-mid: #4B5867;
-    --ink-soft: #7B8794;
+    --ink-soft: #5F6B7A;
+    /* ≥ 4,5:1 sur --cream et --shell (l'ancien #7B8794 plafonnait à 3,6:1). */
   }
 }
 
@@ -130,38 +134,39 @@ body {
     color: var(--navy);
   }
 
+  /* Un mot de titre ne change ni de couleur ni de style : on groupe par l'espace. */
   .h-section .accent {
-    color: var(--terra);
-    font-style: italic;
-    font-weight: 600;
+    color: inherit;
+    font-style: normal;
   }
 
+  /* Sans, 12 px : un repère de section se lit, il ne se code pas. */
   .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--terra);
+    color: var(--amber-ink);
   }
 
   .label-brand {
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--terra);
+    color: var(--amber-ink);
   }
 
   .label-muted {
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-soft);
   }
@@ -226,12 +231,11 @@ body {
     background: var(--paper);
     border-radius: 1rem;
     border: 1px solid rgba(31, 42, 55, 0.06);
-    transition: box-shadow 0.4s ease, transform 0.4s ease;
+    transition: box-shadow 0.2s ease;
   }
 
   .card-base:hover {
     box-shadow: 0 24px 60px -20px rgba(31, 42, 55, 0.18);
-    transform: translateY(-4px);
   }
 
   /* La carte d'un tableau de bord : posée sur `--shell`, elle se détache par
@@ -242,40 +246,6 @@ body {
     box-shadow:
       0 1px 2px rgba(31, 42, 55, 0.04),
       0 10px 28px -18px rgba(31, 42, 55, 0.22);
-  }
-
-  /* Decorative dots row (Delish ornamental separator) */
-  .dot-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .dot-row .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--terra);
-  }
-
-  .dot-row .dot.muted {
-    background: rgba(243, 156, 18, 0.3);
-  }
-
-  /* Section divider with center dot */
-  .section-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--terra);
-  }
-
-  .section-divider::before,
-  .section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(243, 156, 18, 0.25);
   }
 }
 
@@ -301,43 +271,27 @@ body {
     text-transform: uppercase;
     border-radius: 999px;
     border: 1.5px solid transparent;
+    /* slow-out : les couleurs se posent en 180 ms */
     transition:
-      transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-      background-color 0.35s ease,
-      color 0.35s ease,
-      border-color 0.35s ease;
+      transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 0.18s ease,
+      color 0.18s ease,
+      border-color 0.18s ease;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     isolation: isolate;
   }
 
-  /* Subtle shine sweep — fires on hover */
-  .btn::before,
-  .btn-primary::before,
-  .btn-navy::before,
+  /* Les boutons pleins ne portent aucun reflet : l'état au survol passe par la
+     couleur. Seuls les contours se remplissent depuis la gauche. */
   .btn-outline::before,
-  .btn-outline-light::before,
-  .btn-amber::before {
+  .btn-outline-light::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: linear-gradient(120deg,
-        transparent 30%,
-        rgba(255, 255, 255, 0.22) 50%,
-        transparent 70%);
-    transform: translateX(-120%);
-    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
-  }
-
-  .btn:hover::before,
-  .btn-primary:hover::before,
-  .btn-navy:hover::before,
-  .btn-amber:hover::before {
-    transform: translateX(120%);
   }
 
   /* Outline buttons get a fill-from-left effect instead of shine */
@@ -346,7 +300,7 @@ body {
     background: var(--navy);
     transform: scaleX(0);
     transform-origin: left center;
-    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
     border-radius: 999px;
   }
 
@@ -360,15 +314,14 @@ body {
   }
 
   /* ── Variants ─────────────────────────────────────────────────────── */
+  /* Texte marine sur ambre : 5:1. Le blanc ne faisait que 2,2:1. */
   .btn-primary {
-    background: var(--terra);
-    color: #FFFFFF;
+    background: var(--amber);
+    color: var(--navy);
   }
 
   .btn-primary:hover {
-    background: var(--terra-deep);
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.6);
+    background: #F7AC2B;
   }
 
   .btn-navy {
@@ -377,9 +330,7 @@ body {
   }
 
   .btn-navy:hover {
-    background: #001A38;
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(44, 62, 80, 0.5);
+    background: var(--navy-deep);
   }
 
   .btn-outline {
@@ -390,8 +341,6 @@ body {
 
   .btn-outline:hover {
     color: #FFFFFF;
-    transform: translateY(-2px);
-    box-shadow: 0 16px 30px -12px rgba(44, 62, 80, 0.35);
   }
 
   .btn-outline-light {
@@ -403,7 +352,6 @@ body {
   .btn-outline-light:hover {
     color: var(--navy);
     border-color: #FFFFFF;
-    transform: translateY(-2px);
   }
 
   .btn-amber {
@@ -412,9 +360,7 @@ body {
   }
 
   .btn-amber:hover {
-    background: #D68B0E;
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.5);
+    background: #F7AC2B;
   }
 
   /* Pressed: the button gives under the finger. After the :hover rules so it
@@ -439,15 +385,15 @@ body {
     letter-spacing: 0.18em;
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--terra);
+    color: var(--amber-ink);
     background: transparent;
-    border-bottom: 1.5px solid var(--terra);
+    border-bottom: 1.5px solid var(--amber-ink);
     transition: color 0.2s ease, border-color 0.2s ease;
   }
 
   .btn-ghost:hover {
-    color: var(--terra-deep);
-    border-color: var(--terra-deep);
+    color: var(--ink);
+    border-color: var(--ink);
   }
 
   /* Arrow icon inside any button slides on hover */
@@ -457,7 +403,8 @@ body {
   .btn-outline .icon-arrow,
   .btn-outline-light .icon-arrow,
   .btn-amber .icon-arrow {
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    /* secondary action : la flèche avance de 4 px, 180 ms */
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn:hover .icon-arrow,
@@ -466,7 +413,7 @@ body {
   .btn-outline:hover .icon-arrow,
   .btn-outline-light:hover .icon-arrow,
   .btn-amber:hover .icon-arrow {
-    transform: translateX(6px);
+    transform: translateX(4px);
   }
 }
 
@@ -478,10 +425,10 @@ body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.3rem 0.7rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 999px;
     border: 1px solid currentColor;
@@ -520,10 +467,10 @@ body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.3rem 0.7rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 999px;
     border: 1px solid transparent;
@@ -636,7 +583,7 @@ body {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
 
   to {
@@ -646,33 +593,8 @@ body {
 }
 
 .page-transition {
-  animation: page-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes float-y {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-float {
-  animation: float-y 6s ease-in-out infinite;
-}
-
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 22s linear infinite;
+  /* slow-out : la page se pose en 240 ms */
+  animation: page-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
@@ -1014,4 +936,41 @@ body {
 
 .lf-rdp-wide {
   --rdp-day-height: 3rem;
+}
+
+/* ─── Règles transverses UI/UX (voir docs/ui-ux-guidelines.md) ───────────── */
+
+/* Titres : coupe équilibrée, plus de ligne orpheline. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* Fitts : la zone cliquable atteint 40 px sans grossir le dessin. Pour une
+   cible déjà plus grande, le décalage vaut 0. */
+.hit {
+  position: relative;
+}
+
+.hit::after {
+  content: '';
+  position: absolute;
+  inset: min(0px, calc((100% - 40px) / 2));
+}
+
+/* Texte ambre lisible sur fond clair (le `.text-amber` reste pour le marine). */
+.text-amber-ink {
+  color: var(--amber-ink);
+}
+
+/* Mouvement réduit : plus aucune animation ni transition longue. Framer Motion
+   est couvert à part par `MotionConfig reducedMotion="user"`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

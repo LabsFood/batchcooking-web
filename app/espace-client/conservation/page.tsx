@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/shared/Skeleton'
 import Link from 'next/link'
 import {
   AlertTriangle,
@@ -124,7 +125,7 @@ function Prestation({ booking }: { booking: Booking }) {
       )}
 
       {sheet.isPending ? (
-        <div className="h-40 animate-pulse rounded-3xl bg-cream-soft" />
+        <Skeleton className="h-40 rounded-3xl"/>
       ) : sheet.isError || !sheet.data ? (
         <p className="card-shell rounded-3xl p-5 text-sm text-ink-mid">
           La fiche de cette prestation n’est pas disponible pour l’instant.
@@ -179,7 +180,7 @@ function DishCare({ dish }: { dish: ConservationDish }) {
         <div className="flex items-start gap-3 rounded-2xl bg-amber-soft/50 p-3.5">
           <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
           <div className="min-w-0">
-            <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-soft">
+            <p className="flex items-center gap-1 text-xs uppercase tracking-wide text-ink-soft">
               À manger avant
               <InfoPopover label="Comment cette date est-elle fixée ?">
                 Date calculée par la plateforme à partir du jour de la prestation et de
@@ -243,9 +244,9 @@ function Ligne({
 }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl bg-cream-soft p-3.5">
-      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${texte ? 'text-terra' : 'text-ink-soft'}`} aria-hidden />
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${texte ? 'text-amber-ink' : 'text-ink-soft'}`} aria-hidden />
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-ink-soft">{titre}</p>
+        <p className="text-xs uppercase tracking-wide text-ink-soft">{titre}</p>
         <p className={`text-sm ${texte ? 'font-semibold text-navy' : 'text-ink-soft'}`}>
           {texte ?? 'Non précisé sur la fiche.'}
         </p>

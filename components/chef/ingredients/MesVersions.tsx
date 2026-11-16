@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from '@/components/shared/Skeleton'
 import { useState } from "react";
 import {
   Check,
@@ -81,7 +82,7 @@ export default function MesVersions() {
 
       <Card title={`Ma liste${mine.data ? ` (${mine.data.length})` : ""}`}>
         {mine.isPending && approved ? (
-          <div className="h-24 animate-pulse rounded-xl bg-cream-soft" />
+          <Skeleton className="h-24 rounded-xl"/>
         ) : mine.isError ? (
           <p role="alert" className="text-sm text-red-700">
             {messageOf(mine.error)}

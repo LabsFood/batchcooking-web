@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { CreditCard, Home, Info, MapPin, Pencil } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import { apiMessage } from '@/lib/api/messages'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import type { ClientProfile } from '@/lib/api/types'
@@ -90,13 +91,15 @@ function Adresse() {
         </Link>
       </div>
       {me.isPending ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
+        <SkeletonGroup>
+          <Skeleton className="h-20 rounded-2xl" />
+        </SkeletonGroup>
       ) : me.isError ? (
         <p className="text-sm text-ink-soft">{apiMessage(me.error)}</p>
       ) : ligne ? (
         <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex items-start gap-3">
           <span className="w-10 h-10 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
-            <Home className="w-4 h-4 text-terra" />
+            <Home className="w-4 h-4 text-amber-ink" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-navy">Adresse des sessions</p>
@@ -188,7 +191,9 @@ function Attestation() {
       </div>
 
       {a.isPending ? (
-        <div className="h-28 animate-pulse rounded-2xl bg-cream-soft" />
+        <SkeletonGroup>
+          <Skeleton className="h-28 rounded-2xl" />
+        </SkeletonGroup>
       ) : vide ? (
         <p className="rounded-2xl bg-cream-soft px-4 py-6 text-center text-sm text-ink-mid">
           Aucune prestation réglée en {annee}.
@@ -199,7 +204,7 @@ function Attestation() {
         a.data && (
           <>
             <div className="rounded-2xl bg-navy p-5 text-white">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
+              <p className="text-xs uppercase tracking-[0.12em] text-amber">
                 Crédit d’impôt {annee}
               </p>
               <p className="mt-2 font-display text-4xl font-bold">
@@ -214,7 +219,7 @@ function Attestation() {
 
             {a.data.platformAttestedAmountCents !== a.data.eligibleAmountCents && (
               <p className="mt-3 flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-navy">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                 Lab’s Food atteste {centimes(a.data.platformAttestedAmountCents)}.
                 Le reste est attesté par les batch cookers qui déclarent leur
                 activité eux-mêmes : demandez-leur leur attestation.
@@ -246,7 +251,7 @@ function Attestation() {
                     </p>
                   </div>
                   {!p.sapDeclared && (
-                    <p className="mt-2 text-xs leading-relaxed text-amber-deep">
+                    <p className="mt-2 text-xs leading-relaxed text-amber-ink">
                       Ce batch cooker n’a pas déclaré son activité de service à la
                       personne : ces montants n’ouvrent pas droit au crédit
                       d’impôt.
@@ -261,7 +266,7 @@ function Attestation() {
               ))}
             </ul>
 
-            <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
+            <p className="mt-4 text-xs leading-relaxed text-ink-soft">
               Document généré à partir de vos règlements. Conservez-le : en cas
               de contrôle, c’est lui qui justifie le montant déclaré.
             </p>

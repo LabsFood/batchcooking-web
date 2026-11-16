@@ -122,7 +122,7 @@ export function PrixLigne({
       <span className={cn('font-semibold tabular-nums', sombre ? 'text-white' : 'text-navy')}>
         {principal}
       </span>
-      <span className={cn('text-[11px]', sombre ? 'text-white/55' : 'text-ink-soft')}>
+      <span className={cn('text-xs', sombre ? 'text-white/55' : 'text-ink-soft')}>
         {apresCredit ? 'après crédit d’impôt' : 'avant crédit d’impôt'}
       </span>
     </span>

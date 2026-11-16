@@ -56,7 +56,7 @@ export default function GroceriesDone({
             le {longDate(groceries!.validatedAt)}
           </span>
         </p>
-        <p className="mt-0.5 text-[12px] text-ink-mid">
+        <p className="mt-0.5 text-xs text-ink-mid">
           {groceries!.amountCents != null
             ? `Ticket : ${euros(groceries!.amountCents)}, montré au client à titre d’information.`
             : 'Aucun montant de ticket saisi.'}
@@ -65,7 +65,7 @@ export default function GroceriesDone({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-amber-deep hover:underline"
+            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-deep hover:underline"
           >
             <Pencil className="h-3 w-3" aria-hidden /> Modifier le montant
           </button>
@@ -96,7 +96,7 @@ export default function GroceriesDone({
       </p>
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-ink-soft">
+          <span className="mb-1 block text-xs text-ink-soft">
             Total du ticket, en euros (facultatif)
           </span>
           <input
@@ -128,12 +128,12 @@ export default function GroceriesDone({
         )}
       </div>
       {invalid && (
-        <p role="alert" className="mt-1.5 text-[12px] text-red-700">
+        <p role="alert" className="mt-1.5 text-xs text-red-700">
           Écrivez un montant en euros, par exemple 64,80.
         </p>
       )}
       {validate.isError && (
-        <p role="alert" className="mt-1.5 text-[12px] text-red-700">
+        <p role="alert" className="mt-1.5 text-xs text-red-700">
           {apiMessage(validate.error, 'Les courses n’ont pas pu être validées.')}
         </p>
       )}

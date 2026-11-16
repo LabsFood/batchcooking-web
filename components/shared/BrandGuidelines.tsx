@@ -1,8 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useRef } from 'react'
-import { useInView } from 'framer-motion'
+import { fadeUpInView } from '@/lib/motion'
 import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
@@ -93,7 +92,7 @@ function ColorSwatch({ hex, name, role }: { hex: string; name: string; role: str
   return (
     <button
       onClick={copy}
-      className="group relative w-full text-left transition-transform hover:-translate-y-1 duration-200"
+      className="group relative w-full text-left "
       title={`Copier ${hex}`}
     >
       {/* Swatch block */}
@@ -102,7 +101,7 @@ function ColorSwatch({ hex, name, role }: { hex: string; name: string; role: str
         style={{ backgroundColor: hex }}
       >
         <div className="flex items-start justify-between">
-          <span className="text-[10px] font-mono font-medium opacity-80" style={{ color: textColor }}>
+          <span className="text-xs font-mono font-medium opacity-80" style={{ color: textColor }}>
             {hex}
           </span>
           <div
@@ -118,8 +117,8 @@ function ColorSwatch({ hex, name, role }: { hex: string; name: string; role: str
       </div>
       {/* Label below */}
       <div className="pt-2.5 pb-1">
-        <p className="text-[11px] font-semibold text-[#00234B] font-body">{name}</p>
-        <p className="text-[10px] text-[#2C3E50] opacity-60 font-body mt-0.5">{role}</p>
+        <p className="text-xs font-semibold text-[#00234B] font-body">{name}</p>
+        <p className="text-xs text-[#2C3E50] opacity-60 font-body mt-0.5">{role}</p>
       </div>
     </button>
   )
@@ -128,12 +127,8 @@ function ColorSwatch({ hex, name, role }: { hex: string; name: string; role: str
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function BrandGuidelines() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-60px' })
-
   return (
     <section
-      ref={ref}
       className="section-padding bg-white border-t border-[rgba(0,35,75,0.07)]"
       id="brand"
     >
@@ -141,19 +136,17 @@ export default function BrandGuidelines() {
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView()}
           className="mb-16"
         >
-          <p className="label-brand mb-3">Identité visuelle</p>
           <div className="flex items-end justify-between gap-8 flex-wrap">
             <h2
               className="h-section text-[#00234B]"
               style={{ fontFamily: 'var(--font-fraunces)' }}
             >
-              Charte graphique<br />
-              <span className="text-[#D96941] italic">Lab&apos;s Food</span>
+              Charte graphique{' '}
+              <span className="text-[#D96941]">Lab&apos;s Food</span>
             </h2>
             <p className="text-[#2C3E50]/70 text-sm max-w-sm leading-relaxed font-body">
               Trois identités visuelles distinctes selon la branche de communication.
@@ -168,9 +161,8 @@ export default function BrandGuidelines() {
           {BRAND_COLUMNS.map((col, i) => (
             <motion.div
               key={col.id}
-              initial={{ opacity: 0, y: 24 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.7, delay: i * 0.1 }}
+              // slow-out : se pose en 240 ms
+              {...fadeUpInView(i * 0.08)}
               className={`flex flex-col ${i < 2 ? 'lg:border-r border-[rgba(0,35,75,0.08)]' : ''}`}
             >
               {/* Column header */}
@@ -180,13 +172,13 @@ export default function BrandGuidelines() {
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span
-                    className="font-mono text-xs font-medium opacity-40"
-                    style={{ fontFamily: 'var(--font-mono)' }}
+                    className="tabular-nums text-xs font-medium opacity-40"
+                    style={{ fontFamily: 'var(--font-montserrat)' }}
                   >
                     {col.label}
                   </span>
                   <div
-                    className="px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
+                    className="px-3 py-1 text-xs font-bold tracking-wider uppercase"
                     style={{
                       backgroundColor: col.accentColor,
                       color: col.textOnAccent,
@@ -196,7 +188,7 @@ export default function BrandGuidelines() {
                     {col.name}
                   </div>
                 </div>
-                <p className="text-[11px] text-[#2C3E50]/70 font-body leading-relaxed">
+                <p className="text-xs text-[#2C3E50]/70 font-body leading-relaxed">
                   {col.context}
                 </p>
               </div>
@@ -236,9 +228,8 @@ export default function BrandGuidelines() {
 
         {/* ── Typography ───────────────────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.35 }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView(0.08)}
         >
           <p className="label-brand mb-8">Typographie</p>
 
@@ -267,14 +258,14 @@ export default function BrandGuidelines() {
                   </p>
                   <div className="flex items-center gap-3">
                     <span
-                      className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase text-white"
+                      className="px-2.5 py-1 text-xs font-bold tracking-wider uppercase text-white"
                       style={{ backgroundColor: '#D96941', fontFamily: 'var(--font-montserrat)' }}
                     >
                       {font.role}
                     </span>
                     <span
-                      className="text-[10px] font-mono text-[#2C3E50]/50"
-                      style={{ fontFamily: 'var(--font-mono)' }}
+                      className="tabular-nums text-xs text-[#2C3E50]/50"
+                      style={{ fontFamily: 'var(--font-montserrat)' }}
                     >
                       {font.weight}
                     </span>
@@ -299,17 +290,17 @@ export default function BrandGuidelines() {
                   </div>
                   <div>
                     <p className="label-muted mb-1.5">Utilisation</p>
-                    <p className="text-[11px] text-[#2C3E50]/70 font-body">{font.usage}</p>
+                    <p className="text-xs text-[#2C3E50]/70 font-body">{font.usage}</p>
                   </div>
                   <div>
                     <p className="label-muted mb-1.5">Note</p>
-                    <p className="text-[11px] text-[#2C3E50]/60 italic font-body">{font.note}</p>
+                    <p className="text-xs text-[#2C3E50]/60 font-body">{font.note}</p>
                   </div>
                   <div className="pt-3 border-t border-[rgba(0,35,75,0.06)]">
                     <p className="label-muted mb-1.5">CSS</p>
                     <code
-                      className="block text-[10px] bg-[#F4F6F7] p-3 text-[#D96941] font-mono break-all"
-                      style={{ fontFamily: 'var(--font-mono)' }}
+                      className="block text-xs bg-[#F4F6F7] p-3 text-[#D96941] font-mono break-all"
+                      style={{ fontFamily: 'var(--font-montserrat)' }}
                     >
                       {font.css}
                     </code>
@@ -322,9 +313,8 @@ export default function BrandGuidelines() {
 
         {/* ── Règle d'usage ────────────────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.5, duration: 0.5 }}
+          // slow-out : se pose en 240 ms
+          {...fadeUpInView(0.08)}
           className="mt-12 p-8 bg-[#F4F6F7] border border-[rgba(0,35,75,0.07)]"
         >
           <p className="label-brand mb-3">Règle d&apos;or</p>
@@ -345,16 +335,16 @@ export default function BrandGuidelines() {
             ].map((r) => (
               <div key={r.num} className="flex gap-4">
                 <div
-                  className="w-8 h-8 flex items-center justify-center text-xs font-mono font-bold text-white flex-shrink-0 mt-0.5"
-                  style={{ backgroundColor: r.color, fontFamily: 'var(--font-mono)' }}
+                  className="tabular-nums w-8 h-8 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: r.color, fontFamily: 'var(--font-montserrat)' }}
                 >
                   {r.num}
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#00234B] mb-1 font-body">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#00234B] mb-1 font-body">
                     {r.label}
                   </p>
-                  <p className="text-[11px] text-[#2C3E50]/70 leading-relaxed font-body">{r.rule}</p>
+                  <p className="text-xs text-[#2C3E50]/70 leading-relaxed font-body">{r.rule}</p>
                 </div>
               </div>
             ))}

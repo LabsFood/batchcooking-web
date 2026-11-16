@@ -136,7 +136,7 @@ function LockedNote() {
   const { candidate } = useChefApproved()
   if (!candidate) return null
   return (
-    <p className="mb-4 flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-relaxed text-white/70">
+    <p className="mb-4 flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-xs leading-relaxed text-white/70">
       <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
       Le reste de votre espace s’ouvre dès que l’équipe a validé votre dossier.
     </p>
@@ -197,7 +197,7 @@ export function ChefSidebar() {
       <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-navy text-white">
         <div className="px-6 pb-5 pt-6">
           <Logo variant="white" size="sm" />
-          <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.22em] text-amber">
+          <p className="mt-1 text-xs uppercase tracking-[0.12em] text-amber">
             Espace chef
           </p>
         </div>
@@ -206,7 +206,7 @@ export function ChefSidebar() {
           <LockedNote />
           {CHEF_NAV.map(({ group, items }) => (
             <div key={group} className="mb-4">
-              <p className="px-3 mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
+              <p className="px-3 mb-1.5 text-xs uppercase tracking-[0.12em] text-white/35">
                 {group}
               </p>
               <ul className="space-y-0.5">
@@ -235,7 +235,7 @@ export function ChefSidebar() {
                         {!ferme && badge && (
                           <span
                             className={cn(
-                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                              'text-xs font-bold px-1.5 py-0.5 rounded-full',
                               active ? 'bg-navy text-amber' : 'bg-amber text-navy',
                             )}
                           >
@@ -292,7 +292,7 @@ export function ChefMobileNav() {
                 href={href}
                 locked={locked(href)}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[10px] font-medium transition-colors',
+                  'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-xs font-medium transition-colors',
                   active ? 'text-amber' : 'text-white/55 hover:text-white',
                 )}
               >
@@ -340,7 +340,6 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
           </button>
 
           <div className="min-w-0 flex-1">
-            <p className="eyebrow mb-1 hidden sm:inline-flex">Espace chef</p>
             <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-navy leading-tight sm:leading-none line-clamp-2 sm:truncate">
               {title}
             </h1>
@@ -380,7 +379,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                   {firstName}
                 </span>
                 {roleLabel && (
-                  <span className="text-[9px] uppercase tracking-[0.12em] text-terra font-semibold mt-0.5">
+                  <span className="text-xs uppercase tracking-[0.12em] text-amber-ink font-semibold mt-0.5">
                     {roleLabel}
                   </span>
                 )}
@@ -402,21 +401,21 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg"
                 >
-                  <UserCircle2 className="w-4 h-4 text-amber" /> Mon profil
+                  <UserCircle2 className="w-4 h-4 text-amber-ink" /> Mon profil
                 </Link>
                 <Link
                   href="/espace-chef/dossier"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg"
                 >
-                  <ShieldCheck className="w-4 h-4 text-amber" /> Mon dossier
+                  <ShieldCheck className="w-4 h-4 text-amber-ink" /> Mon dossier
                 </Link>
                 <Link
                   href="/espace-chef/parametres"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg"
                 >
-                  <Settings className="w-4 h-4 text-amber" /> Paramètres
+                  <Settings className="w-4 h-4 text-amber-ink" /> Paramètres
                 </Link>
                 <hr className="my-1 border-[rgba(31,42,55,0.08)]" />
                 <button
@@ -426,7 +425,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-navy hover:bg-cream-soft rounded-lg"
                 >
-                  <LogOut className="w-4 h-4 text-amber" /> Déconnexion
+                  <LogOut className="w-4 h-4 text-amber-ink" /> Déconnexion
                 </button>
               </div>
             )}
@@ -449,7 +448,7 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
             <LockedNote />
             {CHEF_NAV.map(({ group, items }) => (
               <div key={group} className="mb-5">
-                <p className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
+                <p className="mb-1.5 text-xs uppercase tracking-[0.12em] text-white/35">
                   {group}
                 </p>
                 <ul className="space-y-0.5">

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
 import { useAuth } from '@/lib/auth-context'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Retour d'une page Stripe (paiement par carte, signature du mandat SEPA).
@@ -26,9 +27,21 @@ const DESTINATION = /^\/espace-(chef|client)(\/[\w-]+)*$/
 export default function StripeReturnPage() {
   // `useSearchParams` impose une frontière Suspense.
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<StripeReturnSkeleton />}>
       <StripeReturn />
     </Suspense>
+  )
+}
+
+/** Le même écran que `StripeReturn` : logo, puis une ligne de la hauteur du message. */
+function StripeReturnSkeleton() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cream px-6">
+      <Logo size="md" />
+      <SkeletonGroup>
+        <Skeleton className="h-5 w-48" />
+      </SkeletonGroup>
+    </div>
   )
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, ExternalLink, Mail, Minus, Phone, Plus } from 'lucide-react'
+import { fadeUpInView } from '@/lib/motion'
 import { FAQ_SECTIONS, questionsAccueil, type FaqQuestion } from '@/lib/faq'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -28,10 +29,7 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
       <div className="container-xl">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
           <motion.div
-            initial={{ opacity: 0, y: 32, filter: 'blur(8px)' }}
-            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            {...fadeUpInView()} // slow-out : se pose en 240 ms
             className="lg:sticky lg:top-32 lg:self-start"
           >
             {complete ? (
@@ -79,14 +77,14 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
                   href="mailto:contact@labsfood.fr"
                   className="flex items-center gap-2.5 text-sm text-ink-mid transition-colors hover:text-navy"
                 >
-                  <Mail className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+                  <Mail className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                   contact@labsfood.fr
                 </a>
                 <a
                   href="tel:+33749755684"
                   className="flex items-center gap-2.5 text-sm tabular-nums text-ink-mid transition-colors hover:text-navy"
                 >
-                  <Phone className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+                  <Phone className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                   07 49 75 56 84
                 </a>
               </div>
@@ -99,7 +97,7 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
                 {FAQ_SECTIONS.map((s, i) => (
                   <section key={s.id} id={s.id} className="scroll-mt-28">
                     <h2 className="mb-5 flex items-baseline gap-3 font-display text-2xl font-bold text-navy">
-                      <span className="text-base tabular-nums text-terra">{i + 1}</span>
+                      <span className="text-base tabular-nums text-amber-ink">{i + 1}</span>
                       {s.titre}
                     </h2>
                     <div className="space-y-3">
@@ -117,10 +115,7 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
               </div>
             ) : (
               <motion.div
-                initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
-                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                {...fadeUpInView()} // slow-out : se pose en 240 ms
                 className="space-y-3"
               >
                 {questionsAccueil().map((q) => (
@@ -168,14 +163,14 @@ function Item({
         >
           <span
             className={`text-[15px] font-semibold leading-snug transition-colors duration-200 sm:text-base ${
-              ouverte ? 'text-terra' : 'text-navy'
+              ouverte ? 'text-amber-ink' : 'text-navy'
             }`}
           >
             {question.question}
           </span>
           <span
             aria-hidden
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
               ouverte ? 'bg-terra text-white' : 'bg-cream-soft text-ink-mid'
             }`}
           >
@@ -269,7 +264,7 @@ function Reponse({ question }: { question: FaqQuestion }) {
           le lecteur doit pouvoir aller lire le texte lui-même. */}
       {question.sources && question.sources.length > 0 && (
         <div className="border-t border-[rgba(31,42,55,0.08)] pt-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
             Sources
           </p>
           <ul className="mt-1.5 space-y-1">

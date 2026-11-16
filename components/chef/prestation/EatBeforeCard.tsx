@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/shared/Skeleton'
 import { useState } from 'react'
 import { AlertTriangle, Check, Loader2, Pencil, RotateCcw, X } from 'lucide-react'
 import { Card } from '@/components/chef/ChefPage'
@@ -53,7 +54,7 @@ export default function EatBeforeCard({ booking }: { booking: Booking }) {
       }
     >
       {sheet.isPending ? (
-        <div className="h-24 animate-pulse rounded-2xl bg-paper" />
+        <Skeleton className="h-24 rounded-2xl"/>
       ) : sheet.isError || !sheet.data ? (
         <p className="text-sm text-ink-mid">
           {apiMessage(sheet.error, 'Les dates n’ont pas pu être lues.')}
@@ -74,7 +75,7 @@ export default function EatBeforeCard({ booking }: { booking: Booking }) {
             ))}
           </ul>
           {!open && (
-            <p className="mt-3 text-[12px] leading-relaxed text-ink-soft">
+            <p className="mt-3 text-xs leading-relaxed text-ink-soft">
               Les dates ne se modifient plus : 24 h sont passées depuis la fin de la
               prestation.
             </p>
@@ -124,7 +125,7 @@ function DateRow({
             )}
           </p>
           {e.fridgeAlert && (
-            <p className="mt-1 flex items-start gap-1 text-[12px] text-[#8B6200]">
+            <p className="mt-1 flex items-start gap-1 text-xs text-[#8B6200]">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               Plus de {e.fridgeDays} jours au frais : le client verra une alerte.
             </p>
@@ -191,7 +192,7 @@ function DateRow({
         </form>
       )}
       {save.isError && (
-        <p role="alert" className="mt-1.5 text-[12px] text-red-700">
+        <p role="alert" className="mt-1.5 text-xs text-red-700">
           {apiMessage(save.error, 'La date n’a pas pu être enregistrée.')}
         </p>
       )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import MessagingView from '@/components/messaging/MessagingView'
+import MessagingView, { MessagingSkeleton } from '@/components/messaging/MessagingView'
 
 const CANNED = [
   'Je peux décaler la session ?',
@@ -12,7 +12,7 @@ const CANNED = [
 export default function MessagesPage() {
   return (
     // `useSearchParams` (fil ouvert dans l'URL) impose une frontière Suspense.
-    <Suspense fallback={null}>
+    <Suspense fallback={<MessagingSkeleton />}>
       <MessagingView
         placeholder="Écris à ton chef…"
         canned={CANNED}

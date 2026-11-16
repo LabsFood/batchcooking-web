@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/shared/Skeleton'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Eye, EyeOff, History, Loader2, RotateCcw } from 'lucide-react'
 import { InfoPopover } from '@/components/shared/InfoPopover'
@@ -124,7 +125,7 @@ export default function RecipeHistory({
       </h3>
 
       {versions.isPending ? (
-        <div className="mt-3 h-16 animate-pulse rounded-xl bg-cream-soft" />
+        <Skeleton className="mt-3 h-16 rounded-xl"/>
       ) : versions.isError ? (
         <p role="alert" className="mt-3 text-[13px] leading-relaxed text-red-700">
           {apiMessage(versions.error, 'L’historique n’a pas pu être lu.')}
@@ -140,7 +141,7 @@ export default function RecipeHistory({
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
                 <span className="font-semibold text-navy">Version {v.version}</span>
                 {v.current && (
-                  <span className="rounded-full bg-mint px-2 py-0.5 text-[11px] font-semibold text-mint-ink">
+                  <span className="rounded-full bg-mint px-2 py-0.5 text-xs font-semibold text-mint-ink">
                     en vigueur
                   </span>
                 )}
@@ -255,7 +256,7 @@ function VersionContent({ dishId, version }: { dishId: string; version: number }
   const stepTypes = useStepTypes()
   const reheatModes = useReheatModes(REHEAT_MODES)
 
-  if (q.isPending) return <div className="mt-2 h-20 animate-pulse rounded-xl bg-paper" />
+  if (q.isPending) return <Skeleton className="mt-2 h-20 rounded-xl"/>
   if (q.isError) {
     return (
       <p role="alert" className="mt-2 text-[13px] text-red-700">

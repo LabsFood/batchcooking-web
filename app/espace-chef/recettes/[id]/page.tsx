@@ -7,6 +7,7 @@ import { RotateCw } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
 import { useToast } from '@/components/shared/Toaster'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useDishes, useUpdateDish, type DishInput } from '@/lib/api/chef-catalog'
 import { apiMessage } from '@/lib/api/messages'
 
@@ -49,7 +50,14 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
   if (dishes.isPending) {
     return (
       <ChefPage title="Modifier un plat">
-        <div className="mx-auto h-96 max-w-2xl animate-pulse rounded-2xl bg-paper" />
+        <SkeletonGroup className="mx-auto max-w-2xl">
+          <SkeletonCard className="h-96 space-y-4">
+            <Skeleton className="h-8 w-1/2" />
+            <Skeleton className="h-11" />
+            <Skeleton className="h-11" />
+            <Skeleton className="h-24" />
+          </SkeletonCard>
+        </SkeletonGroup>
       </ChefPage>
     )
   }

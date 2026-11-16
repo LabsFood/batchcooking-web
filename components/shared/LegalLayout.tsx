@@ -21,11 +21,10 @@ export default function LegalLayout({
   return (
     <div className="page-transition pt-24 bg-cream min-h-screen">
       <section className="bg-navy text-white py-16 lg:py-20 relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/20 blur-3xl pointer-events-none" />
         <div className="container-xl relative">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white mb-6"
+            className="hit inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white mb-6"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Retour à l&apos;accueil
           </Link>
@@ -42,7 +41,7 @@ export default function LegalLayout({
             <p className="text-white/65 max-w-2xl leading-relaxed">{subtitle}</p>
           )}
           {updatedAt && (
-            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/40 mt-5">
+            <p className="text-xs uppercase tracking-[0.12em] tabular-nums text-white/55 mt-5">
               Dernière mise à jour · {updatedAt}
             </p>
           )}

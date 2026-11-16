@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
   AlertTriangle,
   ArrowRight,
@@ -29,6 +28,7 @@ import { CHEF_DOCS, CHEF_PROFILE, DOC_DEFINITIONS } from '@/lib/chef/mock'
 import { bookingStatusText, hour, isBookingOpen, longDate, useChefBookings } from '@/lib/api/bookings'
 import { useChefQuotes } from '@/lib/api/quotes'
 import { moneyCents } from '@/lib/api/chef-money'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import {
   MICRO_ALERT_RATIO,
   MICRO_CEILING_EUR,
@@ -137,27 +137,31 @@ export default function ChefHomePage() {
         />
 
         {/* Indicateurs du mois */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <div className="tabular-nums grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <Stat
             Icon={TrendingUp}
             label="Net ce mois"
-            value={bookings.isPending ? '…' : (moneyCents(netMois) ?? '0 €')}
+            value={moneyCents(netMois) ?? '0 €'}
+            loading={bookings.isPending}
           />
           <Stat
             Icon={Wallet}
             label={`Net en ${annee}`}
-            value={bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
+            value={moneyCents(netAnnee) ?? '0 €'}
+            loading={bookings.isPending}
             hint={`${reglees.length} prestation${reglees.length > 1 ? 's' : ''} réglée${reglees.length > 1 ? 's' : ''}`}
           />
           <Stat
             Icon={Inbox}
             label="Demandes à chiffrer"
-            value={quotes.isPending ? '…' : `${aRepondre.length}`}
+            value={`${aRepondre.length}`}
+            loading={quotes.isPending}
           />
           <Stat
             Icon={CalendarRange}
             label="Prestations à venir"
-            value={bookings.isPending ? '…' : `${aVenir.length}`}
+            value={`${aVenir.length}`}
+            loading={bookings.isPending}
           />
         </div>
 
@@ -166,13 +170,22 @@ export default function ChefHomePage() {
           <Card
             title="Prochaine prestation"
             action={
-              <Link href="/espace-chef/prestations" className="text-xs text-terra font-semibold hover:underline">
+              <Link href="/espace-chef/prestations" className="hit text-xs text-amber-ink font-semibold hover:underline">
                 Toutes
               </Link>
             }
           >
             {bookings.isPending ? (
-              <div className="h-40 animate-pulse rounded-2xl bg-cream-soft" />
+              // Le bloc de la prochaine prestation : nom + statut, date, plats, étape.
+              <SkeletonGroup className="space-y-3 rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <Skeleton className="h-7 w-40" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-9 w-full rounded-xl" />
+              </SkeletonGroup>
             ) : prochaine ? (
               <Link
                 href="/espace-chef/prestations"
@@ -187,7 +200,7 @@ export default function ChefHomePage() {
                       {prochaine.city ?? prochaine.addressLine ?? 'Adresse à confirmer'}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                  <span className="shrink-0 rounded-full bg-paper px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
                     {bookingStatusText(prochaine.status)}
                   </span>
                 </div>
@@ -200,7 +213,7 @@ export default function ChefHomePage() {
                     {prochaine.meals!.slice(0, 6).map((m) => (
                       <span
                         key={m.mealId}
-                        className="rounded-full bg-paper px-2.5 py-1 text-[11px] text-navy"
+                        className="rounded-full bg-paper px-2.5 py-1 text-xs text-navy"
                       >
                         {m.name ?? 'Plat'}
                       </span>
@@ -209,14 +222,14 @@ export default function ChefHomePage() {
                 )}
                 <div className="mt-4 flex items-end justify-between border-t border-[rgba(31,42,55,0.08)] pt-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+                    <p className="text-xs uppercase tracking-wide text-ink-soft">
                       {prochaine.commissionEstimated ? 'Net estimé' : 'Net perçu'}
                     </p>
                     <p className="font-display text-2xl font-bold text-navy">
                       {moneyCents(prochaine.netCents) ?? '—'}
                     </p>
                   </div>
-                  <span className="text-[11px] text-ink-soft">
+                  <span className="text-xs text-ink-soft">
                     {prochaine.paidCents ? 'Déjà réglée' : 'Réglée par le client'}
                   </span>
                 </div>
@@ -228,10 +241,14 @@ export default function ChefHomePage() {
 
           {/* Jauge CA vs plafond micro */}
           <Card title="Plafond micro-entreprise">
-            <p className="font-display text-3xl font-bold text-navy">
-              {bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
-            </p>
-            <p className="mb-4 text-xs text-ink-soft">
+            {bookings.isPending ? (
+              <Skeleton className="h-9 w-32" />
+            ) : (
+              <p className="tabular-nums font-display text-3xl font-bold text-navy">
+                {moneyCents(netAnnee) ?? '0 €'}
+              </p>
+            )}
+            <p className="tabular-nums mb-4 text-xs text-ink-soft">
               sur {euros(MICRO_CEILING_EUR)} autorisés — d’après vos seules
               prestations Lab’s Food
             </p>
@@ -258,13 +275,23 @@ export default function ChefHomePage() {
         <Card
           title="Nouvelles demandes"
           action={
-            <Link href="/espace-chef/offres" className="text-xs text-terra font-semibold hover:underline">
+            <Link href="/espace-chef/offres" className="hit text-xs text-amber-ink font-semibold hover:underline">
               Tout voir
             </Link>
           }
         >
           {quotes.isPending ? (
-            <div className="h-24 animate-pulse rounded-2xl bg-cream-soft" />
+            <SkeletonGroup className="divide-y divide-[rgba(31,42,55,0.06)]">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-center gap-4 py-3">
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-4 w-56 max-w-full" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))}
+            </SkeletonGroup>
           ) : aRepondre.length === 0 ? (
             <p className="py-6 text-center text-sm text-ink-soft">Aucune demande en attente.</p>
           ) : (
@@ -284,7 +311,7 @@ export default function ChefHomePage() {
                           .join(' · ')}
                       </p>
                     </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-terra" aria-hidden />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -325,7 +352,17 @@ function DossierCard({
   attendMiseEnLigne?: boolean
 }) {
   if (loading) {
-    return <div className="h-28 animate-pulse rounded-2xl bg-paper/70" />
+    return (
+      <SkeletonGroup>
+        <SkeletonCard className="flex h-28 items-center gap-4">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-48 max-w-full" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+        </SkeletonCard>
+      </SkeletonGroup>
+    )
   }
   if (!status) return null
 
@@ -339,10 +376,7 @@ function DossierCard({
   )
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    <section
       className={`rounded-2xl p-5 lg:p-6 ${urgent ? 'bg-navy text-white' : 'card-shell'}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
@@ -392,7 +426,7 @@ function DossierCard({
           </Link>
         </div>
       </div>
-    </motion.section>
+    </section>
   )
 }
 
@@ -401,18 +435,25 @@ function Stat({
   label,
   value,
   hint,
+  loading,
 }: {
   Icon: typeof Wallet
   label: string
   value: string
   hint?: string
+  /** Un bloc à la hauteur du chiffre (text-xl, leading-none = 20 px) tant que la donnée arrive. */
+  loading?: boolean
 }) {
   return (
     <div className="card-shell rounded-2xl p-4">
-      <Icon className="w-4 h-4 text-terra mb-2" />
-      <p className="font-display text-xl font-bold text-navy leading-none">{value}</p>
-      <p className="text-[11px] uppercase tracking-wide text-ink-soft mt-1">{label}</p>
-      {hint && <p className="text-[10px] text-ink-soft mt-1">{hint}</p>}
+      <Icon className="w-4 h-4 text-amber-ink mb-2" />
+      {loading ? (
+        <Skeleton className="h-5 w-16" />
+      ) : (
+        <p className="font-display text-xl font-bold text-navy leading-none">{value}</p>
+      )}
+      <p className="text-xs uppercase tracking-wide text-ink-soft mt-1">{label}</p>
+      {hint && <p className="text-xs text-ink-soft mt-1">{hint}</p>}
     </div>
   )
 }
@@ -421,10 +462,10 @@ function Quick({ href, Icon, label }: { href: string; Icon: typeof Wallet; label
   return (
     <Link
       href={href}
-      className="bg-navy text-white rounded-2xl p-4 flex items-center gap-3 hover:-translate-y-0.5 transition-transform"
+      className="bg-navy text-white rounded-2xl p-4 flex items-center gap-3 transition-colors hover:bg-navy-deep"
     >
       <span className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-        <Icon className="w-4 h-4 text-amber" />
+        <Icon className="w-4 h-4 text-amber-ink" />
       </span>
       <span className="text-xs font-semibold leading-tight">{label}</span>
     </Link>

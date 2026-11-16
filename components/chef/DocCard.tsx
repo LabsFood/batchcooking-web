@@ -20,7 +20,7 @@ export default function DocThumb({
   if (empty) {
     return (
       <div
-        className="flex items-center justify-center rounded-xl border-2 border-dashed border-[rgba(31,42,55,0.15)] text-[11px] text-ink-soft"
+        className="flex items-center justify-center rounded-xl border-2 border-dashed border-[rgba(31,42,55,0.15)] text-xs text-ink-soft"
         style={{ aspectRatio: '1 / 1.414' }}
       >
         Non fourni
@@ -35,10 +35,10 @@ export default function DocThumb({
     >
       {certificate ? (
         <div className="flex h-full flex-col items-center justify-center text-center">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-soft text-amber-deep">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-soft text-amber-ink">
             <ShieldCheck className="h-4 w-4" />
           </span>
-          <p className="mt-1.5 font-display text-[10px] font-bold text-navy leading-tight">
+          <p className="mt-1.5 font-display text-xs font-bold text-navy leading-tight">
             {label}
           </p>
           <p className="mt-0.5 text-[8px] text-ink-soft">{chefName}</p>
@@ -54,8 +54,8 @@ export default function DocThumb({
         </div>
       ) : (
         <div className="flex h-full flex-col">
-          <FileText className="h-3.5 w-3.5 text-terra" />
-          <p className="mt-1 font-display text-[10px] font-bold text-navy leading-tight">
+          <FileText className="h-3.5 w-3.5 text-amber-ink" />
+          <p className="mt-1 font-display text-xs font-bold text-navy leading-tight">
             {label}
           </p>
           <div className="mt-1 h-0.5 w-8 rounded-full bg-amber" />

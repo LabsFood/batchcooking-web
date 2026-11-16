@@ -28,6 +28,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import DatePicker, { DayLegend } from '@/components/shared/DatePicker'
 import { SlotPicker, TimeRange } from '@/components/shared/TimeField'
 import { useToast } from '@/components/shared/Toaster'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { atTime, durationLabel } from '@/lib/time'
 import {
   closedReason,
@@ -173,7 +174,7 @@ export default function ChefAgendaPage() {
         {pasDHoraires && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
             <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
               Aucun horaire de travail posé
             </p>
             <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-mid">
@@ -190,7 +191,7 @@ export default function ChefAgendaPage() {
             <button
               onClick={() => deplacer(-1)}
               aria-label="Période précédente"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
+              className="hit flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -200,7 +201,7 @@ export default function ChefAgendaPage() {
             <button
               onClick={() => deplacer(1)}
               aria-label="Période suivante"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
+              className="hit flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-paper hover:text-navy"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -268,7 +269,17 @@ export default function ChefAgendaPage() {
                 </button>
               </Card>
             ) : agenda.isPending ? (
-              <div className="h-[32rem] animate-pulse rounded-3xl bg-paper" />
+              // Le mois : l'en-tête, puis sept colonnes sur cinq semaines.
+              <SkeletonGroup>
+                <SkeletonCard className="h-[32rem] rounded-3xl lg:p-6">
+                  <Skeleton className="mb-4 h-8 w-48" />
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: 35 }, (_, i) => (
+                      <Skeleton key={i} className="h-16 rounded-xl" />
+                    ))}
+                  </div>
+                </SkeletonCard>
+              </SkeletonGroup>
             ) : view === 'month' ? (
               <MonthView
                 month={cursor}
@@ -436,7 +447,7 @@ function MonthView({
                   className={`flex items-center gap-3 rounded-xl p-2.5 transition-opacity hover:opacity-90 ${i.ton}`}
                 >
                   <span className="w-12 shrink-0 text-center">
-                    <span className="block text-[10px] uppercase tracking-wide opacity-70">
+                    <span className="block text-xs uppercase tracking-wide opacity-70">
                       {new Date(i.at).toLocaleDateString('fr-FR', { weekday: 'short' })}
                     </span>
                     <span className="block font-display text-lg font-bold tabular-nums leading-none">
@@ -446,7 +457,7 @@ function MonthView({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-semibold">{i.title}</span>
                     {i.sub && (
-                      <span className="block truncate text-[11px] opacity-70">{i.sub}</span>
+                      <span className="block truncate text-xs opacity-70">{i.sub}</span>
                     )}
                   </span>
                   <button
@@ -456,7 +467,7 @@ function MonthView({
                       onSelect(new Date(i.at))
                     }}
                     aria-label={`Ouvrir le ${new Date(i.at).getDate()}`}
-                    className="shrink-0 rounded-full p-1 opacity-60 hover:opacity-100"
+                    className="hit shrink-0 rounded-full p-1 opacity-60 hover:opacity-100"
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden />
                   </button>
@@ -479,7 +490,17 @@ function YearView({
   query: ReturnType<typeof useAgendaSummary>
   onOpenMonth: (month: number) => void
 }) {
-  if (query.isPending) return <div className="h-72 animate-pulse rounded-3xl bg-paper" />
+  if (query.isPending) {
+    return (
+      <SkeletonGroup>
+        <SkeletonCard className="grid h-72 grid-cols-3 gap-3 rounded-3xl sm:grid-cols-4 lg:grid-cols-6">
+          {Array.from({ length: 12 }, (_, i) => (
+            <Skeleton key={i} className="h-full rounded-xl" />
+          ))}
+        </SkeletonCard>
+      </SkeletonGroup>
+    )
+  }
   if (query.isError) {
     return (
       <Card>
@@ -505,7 +526,7 @@ function YearView({
                 onClick={() => onOpenMonth(i + 1)}
                 className="w-full rounded-2xl bg-cream-soft p-3 text-left transition-colors hover:bg-cream-deep"
               >
-                <p className="text-[11px] uppercase tracking-wide text-ink-soft">{nom}</p>
+                <p className="text-xs uppercase tracking-wide text-ink-soft">{nom}</p>
                 <p className="mt-1 font-display text-2xl font-bold tabular-nums text-navy">
                   {n}
                 </p>
@@ -557,7 +578,7 @@ function SlotsCard({ date }: { date: Date }) {
             key={d}
             onClick={() => setDuree(d)}
             aria-pressed={duree === d}
-            className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
               duree === d
                 ? 'border-navy bg-navy text-white'
                 : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
@@ -570,7 +591,11 @@ function SlotsCard({ date }: { date: Date }) {
 
       <div className="mt-3">
         {query.isPending ? (
-          <div className="h-8 animate-pulse rounded-full bg-cream-soft" />
+          <SkeletonGroup className="flex flex-wrap gap-1.5">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-[2.125rem] w-16 rounded-full" />
+            ))}
+          </SkeletonGroup>
         ) : query.isError ? (
           <p className="text-[12px] text-ink-soft">
             Les créneaux n’ont pas pu être lus.{' '}
@@ -579,7 +604,7 @@ function SlotsCard({ date }: { date: Date }) {
             </button>
           </p>
         ) : query.data?.scheduled === false ? (
-          <p className="text-[12px] text-amber-deep">
+          <p className="text-[12px] text-amber-ink">
             Aucun horaire posé : rien n’est proposé, quelle que soit la durée.
           </p>
         ) : (
@@ -651,7 +676,7 @@ function DayPanel({
         <button
           onClick={onClose}
           aria-label="Fermer le panneau"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-ink-soft hover:bg-cream-soft hover:text-navy"
+          className="hit flex h-8 w-8 items-center justify-center rounded-full text-ink-soft hover:bg-cream-soft hover:text-navy"
         >
           <X className="h-4 w-4" />
         </button>
@@ -706,9 +731,9 @@ function DayPanel({
               >
                 <p className="flex items-center justify-between gap-2 text-[13px] font-semibold">
                   {p.client?.name ?? 'Client'}
-                  <span className="font-mono text-[11px] text-white/70">{p.timeSlot}</span>
+                  <span className="font-mono text-xs text-white/70">{p.timeSlot}</span>
                 </p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-white/70">
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-white/70">
                   {p.city && (
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="h-3 w-3" aria-hidden /> {p.city}
@@ -721,7 +746,7 @@ function DayPanel({
                   )}
                 </p>
                 {p.rescheduleTo && (
-                  <p className="mt-1 text-[11px] text-amber">
+                  <p className="mt-1 text-xs text-amber">
                     Report proposé — une réponse est attendue
                   </p>
                 )}
@@ -737,7 +762,7 @@ function DayPanel({
                 <p className="text-[13px] font-semibold text-navy">
                   {r.title ?? 'Demande sur-mesure'}
                 </p>
-                <p className="mt-0.5 text-[11px] text-ink-mid">
+                <p className="mt-0.5 text-xs text-ink-mid">
                   {r.stage === 'to_answer'
                     ? 'À chiffrer'
                     : 'Offre envoyée, en attente du client'}
@@ -754,7 +779,7 @@ function DayPanel({
                 <Lock className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-ink-mid">
                   {b.reason || 'Indisponible'}
-                  <span className="ml-1.5 font-mono text-[11px] text-ink-soft">
+                  <span className="ml-1.5 font-mono text-xs text-ink-soft">
                     {minuteLabel(minutesOf(b.startsAt))}–{minuteLabel(minutesOf(b.endsAt))}
                   </span>
                 </span>
@@ -887,7 +912,11 @@ function HoursEditor() {
   const [plage, setPlage] = useState({ from: '09:00', to: '13:00' })
 
   if (query.isPending) {
-    return <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+    return (
+      <SkeletonGroup>
+        <SkeletonCard className="h-64 rounded-3xl" />
+      </SkeletonGroup>
+    )
   }
 
   const chevauche = (s: WeeklySlot) =>
@@ -974,7 +1003,7 @@ function HoursEditor() {
       {/* Ajouter un créneau */}
       <div className="mt-4 border-t border-[rgba(31,42,55,0.07)] pt-4">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-ink-soft">Jour</span>
+          <span className="mb-1 block text-xs text-ink-soft">Jour</span>
           <select
             value={jour}
             onChange={(e) => setJour(Number(e.target.value))}
@@ -1002,7 +1031,7 @@ function HoursEditor() {
           <Plus className="h-3.5 w-3.5" aria-hidden /> Ajouter ce créneau
         </button>
         {chevauche(nouveau) && nouveau.endMinute > nouveau.startMinute && (
-          <p className="mt-1.5 text-[12px] text-amber-deep">
+          <p className="mt-1.5 text-[12px] text-amber-ink">
             Ce créneau en chevauche un autre le {weekdayLabel(jour).toLowerCase()} — l’API
             le refuserait.
           </p>
@@ -1071,7 +1100,9 @@ function CalendarFeedCard() {
       </p>
 
       {query.isPending ? (
-        <div className="mt-3 h-10 animate-pulse rounded-xl bg-cream-soft" />
+        <SkeletonGroup className="mt-3">
+          <Skeleton className="h-10 rounded-xl" />
+        </SkeletonGroup>
       ) : f?.enabled ? (
         <>
           <p className="mt-3 flex items-center gap-2 text-[13px] text-mint-ink">
@@ -1084,7 +1115,7 @@ function CalendarFeedCard() {
           {lien && (
             <div className="mt-2 flex items-center gap-2 rounded-xl bg-cream-soft p-2">
               <Link2 className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-hidden />
-              <code className="min-w-0 flex-1 truncate text-[11px] text-ink-mid">{lien}</code>
+              <code className="min-w-0 flex-1 truncate text-xs text-ink-mid">{lien}</code>
               <button
                 onClick={() => {
                   void navigator.clipboard.writeText(lien)

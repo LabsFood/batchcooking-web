@@ -133,7 +133,7 @@ function Formulaire({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="shrink-0 rounded-full p-1.5 text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+            className="hit shrink-0 rounded-full p-1.5 text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>

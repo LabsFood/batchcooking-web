@@ -31,7 +31,7 @@ export default function ContactPage() {
             className="mb-5 font-display font-bold leading-none text-white"
             style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)', letterSpacing: '-0.02em' }}
           >
-            Parlons <span className="font-medium italic text-terra">cuisine.</span>
+            Parlons <span className="text-amber">cuisine.</span>
           </h1>
           <p className="max-w-xl leading-relaxed text-white/70">
             Une question sur nos formules, une réservation à caler, l&apos;envie de cuisiner avec nous : écrivez-nous,

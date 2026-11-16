@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { fadeUp, fadeUpInView } from '@/lib/motion'
 import {
   ArrowRight,
   Globe2,
-  Sparkles,
   HeartHandshake,
   Clock,
   ChefHat,
@@ -55,20 +55,15 @@ export default function AProposPage() {
     <div className="page-transition pt-24 bg-cream min-h-screen">
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-navy text-white py-20 lg:py-28">
-        {/* <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-amber/25 blur-3xl pointer-events-none" /> */}
-        {/* <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-mint/15 blur-3xl pointer-events-none" /> */}
 
         <div className="container-xl relative grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7">
-            <p className="eyebrow mb-5" style={{ color: '#F39C12' }}>
-              À propos · Lab&apos;s Food
-            </p>
             <h1
               className="font-display font-bold leading-[0.95]"
               style={{ fontSize: 'clamp(2.4rem, 6vw, 4.6rem)', letterSpacing: '-0.02em' }}
             >
               Vous redonner du temps,
-              <span className="text-amber italic font-medium pl-3">
+              <span className="text-amber">
                 et le goût des bonnes choses.
               </span>
             </h1>
@@ -90,9 +85,8 @@ export default function AProposPage() {
           </div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : la photo du hero se pose en 240 ms
+            {...fadeUp()}
             className="lg:col-span-5 relative"
           >
             <div className="relative overflow-hidden aspect-[4/5] rounded-lg">
@@ -126,7 +120,7 @@ export default function AProposPage() {
               <p className="font-display text-3xl lg:text-5xl font-bold text-navy leading-none">
                 {n.value}
               </p>
-              <p className="text-[11px] uppercase tracking-[0.18em] font-mono text-ink-soft mt-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-ink-soft mt-3">
                 {n.label}
               </p>
             </div>
@@ -140,15 +134,12 @@ export default function AProposPage() {
           <div className="lg:col-span-5">
             <p className="eyebrow mb-4">Mon histoire</p>
             <h2 className="h-section">
-              Tout a commencé par
-              <span className="accent pl-2">un regard de soulagement.</span>
+              Tout a commencé par un regard de soulagement.
             </h2>
-            <div className="mt-6 inline-flex items-center gap-3 px-4 py-2.5 rounded-full bg-mint/40 border border-mint-deep/40 text-mint-ink">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold tracking-wide">
-                Ingénieure devenue cheffe à domicile
-              </span>
-            </div>
+            <p className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-navy">
+              <ChefHat className="h-4 w-4 text-amber-ink" aria-hidden />
+              Ingénieure devenue cheffe à domicile
+            </p>
           </div>
 
           <div className="lg:col-span-7 space-y-5 text-ink-mid leading-relaxed">
@@ -168,7 +159,7 @@ export default function AProposPage() {
             <p className='text-justify'>
               Dans la vie, je suis ingénieure de formation, spécialisée en gestion de projets
               et excellence opérationnelle. Des mots qui peuvent sembler bien loin de la
-              gastronomie ! Pourtant, c&apos;est exactement le secret d&apos;un <em>batch cooking</em>{' '}
+              gastronomie ! Pourtant, c&apos;est exactement le secret d&apos;un <span className="font-semibold">batch cooking</span>{' '}
               réussi : de l&apos;organisation, de l&apos;optimisation et une méthode fluide. J&apos;ai
               simplement choisi de mettre cette rigueur au service de ma plus grande passion :
               régaler les autres.
@@ -188,8 +179,8 @@ export default function AProposPage() {
             </p>
 
             <blockquote className="relative pl-6 border-l-2 border-amber py-2 mt-8">
-              <Quote className="w-5 h-5 text-amber absolute -left-3 -top-1 bg-cream" />
-              <p className="font-display text-lg lg:text-xl text-navy italic leading-relaxed text-justify">
+              <Quote className="w-5 h-5 text-amber-ink absolute -left-3 -top-1 bg-cream" />
+              <p className="font-display text-lg lg:text-xl text-navy leading-relaxed text-justify">
                 Mon but est simple : vous soulager de la fameuse charge mentale du
                 « qu&apos;est-ce qu&apos;on mange ce soir ? » tout en prenant soin de votre
                 alimentation.
@@ -206,7 +197,7 @@ export default function AProposPage() {
           <div className="text-center max-w-2xl mx-auto mb-14">
             <p className="eyebrow mb-4 justify-center">Notre love language</p>
             <h2 className="h-section">
-              Une cuisine qui prend <span className="accent">soin de vous.</span>
+              Une cuisine qui prend soin de vous.
             </h2>
           </div>
 
@@ -214,13 +205,11 @@ export default function AProposPage() {
             {VALUES.map(({ Icon, title, text }, i) => (
               <motion.div
                 key={title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{ duration: 0.5, delay: i * 0.05 }}
+                // slow-out : chaque valeur se pose en 240 ms, décalée de 50 ms
+                {...fadeUpInView(i * 0.05)}
                 className="card-base p-6 lg:p-7 flex gap-4"
               >
-                <span className="w-12 h-12 rounded-2xl bg-amber-soft text-amber-deep flex items-center justify-center flex-shrink-0">
+                <span className="w-12 h-12 rounded-2xl bg-amber-soft text-amber-ink flex items-center justify-center flex-shrink-0">
                   <Icon className="w-5 h-5" />
                 </span>
                 <div>
@@ -241,8 +230,7 @@ export default function AProposPage() {
           <div>
             <p className="eyebrow mb-4">Notre terrain de jeu</p>
             <h2 className="h-section">
-              Une cuisine sous le<br />
-              <span className="accent">soleil de la Côte d&apos;Azur.</span>
+              Une cuisine sous le soleil de la Côte d&apos;Azur.
             </h2>
             <p className="mt-6 text-ink-mid leading-relaxed max-w-xl">
               Lab&apos;s Food intervient sur l&apos;ensemble de la Côte d&apos;Azur — Nice, Cannes,
@@ -274,7 +262,6 @@ export default function AProposPage() {
       {/* <section className="section-padding section-paper">
         <div className="container-xl">
           <div className="relative overflow-hidden rounded-3xl bg-navy text-white p-10 lg:p-14 text-center">
-            <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
             <p className="eyebrow justify-center mb-4" style={{ color: '#F39C12' }}>
               Prochaine étape
             </p>
@@ -282,8 +269,8 @@ export default function AProposPage() {
               className="font-display font-bold leading-[0.95]"
               style={{ fontSize: 'clamp(2rem, 4.6vw, 3.6rem)', letterSpacing: '-0.02em' }}
             >
-              Prêt·e à reprendre<br />
-              <span className="text-amber italic font-medium">une semaine de répit ?</span>
+              Prêt·e à reprendre{' '}
+              <span className="text-amber">une semaine de répit ?</span>
             </h2>
             <div className="mt-8 flex flex-wrap gap-3 justify-center">
               <ReserveButton variant="amber">

@@ -16,11 +16,6 @@ const fraunces = localFont({
       style: 'normal',
       weight: '100 900',
     },
-    {
-      path: '../public/fraunces-font-family/Fraunces-Italic-VariableFont_SOFTWONKopszwght.ttf',
-      style: 'italic',
-      weight: '100 900',
-    },
   ],
   variable: '--font-fraunces',
   display: 'swap',
@@ -56,7 +51,7 @@ export const metadata: Metadata = {
     template: "%s | Lab's Food",
   },
   description:
-    "Un cuisinier vient préparer une semaine entière de repas chez vous, en une seule session. Découvrez le batch cooking sur-mesure avec Lab's Food.",
+    "Une semaine de repas faits maison, cuisinés chez vous par un cuisinier, partout en France. À partir de 50 € par session après crédit d'impôt (avance immédiate Urssaf). Réservez votre batch cooker avec Lab's Food.",
   applicationName: "Lab's Food",
   keywords: ['batch cooking', 'chef à domicile', 'service à la personne', 'meal prep'],
   authors: [{ name: "Lab's Food" }],
@@ -80,7 +75,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LAB'S FOOD - Batch cooking à domicile",
-    description: 'Un cuisinier prépare une semaine de repas chez vous.',
+    description: "Une semaine de repas faits maison, cuisinés chez vous par un cuisinier. À partir de 50 € par session après crédit d'impôt.",
     type: 'website',
     locale: 'fr_FR',
     siteName: "Lab's Food",

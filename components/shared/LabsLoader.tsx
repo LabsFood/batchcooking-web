@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import { fade } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 type LoaderProps = {
@@ -24,7 +25,7 @@ export default function LabsLoader({
   const Inner = (
     <div className={cn('flex flex-col items-center justify-center gap-5', className)}>
       <div className="relative" style={{ width: px * 1.6, height: px * 1.6 }}>
-        {/* outer rotating ring with dots */}
+        {/* indicateur de chargement : anneau qui tourne (linéaire, boucle volontaire) */}
         <motion.svg
           viewBox="0 0 100 100"
           className="absolute inset-0 w-full h-full"
@@ -49,7 +50,7 @@ export default function LabsLoader({
           })}
         </motion.svg>
 
-        {/* steam — three softly-rising bubbles */}
+        {/* indicateur de chargement : trois bulles qui montent en boucle (1,8 s) */}
         <div className="absolute left-1/2 -translate-x-1/2" style={{ top: 4 }}>
           {[0, 1, 2].map((i) => (
             <motion.span
@@ -75,7 +76,7 @@ export default function LabsLoader({
           ))}
         </div>
 
-        {/* logo bobbing */}
+        {/* indicateur de chargement : le logo respire en boucle (2,6 s) */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           animate={{ y: [0, -3, 0] }}
@@ -99,10 +100,9 @@ export default function LabsLoader({
 
       {label && (
         <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-          className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-soft"
+          // fondu : le libellé arrive en 180 ms
+          {...fade}
+          className="text-xs uppercase tracking-[0.12em] text-ink-soft"
         >
           {label}
         </motion.p>

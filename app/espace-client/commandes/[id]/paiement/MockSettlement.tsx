@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   ArrowLeft,
@@ -139,14 +138,14 @@ export default function MockSettlement({ id }: { id: string }) {
     <div className="space-y-6">
       <Link
         href={`/espace-client/commandes/${order.id}`}
-        className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
+        className="hit inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Retour à la prestation
       </Link>
 
       <header>
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
           {order.reference}
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-navy lg:text-4xl">
@@ -154,10 +153,10 @@ export default function MockSettlement({ id }: { id: string }) {
         </h1>
         <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-mid">
           <span className="inline-flex items-center gap-1.5">
-            <ChefHat className="h-4 w-4 text-amber" /> {order.chef}
+            <ChefHat className="h-4 w-4 text-amber-ink" /> {order.chef}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <CalendarRange className="h-4 w-4 text-amber" /> {formatDate(order.date)}
+            <CalendarRange className="h-4 w-4 text-amber-ink" /> {formatDate(order.date)}
           </span>
           <span>
             {order.meals.length} plats · {order.persons} pers.
@@ -216,19 +215,19 @@ export default function MockSettlement({ id }: { id: string }) {
                           </span>
                           {available &&
                             (spec.id === 'urssaf' ? (
-                              <span className="font-display text-lg font-bold text-terra">
+                              <span className="font-display text-lg font-bold text-amber-ink">
                                 Rien à payer
                               </span>
                             ) : (
                               <span className="font-display text-lg font-bold tabular-nums text-navy">
                                 {formatEuros(due)}
-                                <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                                <span className="ml-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
                                   aujourd’hui
                                 </span>
                               </span>
                             ))}
                         </span>
-                        <span className="mt-0.5 block text-[13px] font-semibold text-terra">
+                        <span className="mt-0.5 block text-[13px] font-semibold text-amber-ink">
                           {spec.tagline}
                         </span>
                         <span className="mt-1.5 block text-[13px] leading-relaxed text-ink-mid">
@@ -239,7 +238,7 @@ export default function MockSettlement({ id }: { id: string }) {
 
                     {!available && reason && (
                       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-4 text-[13px] text-ink-mid">
-                        <Info className="h-3.5 w-3.5 shrink-0 text-amber-deep" />
+                        <Info className="h-3.5 w-3.5 shrink-0 text-amber-ink" />
                         {reason}
                         {action && (
                           <Link href={action.href} className="font-semibold text-navy underline">
@@ -270,11 +269,11 @@ export default function MockSettlement({ id }: { id: string }) {
                               cesuTooHigh ? 'border-red-400' : 'border-[rgba(31,42,55,0.14)]'
                             }`}
                           />
-                          <span className="font-display text-lg font-bold text-ink-soft">€</span>
+                          <span className="tabular-nums font-display text-lg font-bold text-ink-soft">€</span>
                         </div>
                         <p
                           id="cesu-hint"
-                          className={`mt-2 text-[13px] ${cesuTooHigh ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
+                          className={`tabular-nums mt-2 text-[13px] ${cesuTooHigh ? 'font-semibold text-red-700' : 'text-ink-mid'}`}
                         >
                           {cesuTooHigh
                             ? `Vos titres dépassent le prix de la prestation. Le maximum utilisable ici est ${formatEuros(order.amountTTC)}.`
@@ -348,7 +347,7 @@ export default function MockSettlement({ id }: { id: string }) {
         <aside className="lg:col-span-2">
           <div className="space-y-4 lg:sticky lg:top-6">
             <div className="rounded-3xl bg-navy p-6 text-white">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
+              <p className="text-xs uppercase tracking-[0.12em] text-amber">
                 À régler aujourd’hui
               </p>
               <p className="mt-1 font-display text-4xl font-bold tabular-nums text-amber">
@@ -360,7 +359,7 @@ export default function MockSettlement({ id }: { id: string }) {
                 </p>
               )}
 
-              <dl className="mt-5 space-y-2 border-t border-white/12 pt-4 text-sm">
+              <dl className="tabular-nums mt-5 space-y-2 border-t border-white/12 pt-4 text-sm">
                 <Line label="Prestation" value={formatEuros(settlement.total)} />
                 {settlement.deductionLabel && settlement.deducted > 0 && (
                   <Line
@@ -402,7 +401,7 @@ export default function MockSettlement({ id }: { id: string }) {
                   </>
                 ) : (
                   <>
-                    <Lock className="h-3.5 w-3.5" aria-hidden />
+                    <Lock className="tabular-nums h-3.5 w-3.5" aria-hidden />
                     Payer {formatEuros(settlement.dueNow)} sur Stripe
                     <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
                   </>
@@ -456,7 +455,7 @@ export default function MockSettlement({ id }: { id: string }) {
               <Dialog.Close
                 aria-label="Fermer"
                 disabled={pending}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                className="hit flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
               >
                 <X className="h-4 w-4" />
               </Dialog.Close>
@@ -470,7 +469,7 @@ export default function MockSettlement({ id }: { id: string }) {
             <ul className="mt-4 space-y-2.5 border-y border-[rgba(31,42,55,0.08)] py-4 text-sm">
               <li className="flex items-baseline justify-between gap-4">
                 <span className="text-ink-mid">Vous réglez maintenant</span>
-                <span className="font-display text-lg font-bold text-navy">0 €</span>
+                <span className="tabular-nums font-display text-lg font-bold text-navy">0 €</span>
               </li>
               <li className="flex items-baseline justify-between gap-4">
                 <span className="text-ink-mid">L’URSSAF prélève sur votre compte</span>
@@ -546,14 +545,11 @@ function Line({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    <div
       className="mx-auto max-w-lg py-12 text-center"
     >
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -609,7 +605,7 @@ function Settled({
       <h1 className="mt-4 font-display text-2xl font-bold text-navy">
         Cette prestation est réglée
       </h1>
-      <p className="mt-2 text-sm text-ink-mid">
+      <p className="tabular-nums mt-2 text-sm text-ink-mid">
         {formatEuros(amount)} encaissés sur {reference}
         {receipt && <> · reçu {receipt}</>}.
       </p>

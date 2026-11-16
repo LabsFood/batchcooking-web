@@ -18,7 +18,7 @@ const TONE_CLASS: Record<Tone, string> = {
   neutral: 'bg-cream-deep text-ink-mid',
   info: 'bg-mint text-mint-ink',
   success: 'bg-mint-deep text-mint-ink',
-  warning: 'bg-amber-soft text-amber-deep',
+  warning: 'bg-amber-soft text-amber-ink',
   danger: 'bg-red-100 text-red-700',
 }
 
@@ -75,7 +75,7 @@ export default function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap',
         TONE_CLASS[tone],
         className,
       )}

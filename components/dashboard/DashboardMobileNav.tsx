@@ -35,7 +35,7 @@ export default function DashboardMobileNav() {
               <Link
                 href={href}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[10px] font-medium transition-colors',
+                  'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-xs font-medium transition-colors',
                   active ? 'text-amber' : 'text-white/55 hover:text-white',
                 )}
               >

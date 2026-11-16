@@ -10,7 +10,7 @@ import {
   Settings,
   ShoppingBasket,
   Snowflake,
-  Sparkles,
+  ClipboardList,
   UserCircle2,
   UtensilsCrossed,
 } from 'lucide-react'
@@ -37,7 +37,7 @@ const PAGES: { href: string; label: string; Icon: PaletteItem['Icon']; keywords:
   { href: '/espace-client/menus', label: 'Menus et plats', Icon: UtensilsCrossed, keywords: 'carte semaine recettes reserver nouvelle session batch cooker' },
   { href: '/espace-client/courses', label: 'Ma liste de courses', Icon: ShoppingBasket, keywords: 'ingredients rayon' },
   { href: '/espace-client/conservation', label: 'Réchauffage et conservation', Icon: Snowflake, keywords: 'congelation duree temperature' },
-  { href: '/espace-client/personnalisation', label: 'Demande sur-mesure', Icon: Sparkles, keywords: 'devis brief special' },
+  { href: '/espace-client/personnalisation', label: 'Demande sur-mesure', Icon: ClipboardList, keywords: 'devis brief special' },
   { href: '/espace-client/statistiques', label: 'Mes statistiques', Icon: Globe2, keywords: 'economies pays carte culinaire' },
   { href: '/espace-client/messages', label: 'Messagerie', Icon: MessageCircle, keywords: 'messages chef discussion' },
   { href: '/espace-client/profil', label: 'Profil et goûts', Icon: UserCircle2, keywords: 'allergies preferences piment foyer regime' },

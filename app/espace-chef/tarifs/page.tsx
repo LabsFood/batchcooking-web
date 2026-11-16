@@ -21,6 +21,7 @@ import { CeQueChangeUneFormule } from '@/components/chef/PresenceCarte'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { useToast } from '@/components/shared/Toaster'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { ApiError } from '@/lib/api/client'
 import {
   afterTaxFromClientPrice,
@@ -190,10 +191,10 @@ export default function ChefPricingPage() {
               }
             >
               {query.isPending ? (
-                <div className="space-y-2">
-                  <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
-                  <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
-                </div>
+                <SkeletonGroup className="space-y-2">
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                </SkeletonGroup>
               ) : offres.length === 0 && edite === null ? (
                 <Empty
                   text={
@@ -218,18 +219,18 @@ export default function ChefPricingPage() {
                           <p className="flex items-center gap-2 font-display text-base font-bold text-navy">
                             {o.name}
                             {!o.active && (
-                              <span className="rounded-full bg-cream-deep px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+                              <span className="rounded-full bg-cream-deep px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
                                 Hors ligne
                               </span>
                             )}
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-mid">
                             <span className="inline-flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                              <Clock className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {offerDuration(o.durationMinutes)}
                             </span>
                             <span className="inline-flex items-center gap-1">
-                              <ShoppingBasket className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                              <ShoppingBasket className="tabular-nums h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {o.shoppingIncluded
                                 ? o.shoppingFeeCents > 0
                                   ? `Forfait courses ${offerEuros(o.shoppingFeeCents)}`
@@ -245,10 +246,10 @@ export default function ChefPricingPage() {
                         </div>
 
                         <div className="text-right">
-                          <p className="font-display text-xl font-bold text-navy">
+                          <p className="tabular-nums font-display text-xl font-bold text-navy">
                             {offerEuros(o.priceCents + (o.shoppingIncluded ? o.shoppingFeeCents : 0))}
                           </p>
-                          <p className="text-[11px] text-ink-soft">
+                          <p className="tabular-nums text-xs text-ink-soft">
                             {rules.data
                               ? `soit ${offerEuros(
                                   afterTaxFromClientPrice(
@@ -322,7 +323,7 @@ export default function ChefPricingPage() {
             )}
 
             <div className="mt-4 rounded-xl bg-white/5 px-3 py-2.5">
-              <p className="text-[10px] leading-relaxed text-white/50">
+              <p className="text-xs leading-relaxed text-white/50">
                 {rules.data
                   ? `Commission Lab’s Food : ${(rules.data.commissionBps / 100).toLocaleString('fr-FR')} % du prix client. Crédit d’impôt : ${(rules.data.taxCreditBps / 100).toLocaleString('fr-FR')} %.`
                   : 'Commission et crédit d’impôt lus sur l’API.'}
@@ -406,7 +407,7 @@ function OfferForm({
       </p>
 
       <label className="block">
-        <span className="mb-1 block text-[11px] text-ink-soft">
+        <span className="mb-1 block text-xs text-ink-soft">
           Nom — c’est ce que le client lit
         </span>
         <input
@@ -419,7 +420,7 @@ function OfferForm({
       </label>
 
       <label className="mt-3 block">
-        <span className="mb-1 block text-[11px] text-ink-soft">
+        <span className="mb-1 block text-xs text-ink-soft">
           Description (facultative)
         </span>
         <textarea
@@ -434,7 +435,7 @@ function OfferForm({
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <span className="mb-1 block text-[11px] text-ink-soft">Durée sur place</span>
+          <span className="mb-1 block text-xs text-ink-soft">Durée sur place</span>
           <div className="flex flex-wrap gap-1.5">
             {DUREES.map((d) => (
               <button
@@ -442,7 +443,7 @@ function OfferForm({
                 type="button"
                 onClick={() => set('durationMinutes', d)}
                 aria-pressed={value.durationMinutes === d}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
                   value.durationMinutes === d
                     ? 'border-navy bg-navy text-white'
                     : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
@@ -462,13 +463,13 @@ function OfferForm({
             aria-label="Durée en minutes"
             className="input-base mt-2 py-2"
           />
-          <span className="mt-1 block text-[11px] text-ink-soft">
+          <span className="mt-1 block text-xs text-ink-soft">
             En minutes, de 30 à 720.
           </span>
         </div>
 
         <div>
-          <span className="mb-1 block text-[11px] text-ink-soft">Prix client</span>
+          <span className="mb-1 block text-xs text-ink-soft">Prix client</span>
           <div className="relative">
             <input
               type="number"
@@ -478,11 +479,11 @@ function OfferForm({
               onChange={(e) => set('priceCents', Math.round(Number(e.target.value) * 100))}
               className="input-base py-2 pr-8 font-semibold"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
+            <span className="tabular-nums absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
               €
             </span>
           </div>
-          <span className="mt-1 block text-[11px] leading-relaxed text-ink-soft">
+          <span className="tabular-nums mt-1 block text-xs leading-relaxed text-ink-soft">
             {rules
               ? `Vous en touchez ${offerEuros(
                   Math.round((value.priceCents * (10000 - rules.commissionBps)) / 10000),
@@ -502,7 +503,7 @@ function OfferForm({
           />
           <span className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy">
-              <ShoppingBasket className="h-4 w-4 text-terra" aria-hidden /> Je fais les
+              <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden /> Je fais les
               courses
             </span>
             <span className="mt-0.5 block text-xs text-ink-soft">
@@ -514,7 +515,7 @@ function OfferForm({
 
         {value.shoppingIncluded && (
           <div className="mt-3 pl-7">
-            <span className="mb-1 block text-[11px] text-ink-soft">
+            <span className="mb-1 block text-xs text-ink-soft">
               Forfait courses — 0 pour les offrir
             </span>
             <div className="relative w-36">
@@ -528,12 +529,12 @@ function OfferForm({
                 }
                 className="input-base py-2 pr-8"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
+              <span className="tabular-nums absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
                 €
               </span>
             </div>
             {(value.shoppingFeeCents ?? 0) === 0 && (
-              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-mint-ink">
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-mint-ink">
                 <Gift className="h-3 w-3" aria-hidden /> Les courses sont offertes.
               </p>
             )}
@@ -561,7 +562,7 @@ function OfferForm({
       </label>
 
       {erreur && (
-        <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-amber-deep">
+        <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-amber-ink">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           {erreur}
         </p>
@@ -610,14 +611,14 @@ function Apercu({
         {offerDuration(offre.durationMinutes)} sur place
       </p>
 
-      <p className="mt-3 font-display text-3xl font-bold">{offerEuros(total)}</p>
+      <p className="tabular-nums mt-3 font-display text-3xl font-bold">{offerEuros(total)}</p>
       {rules && (
-        <p className="mt-1 text-sm font-semibold text-amber">
+        <p className="tabular-nums mt-1 text-sm font-semibold text-amber">
           soit {offerEuros(afterTaxFromClientPrice(total, rules))} après crédit d’impôt
         </p>
       )}
 
-      <div className="my-4 border-t border-white/10" />
+      <div className="tabular-nums my-4 border-t border-white/10" />
 
       <Detail label="Prestation" value={offerEuros(offre.priceCents)} />
       <Detail

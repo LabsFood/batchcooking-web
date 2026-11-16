@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { fadeUpInView } from '@/lib/motion'
 import { ArrowRight, CalendarCheck, ChefHat, ShoppingBasket, Store, Wallet } from 'lucide-react'
 import {
   MONTRER_CONNEXION,
@@ -45,7 +46,7 @@ export default function JoinUs() {
             className="font-display font-bold leading-tight text-navy"
             style={{ fontSize: 'clamp(2rem, 4.5vw, 3.2rem)', letterSpacing: '-0.02em' }}
           >
-            On commence <span className="font-medium italic text-terra">par où ?</span>
+            On commence par où ?
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-ink-mid">
             Faire garnir votre frigo, ou cuisiner chez les autres : Lab&apos;s Food, c&apos;est les deux côtés de la
@@ -63,13 +64,11 @@ export default function JoinUs() {
           {/* Client */}
           {MONTRER_CONNEXION && (
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : la carte se pose en 240 ms, sans délai devant les CTA
+            {...fadeUpInView()}
             className="flex flex-col rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-7 lg:p-9"
           >
-            <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(243,156,18,0.12)] text-terra">
+            <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(243,156,18,0.12)] text-amber-ink">
               <ShoppingBasket className="h-5 w-5" aria-hidden />
             </span>
             <h3 className="font-display text-2xl font-bold leading-tight text-navy">Je veux être servi</h3>
@@ -80,7 +79,7 @@ export default function JoinUs() {
             <ul className="mt-6 space-y-3">
               {CLIENT_POINTS.map(({ Icon, text }) => (
                 <li key={text} className="flex items-start gap-3 text-sm text-ink">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-terra" aria-hidden />
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                   {text}
                 </li>
               ))}
@@ -101,13 +100,10 @@ export default function JoinUs() {
           {/* Batch cooker */}
           {MONTRER_RECRUTEMENT && (
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : la carte se pose en 240 ms, sans délai devant les CTA
+            {...fadeUpInView()}
             className="relative flex flex-col overflow-hidden rounded-2xl bg-navy p-7 text-white lg:p-9"
           >
-            <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber/15 blur-3xl" />
             <div className="relative flex flex-1 flex-col">
               <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-amber">
                 <ChefHat className="h-5 w-5" aria-hidden />

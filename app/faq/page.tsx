@@ -17,7 +17,7 @@ export default function FAQPage() {
             className="mb-5 font-display font-bold leading-none text-white"
             style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)', letterSpacing: '-0.02em' }}
           >
-            Questions <span className="font-medium italic text-terra">fréquentes.</span>
+            Questions <span className="font-medium">fréquentes.</span>
           </h1>
           <p className="max-w-2xl leading-relaxed text-white/70">
             Vous avez envie de repas faits maison toute la semaine, sans passer vos soirées

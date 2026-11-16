@@ -85,7 +85,7 @@ export default function DocumentPreviewDialog({
                   rel="noreferrer"
                   title="Ouvrir dans un nouvel onglet"
                   aria-label="Ouvrir dans un nouvel onglet"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
@@ -94,7 +94,7 @@ export default function DocumentPreviewDialog({
                   download={name}
                   title="Télécharger"
                   aria-label="Télécharger"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <Download className="h-4 w-4" />
                 </a>
@@ -102,7 +102,7 @@ export default function DocumentPreviewDialog({
             )}
             <Dialog.Close
               aria-label="Fermer l’aperçu"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>

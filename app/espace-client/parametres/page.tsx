@@ -4,7 +4,7 @@ import { useState } from 'react'
 import CityField from '@/components/chef/application/CityField'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import { motion } from 'framer-motion'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { Bell, Mail, Lock, Trash2, Download, Globe, Save, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useApiFetch } from '@/lib/api/client'
@@ -26,11 +26,13 @@ export default function ParametresPage() {
       {me.data && isLoaded ? (
         <Compte me={me.data} firstName={clerkUser?.firstName ?? ''} lastName={clerkUser?.lastName ?? ''} />
       ) : (
-        <Section title="Mon compte" eyebrow="Identité" Icon={Mail}>
+        <Section title="Mon compte" Icon={Mail}>
           {me.isError ? (
             <p className="text-sm text-red-700">{apiMessage(me.error, 'Votre compte n’a pas pu être chargé.')}</p>
           ) : (
-            <div className="h-64 rounded-2xl bg-cream-soft animate-pulse" />
+            <SkeletonGroup>
+              <Skeleton className="h-64 rounded-2xl" />
+            </SkeletonGroup>
           )}
         </Section>
       )}
@@ -56,7 +58,7 @@ export default function ParametresPage() {
               signOut()
               router.push('/')
             }}
-            className="px-4 py-2 rounded-full bg-paper border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+            className="px-4 py-2 rounded-xl bg-paper border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
           >
             Me déconnecter
           </button>
@@ -119,7 +121,7 @@ function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string;
   }
 
   return (
-    <Section title="Mon compte" eyebrow="Identité" Icon={Mail}>
+    <Section title="Mon compte" Icon={Mail}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Prénom">
           <input value={form.firstName} onChange={set('firstName')} autoComplete="given-name" className="input-base" />
@@ -130,7 +132,7 @@ function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string;
       </div>
       <Field label="Email">
         <input type="email" value={me.user.email} readOnly disabled className="input-base" />
-        <p className="text-[11px] text-ink-soft mt-1.5">C’est ton identifiant de connexion : il ne se modifie pas ici.</p>
+        <p className="text-xs text-ink-soft mt-1.5">C’est ton identifiant de connexion : il ne se modifie pas ici.</p>
       </Field>
       <Field label="Téléphone">
         <input type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="+33 6 XX XX XX XX" className="input-base" />
@@ -166,7 +168,7 @@ function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string;
 /** Le formulaire est partagé avec l'espace batch cooker. */
 function Securite() {
   return (
-    <Section title="Sécurité" eyebrow="Mot de passe" Icon={Lock}>
+    <Section title="Sécurité" Icon={Lock}>
       <ChangePassword />
     </Section>
   )
@@ -189,7 +191,7 @@ function Notifications({ prefs }: { prefs?: { email: boolean; sms: boolean } }) 
     { label: 'SMS de session', sub: 'Pour le jour J, par ton batch cooker.', on: prefs?.sms ?? false },
   ]
   return (
-    <Section title="Notifications" eyebrow="Préférences" Icon={Bell}>
+    <Section title="Notifications" Icon={Bell}>
       {rows.map((row) => (
         <div key={row.label} className="flex items-center justify-between gap-3 py-2.5 border-b border-[rgba(31,42,55,0.06)] last:border-0">
           <div>
@@ -197,7 +199,7 @@ function Notifications({ prefs }: { prefs?: { email: boolean; sms: boolean } }) 
             <p className="text-xs text-ink-soft mt-0.5">{row.sub}</p>
           </div>
           <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
               row.on ? 'bg-mint text-mint-ink' : 'bg-cream-deep text-ink-mid'
             }`}
           >
@@ -236,7 +238,7 @@ function MesDonnees() {
   }
 
   return (
-    <Section title="Préférences & données" eyebrow="Confort" Icon={Globe}>
+    <Section title="Préférences & données" Icon={Globe}>
       <Field label="Langue">
         <select className="input-base">
           <option>Français</option>
@@ -244,7 +246,7 @@ function MesDonnees() {
         </select>
       </Field>
       <Field label="Devise">
-        <select className="input-base">
+        <select className="tabular-nums input-base">
           <option>EUR (€)</option>
           <option>USD ($)</option>
         </select>
@@ -257,7 +259,7 @@ function MesDonnees() {
       <button
         onClick={download}
         disabled={pending}
-        className="inline-flex items-center gap-2 text-sm text-navy font-semibold hover:text-amber-deep transition-colors disabled:opacity-60"
+        className="inline-flex items-center gap-2 text-sm text-navy font-semibold hover:text-amber-ink transition-colors disabled:opacity-60"
       >
         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Télécharger mes données
       </button>
@@ -267,41 +269,32 @@ function MesDonnees() {
 
 function Section({
   title,
-  eyebrow,
   Icon,
   children,
 }: {
   title: string
-  eyebrow: string
   Icon: any
   children: React.ReactNode
 }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.35 }}
+    <section
       className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]"
     >
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-mono text-ink-soft">{eyebrow}</p>
-          <h3 className="font-display text-lg font-bold text-navy mt-0.5">{title}</h3>
-        </div>
-        <span className="w-9 h-9 rounded-xl bg-amber-soft text-amber-deep flex items-center justify-center">
+        <h3 className="font-display text-lg font-bold text-navy">{title}</h3>
+        <span className="w-9 h-9 rounded-xl bg-amber-soft text-amber-ink flex items-center justify-center">
           <Icon className="w-4 h-4" />
         </span>
       </div>
       <div className="space-y-3">{children}</div>
-    </motion.section>
+    </section>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[0.12em] text-ink-soft mb-2">{label}</p>
       {children}
     </div>
   )

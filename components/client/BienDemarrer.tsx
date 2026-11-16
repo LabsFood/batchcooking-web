@@ -84,7 +84,7 @@ export default function BienDemarrer() {
         aria-label="Étapes faites"
       >
         <div
-          className="h-full rounded-full bg-mint-ink transition-all"
+          className="h-full rounded-full bg-mint-ink transition-[width] duration-200"
           style={{ width: `${(data.completed / data.total) * 100}%` }}
         />
       </div>
@@ -123,7 +123,7 @@ export default function BienDemarrer() {
                   href={e.href}
                   className={cn(
                     'inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline',
-                    step.code === prochaine ? 'text-terra' : 'text-navy',
+                    step.code === prochaine ? 'text-amber-ink' : 'text-navy',
                   )}
                 >
                   {e.action}

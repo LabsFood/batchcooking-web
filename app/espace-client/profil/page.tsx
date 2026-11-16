@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, X, Sparkles, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
+import { SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
+import { Plus, X, Utensils, Heart, NotebookPen, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
 import { DEFAULT_PREFS, type ProfilePrefs } from '@/lib/dashboard-mock'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
@@ -58,14 +58,14 @@ export default function ProfilPage() {
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        <div className="h-64 rounded-3xl bg-cream-soft animate-pulse" />
+      <SkeletonGroup className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <SkeletonCard className="h-64 rounded-3xl" />
         <div className="space-y-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-3xl bg-cream-soft animate-pulse" />
+            <SkeletonCard key={i} className="h-32 rounded-3xl" />
           ))}
         </div>
-      </div>
+      </SkeletonGroup>
     )
   }
 
@@ -152,7 +152,6 @@ function ProfileForm({
       {/* Avatar + identity */}
       <aside className="space-y-4">
         <div className="bg-navy text-white rounded-3xl p-5 relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
           <div className="relative flex flex-col items-center text-center">
             <AvatarPending
               url={me.data?.avatarUrl ?? null}
@@ -213,7 +212,7 @@ function ProfileForm({
 
       {/* Cards */}
       <section className="space-y-5">
-        <Card title="Régimes alimentaires" eyebrow="Tu manges comment ?" Icon={Sparkles}>
+        <Card title="Régimes alimentaires" Icon={Utensils}>
           <Tags
             items={prefs.diets}
             onRemove={(v) => removeFrom('diets', v)}
@@ -242,12 +241,12 @@ function ProfileForm({
         {/* Enregistrées à part, avec consentement : le bouton « Enregistrer » du
             profil ne les envoie pas. Ancre visée par une réservation bloquée. */}
         <div id="allergies" className="scroll-mt-24">
-          <Card title="Allergies" eyebrow="Pas touche !" Icon={Flame} accent="red">
+          <Card title="Allergies" Icon={Flame} accent="red">
             <AllergyDeclaration profile={profile} consent={consent} />
           </Card>
         </div>
 
-        <Card title="Plats préférés" eyebrow="Hall of fame" Icon={Sparkles}>
+        <Card title="Plats préférés" Icon={Heart}>
           <Tags
             items={prefs.favorites}
             onRemove={(v) => removeFrom('favorites', v)}
@@ -257,7 +256,7 @@ function ProfileForm({
           />
         </Card>
 
-        <Card title="Aliments à éviter" eyebrow="Pas mes goûts" Icon={X}>
+        <Card title="Aliments à éviter" Icon={X}>
           <Tags
             items={prefs.dislikes}
             onRemove={(v) => removeFrom('dislikes', v)}
@@ -266,7 +265,7 @@ function ProfileForm({
           />
         </Card>
 
-        <Card title="Niveau d’épice" eyebrow="Le piment" Icon={Flame}>
+        <Card title="Niveau d’épice" Icon={Flame}>
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -282,7 +281,7 @@ function ProfileForm({
           </div>
         </Card>
 
-        <Card title="Notes sur ta cuisine" eyebrow="Hardware" Icon={Sparkles}>
+        <Card title="Notes sur ta cuisine" Icon={NotebookPen}>
           <textarea
             rows={3}
             value={prefs.kitchenNotes}
@@ -298,40 +297,31 @@ function ProfileForm({
 
 function Card({
   title,
-  eyebrow,
   Icon,
   children,
   accent,
 }: {
   title: string
-  eyebrow: string
   Icon: any
   children: React.ReactNode
   accent?: 'red'
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
+    <div
       className="card-shell rounded-3xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-mono text-ink-soft">{eyebrow}</p>
-          <h3 className="font-display text-lg font-bold text-navy mt-0.5">{title}</h3>
-        </div>
+        <h3 className="font-display text-lg font-bold text-navy">{title}</h3>
         <span
           className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-            accent === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-soft text-amber-deep'
+            accent === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-soft text-amber-ink'
           }`}
         >
           <Icon className="w-4 h-4" />
         </span>
       </div>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -354,7 +344,7 @@ function Tags({
       ? 'bg-red-100 text-red-700'
       : tone === 'mint'
         ? 'bg-mint text-mint-ink'
-        : 'bg-amber-soft text-amber-deep'
+        : 'bg-amber-soft text-amber-ink'
 
   return (
     <div>
@@ -406,7 +396,7 @@ function Tags({
                 key={s}
                 type="button"
                 onClick={() => onAdd(s)}
-                className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-ink-mid hover:bg-amber-soft hover:text-amber-deep transition-colors"
+                className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-ink-mid hover:bg-amber-soft hover:text-amber-ink transition-colors"
               >
                 + {s}
               </button>
@@ -433,12 +423,12 @@ function Counter({
   const MAX = 20
   return (
     <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[0.12em] text-ink-soft mb-2">{label}</p>
       <div className="flex items-center bg-cream-soft rounded-full p-1.5">
         <button
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
+          className="hit w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           –
         </button>
@@ -446,7 +436,7 @@ function Counter({
         <button
           type="button"
           onClick={() => onChange(Math.min(MAX, value + 1))}
-          className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
+          className="hit w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           +
         </button>

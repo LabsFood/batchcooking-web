@@ -6,7 +6,6 @@ import {
   ChevronDown,
   EyeOff,
   Headset,
-  Loader2,
   Lock,
   Phone,
   Utensils,
@@ -19,6 +18,7 @@ import {
   type Message,
 } from '@/lib/api/messaging'
 import { cn } from '@/lib/utils'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import Attachments from './Attachments'
 import Composer from './Composer'
 import {
@@ -95,7 +95,7 @@ export default function Thread({
             type="button"
             onClick={onBack}
             aria-label="Retour aux conversations"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cream-soft text-ink-mid lg:hidden"
+            className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cream-soft text-ink-mid lg:hidden"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -110,7 +110,7 @@ export default function Thread({
                 aria-expanded={showCard}
                 className="group flex items-center gap-1.5 text-left"
               >
-                <span className="truncate font-display text-lg font-bold text-navy group-hover:text-amber-deep">
+                <span className="truncate font-display text-lg font-bold text-navy group-hover:text-amber-ink">
                   {counterpart.name}
                 </span>
                 <ChevronDown
@@ -135,7 +135,7 @@ export default function Thread({
             <a
               href={`tel:${counterpart.phone}`}
               aria-label={`Appeler ${counterpart.name}`}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint/40 text-mint-ink transition-colors hover:bg-mint"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint/40 text-mint-ink transition-colors hover:bg-mint"
             >
               <Phone className="h-4 w-4" />
             </a>
@@ -161,7 +161,7 @@ export default function Thread({
             />
             {clientCard.kitchenNotes && (
               <p className="mt-1 flex items-start gap-2 text-ink-mid sm:col-span-2">
-                <Utensils className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-deep" aria-hidden />
+                <Utensils className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
                 {clientCard.kitchenNotes}
               </p>
             )}
@@ -179,7 +179,7 @@ export default function Thread({
               type="button"
               onClick={loadOlder}
               disabled={messagesQuery.isFetchingNextPage}
-              className="rounded-full bg-cream-soft px-3 py-1 text-[11px] font-semibold text-ink-mid hover:text-navy disabled:opacity-60"
+              className="rounded-full bg-cream-soft px-3 py-1 text-xs font-semibold text-ink-mid hover:text-navy disabled:opacity-60"
             >
               {messagesQuery.isFetchingNextPage ? 'Chargement…' : 'Messages précédents'}
             </button>
@@ -187,9 +187,7 @@ export default function Thread({
         )}
 
         {messagesQuery.isPending && (
-          <p className="flex items-center justify-center gap-2 py-8 text-sm text-ink-soft">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Chargement de la conversation…
-          </p>
+          <BubblesSkeleton />
         )}
         {messagesQuery.isError && (
           <p role="alert" className="py-8 text-center text-sm text-ink-soft">
@@ -213,7 +211,7 @@ export default function Thread({
           <div key={group.day} className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-[rgba(31,42,55,0.08)]" />
-              <span className="text-[11px] font-semibold capitalize text-ink-soft">
+              <span className="text-xs font-semibold capitalize text-ink-soft">
                 {dayLabel(group.items[0].createdAt)}
               </span>
               <span className="h-px flex-1 bg-[rgba(31,42,55,0.08)]" />
@@ -248,6 +246,25 @@ export default function Thread({
   )
 }
 
+/** Des bulles qui alternent gauche et droite, aux largeurs de vrais messages. */
+export function BubblesSkeleton() {
+  const bulles = [
+    { mine: false, w: 'w-2/5', h: 'h-10' },
+    { mine: true, w: 'w-1/2', h: 'h-14' },
+    { mine: false, w: 'w-3/5', h: 'h-14' },
+    { mine: true, w: 'w-1/3', h: 'h-10' },
+  ]
+  return (
+    <SkeletonGroup className="space-y-4">
+      {bulles.map((b, i) => (
+        <div key={i} className={cn('flex', b.mine ? 'justify-end' : 'justify-start')}>
+          <Skeleton className={cn('rounded-2xl', b.w, b.h)} />
+        </div>
+      ))}
+    </SkeletonGroup>
+  )
+}
+
 /** Pourquoi des `•••••` apparaissent, et quand ils disparaîtront. */
 function ContactNotice({ conversation }: { conversation: Conversation }) {
   if (conversation.contactReleased) {
@@ -279,7 +296,7 @@ function Bubble({ message, conversation }: { message: Message; conversation: Con
     <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
       <div className={cn('max-w-[80%]', message.pending && 'opacity-60')}>
         {fromTeam && (
-          <p className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-deep">
+          <p className="mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-ink">
             <Headset className="h-3 w-3" aria-hidden /> Lab&apos;s Food
           </p>
         )}
@@ -302,7 +319,7 @@ function Bubble({ message, conversation }: { message: Message; conversation: Con
             className={message.body ? 'mt-2' : undefined}
           />
         </div>
-        <p className={cn('mt-1 text-[10px] text-ink-soft', mine && 'text-right')}>
+        <p className={cn('mt-1 text-xs text-ink-soft', mine && 'text-right')}>
           {message.pending ? 'Envoi…' : hourLabel(message.createdAt)}
           {mine && message.contactMasked && ' · coordonnées masquées pour votre interlocuteur'}
         </p>

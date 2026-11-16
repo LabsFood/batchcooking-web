@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { fadeUp } from '@/lib/motion'
 import {
   AlertCircle,
   ArrowRight,
@@ -125,9 +126,8 @@ export default function ContactForm() {
       <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-6 sm:p-8 lg:p-10">
         {sent ? (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            // slow-out : la confirmation d'envoi se pose en 240 ms
+            {...fadeUp()}
             className="py-6 text-center"
           >
             <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-mint-ink">
@@ -257,7 +257,7 @@ export default function ContactForm() {
                     J&apos;accepte que Lab&apos;s Food utilise ces informations pour me répondre, conformément à la{' '}
                     <Link
                       href="/confidentialite"
-                      className="font-semibold text-navy underline underline-offset-2 hover:text-terra"
+                      className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
                     >
                       politique de confidentialité
                     </Link>
@@ -348,7 +348,7 @@ export default function ContactForm() {
         </div>
 
         <div className="flex items-start gap-3 rounded-2xl bg-cream-soft px-4 py-3.5">
-          <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-terra" aria-hidden />
+          <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
           <p className="text-[13px] leading-relaxed text-ink-mid">
             Une prestation est en cours ? Écrivez directement à votre chef depuis la messagerie de votre espace : il
             vous répond bien plus vite.
@@ -397,7 +397,7 @@ function Shortcut({ href, label, detail }: { href: string; label: string; detail
           <span className="block text-sm font-semibold text-navy">{label}</span>
           <span className="block text-xs text-ink-soft">{detail}</span>
         </span>
-        <ArrowRight className="h-4 w-4 shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-terra" aria-hidden />
+        <ArrowRight className="h-4 w-4 shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-amber-ink" aria-hidden />
       </Link>
     </li>
   )
