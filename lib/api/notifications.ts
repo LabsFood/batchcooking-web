@@ -66,6 +66,9 @@ const TITRES: Record<string, string> = {
   'groceries.line_contested': 'Le client conteste une ligne de vos tickets.',
   'groceries.contest_decided': 'Lab’s Food a tranché une contestation de courses.',
   'groceries.captured': 'Les courses sont prélevées au centime près.',
+  // Sur-mesure (15/11) : les plats express d'une prestation livrée.
+  'express_dish.decide':
+    'Prestation livrée : gardez ou retirez les plats express écrits pour cette demande.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -96,6 +99,7 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'groceries.confirmed': () => '/espace-chef/prestations',
   'groceries.awaiting_client': () => '/espace-chef/prestations',
   'groceries.line_contested': () => '/espace-chef/prestations',
+  'express_dish.decide': () => '/espace-chef/recettes#plats-express',
 }
 
 /**

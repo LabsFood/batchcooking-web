@@ -7,9 +7,17 @@ import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
 import DatePicker from '@/components/shared/DatePicker'
+import OfferDishes from '@/components/shared/OfferDishes'
+import OfferDishesPicker, {
+  EMPTY_CHOICE,
+  countDishes,
+  type OfferDishesChoice,
+} from '@/components/chef/offres/OfferDishesPicker'
+import { useMenus } from '@/lib/api/chef-catalog'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import {
+  MAX_OFFER_DISHES,
   SLOT_LABEL,
   centsToEuros,
   dayLabel,
@@ -33,6 +41,9 @@ const MESSAGES: Record<string, string> = {
   DATE_TOO_SOON: 'La date proposée doit être à partir de demain.',
   DATE_TOO_FAR: 'La date proposée doit être dans l’année qui vient.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
+  OFFER_DISH_INVALID:
+    'Un plat ou un menu n’est plus disponible (dépublié, ou plat express retiré). Rechargez la page et choisissez de nouveau.',
+  OFFER_TOO_MANY_DISHES: `Une offre porte ${MAX_OFFER_DISHES} plats au plus, menus compris.`,
 }
 
 /** Un jour à `n` jours d'ici, en date locale, au format des champs date. */
@@ -57,6 +68,8 @@ export default function ChefOffersPage() {
      demande, il n'y a plus rien à chiffrer ni à attendre. */
   const toAnswer = all.filter((q) => ['submitted', 'in_review', 'declined'].includes(q.status))
   const confirmed = all.filter((q) => q.status === 'accepted')
+  // Une offre attend le client : on montre ses plats et l'avertissement allergie.
+  const waiting = all.filter((q) => q.status === 'quoted' && (q.activeOffer?.dishes?.length ?? 0) > 0)
   const selected = toAnswer.find((q) => q.id === selectedId) ?? null
   const offers = all
     .flatMap((quote) => quote.offers.map((offer) => ({ quote, offer })))
@@ -113,6 +126,30 @@ export default function ChefOffersPage() {
 
         {selected && (
           <OfferComposer key={selected.id} quote={selected} onClose={() => setSelectedId(null)} />
+        )}
+
+        {waiting.length > 0 && (
+          <Card title={`En attente du client (${waiting.length})`}>
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {waiting.map((quote) => (
+                <li key={quote.id} className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-display text-base font-bold text-navy">{quote.title}</p>
+                      <p className="text-xs text-ink-soft">{quote.client?.name ?? 'Client'}</p>
+                    </div>
+                    {quote.activeOffer && <OfferBadge status={quote.activeOffer.status} />}
+                  </div>
+                  <OfferDishes
+                    dishes={quote.activeOffer?.dishes ?? []}
+                    allergy={quote.activeOffer?.allergy}
+                    viewer="chef"
+                    talkHref={`/espace-chef/messagerie?quote=${quote.id}`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
 
         {confirmed.length > 0 && (
@@ -292,9 +329,12 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
 
   const [net, setNet] = useState(quote.budgetCents ? Math.round(quote.budgetCents / 100) : 150)
   const [validityDays, setValidityDays] = useState(7)
+  /* Sur une prestation sur-mesure, le client fait les courses (décision du 15/11). */
   const [conditions, setConditions] = useState(
-    'Courses incluses. Déplacement compris dans un rayon de 30 km.',
+    'Courses à la charge du client. Déplacement compris dans un rayon de 30 km.',
   )
+  const [dishChoice, setDishChoice] = useState<OfferDishesChoice>(EMPTY_CHOICE)
+  const menus = useMenus()
   /* Sans date demandée il n'y a pas de date à garder : on en propose une. */
   const [otherDate, setOtherDate] = useState(!quote.desiredDate)
   const [date, setDate] = useState(quote.desiredDate ?? '')
@@ -318,6 +358,10 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
     if (!Number.isFinite(net) || net < 10) return 'Votre net perçu est d’au moins 10 €.'
     if (net > 20_000) return 'Votre net perçu ne peut pas dépasser 20 000 €.'
     if (conditions.length > 2000) return 'Vos conditions tiennent en 2 000 caractères.'
+    const menuDishes = new Map(
+      (menus.data ?? []).map((m) => [m.id, m.dishes.map((d) => d.id)] as const),
+    )
+    if (countDishes(dishChoice, menuDishes) > MAX_OFFER_DISHES) return MESSAGES.OFFER_TOO_MANY_DISHES
     if (otherDate) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Indiquez la date que vous proposez.'
       if (date < dayFromNow(1)) return MESSAGES.DATE_TOO_SOON
@@ -337,6 +381,9 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
         validityDays,
         conditions: conditions.trim() || undefined,
         ...(otherDate && date ? { proposedDate: date, proposedTimeSlot: slot } : {}),
+        ...(dishChoice.menuIds.length ? { menuIds: dishChoice.menuIds } : {}),
+        ...(dishChoice.dishIds.length ? { dishIds: dishChoice.dishIds } : {}),
+        ...(dishChoice.express.length ? { expressDishes: dishChoice.express } : {}),
       },
       {
         onSuccess: () => setSent(true),
@@ -372,6 +419,16 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
               Elle passera en « Vue » dès que {clientName} l&apos;aura consultée. Vous la
               retrouvez dans le suivi, plus bas.
             </p>
+            {send.data?.activeOffer && (
+              <div className="mx-auto max-w-md text-left">
+                <OfferDishes
+                  dishes={send.data.activeOffer.dishes ?? []}
+                  allergy={send.data.activeOffer.allergy}
+                  viewer="chef"
+                  talkHref={`/espace-chef/messagerie?quote=${quote.id}`}
+                />
+              </div>
+            )}
           </div>
         ) : (
           /* Deux colonnes seulement à partir de `xl` : à 1024 px la barre
@@ -484,6 +541,8 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   </div>
                 )}
               </Champ>
+
+              <OfferDishesPicker quote={quote} value={dishChoice} onChange={setDishChoice} />
 
               <Champ
                 htmlFor={`${id}-conditions`}
@@ -670,6 +729,9 @@ function ConfirmedItem({ quote }: { quote: Quote }) {
       </div>
       {accepted?.netCents != null && (
         <p className="tabular-nums mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
+      )}
+      {accepted && (
+        <OfferDishes dishes={accepted.dishes ?? []} allergy={accepted.allergy} viewer="chef" />
       )}
     </li>
   )

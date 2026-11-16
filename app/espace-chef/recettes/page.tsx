@@ -23,6 +23,7 @@ import ChefPage from '@/components/chef/ChefPage'
 import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import ExpressDishesToDecide from '@/components/chef/recipes/ExpressDishesToDecide'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
@@ -125,6 +126,9 @@ export default function RecettesPage() {
             )
           })}
         </div>
+
+        {/* Sur-mesure (15/11) : les plats express d'une demande, à garder ou retirer. */}
+        <ExpressDishesToDecide />
 
         {tab === 'dishes' && <DishesTab query={dishes} />}
         {tab === 'menus' && <MenusTab query={menus} dishes={dishes.data ?? []} />}

@@ -38,6 +38,31 @@ export type OfferStatus = 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired
 
 export type TimeSlot = 'morning' | 'afternoon' | 'evening'
 
+/** Un plat de l'offre (décision du 15/11) : seul le batch cooker en ajoute. */
+export interface OfferDish {
+  id: string
+  name: string
+  description: string | null
+  imageUrl: string | null
+  /** Écrit en quelques mots pour cette demande : pas de recette, jamais vérifié. */
+  express: boolean
+  /** Le menu avec lequel il vient ; `null` : ajouté seul. */
+  menu: { id: string; title: string } | null
+  allergens: string[]
+  allergensNone: boolean
+  allergensVerified: boolean
+}
+
+/**
+ * Les plats de l'offre face aux allergies du client (profil et mots de la
+ * demande). Un avertissement, jamais un refus : on invite à en parler.
+ */
+export interface OfferAllergy {
+  check: 'verified' | 'unverified'
+  reasons: ('ALLERGIES_NOT_DECLARED' | 'ALLERGENS_UNVERIFIED' | 'ALLERGEN_CONFLICT' | 'CUSTOM_ALLERGIES')[]
+  conflicts: { mealId: string; allergens: string[] }[]
+}
+
 export interface QuoteOffer {
   id: string
   status: OfferStatus
@@ -54,6 +79,10 @@ export interface QuoteOffer {
   decidedAt: string | null
   declineReason: string | null
   createdAt: string
+  /** Absent sur une API antérieure au 15/11 : lire `offer.dishes ?? []`. */
+  dishes?: OfferDish[]
+  /** `null` quand l'offre n'a pas de plat. */
+  allergy?: OfferAllergy | null
 }
 
 export interface Quote {
@@ -106,12 +135,41 @@ export interface CreateQuoteInput {
   budgetCents?: number
 }
 
+export interface ExpressDishInput {
+  name: string
+  description?: string
+  /** Codes des 14 allergènes réglementés que le batch cooker sait présents. */
+  allergens?: string[]
+}
+
 export interface CreateOfferInput {
   netCents: number
   validityDays?: number
   conditions?: string
   proposedDate?: string
   proposedTimeSlot?: TimeSlot
+  /** Plats publiés du batch cooker, et plats express non retirés de cette demande. */
+  dishIds?: string[]
+  /** Menus publiés du batch cooker : chacun apporte ses plats. */
+  menuIds?: string[]
+  expressDishes?: ExpressDishInput[]
+}
+
+/** Les plafonds de l'API (`quote.rules.ts`), répétés pour le message. */
+export const MAX_OFFER_DISHES = 30
+export const MAX_EXPRESS_DISHES = 10
+
+/** Un plat express encore à garder ou retirer. */
+export interface ExpressDish {
+  id: string
+  name: string
+  description: string | null
+  allergens: string[]
+  createdAt: string
+  request: { id: string; reference: string; title: string } | null
+  prestation: { id: string; reference: string | null; status: string; startsAt: string } | null
+  /** `null` : le batch cooker peut décider maintenant. */
+  decisionBlockedBy: 'OFFER_PENDING' | 'PRESTATION_PENDING' | null
 }
 
 export interface PricingRules {
@@ -258,6 +316,35 @@ export function useWithdrawOffer() {
     mutationFn: ({ quoteId, offerId }: { quoteId: string; offerId: string }) =>
       apiFetch<Quote>(`/me/chef/quotes/${quoteId}/offers/${offerId}/withdraw`, { method: 'POST' }),
     onSettled: refresh,
+  })
+}
+
+/** Les plats express encore à garder ou retirer. */
+export function useMyExpressDishes() {
+  const apiFetch = useApiFetch()
+  const me = useMeKey()
+  return useQuery({
+    queryKey: [...me, 'express-dishes'],
+    queryFn: () => apiFetch<ExpressDish[]>('/me/express-dishes'),
+  })
+}
+
+/** Garder (brouillon dans « Mes plats ») ou retirer (archivé) un plat express. */
+export function useDecideExpressDish() {
+  const apiFetch = useApiFetch()
+  const queryClient = useQueryClient()
+  const me = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: 'kept' | 'dropped' }) =>
+      apiFetch<{ id: string; decision: 'kept' | 'dropped' }>(`/me/express-dishes/${id}/decision`, {
+        method: 'POST',
+        body: { decision },
+      }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: [...me, 'express-dishes'] })
+      // « Mes plats » (`useDishes`, clé `['me', 'dishes']`) : un plat gardé y entre.
+      void queryClient.invalidateQueries({ queryKey: ['me', 'dishes'] })
+    },
   })
 }
 

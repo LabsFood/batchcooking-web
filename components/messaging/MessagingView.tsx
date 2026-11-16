@@ -7,6 +7,7 @@ import {
   useConversations,
   useMarkRead,
   useOpenForBooking,
+  useOpenForQuote,
   useOpenSupport,
   type Conversation,
 } from '@/lib/api/messaging'
@@ -38,10 +39,12 @@ export default function MessagingView({
   const params = useSearchParams()
   const selectedId = params.get('c')
   const bookingId = params.get('booking')
+  const quoteId = params.get('quote')
 
   const conversations = useConversations()
   const openSupport = useOpenSupport()
   const openForBooking = useOpenForBooking()
+  const openForQuote = useOpenForQuote()
   const markRead = useMarkRead()
 
   const list = conversations.data ?? []
@@ -62,12 +65,24 @@ export default function MessagingView({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché par le seul paramètre d'URL
   }, [bookingId])
 
+  // `?quote=` : une demande sur-mesure, avant toute acceptation (15/11). Même principe.
+  const openedQuote = useRef<string | null>(null)
+  useEffect(() => {
+    if (!quoteId || openedQuote.current === quoteId) return
+    openedQuote.current = quoteId
+    openForQuote.mutate(quoteId, {
+      onSuccess: (conversation) => select(conversation.id),
+      onError: () => select(null),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché par le seul paramètre d'URL
+  }, [quoteId])
+
   // Sur grand écran, un fil est toujours ouvert : le plus récent par défaut.
   useEffect(() => {
-    if (selectedId || bookingId || list.length === 0) return
+    if (selectedId || bookingId || quoteId || list.length === 0) return
     if (window.matchMedia('(min-width: 1024px)').matches) select(list[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- au chargement de la liste
-  }, [selectedId, bookingId, list.length])
+  }, [selectedId, bookingId, quoteId, list.length])
 
   // Ouvrir un fil, ou y recevoir un message pendant qu'il est ouvert, c'est le lire.
   const marked = useRef<string | null>(null)
