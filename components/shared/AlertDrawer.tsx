@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   AlertTriangle,
@@ -91,6 +91,7 @@ export function AlertBell({
   const flux = useNotifications()
   const lire = useMarkNotificationRead()
   const router = useRouter()
+  const pathname = usePathname()
   const notifications = flux.data?.data ?? []
   const n = countActionable(alerts) + (flux.data?.unreadCount ?? 0)
 
@@ -155,7 +156,7 @@ export function AlertBell({
                         type="button"
                         onClick={() => {
                           if (!notif.readAt) lire.mutate(notif.id)
-                          const href = notificationHref(notif.type, notif.subjectId)
+                          const href = notificationHref(notif.type, notif.subjectId, pathname)
                           if (href) {
                             setOpen(false)
                             router.push(href)

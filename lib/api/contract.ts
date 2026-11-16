@@ -55,12 +55,18 @@ export interface BookingWithdrawal {
   refundCents: number | null
 }
 
-export type BookingDocumentKind = 'cgv' | 'withdrawal-form' | 'debours-mandate'
+export type BookingDocumentKind =
+  | 'cgv'
+  | 'withdrawal-form'
+  | 'debours-mandate'
+  | 'groceries-statement'
 
 export const DOCUMENT_LABEL: Record<BookingDocumentKind, string> = {
   cgv: 'Conditions générales de vente',
   'withdrawal-form': 'Formulaire de rétractation',
   'debours-mandate': 'Mandat de débours',
+  // Recettes lot 6 (CGV 7.6) : les tickets et le prélèvement, hors facture.
+  'groceries-statement': 'Relevé de débours',
 }
 
 /** L'identité légale du batch cooker (CGV art. 3.2) : `null` = pas encore renseigné. */

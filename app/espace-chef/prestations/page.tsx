@@ -93,6 +93,8 @@ import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatu
 import { useDishes } from '@/lib/api/chef-catalog'
 import EatBeforeCard from '@/components/chef/prestation/EatBeforeCard'
 import GroceriesDone from '@/components/chef/prestation/GroceriesDone'
+import GroceriesChef from '@/components/chef/prestation/GroceriesChef'
+import { useGroceries } from '@/lib/api/groceries'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Prestations.
@@ -1165,6 +1167,10 @@ function ShoppingCard({
   const toast = useToast()
   const query = useMissionShoppingList(missionId)
   const envoyer = useSendMissionShoppingList()
+  const groceries = useGroceries(missionId, 'chef')
+  // Payées à part (carte enregistrée, mandat) : les tickets remplacent le montant libre.
+  const groceriesPaidApart =
+    !!groceries.data?.applies && !!groceries.data.status && groceries.data.status !== 'cancelled'
   // Les rayons en vigueur (l'API), à défaut la liste fixe.
   const aisles = useAisles()
   const groupes = query.data?.groups ?? []
@@ -1258,7 +1264,9 @@ function ShoppingCard({
             </div>
           )}
 
-          {!liste?.shoppingByClient && (
+          {/* Lot 6 : les courses payées à part, sous mandat ; sinon « Courses faites » (lot 4). */}
+          {!liste?.shoppingByClient && <GroceriesChef missionId={missionId} />}
+          {!liste?.shoppingByClient && !groceriesPaidApart && (
             <GroceriesDone
               key={`${liste?.groceries?.validatedAt ?? ''}|${liste?.groceries?.amountCents ?? ''}`}
               missionId={missionId}

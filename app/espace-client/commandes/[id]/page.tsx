@@ -46,6 +46,7 @@ import {
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
 import OptionalBadge from '@/components/shared/OptionalBadge'
+import GroceriesClient from '@/components/client/GroceriesClient'
 import { useAisles } from '@/lib/api/referentials'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { Prix } from '@/components/shared/Prix'
@@ -548,6 +549,13 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               </div>
             )}
           </div>
+
+          {/* ── Les courses payées à part (lot 6) ──────────────────────── */}
+          {!b.shoppingByClient && (
+            <Suspense fallback={null}>
+              <GroceriesClient bookingId={b.id} />
+            </Suspense>
+          )}
 
           {/* ── Vos consignes ──────────────────────────────────────────── */}
           {b.notes && (

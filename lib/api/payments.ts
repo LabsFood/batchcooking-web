@@ -64,6 +64,17 @@ export interface PaymentOptions {
   /** Seulement les moyens que le batch cooker accepte. */
   methods: MethodOption[]
   savedCards: never[]
+  /**
+   * Recettes lot 6 : les courses, un second montant réglé à part, par carte seulement.
+   * `null` quand le batch cooker ne fait pas les courses.
+   */
+  groceries: {
+    status: string
+    budgetCents: number
+    capturedCents: number | null
+    cardSaved: boolean
+    methods: readonly ['cb']
+  } | null
 }
 
 export type CesuMedium = 'ecesu'

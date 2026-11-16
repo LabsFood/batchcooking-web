@@ -53,6 +53,19 @@ const TITRES: Record<string, string> = {
   'shopping_list.frozen': 'Votre liste de courses est figée : votre batch cooker fait les courses.',
   'groceries.reminder':
     'La liste est figée : faites les courses et validez-les avant la prestation.',
+  // Recettes lot 6 : les courses payées à part.
+  'groceries.hold_placed': 'Votre Budget Courses est réservé sur votre carte (empreinte).',
+  'groceries.budget_guaranteed': 'Budget garanti : le client a réservé son Budget Courses.',
+  'groceries.hold_failed': 'Votre carte a refusé l’empreinte : authentifiez-vous ou changez de carte.',
+  'groceries.notice': 'Vos courses vont être faites : confirmez-les ou annulez-les avant l’heure limite.',
+  'groceries.confirm_needed': 'Votre batch cooker attend votre réponse pour faire les courses.',
+  'groceries.confirmed': 'Le client a confirmé les courses : vous pouvez les faire.',
+  'groceries.awaiting_client': 'En attente du client : ne faites pas encore les courses.',
+  'groceries.cancelled': 'Les courses sont annulées : le client les fait lui-même.',
+  'groceries.receipts_submitted': 'Les tickets de vos courses sont déposés : 48 h pour contester une ligne.',
+  'groceries.line_contested': 'Le client conteste une ligne de vos tickets.',
+  'groceries.contest_decided': 'Lab’s Food a tranché une contestation de courses.',
+  'groceries.captured': 'Les courses sont prélevées au centime près.',
 }
 
 export const notificationTitle = (type: string) => TITRES[type] ?? 'Nouvelle notification'
@@ -74,10 +87,33 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'shopping_list.reminder_answer': () => '/espace-client/courses',
   'shopping_list.frozen': () => '/espace-client/courses',
   'groceries.reminder': () => '/espace-chef/prestations',
+  'groceries.hold_placed': (id) => `/espace-client/commandes/${id}`,
+  'groceries.hold_failed': (id) => `/espace-client/commandes/${id}`,
+  'groceries.notice': (id) => `/espace-client/commandes/${id}`,
+  'groceries.confirm_needed': (id) => `/espace-client/commandes/${id}`,
+  'groceries.receipts_submitted': (id) => `/espace-client/commandes/${id}`,
+  'groceries.budget_guaranteed': () => '/espace-chef/prestations',
+  'groceries.confirmed': () => '/espace-chef/prestations',
+  'groceries.awaiting_client': () => '/espace-chef/prestations',
+  'groceries.line_contested': () => '/espace-chef/prestations',
 }
 
-export const notificationHref = (type: string, subjectId = ''): string | undefined =>
-  LIENS[type]?.(subjectId)
+/**
+ * Lot 6 : le client et le batch cooker reçoivent ces types-là ; chacun va à sa page,
+ * selon l'espace où il lit la cloche.
+ */
+const PARTAGES = new Set(['groceries.cancelled', 'groceries.contest_decided', 'groceries.captured'])
+
+export const notificationHref = (
+  type: string,
+  subjectId = '',
+  pathname = '',
+): string | undefined =>
+  PARTAGES.has(type)
+    ? pathname.startsWith('/espace-chef')
+      ? '/espace-chef/prestations'
+      : `/espace-client/commandes/${subjectId}`
+    : LIENS[type]?.(subjectId)
 
 export function useNotifications() {
   const apiFetch = useApiFetch()

@@ -37,6 +37,7 @@ import {
   type PaymentOptions,
 } from '@/lib/api/payments'
 import { PAYMENT_METHODS } from '@/lib/client/payments'
+import { InfoPopover } from '@/components/shared/InfoPopover'
 import MockSettlement from './MockSettlement'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { consentGaps, useBookingConsents, type ContractGap } from '@/lib/api/contract'
@@ -343,6 +344,32 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                 {data.methods.length === 1 ? 'un seul moyen' : `${data.methods.length} moyens`} de paiement. Le
                 montant dû aujourd’hui change selon celui que vous choisissez.
               </p>
+
+              {data.groceries && (
+                <div className="mb-4 rounded-2xl border border-[rgba(31,42,55,0.08)] bg-cream-soft/60 px-4 py-3 text-[13px] leading-relaxed text-ink-mid">
+                  <p className="font-semibold text-navy">Deux montants séparés</p>
+                  <p className="mt-1">
+                    Ici, la prestation (formule, forfait courses, suppléments).
+                    <InfoPopover label="Que couvre l’avance immédiate ?">
+                      Elle couvre la prestation. Les courses restent à régler par carte.
+                    </InfoPopover>{' '}
+                    Les courses se règlent à part, par carte uniquement :{' '}
+                    {data.groceries.capturedCents != null
+                      ? `${euros(data.groceries.capturedCents)} prélevés au total des tickets.`
+                      : `seul le total des tickets est prélevé, ${euros(data.groceries.budgetCents)} au plus.`}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-1 text-ink-soft">
+                    <span className="rounded-full bg-paper px-2 py-0.5 text-[11px] line-through opacity-60">e-CESU</span>
+                    pour les courses
+                    <InfoPopover label="Pourquoi pas de e-CESU pour les courses ?">
+                      Le CESU paie un service, pas des denrées. Les courses se règlent par carte.
+                    </InfoPopover>
+                    <InfoPopover label="Et la carte avec le e-CESU ?">
+                      Le e-CESU couvre d’abord le service, la carte paie le reste.
+                    </InfoPopover>
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {data.methods.map((option) => (
