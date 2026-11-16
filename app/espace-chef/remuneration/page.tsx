@@ -1,5 +1,6 @@
 'use client'
 
+import GroceriesStatementCard from '@/components/chef/GroceriesStatementCard'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -506,6 +507,8 @@ function PayoutMode() {
             )}
           </Card>
         </div>
+
+        <GroceriesStatementCard />
 
         <ChefLegalForm />
 
