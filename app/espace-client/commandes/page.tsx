@@ -21,6 +21,7 @@ import {
   bookingMealNames,
   bookingPortions,
   bookingStatusText,
+  bookingStatusTone,
   euros,
   isBookingOpen,
   longDate,
@@ -55,17 +56,7 @@ const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] =
   { id: 'history', label: 'Passées', match: (b) => !isBookingOpen(b) },
 ]
 
-/** La famille d'état d'une session : les mêmes étiquettes que sur l'accueil. */
-const STATUS_TONE: Record<string, string> = {
-  pending: 'status-warn',
-  confirmed: 'status-ok',
-  shopping: 'status-ok',
-  cooking: 'status-ok',
-  delivered: '',
-  completed: '',
-  cancelled: 'status-bad',
-  disputed: 'status-bad',
-}
+
 
 export default function OrdersListPage() {
   const [filter, setFilter] = useState<Filter>('all')
@@ -172,7 +163,7 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
             {longDate(b.startsAt) ?? 'Date à confirmer'}
           </p>
         </div>
-        <span className={`status shrink-0 ${b.withdrawnAt ? 'status-bad' : (STATUS_TONE[b.status ?? ''] ?? '')}`}>
+        <span className={`status shrink-0 ${b.withdrawnAt ? 'status-bad' : bookingStatusTone(b.status)}`}>
           {b.withdrawnAt ? 'Rétractée' : aRegler ? 'À régler' : bookingStatusText(b.status)}
         </span>
       </div>

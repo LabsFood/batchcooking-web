@@ -7,6 +7,7 @@ import {
   bookingMealNames,
   bookingPortions,
   bookingStatusText,
+  bookingStatusTone,
   euros,
   hour,
   isBookingOpen,
@@ -58,14 +59,6 @@ const STEP_LABEL: Record<(typeof FLOW)[number], string> = {
   shopping: 'Courses',
   cooking: 'En cuisine',
   delivered: 'Livrée',
-}
-
-/** La famille d'état d'une session, pour son étiquette. */
-function statusTone(b: Booking): string {
-  if (b.status === 'cancelled' || b.status === 'disputed') return 'status-bad'
-  if (b.status === 'pending') return 'status-warn'
-  if (b.status === 'completed' || b.status === 'delivered') return ''
-  return 'status-ok'
 }
 
 /** Deux heures gagnées par prestation : l'hypothèse est dite, pas cachée. */
@@ -276,9 +269,6 @@ export default function DashboardOverviewPage() {
                 <p className="text-sm leading-relaxed text-ink-mid">
                   Vos sessions apparaîtront ici, de la réservation à la livraison.
                 </p>
-                <Link href="/espace-client/menus?reserve=1" className="btn btn-outline mt-4">
-                  Réserver une première session
-                </Link>
               </div>
             ) : (
               <ul className="divide-y divide-[var(--line)] border-t border-[var(--line)]">
@@ -463,7 +453,7 @@ function SessionRow({ booking: o }: { booking: Booking }) {
           {o.chef?.displayName ? ` avec ${o.chef.displayName.split(' ')[0]}` : ''}
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
-          <span className={cn('status', aPayer ? 'status-warn' : statusTone(o))}>
+          <span className={cn('status', bookingStatusTone(o.status))}>
             {aPayer ? 'À régler' : bookingStatusText(o.status)}
           </span>
           <span>{bookingMealNames(o).length} plats</span>

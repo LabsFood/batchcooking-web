@@ -941,6 +941,28 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 export const bookingStatusText = (s?: string | null) =>
   s ? (BOOKING_STATUS_LABEL[s as BookingStatus] ?? s) : 'Statut inconnu'
 
+/**
+ * La famille d'état d'une prestation, pour son étiquette (`.status` dans
+ * `globals.css`). Chaque écran avait sa table de couleurs : la même prestation
+ * était verte sur une page et grise sur l'autre.
+ *
+ * En attente : à traiter. En cours : tout va bien. Finie : neutre, c'est de
+ * l'histoire. Annulée ou en litige : rouge.
+ */
+const BOOKING_STATUS_TONE: Record<BookingStatus, string> = {
+  pending: 'status-warn',
+  confirmed: 'status-ok',
+  shopping: 'status-ok',
+  cooking: 'status-ok',
+  delivered: '',
+  completed: '',
+  cancelled: 'status-bad',
+  disputed: 'status-bad',
+}
+
+export const bookingStatusTone = (s?: string | null) =>
+  s ? (BOOKING_STATUS_TONE[s as BookingStatus] ?? '') : ''
+
 /** Ce qui n'est pas encore de l'historique. */
 export const BOOKING_OPEN: BookingStatus[] = [
   'pending',

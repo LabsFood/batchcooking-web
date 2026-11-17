@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -216,35 +217,20 @@ export default function ChefAgendaPage() {
             </button>
           </div>
 
-          <div
-            role="tablist"
-            aria-label="Échelle"
-            className="flex rounded-full border border-[rgba(31,42,55,0.1)] bg-paper p-0.5"
-          >
-            {(
-              [
-                { id: 'day' as const, label: 'Jour' },
-                { id: 'week' as const, label: 'Semaine' },
-                { id: 'month' as const, label: 'Mois' },
-                { id: 'year' as const, label: 'Année' },
-              ]
-            ).map((v) => (
-              <button
-                key={v.id}
-                role="tab"
-                aria-selected={view === v.id}
-                onClick={() => {
-                  setView(v.id)
-                  setSelected(null)
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  view === v.id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy'
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
+          <Onglets
+            label="Échelle de l’agenda"
+            value={view}
+            onChange={(v) => {
+              setView(v)
+              setSelected(null)
+            }}
+            items={[
+              { id: 'day', label: 'Jour' },
+              { id: 'week', label: 'Semaine' },
+              { id: 'month', label: 'Mois' },
+              { id: 'year', label: 'Année' },
+            ]}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">

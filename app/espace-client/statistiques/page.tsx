@@ -136,40 +136,42 @@ export default function StatistiquesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bars chart */}
-        <section
-          className="lg:col-span-2 bg-paper rounded-2xl p-6 border border-[rgba(31,42,55,0.06)]"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="font-display text-xl font-bold text-navy">
-                Plats / semaine
-              </h3>
-            </div>
-            <span className="text-xs text-ink-soft">7 dernières semaines</span>
+        <section className="panel p-5 lg:col-span-2 lg:p-6">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            {/* Ce sont des portions qui sont comptées, pas des plats : le titre le dit. */}
+            <h3 className="panel-title">Portions cuisinées par semaine</h3>
+            <span className="text-xs text-ink-soft">Sept dernières semaines</span>
           </div>
 
-          <div className="h-44 flex items-end gap-2 lg:gap-3">
+          {/*
+            Chaque colonne prend toute la hauteur, et la barre grandit dans la
+            zone au-dessus du libellé. Avant, la colonne n'avait pas de hauteur :
+            un pourcentage n'y voulait rien dire, et toutes les barres restaient
+            à leurs 8 px de plancher, quelle que soit la semaine.
+          */}
+          <ol className="flex h-48 items-stretch gap-2 lg:gap-3">
             {semaines.map((w) => {
               const h = Math.round((w.meals / max) * 100)
               return (
-                <div key={w.week} className="flex flex-1 flex-col items-center gap-2">
-                  <div
-                    className="w-full rounded-t-2xl bg-gradient-to-b from-amber to-amber-deep relative"
-                    style={{ height: `${h}%`, minHeight: w.meals === 0 ? 0 : 8 }}
-                  >
-                    {w.meals > 0 && (
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 font-display text-sm font-bold text-navy">
-                        {w.meals}
-                      </span>
-                    )}
+                <li key={w.week} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="flex w-full flex-1 flex-col items-center justify-end">
+                    <span
+                      className={`mb-1 text-sm font-semibold tabular-nums ${
+                        w.meals > 0 ? 'text-navy' : 'text-ink-soft'
+                      }`}
+                    >
+                      {w.meals}
+                    </span>
+                    <div
+                      className={`w-full rounded-t-lg ${w.meals > 0 ? 'bg-amber' : 'bg-cream-deep'}`}
+                      style={{ height: w.meals > 0 ? `${Math.max(h, 4)}%` : 2 }}
+                    />
                   </div>
-                  <span className="text-xs uppercase tracking-[0.12em] text-ink-soft">
-                    {w.week}
-                  </span>
-                </div>
+                  <span className="truncate text-xs text-ink-soft">{w.week.replace('.', '')}</span>
+                </li>
               )
             })}
-          </div>
+          </ol>
         </section>
 
         {/* Reserve next session CTA */}
@@ -177,9 +179,6 @@ export default function StatistiquesPage() {
           className="bg-navy text-white rounded-3xl p-6 relative overflow-hidden"
         >
           <div className="relative">
-            <p className="text-xs uppercase tracking-[0.12em] text-amber mb-2 flex items-center gap-1.5">
-              <ChefIcon className="w-3.5 h-3.5" /> Prêt·e à relancer ?
-            </p>
             <p className="font-display text-2xl font-bold leading-tight">
               Une nouvelle semaine, une cuisine nouvelle.
             </p>
@@ -189,10 +188,10 @@ export default function StatistiquesPage() {
             </p>
             <Link
               href="/espace-client/menus"
-              className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-navy bg-amber hover:bg-amber-deep rounded-full px-4 py-2.5 transition-colors"
+              className="btn btn-amber mt-5"
             >
-              Lancer une session
-              <ArrowRight className="w-3.5 h-3.5" />
+              Réserver une session
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
             </Link>
           </div>
         </section>

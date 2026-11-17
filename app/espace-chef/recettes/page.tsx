@@ -1485,7 +1485,7 @@ function SuggestionCard({
             {dish.name}
           </button>
           {dish.category && (
-            <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-mid">
+            <span className="rounded-lg bg-cream-soft px-2 py-0.5 text-xs font-semibold text-ink-mid">
               {refLabel(categoryList, dish.category)}
             </span>
           )}

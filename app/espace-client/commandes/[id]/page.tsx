@@ -493,7 +493,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
                 courses
               </h3>
-              <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+              <span className="rounded-lg bg-cream-soft px-2.5 py-1 text-xs font-semibold text-ink-mid">
                 {b.shoppingByClient ? 'À votre charge' : 'Faites par le batch cooker'}
               </span>
             </div>

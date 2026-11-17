@@ -57,6 +57,7 @@ import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
   bookingStatusText,
+  bookingStatusTone,
   checkPhoto,
   euros,
   hour,
@@ -264,7 +265,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
             <p className="font-display text-lg font-bold text-navy">
               {m.client?.name ?? 'Client'}
             </p>
-            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
+            <span className={`status ${bookingStatusTone(m.status)}`}>
               {bookingStatusText(m.status)}
             </span>
           </div>
@@ -461,7 +462,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             <Card>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                  <span className={`status ${bookingStatusTone(m.status)}`}>
                     {bookingStatusText(m.status)}
                   </span>
                   <p className="mt-2 font-display text-xl font-bold cap-first text-navy">

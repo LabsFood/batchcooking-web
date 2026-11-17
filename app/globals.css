@@ -933,8 +933,9 @@ body {
   background: transparent;
 }
 
-/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par défaut. */
-.lf-rdp-week .rdp-chevron {
+/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par
+   défaut — sur tous les calendriers, pas seulement celui de `/menu`. */
+.lf-rdp .rdp-chevron {
   fill: currentColor;
 }
 
