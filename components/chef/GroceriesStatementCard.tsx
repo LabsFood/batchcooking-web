@@ -25,7 +25,7 @@ export default function GroceriesStatementCard() {
   const s = statement.data
 
   return (
-    <section className="rounded-3xl card-shell p-6">
+    <section className="rounded-2xl card-shell p-6">
       <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-navy">
         <Receipt className="h-5 w-5 text-amber" aria-hidden /> Courses remboursées
         <InfoPopover label="Quelle commission sur les courses ?">

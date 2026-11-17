@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CheckCircle2, Circle } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, Circle } from 'lucide-react'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useMyOnboarding, type OnboardingStep } from '@/lib/api/me-profile'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,11 @@ import { cn } from '@/lib/utils'
    lui, elle ne peut pas être ouverte.
 
    La liste disparaît une fois tout fait.
+
+   Elle ne tient plus tout le haut de l'accueil. Repliée, elle montre où l'on
+   en est et la prochaine étape, avec son bouton : c'est ce qu'il reste à faire
+   qui compte, pas la liste de ce qui l'est déjà. Un nouveau compte la trouve
+   dépliée ; dès que la moitié est faite, elle se replie d'elle-même.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const ETAPES: Record<
@@ -63,94 +69,131 @@ const ETAPES: Record<
 
 export default function BienDemarrer() {
   const { data } = useMyOnboarding()
+  // `null` : l'utilisateur n'a pas encore choisi, l'avancement décide.
+  const [choix, setChoix] = useState<boolean | null>(null)
   if (!data || data.allDone) return null
-  const prochaine = data.steps.find((s) => !s.done)?.code
+
+  const prochaine = data.steps.find((s) => !s.done)
+  const ouvert = choix ?? data.completed * 2 < data.total
+  const suite = prochaine ? ETAPES[prochaine.code] : null
 
   return (
-    <section className="rounded-3xl border border-border bg-white p-6 lg:p-7">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="flex items-center gap-1 font-display text-xl font-bold text-navy">
-          Bien démarrer
-          <InfoPopover label="À quoi sert cette liste ?">
-            Quelques étapes pour que votre première session se passe bien. Vous pouvez
-            les faire dans l’ordre que vous voulez, et réserver sans les avoir toutes
-            faites — sauf les allergies, sans lesquelles aucun menu ne peut être validé.
-            La liste disparaît une fois tout fait.
-          </InfoPopover>
-        </h2>
-        <p className="text-sm text-ink-mid">
-          <strong className="text-navy">{data.completed}</strong> étape
-          {data.completed > 1 ? 's' : ''} sur {data.total}
-        </p>
+    <section className="panel">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-5 lg:px-6">
+        <div className="min-w-0 flex-1 basis-64">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
+              Bien démarrer
+              <InfoPopover label="À quoi sert cette liste ?">
+                Quelques étapes pour que votre première session se passe bien. Vous pouvez
+                les faire dans l’ordre que vous voulez, et réserver sans les avoir toutes
+                faites — sauf les allergies, sans lesquelles aucun menu ne peut être validé.
+                La liste disparaît une fois tout fait.
+              </InfoPopover>
+            </h2>
+            <p className="shrink-0 text-sm tabular-nums text-ink-mid">
+              <strong className="font-semibold text-navy">{data.completed}</strong> sur {data.total}
+            </p>
+          </div>
+          <div
+            className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-cream-deep"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={data.total}
+            aria-valuenow={data.completed}
+            aria-label="Étapes faites"
+          >
+            <div
+              // slow-out : la barre avance en 200 ms
+              className="h-full rounded-full bg-mint-ink transition-[width] duration-200"
+              style={{ width: `${(data.completed / data.total) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Repliée : la prochaine étape, et de quoi la faire. */}
+        {!ouvert && suite && (
+          <div className="flex min-w-0 flex-1 basis-80 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="min-w-0 text-sm text-ink-mid">
+              Prochaine étape : <span className="font-semibold text-navy">{suite.titre}</span>
+            </p>
+            <Link href={suite.href} className="btn btn-outline">
+              {suite.action}
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+            </Link>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setChoix(!ouvert)}
+          aria-expanded={ouvert}
+          aria-controls="bien-demarrer-etapes"
+          className="hit inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-ink-mid hover:text-navy"
+        >
+          {ouvert ? 'Replier' : 'Toutes les étapes'}
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform duration-200', ouvert && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
       </div>
 
-      <div
-        className="mt-3 h-1.5 overflow-hidden rounded-full bg-cream-soft"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={data.total}
-        aria-valuenow={data.completed}
-        aria-label="Étapes faites"
-      >
-        <div
-          className="h-full rounded-full bg-mint-ink transition-[width] duration-200"
-          style={{ width: `${(data.completed / data.total) * 100}%` }}
-        />
-      </div>
-
-      <ol className="mt-5 space-y-3">
-        {data.steps.map((step) => {
-          const e = ETAPES[step.code]
-          return (
-            <li key={step.code} className="flex items-start gap-3">
-              {step.done ? (
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-mint-ink" aria-hidden />
-              ) : (
-                <Circle className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" aria-hidden />
-              )}
-              <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    'flex items-center gap-1 text-sm font-semibold',
-                    step.done ? 'text-ink-soft line-through' : 'text-navy',
-                  )}
-                >
-                  {e.titre}
-                  <span className="sr-only">{step.done ? ' : fait' : ' : à faire'}</span>
-                  {!step.done && step.requiredFor === 'immediate_advance' && (
-                    <InfoPopover label="Pourquoi ce dossier ?">
-                      Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de
-                      suite et l’URSSAF prélève le reste sur votre compte. Pour vous inscrire
-                      auprès d’elle, Lab’s Food a besoin de votre état civil et de ce compte.
-                      Vous pouvez réserver et payer autrement sans ce dossier.
-                    </InfoPopover>
-                  )}
-                  {!step.done && step.requiredFor === 'menu_validation' && (
-                    <InfoPopover label="Pourquoi cette étape compte-t-elle ?">
-                      Vos allergies sont vérifiées contre chaque plat. Tant que vous
-                      n’avez pas répondu (une liste, ou « aucune »), votre batch cooker
-                      ne peut pas valider de menu pour vous.
-                    </InfoPopover>
-                  )}
-                </p>
-                {!step.done && <p className="mt-0.5 text-sm text-ink-mid">{e.texte}</p>}
-              </div>
-              {!step.done && (
-                <Link
-                  href={e.href}
-                  className={cn(
-                    'inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline',
-                    step.code === prochaine ? 'text-amber-ink' : 'text-navy',
-                  )}
-                >
-                  {e.action}
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                </Link>
-              )}
-            </li>
-          )
-        })}
-      </ol>
+      {ouvert && (
+        <ol id="bien-demarrer-etapes" className="space-y-3 border-t border-[var(--line)] p-5 lg:px-6">
+          {data.steps.map((step) => {
+            const e = ETAPES[step.code]
+            return (
+              <li key={step.code} className="flex items-start gap-3">
+                {step.done ? (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-mint-ink" aria-hidden />
+                ) : (
+                  <Circle className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" aria-hidden />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      'flex items-center gap-1 text-sm font-semibold',
+                      step.done ? 'text-ink-soft' : 'text-navy',
+                    )}
+                  >
+                    {e.titre}
+                    <span className="sr-only">{step.done ? ' : fait' : ' : à faire'}</span>
+                    {!step.done && step.requiredFor === 'immediate_advance' && (
+                      <InfoPopover label="Pourquoi ce dossier ?">
+                        Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de
+                        suite et l’URSSAF prélève le reste sur votre compte. Pour vous inscrire
+                        auprès d’elle, Lab’s Food a besoin de votre état civil et de ce compte.
+                        Vous pouvez réserver et payer autrement sans ce dossier.
+                      </InfoPopover>
+                    )}
+                    {!step.done && step.requiredFor === 'menu_validation' && (
+                      <InfoPopover label="Pourquoi cette étape compte-t-elle ?">
+                        Vos allergies sont vérifiées contre chaque plat. Tant que vous
+                        n’avez pas répondu (une liste, ou « aucune »), votre batch cooker
+                        ne peut pas valider de menu pour vous.
+                      </InfoPopover>
+                    )}
+                  </p>
+                  {!step.done && <p className="mt-0.5 text-sm text-ink-mid">{e.texte}</p>}
+                </div>
+                {!step.done && (
+                  <Link
+                    href={e.href}
+                    className={cn(
+                      'hit inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline',
+                      step.code === prochaine?.code ? 'text-amber-ink' : 'text-navy',
+                    )}
+                  >
+                    {e.action}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </section>
   )
 }

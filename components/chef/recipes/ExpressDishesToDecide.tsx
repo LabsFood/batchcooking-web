@@ -30,7 +30,7 @@ export default function ExpressDishesToDecide() {
   if (dishes.length === 0 && kept.length === 0) return null
 
   return (
-    <section id="plats-express" className="scroll-mt-24 rounded-3xl border border-amber/40 bg-amber-soft/40 p-5">
+    <section id="plats-express" className="scroll-mt-24 rounded-2xl border border-amber/40 bg-amber-soft/40 p-5">
       <h2 className="flex flex-wrap items-center gap-1.5 font-display text-base font-bold text-navy">
         <Sparkles className="h-4 w-4 text-amber-deep" aria-hidden />
         Plats express à garder ou retirer ({dishes.length})

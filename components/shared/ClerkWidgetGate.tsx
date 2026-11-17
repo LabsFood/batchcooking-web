@@ -42,13 +42,13 @@ export default function ClerkWidgetGate({ children }: { children: ReactNode }) {
 
 function AuthUnavailable() {
   return (
-    <div className="rounded-2xl border border-[rgba(31,42,55,0.10)] bg-paper px-6 py-8 text-center">
+    <div className="py-4 text-center">
       <h2 className="font-display text-lg font-bold text-navy mb-2">
         Le formulaire n&apos;a pas pu se charger
       </h2>
       <p className="text-ink-mid text-sm leading-relaxed mb-6">
         Le service d&apos;authentification ne répond pas. Si le problème persiste,
-        désactive le blocage des cookies tiers pour ce site, ou réessaie depuis
+        désactivez le blocage des cookies tiers pour ce site, ou réessayez depuis
         une autre fenêtre.
       </p>
       <button onClick={() => window.location.reload()} className="btn btn-primary">

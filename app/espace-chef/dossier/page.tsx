@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import Link from 'next/link'
 
 import { Suspense, useRef, useState } from 'react'
@@ -358,39 +359,16 @@ function Dossier() {
         )}
 
         {/* ── Deux gestes, deux onglets ─────────────────────────────────── */}
-        <div
-          role="tablist"
-          aria-label="Mon dossier"
-          className="inline-flex items-center gap-1 rounded-full border border-[rgba(31,42,55,0.08)] bg-paper p-1"
-        >
-          {(
-            [
-              { id: 'pieces', Icon: FileText, label: 'Mes pièces', n: aTraiter },
-              { id: 'infos', Icon: IdCard, label: 'Mes informations', n: 0 },
-              { id: 'factures', Icon: Receipt, label: 'Mes factures', n: 0 },
-            ] as const
-          ).map(({ id, Icon, label, n }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={onglet === id}
-              onClick={() => setOnglet(id)}
-              className={cn(
-                'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-                onglet === id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy',
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden />
-              {label}
-              {n > 0 && (
-                <span className="tabular-nums rounded-full bg-amber px-1.5 text-xs font-bold text-navy">
-                  {n}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <Onglets
+          label="Mon dossier"
+          value={onglet}
+          onChange={setOnglet}
+          items={[
+            { id: 'pieces', Icon: FileText, label: 'Mes pièces', alert: aTraiter },
+            { id: 'infos', Icon: IdCard, label: 'Mes informations' },
+            { id: 'factures', Icon: Receipt, label: 'Mes factures' },
+          ]}
+        />
 
         {onglet === 'pieces' ? (
           <section>

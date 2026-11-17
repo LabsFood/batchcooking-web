@@ -428,7 +428,7 @@ export default function MockSettlement({ id }: { id: string }) {
               </p>
             )}
 
-            <div className="flex gap-3 rounded-3xl bg-mint/40 p-4 text-[13px] leading-relaxed text-navy">
+            <div className="flex gap-3 rounded-2xl bg-mint/40 p-4 text-[13px] leading-relaxed text-navy">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-mint-ink" aria-hidden />
               <p>
                 Un problème sur cette prestation ? Ouvrez un litige avant de régler : le paiement
@@ -447,7 +447,7 @@ export default function MockSettlement({ id }: { id: string }) {
       <Dialog.Root open={confirming} onOpenChange={(v) => !pending && setConfirming(v)}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-paper p-6 focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-1/2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-1/2 data-[state=closed]:[animation-duration:120ms]">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-paper p-6 focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-1/2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-1/2 data-[state=closed]:[animation-duration:120ms]">
             <div className="flex items-start justify-between gap-4">
               <Dialog.Title className="font-display text-xl font-bold leading-tight text-navy">
                 Confirmer la prestation

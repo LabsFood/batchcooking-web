@@ -163,10 +163,10 @@ export default function ChefShowcasePage() {
       <ChefPage title="Ma vitrine">
         <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
           <div className="space-y-5">
-            <SkeletonCard className="h-64 rounded-3xl" />
-            <SkeletonCard className="h-48 rounded-3xl" />
+            <SkeletonCard className="h-64 rounded-2xl" />
+            <SkeletonCard className="h-48 rounded-2xl" />
           </div>
-          <SkeletonCard className="h-80 rounded-3xl" />
+          <SkeletonCard className="h-80 rounded-2xl" />
         </SkeletonGroup>
       </ChefPage>
     )
@@ -448,7 +448,7 @@ export default function ChefShowcasePage() {
 
         {/* Aperçu client, nourri par ce qui est en train d'être saisi. */}
         <aside className="h-fit lg:sticky lg:top-24">
-          <div className="overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.08)] bg-paper">
+          <div className="overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper">
             <div className="flex items-center gap-2 border-b border-[rgba(31,42,55,0.08)] bg-cream-soft px-4 py-2.5">
               <Eye className="h-3.5 w-3.5 text-ink-soft" aria-hidden />
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">

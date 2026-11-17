@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useState } from 'react'
 import Link from 'next/link'
 import { CreditCard, Home, Info, MapPin, Pencil } from 'lucide-react'
@@ -19,29 +20,18 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: 'addresses' as Tab, label: 'Adresses' },
-            { id: 'payments' as Tab, label: 'Moyens de paiement' },
-            { id: 'advance' as Tab, label: 'Avance immédiate' },
-            { id: 'invoices' as Tab, label: 'Factures' },
-            { id: 'fiscal' as Tab, label: 'Attestation fiscale' },
-          ]
-        ).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              tab === t.id
-                ? 'bg-navy text-white'
-                : 'bg-paper text-ink-mid border border-[rgba(31,42,55,0.1)]'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Onglets
+        label="Mon compte"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: 'addresses', label: 'Adresses' },
+          { id: 'payments', label: 'Moyens de paiement' },
+          { id: 'advance', label: 'Avance immédiate' },
+          { id: 'invoices', label: 'Factures' },
+          { id: 'fiscal', label: 'Attestation fiscale' },
+        ]}
+      />
 
       {tab === 'addresses' && <Adresse />}
 
@@ -61,13 +51,13 @@ export default function AccountPage() {
 /** Une facture par paiement par carte, au nom du batch cooker. */
 function Factures() {
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
       <p className="mb-4 mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
         Une facture par paiement par carte, au nom de votre batch cooker. Elles se
-        retrouvent aussi sur chaque commande.
+        retrouvent aussi sur chaque session.
       </p>
       <PaymentInvoiceList side="client" emptyText="Aucune facture pour l’instant." />
     </section>
@@ -87,7 +77,7 @@ function Adresse() {
   const ligne = [p?.addressStreet, ville].filter(Boolean).join(', ')
 
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-lg font-bold text-navy">Mon adresse</h2>
         <Link href="/espace-client/parametres" className="btn btn-outline text-xs px-3.5 py-2">
@@ -130,7 +120,7 @@ function Adresse() {
  */
 function MoyensDePaiement() {
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <h2 className="font-display text-lg font-bold text-navy mb-4">Moyens de paiement</h2>
       <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
         <CreditCard className="mx-auto h-5 w-5 text-ink-soft" aria-hidden />
@@ -164,7 +154,7 @@ function Attestation() {
   const vide = a.error instanceof ApiError && a.error.status === 404
 
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-navy">
@@ -231,7 +221,7 @@ function Attestation() {
             )}
 
             <ul className="mt-4 space-y-2">
-              {a.data.providers.map((p) => (
+              {(a.data.providers ?? []).map((p) => (
                 <li
                   key={p.chefProfileId}
                   className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"

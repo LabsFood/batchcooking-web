@@ -100,9 +100,9 @@ export default function CookieBanner() {
                 Quelques cookies, juste pour bien fonctionner.
               </p>
               <p id="cookie-text" className="text-xs text-white/65 leading-relaxed mt-1.5">
-                Pas de pub, pas de revente. Les cookies indispensables gèrent ton compte
-                et ta session ; la mesure d&apos;audience (hébergée dans l&apos;UE) ne
-                s&apos;active que si tu l&apos;acceptes. Refuser ne t&apos;empêche pas
+                Pas de pub, pas de revente. Les cookies indispensables gèrent votre compte
+                et votre session ; la mesure d&apos;audience (hébergée dans l&apos;UE) ne
+                s&apos;active que si vous l&apos;acceptez. Refuser ne vous empêche pas
                 d&apos;utiliser le site.{' '}
                 <Link href={`${PRIVACY_PAGE}#cookies`} className="underline underline-offset-4">
                   En savoir plus

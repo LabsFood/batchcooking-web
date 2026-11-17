@@ -7,10 +7,6 @@ import {
   Wallet,
   Soup,
   ArrowRight,
-  ChefHat as ChefIcon,
-  Salad,
-  Globe2,
-  Sprout,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Skeleton } from '@/components/shared/Skeleton'
@@ -58,27 +54,10 @@ function parSemaine(prestations: Booking[], depuis: Date) {
   return semaines
 }
 
-const HIGHLIGHTS = [
-  {
-    Icon: Salad,
-    title: 'Plus de fait maison',
-    text: 'Chaque session remplace en moyenne 4 repas industriels — gain qualité immédiat.',
-  },
-  {
-    Icon: Globe2,
-    title: 'Des cuisines variées',
-    text: 'Italien, méditerranéen, asiatique, africain : tu testes plus que d’habitude.',
-  },
-  {
-    Icon: Sprout,
-    title: 'Moins de gaspillage',
-    text: 'Les portions sont calibrées : ce qui est cuisiné est consommé.',
-  },
-] as const
-
 export default function StatistiquesPage() {
   const query = useMyBookings({ limit: 100 })
   const toutes = query.data?.data ?? []
+
   const terminees = toutes.filter(
     (b) => b.status === 'completed' || b.status === 'delivered',
   )
@@ -105,7 +84,7 @@ export default function StatistiquesPage() {
           label="Sessions"
           value={terminees.length}
           loading={query.isPending}
-          sub="réalisées depuis ton inscription"
+          sub="réalisées depuis votre inscription"
           tone="amber"
         />
         <KpiTile
@@ -136,40 +115,42 @@ export default function StatistiquesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bars chart */}
-        <section
-          className="lg:col-span-2 bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="font-display text-xl font-bold text-navy">
-                Plats / semaine
-              </h3>
-            </div>
-            <span className="text-xs text-ink-soft">7 dernières semaines</span>
+        <section className="panel p-5 lg:col-span-2 lg:p-6">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            {/* Ce sont des portions qui sont comptées, pas des plats : le titre le dit. */}
+            <h3 className="panel-title">Portions cuisinées par semaine</h3>
+            <span className="text-xs text-ink-soft">Sept dernières semaines</span>
           </div>
 
-          <div className="h-44 flex items-end gap-2 lg:gap-3">
+          {/*
+            Chaque colonne prend toute la hauteur, et la barre grandit dans la
+            zone au-dessus du libellé. Avant, la colonne n'avait pas de hauteur :
+            un pourcentage n'y voulait rien dire, et toutes les barres restaient
+            à leurs 8 px de plancher, quelle que soit la semaine.
+          */}
+          <ol className="flex h-48 items-stretch gap-2 lg:gap-3">
             {semaines.map((w) => {
               const h = Math.round((w.meals / max) * 100)
               return (
-                <div key={w.week} className="flex flex-1 flex-col items-center gap-2">
-                  <div
-                    className="w-full rounded-t-2xl bg-gradient-to-b from-amber to-amber-deep relative"
-                    style={{ height: `${h}%`, minHeight: w.meals === 0 ? 0 : 8 }}
-                  >
-                    {w.meals > 0 && (
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 font-display text-sm font-bold text-navy">
-                        {w.meals}
-                      </span>
-                    )}
+                <li key={w.week} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="flex w-full flex-1 flex-col items-center justify-end">
+                    <span
+                      className={`mb-1 text-sm font-semibold tabular-nums ${
+                        w.meals > 0 ? 'text-navy' : 'text-ink-soft'
+                      }`}
+                    >
+                      {w.meals}
+                    </span>
+                    <div
+                      className={`w-full rounded-t-lg ${w.meals > 0 ? 'bg-amber' : 'bg-cream-deep'}`}
+                      style={{ height: w.meals > 0 ? `${Math.max(h, 4)}%` : 2 }}
+                    />
                   </div>
-                  <span className="text-xs uppercase tracking-[0.12em] text-ink-soft">
-                    {w.week}
-                  </span>
-                </div>
+                  <span className="truncate text-xs text-ink-soft">{w.week.replace('.', '')}</span>
+                </li>
               )
             })}
-          </div>
+          </ol>
         </section>
 
         {/* Reserve next session CTA */}
@@ -177,54 +158,23 @@ export default function StatistiquesPage() {
           className="bg-navy text-white rounded-3xl p-6 relative overflow-hidden"
         >
           <div className="relative">
-            <p className="text-xs uppercase tracking-[0.12em] text-amber mb-2 flex items-center gap-1.5">
-              <ChefIcon className="w-3.5 h-3.5" /> Prêt·e à relancer ?
-            </p>
             <p className="font-display text-2xl font-bold leading-tight">
-              Une nouvelle semaine,{' '}
-              <span className="text-amber">une cuisine nouvelle.</span>
+              Une nouvelle semaine, une cuisine nouvelle.
             </p>
             <p className="text-white/65 text-sm mt-3 leading-relaxed">
-              Continue d&apos;explorer le monde via tes plats. Le menu de la semaine est
-              renouvelé chaque lundi.
+              Continuez d’explorer le monde par vos plats. Les cartes de la semaine sont
+              renouvelées chaque lundi.
             </p>
             <Link
               href="/espace-client/menus"
-              className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-navy bg-amber hover:bg-amber-deep rounded-full px-4 py-2.5 transition-colors"
+              className="btn btn-amber mt-5"
             >
-              Lancer une session
-              <ArrowRight className="w-3.5 h-3.5" />
+              Réserver une session
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
             </Link>
           </div>
         </section>
       </div>
-
-      {/* Highlights */}
-      <section className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
-        <div className="mb-5">
-          <h3 className="font-display text-xl font-bold text-navy">
-            Ce que tu gagnes vraiment
-          </h3>
-          <p className="text-xs text-ink-mid mt-1">
-            Au-delà des chiffres, les habitudes qui changent.
-          </p>
-        </div>
-
-        <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {HIGHLIGHTS.map(({ Icon, title, text }) => (
-            <li
-              key={title}
-              className="rounded-2xl bg-cream-soft border border-[rgba(31,42,55,0.04)] p-5"
-            >
-              <span className="w-10 h-10 rounded-xl bg-mint/40 text-mint-ink flex items-center justify-center mb-3">
-                <Icon className="w-4 h-4" />
-              </span>
-              <p className="font-display text-base font-bold text-navy">{title}</p>
-              <p className="text-xs text-ink-mid leading-relaxed mt-1">{text}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   )
 }
@@ -253,7 +203,7 @@ function KpiTile({
         : 'bg-navy text-amber'
   return (
     <div
-      className="card-shell rounded-3xl p-5"
+      className="card-shell rounded-2xl p-5"
     >
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles} mb-4`}>
         <Icon className="w-4 h-4" />

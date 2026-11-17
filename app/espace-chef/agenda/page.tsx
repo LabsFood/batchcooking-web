@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -195,7 +196,7 @@ export default function ChefAgendaPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="min-w-44 px-1 text-center font-display text-base font-bold capitalize text-navy">
+            <p className="min-w-44 px-1 text-center font-display text-base font-bold cap-first text-navy">
               {titre}
             </p>
             <button
@@ -216,35 +217,20 @@ export default function ChefAgendaPage() {
             </button>
           </div>
 
-          <div
-            role="tablist"
-            aria-label="Échelle"
-            className="flex rounded-full border border-[rgba(31,42,55,0.1)] bg-paper p-0.5"
-          >
-            {(
-              [
-                { id: 'day' as const, label: 'Jour' },
-                { id: 'week' as const, label: 'Semaine' },
-                { id: 'month' as const, label: 'Mois' },
-                { id: 'year' as const, label: 'Année' },
-              ]
-            ).map((v) => (
-              <button
-                key={v.id}
-                role="tab"
-                aria-selected={view === v.id}
-                onClick={() => {
-                  setView(v.id)
-                  setSelected(null)
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  view === v.id ? 'bg-navy text-white' : 'text-ink-mid hover:text-navy'
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
+          <Onglets
+            label="Échelle de l’agenda"
+            value={view}
+            onChange={(v) => {
+              setView(v)
+              setSelected(null)
+            }}
+            items={[
+              { id: 'day', label: 'Jour' },
+              { id: 'week', label: 'Semaine' },
+              { id: 'month', label: 'Mois' },
+              { id: 'year', label: 'Année' },
+            ]}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -271,7 +257,7 @@ export default function ChefAgendaPage() {
             ) : agenda.isPending ? (
               // Le mois : l'en-tête, puis sept colonnes sur cinq semaines.
               <SkeletonGroup>
-                <SkeletonCard className="h-[32rem] rounded-3xl lg:p-6">
+                <SkeletonCard className="h-[32rem] rounded-2xl lg:p-6">
                   <Skeleton className="mb-4 h-8 w-48" />
                   <div className="grid grid-cols-7 gap-2">
                     {Array.from({ length: 35 }, (_, i) => (
@@ -493,7 +479,7 @@ function YearView({
   if (query.isPending) {
     return (
       <SkeletonGroup>
-        <SkeletonCard className="grid h-72 grid-cols-3 gap-3 rounded-3xl sm:grid-cols-4 lg:grid-cols-6">
+        <SkeletonCard className="grid h-72 grid-cols-3 gap-3 rounded-2xl sm:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: 12 }, (_, i) => (
             <Skeleton key={i} className="h-full rounded-xl" />
           ))}
@@ -914,7 +900,7 @@ function HoursEditor() {
   if (query.isPending) {
     return (
       <SkeletonGroup>
-        <SkeletonCard className="h-64 rounded-3xl" />
+        <SkeletonCard className="h-64 rounded-2xl" />
       </SkeletonGroup>
     )
   }

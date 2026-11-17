@@ -44,12 +44,12 @@ export default function ParametresPage() {
       <MesDonnees />
 
       {/* Danger zone */}
-      <div className="lg:col-span-2 bg-red-50 border border-red-200 rounded-3xl p-6">
+      <div className="lg:col-span-2 bg-red-50 border border-red-200 rounded-2xl p-6">
         <h3 className="font-display text-lg font-bold text-red-700 mb-2 flex items-center gap-2">
           <Trash2 className="w-4 h-4" /> Zone sensible
         </h3>
         <p className="text-sm text-red-700/80 mb-4 leading-relaxed">
-          Supprimer ton compte effacera ton historique de commandes, tes préférences et tes badges.
+          Supprimer votre compte effacera l’historique de vos sessions et vos préférences.
           Cette action est irréversible.
         </p>
         <div className="flex flex-wrap items-start gap-3">
@@ -132,7 +132,7 @@ function Compte({ me, firstName, lastName }: { me: MeProfile; firstName: string;
       </div>
       <Field label="Email">
         <input type="email" value={me.user.email} readOnly disabled className="input-base" />
-        <p className="text-xs text-ink-soft mt-1.5">C’est ton identifiant de connexion : il ne se modifie pas ici.</p>
+        <p className="text-xs text-ink-soft mt-1.5">C’est votre identifiant de connexion : il ne se modifie pas ici.</p>
       </Field>
       <Field label="Téléphone">
         <input type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="+33 6 XX XX XX XX" className="input-base" />
@@ -185,10 +185,10 @@ function Notifications({ prefs }: { prefs?: { email: boolean; sms: boolean } }) 
   const rows = [
     {
       label: 'Emails de service',
-      sub: 'Confirmations, rappels, listes de courses : ils accompagnent tes prestations.',
+      sub: 'Confirmations, rappels, listes de courses : ils accompagnent vos sessions.',
       on: prefs?.email ?? true,
     },
-    { label: 'SMS de session', sub: 'Pour le jour J, par ton batch cooker.', on: prefs?.sms ?? false },
+    { label: 'SMS de session', sub: 'Pour le jour J, par votre batch cooker.', on: prefs?.sms ?? false },
   ]
   return (
     <Section title="Notifications" Icon={Bell}>
@@ -252,8 +252,8 @@ function MesDonnees() {
         </select>
       </Field>
       <p className="text-sm text-ink-mid leading-relaxed">
-        Ton compte, ton profil, tes réservations, tes demandes de devis et tes messages, dans un fichier
-        que tu peux garder ou transmettre.
+        Votre compte, votre profil, vos réservations, vos demandes sur-mesure et vos messages, dans un
+        fichier que vous pouvez garder ou transmettre.
       </p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <button
@@ -278,7 +278,7 @@ function Section({
 }) {
   return (
     <section
-      className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]"
+      className="bg-paper rounded-2xl p-6 border border-[rgba(31,42,55,0.06)]"
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-display text-lg font-bold text-navy">{title}</h3>

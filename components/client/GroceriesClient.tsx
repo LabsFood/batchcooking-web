@@ -99,7 +99,7 @@ export default function GroceriesClient({ bookingId }: { bookingId: string }) {
   const error = start.error ?? confirmCard.error ?? retry.error ?? confirm.error
 
   return (
-    <div className="rounded-3xl card-shell p-6">
+    <div className="rounded-2xl card-shell p-6">
       <h3 className="mb-1 flex flex-wrap items-center gap-2 font-display text-lg font-bold text-navy">
         <ShoppingBasket className="h-5 w-5 text-amber" aria-hidden /> Vos courses
         <InfoPopover label="Qu’est-ce que le Budget Courses ?">

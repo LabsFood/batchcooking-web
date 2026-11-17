@@ -180,7 +180,7 @@ export default function IngredientCreateDialog({
         aria-modal="true"
         aria-label="Créer un ingrédient"
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-paper p-6 shadow-[0_24px_60px_-20px_rgba(31,42,55,0.3)]"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-paper p-6 shadow-[0_24px_60px_-20px_rgba(31,42,55,0.3)]"
       >
         <h3 className="font-display text-lg font-bold text-navy">Créer un ingrédient</h3>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-mid">

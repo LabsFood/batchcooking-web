@@ -4,6 +4,7 @@ import { Suspense, use, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { fade } from '@/lib/motion'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -109,9 +110,9 @@ export default function OrderDetailPage({
   if (query.isPending) {
     return (
       <div className="space-y-6">
-        <div className="h-40 animate-pulse rounded-3xl bg-paper" />
-        <div className="h-24 animate-pulse rounded-3xl bg-paper" />
-        <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+        <div className="h-40 animate-pulse rounded-2xl bg-paper" />
+        <div className="h-24 animate-pulse rounded-2xl bg-paper" />
+        <div className="h-64 animate-pulse rounded-2xl bg-paper" />
       </div>
     )
   }
@@ -121,7 +122,7 @@ export default function OrderDetailPage({
       <div className="mx-auto max-w-xl py-16 text-center">
         <UtensilsCrossed className="mx-auto h-8 w-8 text-ink-soft" aria-hidden />
         <h2 className="mt-4 font-display text-2xl font-bold text-navy">
-          Commande introuvable
+          Session introuvable
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-mid">
           Elle n’existe plus, ou elle n’est pas rattachée à votre compte.
@@ -131,7 +132,7 @@ export default function OrderDetailPage({
             <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
           </button>
           <Link href="/espace-client/commandes" className="btn btn-primary text-xs">
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes mes commandes
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes mes sessions
           </Link>
         </div>
       </div>
@@ -204,7 +205,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        Toutes mes commandes
+        Toutes mes sessions
       </Link>
 
       <Suspense fallback={null}>
@@ -213,7 +214,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       {/* ── Une demande de report attend votre réponse ──────────────────── */}
       {report && (
-        <section className="rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+        <section className="rounded-2xl border border-amber/40 bg-amber-soft/60 p-5">
           <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
             <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
             Votre batch cooker propose un autre horaire
@@ -273,46 +274,37 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       {/* ── L'essentiel ──────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-8"
+        // fondu : le bandeau apparaît en 180 ms
+        {...fade}
+        className="overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-8"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-amber/30 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            {b.reference && (
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
-                {b.reference}
-              </p>
-            )}
-            <h2 className="mt-2 font-display text-3xl font-bold capitalize leading-tight lg:text-4xl">
+            {b.reference && <p className="font-mono text-xs text-white/60">{b.reference}</p>}
+            <h2 className="mt-2 font-display text-3xl font-bold cap-first leading-tight lg:text-4xl">
               {longDate(b.startsAt) ?? 'Date à confirmer'}
             </h2>
-            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/65">
+            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums text-white/75">
               {hour(b.startsAt) && (
                 <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-amber" aria-hidden />
+                  <Clock className="h-4 w-4 text-white/55" aria-hidden />
                   {hour(b.startsAt)}
                   {hour(b.endsAt) ? ` → ${hour(b.endsAt)}` : ''}
                 </span>
               )}
               {b.chef?.displayName && (
                 <span className="inline-flex items-center gap-1.5">
-                  <ChefHat className="h-4 w-4 text-amber" aria-hidden />
+                  <ChefHat className="h-4 w-4 text-white/55" aria-hidden />
                   {b.chef.displayName}
                 </span>
               )}
               {portions > 0 && (
                 <span className="inline-flex items-center gap-1.5">
-                  <UtensilsCrossed className="h-4 w-4 text-amber" aria-hidden />
+                  <UtensilsCrossed className="h-4 w-4 text-white/55" aria-hidden />
                   {portions} portions
                 </span>
               )}
-              <span>{bookingStatusText(b.status)}</span>
+              <span className="status status-on-dark">{bookingStatusText(b.status)}</span>
             </p>
 
             {/* Le fichier exige le jeton : on le télécharge, on ne le lie pas. */}
@@ -336,12 +328,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   )
                 }
                 disabled={ics.isPending}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-60"
+                className="btn btn-outline-light mt-5"
               >
                 {ics.isPending ? (
-                  <RotateCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  <RotateCw className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
                 ) : (
-                  <CalendarPlus className="h-3.5 w-3.5 text-amber" aria-hidden />
+                  <CalendarPlus className="h-4 w-4" aria-hidden />
                 )}
                 Ajouter à mon agenda
               </button>
@@ -361,14 +353,14 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       {/* ── À régler ─────────────────────────────────────────────────────── */}
       {aRegler && (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber/40 bg-amber-soft/60 p-5">
           <div className="min-w-0">
             <p className="font-display text-base font-bold text-navy">
-              Cette commande attend son règlement
+              Cette session attend son règlement
             </p>
             <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-mid">
               C’est le paiement qui la confirme auprès de votre batch cooker. Le
-              créneau est tenu 72 heures, puis la commande est annulée.
+              créneau est tenu 72 heures, puis la réservation est annulée.
             </p>
             <ResteAPayer bookingId={b.id} />
           </div>
@@ -383,15 +375,15 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       )}
 
       {/* ── Suivi ────────────────────────────────────────────────────────── */}
-      <section className="rounded-3xl card-shell p-6 lg:p-7">
+      <section className="rounded-2xl card-shell p-6 lg:p-7">
         <h3 className="mb-5 font-display text-lg font-bold text-navy">
-          Suivi de la commande
+          Suivi de la session
         </h3>
         {arretee ? (
           <p className="text-sm font-semibold text-red-700">
             {b.status === 'disputed'
-              ? 'Cette commande fait l’objet d’un litige. Notre équipe vous répond par la messagerie.'
-              : 'Cette commande a été annulée.'}
+              ? 'Cette session fait l’objet d’un litige. Notre équipe vous répond par la messagerie.'
+              : 'Cette session a été annulée.'}
           </p>
         ) : b.status === 'completed' ? (
           <p className="flex items-center gap-2 text-sm font-semibold text-mint-ink">
@@ -447,7 +439,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-2">
           {/* ── Plats ──────────────────────────────────────────────────── */}
-          <div className="rounded-3xl card-shell p-6">
+          <div className="rounded-2xl card-shell p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
               <span className="ml-auto flex items-center gap-2">
@@ -467,7 +459,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             </h3>
             {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
-                Aucun plat rattaché à cette commande.
+                Aucun plat rattaché à cette session.
               </p>
             ) : (
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -495,13 +487,13 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {(b.photos?.length ?? 0) > 0 && <PhotosSession photos={b.photos!} />}
 
           {/* ── Liste de courses ───────────────────────────────────────── */}
-          <div className="rounded-3xl card-shell p-6">
+          <div className="rounded-2xl card-shell p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
                 courses
               </h3>
-              <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+              <span className="rounded-lg bg-cream-soft px-2.5 py-1 text-xs font-semibold text-ink-mid">
                 {b.shoppingByClient ? 'À votre charge' : 'Faites par le batch cooker'}
               </span>
             </div>
@@ -559,7 +551,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
           {/* ── Vos consignes ──────────────────────────────────────────── */}
           {b.notes && (
-            <div className="rounded-3xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
+            <div className="rounded-2xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
               <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-amber-deep">
                 <Sparkles className="h-3.5 w-3.5" aria-hidden /> Vos consignes
               </p>
@@ -570,7 +562,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
         {/* ── Colonne de droite ─────────────────────────────────────────── */}
         <aside className="space-y-4">
-          <div className="rounded-3xl card-shell p-5">
+          <div className="rounded-2xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
@@ -628,7 +620,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           </div>
 
           {b.addressLine && (
-            <div className="rounded-3xl card-shell p-5">
+            <div className="rounded-2xl card-shell p-5">
               <h4 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-navy">
                 <MapPin className="h-4 w-4 text-amber" aria-hidden /> Où
               </h4>
@@ -640,7 +632,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           )}
 
           {!aRegler && b.status !== 'cancelled' && (
-            <div className="rounded-3xl card-shell p-5">
+            <div className="rounded-2xl card-shell p-5">
               <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
                 <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
               </h4>
@@ -662,7 +654,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
           {/* ── Rétractation (CGV art. 15) : visible tout le délai ─────────── */}
           {retractation?.open && retractation.availableUntil && (
-            <div className="rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+            <div className="rounded-2xl border border-amber/40 bg-amber-soft/60 p-5">
               <h4 className="font-display text-base font-bold text-navy">
                 Droit de rétractation
                 <InfoPopover label="Comment ça marche ?">
@@ -684,7 +676,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             </div>
           )}
           {retractation?.submittedAt && (
-            <div className="rounded-3xl card-shell p-5 text-[13px] leading-relaxed text-ink-mid">
+            <div className="rounded-2xl card-shell p-5 text-[13px] leading-relaxed text-ink-mid">
               <h4 className="font-display text-base font-bold text-navy">Rétractation envoyée</h4>
               <p className="mt-1.5">
                 Le {longDate(retractation.submittedAt)}. Un accusé de réception vous a été
@@ -699,7 +691,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               carte, demain le mandat de débours. Hors de « Règlement » : une
               commande partagée CESU + carte reste `pending`, et sa part carte a
               déjà sa facture. */}
-          <div className="rounded-3xl card-shell p-5">
+          <div className="rounded-2xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <FileText className="h-4 w-4 text-amber" aria-hidden /> Documents
               <PaymentInvoicesInfo side="client" />
@@ -740,7 +732,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
           <Link
             href="/espace-client/messages"
-            className="flex items-center gap-3 rounded-3xl border border-mint-deep/40 bg-mint/40 p-4 transition-colors hover:bg-mint/60"
+            className="flex items-center gap-3 rounded-2xl border border-mint-deep/40 bg-mint/40 p-4 transition-colors hover:bg-mint/60"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint-deep/20 text-mint-ink">
               <MessageCircle className="h-4 w-4" aria-hidden />
@@ -849,7 +841,7 @@ function CheckoutOutcome() {
   return (
     <div
       role="status"
-      className={`flex items-start gap-3 rounded-3xl p-4 text-sm leading-relaxed ${
+      className={`flex items-start gap-3 rounded-2xl p-4 text-sm leading-relaxed ${
         ok ? 'bg-mint/50 text-navy' : 'bg-amber-soft/70 text-navy'
       }`}
     >
@@ -891,7 +883,7 @@ function CheckoutOutcome() {
  */
 function PhotosSession({ photos }: { photos: BookingPhoto[] }) {
   return (
-    <div className="rounded-3xl card-shell p-6">
+    <div className="rounded-2xl card-shell p-6">
       <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
         <Camera className="h-4 w-4 text-amber" aria-hidden /> Photos de la session
       </h3>

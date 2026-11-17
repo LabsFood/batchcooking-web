@@ -28,6 +28,9 @@ const EMPTY_PREFS: ProfilePrefs = {
   kitchenNotes: '',
 }
 
+/** Du plus doux au plus relevé : le libellé de chaque cran. */
+const SPICE_LABELS = ['Doux', 'Léger', 'Moyen', 'Relevé', 'Fort'] as const
+
 function clampSpice(n: number): ProfilePrefs['spiceLevel'] {
   const v = Math.min(5, Math.max(1, Math.round(n || 3)))
   return v as ProfilePrefs['spiceLevel']
@@ -59,10 +62,10 @@ export default function ProfilPage() {
   if (isPending) {
     return (
       <SkeletonGroup className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        <SkeletonCard className="h-64 rounded-3xl" />
+        <SkeletonCard className="h-64 rounded-2xl" />
         <div className="space-y-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonCard key={i} className="h-32 rounded-3xl" />
+            <SkeletonCard key={i} className="h-32 rounded-2xl" />
           ))}
         </div>
       </SkeletonGroup>
@@ -76,7 +79,7 @@ export default function ProfilPage() {
           <AlertTriangle className="h-6 w-6" />
         </span>
         <h2 className="font-display text-xl font-bold text-navy mb-2">
-          Impossible de charger ton profil
+          Votre profil n’a pas pu être chargé
         </h2>
         <p className="text-ink-mid text-sm mb-6">
           {error instanceof ApiError ? error.message : 'Réessaie dans un instant.'}
@@ -168,7 +171,7 @@ function ProfileForm({
           </div>
         </div>
 
-        <div className="card-shell rounded-3xl p-5">
+        <div className="card-shell rounded-2xl p-5">
           <p className="eyebrow mb-3">Foyer</p>
           <div className="grid grid-cols-2 gap-3">
             <Counter
@@ -266,22 +269,35 @@ function ProfileForm({
         </Card>
 
         <Card title="Niveau d’épice" Icon={Flame}>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
-                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors ${
-                  n <= prefs.spiceLevel ? 'bg-amber text-navy' : 'bg-cream-soft text-ink-mid'
-                }`}
-              >
-                {'🌶️'.repeat(n)}
-              </button>
-            ))}
+          {/*
+            Un choix parmi cinq, dit en mots. Les piments en émoji ne se dessinent
+            pas pareil d'un système à l'autre, et cinq d'affilée ne tenaient pas
+            dans la case sur un téléphone.
+          */}
+          <div role="radiogroup" aria-label="Niveau d’épice" className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            {SPICE_LABELS.map((label, i) => {
+              const n = i + 1
+              const on = n === prefs.spiceLevel
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl px-1 py-2 text-center transition-colors ${
+                    on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
+                  }`}
+                >
+                  <span className="font-display text-lg font-bold leading-none tabular-nums">{n}</span>
+                  <span className="mt-1 text-xs leading-tight">{label}</span>
+                </button>
+              )
+            })}
           </div>
         </Card>
 
-        <Card title="Notes sur ta cuisine" Icon={NotebookPen}>
+        <Card title="Notes sur votre cuisine" Icon={NotebookPen}>
           <textarea
             rows={3}
             value={prefs.kitchenNotes}
@@ -308,7 +324,7 @@ function Card({
 }) {
   return (
     <div
-      className="card-shell rounded-3xl p-5 lg:p-6"
+      className="card-shell rounded-2xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-lg font-bold text-navy">{title}</h3>

@@ -65,19 +65,19 @@ export default function Navbar() {
     <>
       <header
         className={cn(
-          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 h-[72px] transition-[background-color,box-shadow,padding] duration-200 lg:h-auto',
+          'fixed top-[var(--lf-dev-banner)] left-0 right-0 z-50 h-[72px] transition-[background-color,box-shadow,padding] duration-200 xl:h-auto',
           scrolled
-            ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-0 lg:py-3'
-            : 'bg-cream py-0 lg:py-5'
+            ? 'bg-cream/95 backdrop-blur-md shadow-[0_2px_24px_rgba(31,26,20,0.06)] py-0 xl:py-3'
+            : 'bg-cream py-0 xl:py-5'
         )}
       >
-        <div className="container-xl flex h-full items-center justify-between lg:h-auto">
+        <div className="container-xl flex h-full items-center justify-between xl:h-auto">
 
           {/* ── Logo ─────────────────────────────────────────────────────── */}
           <Logo size="md" />
 
           {/* ── Desktop Nav ──────────────────────────────────────────────── */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden xl:flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href || (link.href.startsWith('/#') && pathname === '/')
               return (
@@ -85,7 +85,7 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200',
+                    'whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200',
                     link.kind === 'recruit'
                       ? cn(
                         'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
@@ -103,7 +103,7 @@ export default function Navbar() {
           </nav>
 
           {/* ── Desktop CTAs ─────────────────────────────────────────────── */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden xl:flex items-center gap-3">
             {/* « Connexion » est l'état par défaut, y compris tant que Clerk
                 n'a pas résolu la session. On gatait tout le bloc sur `isReady`
                 pour éviter un flash — au prix d'un trou : sur les pages
@@ -143,21 +143,37 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth/login"
-                className="text-sm font-medium text-ink-mid hover:text-navy transition-colors px-3"
+                className="hit whitespace-nowrap px-3 text-sm font-semibold text-navy underline-offset-4 transition-colors hover:text-amber-ink hover:underline"
               >
                 Connexion
               </Link>
             )}
-            <ReserveButton className="text-xs px-5 py-3">
-              Réserver
-              <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-            </ReserveButton>
+            {/*
+              Le bouton plein suit ce que le visiteur peut faire. Sans compte, on
+              ne réserve pas : « Réserver » ouvrait une fenêtre qui demandait de
+              se connecter. Le bouton dit donc la vraie première étape, créer son
+              compte. Un client connecté retrouve « Réserver » ; un batch cooker
+              n'a rien à réserver, il n'a que son espace.
+            */}
+            {isReady && isAuthenticated ? (
+              role !== 'chef' && (
+                <ReserveButton className="text-xs px-5 py-3">
+                  Réserver
+                  <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                </ReserveButton>
+              )
+            ) : (
+              <Link href="/auth/register" className="btn btn-primary px-5 py-3 text-xs">
+                Inscription
+                <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+              </Link>
+            )}
           </div>
 
           {/* ── Mobile burger ────────────────────────────────────────────── */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-amber-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-amber-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra xl:hidden"
             aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
@@ -176,7 +192,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_OUT } }}
             exit={{ opacity: 0, y: -8, transition: { duration: DURATION.fast, ease: EASE_IN } }}
-            className="fixed inset-x-0 bottom-0 top-[calc(var(--lf-dev-banner)+72px)] z-40 flex flex-col bg-cream shadow-[0_18px_36px_rgba(31,42,55,0.14)] lg:hidden"
+            className="fixed inset-x-0 bottom-0 top-[calc(var(--lf-dev-banner)+72px)] z-40 flex flex-col bg-cream shadow-[0_18px_36px_rgba(31,42,55,0.14)] xl:hidden"
           >
             <nav aria-label="Navigation mobile" className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 sm:px-8">
               {NAV_LINKS.filter((link) => link.kind !== 'recruit').map((link) => (
@@ -220,10 +236,24 @@ export default function Navbar() {
                   Connexion
                 </Link>
               )}
-              <ReserveButton onClick={() => setMobileOpen(false)} className="justify-center w-full">
-                Réserver ma session
-                <ArrowRight className="w-4 h-4 icon-arrow" />
-              </ReserveButton>
+              {/* Même règle que sur grand écran : le bouton plein suit ce qu'on peut faire. */}
+              {isReady && isAuthenticated ? (
+                role !== 'chef' && (
+                  <ReserveButton onClick={() => setMobileOpen(false)} className="justify-center w-full">
+                    Réserver ma session
+                    <ArrowRight className="w-4 h-4 icon-arrow" />
+                  </ReserveButton>
+                )
+              ) : (
+                <Link
+                  href="/auth/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn btn-primary w-full justify-center"
+                >
+                  Inscription
+                  <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

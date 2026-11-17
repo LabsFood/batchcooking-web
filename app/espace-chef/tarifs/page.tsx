@@ -219,9 +219,7 @@ export default function ChefPricingPage() {
                           <p className="flex items-center gap-2 font-display text-base font-bold text-navy">
                             {o.name}
                             {!o.active && (
-                              <span className="rounded-full bg-cream-deep px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                                Hors ligne
-                              </span>
+                              <span className="status font-sans">Hors ligne</span>
                             )}
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-mid">

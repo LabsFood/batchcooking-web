@@ -135,11 +135,50 @@ couleurs : un changement de valeur se fait aux deux endroits.
 | Espaces connectés | `--shell` | `#EDF2F7` |
 | Carte | `--paper` | `#FFFFFF` |
 | Rayon de base | `--radius` | `0.75rem` |
+| Filet | `--line` | `rgba(31,42,55,0.08)` |
+| Filet d'un contrôle | `--line-strong` | `rgba(31,42,55,0.16)` |
+| Ombre d'une carte | `--shadow-card` | décalage 10 px, flou 28 px |
+| Ombre de ce qui flotte | `--shadow-pop` | menus, dialogues |
+| Rayon d'un contrôle | `--r-control` | `0.75rem` |
+| Rayon d'une carte | `--r-card` | `1rem` |
+| Rayon d'un panneau marine | `--r-panel` | `1.5rem` |
+| État : bien | `--ok-soft` / `--ok-ink` | `#E3F6F1` / `#14695F` |
+| État : à traiter | `--warn-soft` / `--warn-ink` | `#FDF0D5` / `#8A5200` |
+| État : refus, erreur | `--bad-soft` / `--bad-ink` | `#FDECEC` / `#B42318` |
 
 Les valeurs de la charte de marque (`#00234B`, `#D96941`…) ne sont **pas** les
 tokens Tailwind : voir l'avertissement du README.
 
-## 8. Checklist de revue
+## 8. Le système des espaces connectés
+
+Le site public vend : pilules, capitales, grandes marges. Les deux espaces
+servent un geste quotidien : ils ont leur propre échelle, plus dense, sur les
+mêmes couleurs. Elle se déclenche par la classe `.app-shell`, posée par
+`app/espace-client/layout.tsx` et `app/espace-chef/layout.tsx`. Les règles sont
+écrites `:where(body:has(.app-shell)) …` (fin de `globals.css`) : elles
+atteignent aussi les dialogues rendus par un portail, et une utilitaire
+Tailwind posée sur l'élément garde la main.
+
+| Brique | Où | Règle |
+|---|---|---|
+| Coque | [EspaceShell.tsx](../components/espace/EspaceShell.tsx) | Une seule pour les deux espaces : colonne marine repliable en rail d'icônes (choix retenu), entrée ouverte en pastille claire, compte dans la barre haute, barre mobile à 4 destinations et « Plus ». Un espace ne fournit que sa configuration. |
+| Bouton | `.btn .btn-amber` / `-outline` / `-navy` / `-outline-light` | 40 px, coins de contrôle, casse normale, le libellé passe à la ligne. Un seul plein par vue. |
+| Champ | `.input-base` | Même hauteur que le bouton, filet d'un pixel. |
+| Panneau | `.panel`, `.panel-head`, `.panel-title`, `.panel-link` | La surface d'un bloc. Pas de panneau dans un panneau. |
+| Ligne de liste | `.row-link` | Dans un panneau, séparées par `divide-[var(--line)]`. |
+| Étiquette d'état | `.status` + `.status-ok` / `-warn` / `-bad` / `-info` / `-on-dark` | Une forme, quatre familles. Le ton d'une prestation vient de `bookingStatusTone()` : jamais d'une table locale. |
+| Onglets | [Onglets.tsx](../components/shared/Onglets.tsx) | Toute bascule entre vues d'un même écran. Le fond glisse en 180 ms. |
+| Bloc marine | `rounded-3xl bg-navy` | Un par écran : ce qui arrive (prochaine session, prochaine prestation). |
+| Date | `.cap-first` | « Samedi 21 novembre ». Jamais `capitalize`, qui met une capitale à chaque mot. |
+
+Ordre d'un accueil : ce qui attend un geste, ce qui arrive, puis l'historique
+et les chiffres. Les chiffres se lisent en relevé (libellé à gauche, valeur à
+droite), pas en rangée de tuiles.
+
+Vocabulaire : côté client, une **session** ; côté batch cooker, une
+**prestation**. « Commande » ne désigne ni l'une ni l'autre. Le site vouvoie.
+
+## 9. Checklist de revue
 
 - [ ] Un seul CTA principal, texte marine sur ambre.
 - [ ] Aucun mot italique, `Sparkles`, badge décoratif, ornement flottant.
@@ -148,6 +187,8 @@ tokens Tailwind : voir l'avertissement du README.
 - [ ] Cibles ≥ 40 px.
 - [ ] Chiffres en `tabular-nums`.
 - [ ] Rayons concentriques.
+- [ ] Espaces : briques du § 8, pas de bouton, d'onglet ou de pastille écrits à la main.
+- [ ] « Vous » partout ; « session » côté client, « prestation » côté batch cooker.
 - [ ] Squelette, vide et erreur présents ; pas de décalage.
 - [ ] Mouvement ≤ 240 ms (hero ≤ 400 ms), commenté, coupé en reduced-motion.
 - [ ] Testé à 375, 768 et 1280 px, au clavier, réseau lent.

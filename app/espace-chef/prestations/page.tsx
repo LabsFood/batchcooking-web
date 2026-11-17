@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import OptionalBadge from '@/components/shared/OptionalBadge'
 import { useId, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -56,6 +57,7 @@ import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
   bookingStatusText,
+  bookingStatusTone,
   checkPhoto,
   euros,
   hour,
@@ -165,33 +167,16 @@ export default function ChefMissionsPage() {
               <ProposerPrestation />
             </div>
 
-            <div
-              className="flex flex-wrap gap-2"
-              role="tablist"
-              aria-label="Filtrer les prestations"
-            >
-              {FILTERS.map((f) => {
-                const n = missions.filter(f.match).length
-                const active = filter === f.id
-                return (
-                  <button
-                    key={f.id}
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setFilter(f.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
-                      ? 'bg-navy text-white'
-                      : 'border border-[rgba(31,42,55,0.1)] bg-paper text-ink-mid hover:text-navy'
-                      }`}
-                  >
-                    {f.label}
-                    {!query.isPending && (
-                      <span className="ml-1.5 tabular-nums opacity-70">({n})</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+            <Onglets
+              label="Filtrer les prestations"
+              value={filter}
+              onChange={setFilter}
+              items={FILTERS.map((f) => ({
+                id: f.id,
+                label: f.label,
+                count: query.isPending ? undefined : missions.filter(f.match).length,
+              }))}
+            />
 
             {query.isPending ? (
               <SkeletonGroup className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -245,7 +230,7 @@ export default function ChefMissionsPage() {
 /** Même découpage que `MissionCard` : client + statut, date, plats, pied avec le bouton. */
 function MissionCardSkeleton() {
   return (
-    <SkeletonCard className="flex flex-col rounded-3xl p-5 lg:p-6">
+    <SkeletonCard className="flex flex-col rounded-2xl p-5 lg:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1.5">
           <Skeleton className="h-7 w-48" />
@@ -280,11 +265,11 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
             <p className="font-display text-lg font-bold text-navy">
               {m.client?.name ?? 'Client'}
             </p>
-            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
+            <span className={`status ${bookingStatusTone(m.status)}`}>
               {bookingStatusText(m.status)}
             </span>
           </div>
-          <p className="text-sm capitalize text-ink-mid">
+          <p className="text-sm cap-first text-ink-mid">
             {longDate(m.startsAt) ?? 'Date à confirmer'}
             {slot(m) ? ` · ${slot(m)}` : ''}
           </p>
@@ -357,13 +342,13 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
     return (
       <ChefPage title="Prestation">
         <SkeletonGroup className="space-y-5">
-          <SkeletonCard className="rounded-3xl p-5 lg:p-6">
+          <SkeletonCard className="rounded-2xl p-5 lg:p-6">
             <Skeleton className="h-7 w-1/3" />
             <Skeleton className="mt-2 h-5 w-1/2" />
           </SkeletonCard>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <SkeletonCard className="h-64 rounded-3xl p-5 lg:p-6" />
-            <SkeletonCard className="h-64 rounded-3xl p-5 lg:p-6" />
+            <SkeletonCard className="h-64 rounded-2xl p-5 lg:p-6" />
+            <SkeletonCard className="h-64 rounded-2xl p-5 lg:p-6" />
           </div>
         </SkeletonGroup>
       </ChefPage>
@@ -477,10 +462,10 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
             <Card>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <span className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink-mid">
+                  <span className={`status ${bookingStatusTone(m.status)}`}>
                     {bookingStatusText(m.status)}
                   </span>
-                  <p className="mt-2 font-display text-xl font-bold capitalize text-navy">
+                  <p className="mt-2 font-display text-xl font-bold cap-first text-navy">
                     {longDate(m.startsAt) ?? 'Date à confirmer'}
                   </p>
                   <p className="text-sm text-ink-mid">{slot(m) ?? 'Horaire à confirmer'}</p>

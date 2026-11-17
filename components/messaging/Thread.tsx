@@ -87,7 +87,7 @@ export default function Thread({
   const { counterpart } = conversation
 
   return (
-    <section className="flex h-[72vh] min-h-[520px] flex-col rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="flex h-[72vh] min-h-[520px] flex-col rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
       {/* En-tête */}
       <header className="border-b border-[rgba(31,42,55,0.08)] pb-4">
         <div className="flex items-center gap-3">
@@ -211,7 +211,7 @@ export default function Thread({
           <div key={group.day} className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-[rgba(31,42,55,0.08)]" />
-              <span className="text-xs font-semibold capitalize text-ink-soft">
+              <span className="cap-first inline-block text-xs font-semibold text-ink-soft">
                 {dayLabel(group.items[0].createdAt)}
               </span>
               <span className="h-px flex-1 bg-[rgba(31,42,55,0.08)]" />
