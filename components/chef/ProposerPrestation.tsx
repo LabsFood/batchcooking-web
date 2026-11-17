@@ -119,7 +119,7 @@ function Formulaire({ onClose }: { onClose: () => void }) {
       aria-label="Proposer une prestation"
       className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
     >
-      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-paper p-6 sm:rounded-3xl">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-paper p-6 sm:rounded-2xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-xl font-bold text-navy">

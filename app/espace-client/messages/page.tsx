@@ -5,8 +5,8 @@ import MessagingView, { MessagingSkeleton } from '@/components/messaging/Messagi
 
 const CANNED = [
   'Je peux décaler la session ?',
-  'Plus d\'épices svp 🌶️',
-  'Tu peux remplacer un plat ?',
+  'Un peu plus épicé, s’il vous plaît',
+  'Pouvez-vous remplacer un plat ?',
 ]
 
 export default function MessagesPage() {
@@ -14,9 +14,9 @@ export default function MessagesPage() {
     // `useSearchParams` (fil ouvert dans l'URL) impose une frontière Suspense.
     <Suspense fallback={<MessagingSkeleton />}>
       <MessagingView
-        placeholder="Écris à ton chef…"
+        placeholder="Écrivez à votre batch cooker…"
         canned={CANNED}
-        emptyText="Un fil s'ouvre avec ton chef dès qu'une session est réservée. En attendant, le support est joignable ici."
+        emptyText="Un fil s’ouvre avec votre batch cooker dès qu’une session est réservée. En attendant, le support est joignable ici."
       />
     </Suspense>
   )

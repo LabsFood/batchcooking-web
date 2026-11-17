@@ -59,10 +59,10 @@ export default function ProfilPage() {
   if (isPending) {
     return (
       <SkeletonGroup className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        <SkeletonCard className="h-64 rounded-3xl" />
+        <SkeletonCard className="h-64 rounded-2xl" />
         <div className="space-y-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonCard key={i} className="h-32 rounded-3xl" />
+            <SkeletonCard key={i} className="h-32 rounded-2xl" />
           ))}
         </div>
       </SkeletonGroup>
@@ -76,7 +76,7 @@ export default function ProfilPage() {
           <AlertTriangle className="h-6 w-6" />
         </span>
         <h2 className="font-display text-xl font-bold text-navy mb-2">
-          Impossible de charger ton profil
+          Votre profil n’a pas pu être chargé
         </h2>
         <p className="text-ink-mid text-sm mb-6">
           {error instanceof ApiError ? error.message : 'Réessaie dans un instant.'}
@@ -168,7 +168,7 @@ function ProfileForm({
           </div>
         </div>
 
-        <div className="card-shell rounded-3xl p-5">
+        <div className="card-shell rounded-2xl p-5">
           <p className="eyebrow mb-3">Foyer</p>
           <div className="grid grid-cols-2 gap-3">
             <Counter
@@ -281,7 +281,7 @@ function ProfileForm({
           </div>
         </Card>
 
-        <Card title="Notes sur ta cuisine" Icon={NotebookPen}>
+        <Card title="Notes sur votre cuisine" Icon={NotebookPen}>
           <textarea
             rows={3}
             value={prefs.kitchenNotes}
@@ -308,7 +308,7 @@ function Card({
 }) {
   return (
     <div
-      className="card-shell rounded-3xl p-5 lg:p-6"
+      className="card-shell rounded-2xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-lg font-bold text-navy">{title}</h3>

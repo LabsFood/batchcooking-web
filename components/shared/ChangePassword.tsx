@@ -10,7 +10,7 @@ const CLERK_ERRORS: Record<string, string> = {
   form_password_pwned: 'Ce mot de passe est apparu dans une fuite de données ailleurs : choisis-en un autre.',
   form_password_length_too_short: '8 caractères minimum.',
   form_password_not_strong_enough: 'Mot de passe trop faible : mélange lettres, chiffres et symboles.',
-  session_reverification_required: 'Par sécurité, reconnecte-toi puis réessaie.',
+  session_reverification_required: 'Par sécurité, reconnectez-vous puis réessayez.',
 }
 
 function clerkMessage(e: unknown): string {
@@ -99,7 +99,7 @@ export default function ChangePassword() {
           placeholder="Minimum 8 caractères"
         />
       </Field>
-      <p className="text-xs text-ink-soft">Tes autres appareils seront déconnectés.</p>
+      <p className="text-xs text-ink-soft">Vos autres appareils seront déconnectés.</p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <button onClick={change} disabled={pending || !next || (hasPassword && !current)} className="btn btn-primary text-xs">
         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}

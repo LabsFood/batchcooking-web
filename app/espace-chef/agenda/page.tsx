@@ -195,7 +195,7 @@ export default function ChefAgendaPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="min-w-44 px-1 text-center font-display text-base font-bold capitalize text-navy">
+            <p className="min-w-44 px-1 text-center font-display text-base font-bold cap-first text-navy">
               {titre}
             </p>
             <button
@@ -271,7 +271,7 @@ export default function ChefAgendaPage() {
             ) : agenda.isPending ? (
               // Le mois : l'en-tête, puis sept colonnes sur cinq semaines.
               <SkeletonGroup>
-                <SkeletonCard className="h-[32rem] rounded-3xl lg:p-6">
+                <SkeletonCard className="h-[32rem] rounded-2xl lg:p-6">
                   <Skeleton className="mb-4 h-8 w-48" />
                   <div className="grid grid-cols-7 gap-2">
                     {Array.from({ length: 35 }, (_, i) => (
@@ -493,7 +493,7 @@ function YearView({
   if (query.isPending) {
     return (
       <SkeletonGroup>
-        <SkeletonCard className="grid h-72 grid-cols-3 gap-3 rounded-3xl sm:grid-cols-4 lg:grid-cols-6">
+        <SkeletonCard className="grid h-72 grid-cols-3 gap-3 rounded-2xl sm:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: 12 }, (_, i) => (
             <Skeleton key={i} className="h-full rounded-xl" />
           ))}
@@ -914,7 +914,7 @@ function HoursEditor() {
   if (query.isPending) {
     return (
       <SkeletonGroup>
-        <SkeletonCard className="h-64 rounded-3xl" />
+        <SkeletonCard className="h-64 rounded-2xl" />
       </SkeletonGroup>
     )
   }

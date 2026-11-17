@@ -293,7 +293,7 @@ function RequestForm() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="h-fit card-shell rounded-3xl p-6 lg:p-8"
+      className="h-fit card-shell rounded-2xl p-6 lg:p-8"
     >
       <h2 className="font-display text-2xl font-bold leading-tight text-navy">
         Décrivez ce que vous avez{' '}
@@ -389,7 +389,7 @@ function RequestForm() {
             {date && (
               <p className="mt-3 text-sm text-ink-mid">
                 Souhaité le{' '}
-                <span className="font-semibold capitalize text-navy">{dayLabel(date)}</span>,{' '}
+                <span className="cap-first inline-block font-semibold text-navy">{dayLabel(date)}</span>,{' '}
                 {SLOT_LABEL[slot].toLowerCase()}.
               </p>
             )}
@@ -758,7 +758,7 @@ function RequestCard({ quote }: { quote: Quote }) {
           </div>
 
           {(offer.proposedDate || offer.proposedTimeSlot) && (
-            <p className="mt-3 text-sm font-semibold capitalize text-navy">
+            <p className="mt-3 text-sm font-semibold cap-first text-navy">
               {dayLabel(offer.proposedDate ?? quote.desiredDate ?? '')}
               {', '}
               <span className="font-normal lowercase text-ink-mid">

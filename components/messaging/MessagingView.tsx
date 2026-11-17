@@ -106,7 +106,7 @@ export default function MessagingView({
 
   if (conversations.isError) {
     return (
-      <div role="alert" className="rounded-3xl bg-paper p-8 text-center">
+      <div role="alert" className="rounded-2xl bg-paper p-8 text-center">
         <p className="text-sm text-ink-mid">La messagerie n&apos;a pas pu être chargée.</p>
         <button
           type="button"
@@ -121,7 +121,7 @@ export default function MessagingView({
 
   if (list.length === 0) {
     return (
-      <div className="mx-auto max-w-md rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center">
+      <div className="mx-auto max-w-md rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center">
         <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-amber">
           <MessageCircle className="h-6 w-6" aria-hidden />
         </span>
@@ -144,7 +144,7 @@ export default function MessagingView({
       {/* Liste — sur mobile, cède la place au fil ouvert. */}
       <aside
         className={cn(
-          'overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper',
+          'overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper',
           active && 'hidden lg:block',
         )}
       >
@@ -183,7 +183,7 @@ export default function MessagingView({
           onOpenSupport={startSupport}
         />
       ) : (
-        <div className="hidden items-center justify-center rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper text-sm text-ink-soft lg:flex">
+        <div className="hidden items-center justify-center rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper text-sm text-ink-soft lg:flex">
           Choisissez une conversation.
         </div>
       )}
@@ -195,7 +195,7 @@ export default function MessagingView({
 export function MessagingSkeleton() {
   return (
     <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr]">
-      <div className="overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper">
+      <div className="overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper">
         <div className="divide-y divide-[rgba(31,42,55,0.06)]">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="space-y-0.5 px-4 py-3.5">
@@ -206,7 +206,7 @@ export function MessagingSkeleton() {
           ))}
         </div>
       </div>
-      <div className="hidden h-[72vh] min-h-[520px] rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:block lg:p-6">
+      <div className="hidden h-[72vh] min-h-[520px] rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:block lg:p-6">
         <div className="flex items-center gap-3 border-b border-[rgba(31,42,55,0.08)] pb-4">
           <Skeleton className="h-11 w-11 rounded-full" />
           <div className="space-y-1.5">

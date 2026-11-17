@@ -112,7 +112,7 @@ export default function RecipeHistory({
   }
 
   return (
-    <section className="rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
+    <section className="rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:p-6">
       <h3 className="flex items-center gap-1 font-display text-base font-bold text-navy">
         <History className="h-4 w-4" aria-hidden />
         Historique

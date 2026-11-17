@@ -1,5 +1,6 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -103,29 +104,7 @@ export default function RecettesPage() {
       <div className="space-y-6">
         <ApprovalGate quoi="Vos plats et vos menus s’écrivent" />
 
-        <div role="tablist" aria-label="Catalogue" className="flex flex-wrap items-center gap-1">
-          {TABS.map((t) => {
-            const on = tab === t.id
-            return (
-              <button
-                key={t.id}
-                role="tab"
-                aria-selected={on}
-                onClick={() => setTab(t.id)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  on ? 'bg-navy text-white' : 'text-ink-mid hover:bg-paper hover:text-navy'
-                }`}
-              >
-                {t.label}
-                {typeof t.count === 'number' && (
-                  <span className={`ml-2 tabular-nums ${on ? 'text-amber' : 'text-ink-soft'}`}>
-                    {t.count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+        <Onglets label="Catalogue" value={tab} onChange={setTab} items={TABS} />
 
         {/* Sur-mesure (15/11) : les plats express d'une demande, à garder ou retirer. */}
         <ExpressDishesToDecide />
@@ -573,7 +552,7 @@ function MenuForm({
   const published = initial?.status === 'published'
 
   return (
-    <div className="mt-4 space-y-5 card-shell rounded-3xl p-5 lg:p-6">
+    <div className="mt-4 space-y-5 card-shell rounded-2xl p-5 lg:p-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-[13px] font-semibold text-navy">
@@ -1654,7 +1633,7 @@ function SuggestionDialog({
         aria-modal="true"
         aria-label={dish.name}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-paper sm:rounded-3xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-paper sm:rounded-2xl"
       >
         {dish.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

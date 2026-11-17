@@ -60,15 +60,15 @@ export default function ConservationPage() {
       {pending ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {[0, 1].map((i) => (
-            <div key={i} className="h-48 animate-pulse rounded-3xl bg-cream-soft" />
+            <div key={i} className="h-48 animate-pulse rounded-2xl bg-cream-soft" />
           ))}
         </div>
       ) : failed ? (
-        <p className="card-shell rounded-3xl p-6 text-sm text-ink-mid">
+        <p className="card-shell rounded-2xl p-6 text-sm text-ink-mid">
           Vos fiches n’ont pas pu être chargées. Réessayez dans un instant.
         </p>
       ) : prestations.length === 0 ? (
-        <div className="card-shell rounded-3xl p-6">
+        <div className="card-shell rounded-2xl p-6">
           <p className="font-display text-lg font-bold text-navy">Pas encore de fiche</p>
           <p className="mt-1 text-sm leading-relaxed text-ink-mid">
             Dès que vos plats sont livrés, vous retrouvez ici, plat par plat, jusqu’à
@@ -125,9 +125,9 @@ function Prestation({ booking }: { booking: Booking }) {
       )}
 
       {sheet.isPending ? (
-        <Skeleton className="h-40 rounded-3xl"/>
+        <Skeleton className="h-40 rounded-2xl"/>
       ) : sheet.isError || !sheet.data ? (
-        <p className="card-shell rounded-3xl p-5 text-sm text-ink-mid">
+        <p className="card-shell rounded-2xl p-5 text-sm text-ink-mid">
           La fiche de cette prestation n’est pas disponible pour l’instant.
         </p>
       ) : (
@@ -173,7 +173,7 @@ function DishCare({ dish }: { dish: ConservationDish }) {
   const { eatBefore, notes } = dish
 
   return (
-    <article className="card-shell rounded-3xl p-5 lg:p-6">
+    <article className="card-shell rounded-2xl p-5 lg:p-6">
       <h3 className="font-display text-lg font-bold text-navy mb-4">{dish.name}</h3>
 
       <div className="space-y-3">

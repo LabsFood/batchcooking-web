@@ -175,7 +175,7 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
       : null
 
   return (
-    <section className="card-shell space-y-6 rounded-3xl p-5 lg:p-6">
+    <section className="card-shell space-y-6 rounded-2xl p-5 lg:p-6">
       <div>
         <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
           Mon dossier pour l’avance immédiate

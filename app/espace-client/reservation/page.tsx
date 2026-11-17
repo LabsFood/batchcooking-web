@@ -297,7 +297,7 @@ function ReservationFlow() {
   return (
     <div className="space-y-6">
       {/* Stepper */}
-      <div className="card-shell rounded-3xl p-5">
+      <div className="card-shell rounded-2xl p-5">
         <div className="relative grid grid-cols-4 gap-2">
           <div className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]" />
           <div
@@ -848,7 +848,7 @@ function StepCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="col-start-1 row-start-1 card-shell rounded-3xl p-6 lg:p-8"
+      className="col-start-1 row-start-1 card-shell rounded-2xl p-6 lg:p-8"
     >
       <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">

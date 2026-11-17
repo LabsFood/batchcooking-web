@@ -67,7 +67,7 @@ const HIGHLIGHTS = [
   {
     Icon: Globe2,
     title: 'Des cuisines variées',
-    text: 'Italien, méditerranéen, asiatique, africain : tu testes plus que d’habitude.',
+    text: 'Italien, méditerranéen, asiatique, africain : vous goûtez plus large que d’habitude.',
   },
   {
     Icon: Sprout,
@@ -105,7 +105,7 @@ export default function StatistiquesPage() {
           label="Sessions"
           value={terminees.length}
           loading={query.isPending}
-          sub="réalisées depuis ton inscription"
+          sub="réalisées depuis votre inscription"
           tone="amber"
         />
         <KpiTile
@@ -137,7 +137,7 @@ export default function StatistiquesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bars chart */}
         <section
-          className="lg:col-span-2 bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]"
+          className="lg:col-span-2 bg-paper rounded-2xl p-6 border border-[rgba(31,42,55,0.06)]"
         >
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -181,12 +181,11 @@ export default function StatistiquesPage() {
               <ChefIcon className="w-3.5 h-3.5" /> Prêt·e à relancer ?
             </p>
             <p className="font-display text-2xl font-bold leading-tight">
-              Une nouvelle semaine,{' '}
-              <span className="text-amber">une cuisine nouvelle.</span>
+              Une nouvelle semaine, une cuisine nouvelle.
             </p>
             <p className="text-white/65 text-sm mt-3 leading-relaxed">
-              Continue d&apos;explorer le monde via tes plats. Le menu de la semaine est
-              renouvelé chaque lundi.
+              Continuez d’explorer le monde par vos plats. Les cartes de la semaine sont
+              renouvelées chaque lundi.
             </p>
             <Link
               href="/espace-client/menus"
@@ -200,10 +199,10 @@ export default function StatistiquesPage() {
       </div>
 
       {/* Highlights */}
-      <section className="bg-paper rounded-3xl p-6 border border-[rgba(31,42,55,0.06)]">
+      <section className="bg-paper rounded-2xl p-6 border border-[rgba(31,42,55,0.06)]">
         <div className="mb-5">
           <h3 className="font-display text-xl font-bold text-navy">
-            Ce que tu gagnes vraiment
+            Ce que vous y gagnez
           </h3>
           <p className="text-xs text-ink-mid mt-1">
             Au-delà des chiffres, les habitudes qui changent.
@@ -253,7 +252,7 @@ function KpiTile({
         : 'bg-navy text-amber'
   return (
     <div
-      className="card-shell rounded-3xl p-5"
+      className="card-shell rounded-2xl p-5"
     >
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles} mb-4`}>
         <Icon className="w-4 h-4" />

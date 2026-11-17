@@ -67,7 +67,7 @@ function RayonsSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       {[0, 1].map((i) => (
-        <SkeletonCard key={i} className="rounded-3xl">
+        <SkeletonCard key={i} className="rounded-2xl">
           <div className="mb-3 flex items-center gap-2">
             <Skeleton className="h-8 w-8 rounded-xl" />
             <Skeleton className="h-6 w-32" />
@@ -100,7 +100,7 @@ export default function ShoppingListPage() {
     // Le bandeau (session, compteur, boutons) puis les rayons, comme la liste réelle.
     return (
       <SkeletonGroup className="space-y-5">
-        <SkeletonCard className="rounded-3xl lg:p-6">
+        <SkeletonCard className="rounded-2xl lg:p-6">
           <Skeleton className="mb-2 h-4 w-40" />
           <Skeleton className="h-8 w-56" />
           <Skeleton className="mt-1 h-4 w-72 max-w-full" />
@@ -112,7 +112,7 @@ export default function ShoppingListPage() {
 
   if (!active) {
     return (
-      <div className="rounded-3xl card-shell p-10 text-center">
+      <div className="rounded-2xl card-shell p-10 text-center">
         <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber-ink" aria-hidden />
         <p className="font-display text-xl font-bold text-navy">
           Aucune session en préparation
@@ -206,7 +206,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
   return (
     <div className="space-y-5">
       {/* ── Ce qu'on prépare, et pour quand ──────────────────────────────── */}
-      <div className="card-shell rounded-3xl p-5 lg:p-6">
+      <div className="card-shell rounded-2xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
@@ -272,13 +272,13 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           <RayonsSkeleton />
         </SkeletonGroup>
       ) : courses.isError ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           La liste n’a pas pu être chargée. Elle se calcule depuis les recettes :
           si votre batch cooker ne les a pas encore renseignées, elle apparaîtra
           dès qu’il l’aura fait.
         </p>
       ) : groupes.length === 0 ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -287,7 +287,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl card-shell p-5"
+              className="rounded-2xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
@@ -439,7 +439,7 @@ function Reponse({
 
   return (
     <div className="space-y-5">
-      <div className="card-shell rounded-3xl p-5 lg:p-6">
+      <div className="card-shell rounded-2xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
@@ -531,7 +531,7 @@ function Reponse({
       )}
 
       {groupes.length === 0 ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -540,7 +540,7 @@ function Reponse({
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl card-shell p-5"
+              className="rounded-2xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">

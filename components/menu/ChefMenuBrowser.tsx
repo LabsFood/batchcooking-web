@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { motion } from 'framer-motion'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
+  ArrowRight,
   CalendarCheck,
   CalendarDays,
   Check,
@@ -49,6 +50,7 @@ import {
 } from '@/lib/api/referentials'
 import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
+import { fadeUp } from '@/lib/motion'
 
 /**
  * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
@@ -979,12 +981,16 @@ export function NoMenus({
 /* ── Carte d'un batch cooker ───────────────────────────────────────────────── */
 
 function Avatar({ card, className }: { card: WeekCard; className: string }) {
-  if (card.chef.avatarUrl) {
+  // Une photo qui ne charge pas (lien expiré, fichier retiré) laissait un trou
+  // à la place du visage : on retombe sur les initiales.
+  const [casse, setCasse] = useState(false)
+  if (card.chef.avatarUrl && !casse) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={card.chef.avatarUrl}
         alt=""
+        onError={() => setCasse(true)}
         className={`${className} shrink-0 rounded-full object-cover`}
       />
     )
@@ -1015,9 +1021,18 @@ function placesLabel(slotsLeft: number | null): string {
 }
 
 function DishThumb({ dish, className }: { dish: WeekDish; className: string }) {
-  if (dish.imageUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={dish.imageUrl} alt="" className={`${className} object-cover`} />
+  // Même repli que l'avatar : pas de case vide quand la photo ne répond pas.
+  const [casse, setCasse] = useState(false)
+  if (dish.imageUrl && !casse) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={dish.imageUrl}
+        alt=""
+        onError={() => setCasse(true)}
+        className={`${className} object-cover`}
+      />
+    )
   }
   return (
     <span
@@ -1057,10 +1072,9 @@ export function MenuCard({
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.06, 0.24), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper transition-colors hover:border-[rgba(31,42,55,0.18)]"
+      // slow-out : la carte se pose en 240 ms, décalée de 40 ms par rang
+      {...fadeUp(Math.min(index * 0.04, 0.16))}
+      className="flex flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-paper shadow-[var(--shadow-card)] transition-colors hover:border-[var(--line-strong)]"
     >
       {/*
         La couverture de la carte, quand le batch cooker en a mis une.
@@ -1193,24 +1207,23 @@ export function MenuCard({
               <Tarif prix={prix} apresCredit={apresCredit} />
               <Places slotsLeft={menu.slotsLeft} />
             </div>
-            {/* Côte à côte quand la carte est large (une par ligne), l'une sous
-                l'autre quand elles sont deux par ligne. */}
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row xl:flex-col">
-              <button
-                type="button"
-                onClick={onOpen}
-                className="btn btn-primary flex-1 justify-center py-3 text-xs"
-              >
-                {openLabel}
-              </button>
-              <ReserveButton
-                href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
-                variant="outline"
-                className="flex-1 justify-center py-3 text-xs"
-              >
-                Commande personnalisée
-              </ReserveButton>
-            </div>
+            {/* Un seul bouton : ouvrir la carte. La demande sur-mesure est une
+                autre route, plus rare — elle reste à portée, en lien. */}
+            <button
+              type="button"
+              onClick={onOpen}
+              className="btn btn-primary mt-5 w-full justify-center"
+            >
+              {openLabel}
+            </button>
+            <ReserveButton
+              asChild
+              href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
+              className="hit mx-auto mt-3 flex items-center gap-1.5 text-sm font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+            >
+              Lui adresser une demande sur-mesure
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </ReserveButton>
           </footer>
         </>
       ) : (

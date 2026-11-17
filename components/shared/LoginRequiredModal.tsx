@@ -17,22 +17,22 @@ import { useReservationGate } from '@/lib/reservation-gate-context'
 const PERKS = [
   {
     Icon: ChefHat,
-    title: 'Ton chef te reconnaît',
-    text: 'Ton batch cooker garde tes goûts, allergies et envies — fini de tout réexpliquer chaque semaine.',
+    title: 'Votre batch cooker vous connaît',
+    text: 'Il garde vos goûts, vos allergies et vos envies : rien à réexpliquer chaque semaine.',
   },
   {
     Icon: Heart,
-    title: 'Ton garde-manger malin',
-    text: 'Préférences, restrictions, plats préférés : ton profil cuisine plus vite que toi.',
+    title: 'Votre profil de goûts',
+    text: 'Préférences, restrictions, plats préférés : vos menus partent de là.',
   },
   {
     Icon: ShoppingBasket,
-    title: 'Ta liste de courses, prête',
-    text: 'Listes par rayons envoyées.',
+    title: 'Votre liste de courses, prête',
+    text: 'Rangée par rayon, calculée depuis les recettes de vos plats.',
   },
   {
     Icon: Bell,
-    title: 'Tu suis ta commande',
+    title: 'Le suivi de votre session',
     text: 'De la confirmation à la dernière touche du chef : statut, liste de courses, notes de cuisine.',
   },
 ] as const
@@ -110,12 +110,11 @@ export default function LoginRequiredModal() {
                   className="font-display font-bold mt-5 mb-2 leading-[0.95]"
                   style={{ fontSize: 'clamp(1.7rem, 3.4vw, 2.3rem)', letterSpacing: '-0.02em' }}
                 >
-                  Connecte-toi pour{' '}
-                  <span className="text-amber">débloquer ta cuisine.</span>
+                  Connectez-vous pour réserver.
                 </h2>
                 <p className="text-white/70 text-sm leading-relaxed mb-6">
-                  La réservation demande un compte Lab&apos;s Food — c&apos;est ce qui permet à ton
-                  batch cooker de cuisiner vraiment <span className="font-semibold text-white">pour toi</span>.
+                  La réservation demande un compte Lab&apos;s Food : c&apos;est ce qui permet à votre
+                  batch cooker de cuisiner vraiment pour vous.
                 </p>
 
                 <ul className="space-y-3 mb-7">

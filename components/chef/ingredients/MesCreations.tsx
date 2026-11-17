@@ -52,7 +52,7 @@ export default function MesCreations() {
       </p>
 
       {query.isPending ? (
-        <Skeleton className="h-48 rounded-3xl"/>
+        <Skeleton className="h-48 rounded-2xl"/>
       ) : query.isError ? (
         <Card>
           <p role="alert" className="text-sm leading-relaxed text-red-700">
