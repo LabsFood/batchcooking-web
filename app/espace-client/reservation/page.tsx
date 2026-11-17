@@ -379,6 +379,7 @@ function ReservationFlow() {
                       onOpen={() => openCarte(menu)}
                       openLabel="Voir sa carte"
                       dietLabel={dietLabel}
+                      semaine={filters.mode === 'semaine' ? filters.semaine : undefined}
                     />
                   ))}
                 </div>

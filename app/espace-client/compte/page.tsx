@@ -221,7 +221,7 @@ function Attestation() {
             )}
 
             <ul className="mt-4 space-y-2">
-              {a.data.providers.map((p) => (
+              {(a.data.providers ?? []).map((p) => (
                 <li
                   key={p.chefProfileId}
                   className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"

@@ -28,6 +28,9 @@ const EMPTY_PREFS: ProfilePrefs = {
   kitchenNotes: '',
 }
 
+/** Du plus doux au plus relevé : le libellé de chaque cran. */
+const SPICE_LABELS = ['Doux', 'Léger', 'Moyen', 'Relevé', 'Fort'] as const
+
 function clampSpice(n: number): ProfilePrefs['spiceLevel'] {
   const v = Math.min(5, Math.max(1, Math.round(n || 3)))
   return v as ProfilePrefs['spiceLevel']
@@ -266,18 +269,31 @@ function ProfileForm({
         </Card>
 
         <Card title="Niveau d’épice" Icon={Flame}>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
-                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors ${
-                  n <= prefs.spiceLevel ? 'bg-amber text-navy' : 'bg-cream-soft text-ink-mid'
-                }`}
-              >
-                {'🌶️'.repeat(n)}
-              </button>
-            ))}
+          {/*
+            Un choix parmi cinq, dit en mots. Les piments en émoji ne se dessinent
+            pas pareil d'un système à l'autre, et cinq d'affilée ne tenaient pas
+            dans la case sur un téléphone.
+          */}
+          <div role="radiogroup" aria-label="Niveau d’épice" className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            {SPICE_LABELS.map((label, i) => {
+              const n = i + 1
+              const on = n === prefs.spiceLevel
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl px-1 py-2 text-center transition-colors ${
+                    on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
+                  }`}
+                >
+                  <span className="font-display text-lg font-bold leading-none tabular-nums">{n}</span>
+                  <span className="mt-1 text-xs leading-tight">{label}</span>
+                </button>
+              )
+            })}
           </div>
         </Card>
 

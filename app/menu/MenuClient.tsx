@@ -171,6 +171,7 @@ export default function MenuClient() {
                       onOpen={() => setOpen(menu)}
                       customOrder
                       dietLabel={dietLabel}
+                      semaine={filters.mode === 'semaine' ? filters.semaine : undefined}
                     />
                   ))}
                 </div>

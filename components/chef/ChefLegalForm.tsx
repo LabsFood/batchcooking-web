@@ -75,6 +75,8 @@ export default function ChefLegalForm() {
   if (!legal.data) return null
   const value = (k: Field) => edits[k] ?? legal.data[k] ?? ''
   const set = (k: Field, v: string) => setEdits((e) => ({ ...e, [k]: v }))
+  // Une API qui ne renvoie pas la liste ne doit pas faire tomber l'écran.
+  const manquantes = legal.data.missing?.length ?? 0
   const body = Object.fromEntries(
     Object.entries(edits).map(([k, v]) => [k, v?.trim() ? v.trim() : null]),
   )
@@ -83,8 +85,8 @@ export default function ChefLegalForm() {
     <Card title="Mon identité légale">
       <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
         Affichée à vos clients avant qu’ils commandent (CGV, art. 3.2).
-        {legal.data.missing.length > 0 &&
-          ` Il manque encore ${legal.data.missing.length} information${legal.data.missing.length > 1 ? 's' : ''}.`}
+        {manquantes > 0 &&
+          ` Il manque encore ${manquantes} information${manquantes > 1 ? 's' : ''}.`}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {TEXT_FIELDS.map((f) => (

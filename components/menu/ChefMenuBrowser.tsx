@@ -6,11 +6,8 @@ import * as Dialog from '@radix-ui/react-dialog'
 import {
   ArrowRight,
   CalendarCheck,
-  CalendarDays,
   Check,
   ChefHat,
-  ChevronLeft,
-  ChevronRight,
   Globe2,
   Languages,
   MapPin,
@@ -37,6 +34,7 @@ import {
   semainesDuMois,
   useChefPublic,
   useWeeksMenus,
+  weekLabel,
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
@@ -50,6 +48,8 @@ import {
 } from '@/lib/api/referentials'
 import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
+import { afterTaxFromClientPrice, useChefSlots, usePricingRules } from '@/lib/api/bookings'
+import { offerDuration, offerEuros } from '@/lib/api/service-offers'
 import { fadeUp } from '@/lib/motion'
 
 /**
@@ -373,14 +373,6 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   )
 }
 
-/** « 2 – 8 nov. », ou « 30 nov. – 6 déc. » à cheval sur deux mois : tient dans le champ. */
-function periodeCourte(from: Date, to: Date): string {
-  const mois = (d: Date) => d.toLocaleDateString('fr-FR', { month: 'short' })
-  return from.getMonth() === to.getMonth()
-    ? `${from.getDate()} – ${to.getDate()} ${mois(to)}`
-    : `${from.getDate()} ${mois(from)} – ${to.getDate()} ${mois(to)}`
-}
-
 /** « Cette semaine », « Semaine prochaine », « Dans 3 semaines ». */
 function semaineRelative(rang: number): string {
   if (rang <= 0) return 'Cette semaine'
@@ -396,299 +388,156 @@ function bornes(lundi: string): { from: Date; to: Date } {
   return { from, to }
 }
 
-const BOUTON_PAS =
-  'flex w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper text-ink-mid transition-colors hover:border-[rgba(31,42,55,0.3)] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber disabled:pointer-events-none disabled:opacity-35'
+/** `AAAA-MM` d'une date, dans le fuseau du visiteur. */
+const cleMois = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
 /**
- * Le filtre de dates : une semaine, du lundi au dimanche.
+ * Le filtre de dates : un seul calendrier, toujours sous les yeux.
  *
- * Le champ dit en clair la période regardée (« lun. 2 nov. → dim. 8 nov. ») et
- * les flèches passent d'une semaine à l'autre — c'est le geste le plus
- * fréquent. Le calendrier ne sert qu'à sauter plus loin : au survol, toute la
- * ligne de la semaine se colore, pour qu'on voie avant de cliquer qu'on choisit
- * sept jours et pas une date. C'est la semaine que l'API sait filtrer (`week`
- * accepte n'importe quel jour de la semaine voulue).
+ * Il y avait deux façons de dire « quand » — un bouton « à la semaine » avec
+ * son champ et son calendrier caché, un bouton « au mois » avec sa liste — et
+ * il fallait choisir la façon avant de choisir la date. Il n'y a plus qu'un
+ * geste : on clique un jour, sa semaine est retenue (l'API filtre à la
+ * semaine, `week` accepte n'importe quel jour de la semaine voulue). Au
+ * survol, toute la ligne se colore : on voit qu'on choisit sept jours, pas
+ * une date. Pour voir large, « Tout le mois » retient le mois affiché.
+ *
+ * La période choisie est dite en toutes lettres au-dessus : le calendrier
+ * montre, la phrase confirme.
  */
-function SemaineChamp({ filters }: { filters: MenuFilters }) {
-  const { semaine, setSemaine, semaines } = filters
-  const [ouvert, setOuvert] = useState(false)
+function PeriodeCalendrier({ filters }: { filters: MenuFilters }) {
+  const { mode, setMode, semaine, setSemaine, semaines, mois, setMois, moisListe } = filters
   const [survol, setSurvol] = useState<string | null>(null)
-  const boite = useRef<HTMLDivElement>(null)
+  const auMois = mode === 'mois'
 
   const choisie = bornes(semaine)
   const premier = bornes(semaines[0]).from
-  const dernier = bornes(semaines[semaines.length - 1]).to
-  const rang = semaines.indexOf(semaine)
-  const precedente = rang > 0 ? semaines[rang - 1] : undefined
-  const suivante = rang >= 0 && rang < semaines.length - 1 ? semaines[rang + 1] : undefined
-  const survolee = survol && survol !== semaine ? bornes(survol) : null
+  // Le calendrier va jusqu'à la fin du dernier mois proposé : une semaine s'y
+  // choisit aussi loin qu'un mois entier.
+  const [anFin, moisFin] = moisListe[moisListe.length - 1].split('-').map(Number)
+  const dernier = new Date(anFin, moisFin, 0)
+  const [anDebut, moisDebut] = moisListe[0].split('-').map(Number)
+  const premierMois = new Date(anDebut, moisDebut - 1, 1)
 
-  /* Le mois affiché suit la semaine choisie, y compris quand ce sont les
-     flèches qui la changent : ajustement pendant le rendu, comme la navbar. */
-  const [mois, setMois] = useState(choisie.from)
-  const [vue, setVue] = useState(semaine)
-  if (semaine !== vue) {
-    setVue(semaine)
-    setMois(choisie.from)
+  /* Le mois affiché suit ce qui est choisi, y compris quand le choix vient
+     d'ailleurs (remise à zéro, raccourcis) : ajustement pendant le rendu. */
+  const cle = auMois ? `m:${mois}` : `s:${semaine}`
+  const [vue, setVue] = useState(cle)
+  const [affiche, setAffiche] = useState(() =>
+    choisie.from < premierMois ? premierMois : choisie.from,
+  )
+  if (cle !== vue) {
+    setVue(cle)
+    if (auMois) {
+      const [a, m] = mois.split('-').map(Number)
+      setAffiche(new Date(a, m - 1, 1))
+    } else {
+      setAffiche(choisie.from < premierMois ? premierMois : choisie.from)
+    }
   }
 
-  useEffect(() => {
-    if (!ouvert) return
-    const dehors = (e: MouseEvent) => {
-      if (!boite.current?.contains(e.target as Node)) setOuvert(false)
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOuvert(false)
-    }
-    document.addEventListener('mousedown', dehors)
-    document.addEventListener('keydown', echap)
-    return () => {
-      document.removeEventListener('mousedown', dehors)
-      document.removeEventListener('keydown', echap)
-    }
-  }, [ouvert])
-
-  const choisir = (lundi: string) => {
-    setSemaine(lundi)
-    setOuvert(false)
-    setSurvol(null)
+  // Le mois retenu, borné à ce qui est encore réservable.
+  const [anChoisi, moisChoisi] = mois.split('-').map(Number)
+  const debutMois = new Date(anChoisi, moisChoisi - 1, 1)
+  const moisRetenu = {
+    from: debutMois < premier ? premier : debutMois,
+    to: new Date(anChoisi, moisChoisi, 0),
   }
 
+  const retenue = auMois ? moisRetenu : choisie
+  const survolee = survol && (auMois || survol !== semaine) ? bornes(survol) : null
   const dansLaPlage = (d: Date) => d >= premier && d <= dernier
 
+  const choisirSemaine = (lundi: string) => {
+    setSemaine(lundi)
+    if (auMois) setMode('semaine')
+    setSurvol(null)
+  }
+  const choisirMois = (cible: string) => {
+    // `setMode` se cale sur le mois de la semaine en cours : le mois voulu passe après.
+    setMode('mois')
+    setMois(cible)
+  }
+
+  const moisAffiche = cleMois(affiche)
+  const nomMoisAffiche = affiche.toLocaleDateString('fr-FR', { month: 'long' })
+  const moisEntierChoisi = auMois && mois === moisAffiche
+
   return (
-    <div ref={boite} className="relative">
-      <div className="flex items-stretch gap-1.5">
-        <button
-          type="button"
-          onClick={() => precedente && setSemaine(precedente)}
-          disabled={!precedente}
-          aria-label="Semaine précédente"
-          className={BOUTON_PAS}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-        </button>
+    <div>
+      <p className="text-sm text-ink-mid" aria-live="polite">
+        <span className="font-semibold text-navy">
+          {auMois
+            ? `Tout ${moisLabel(mois)}`
+            : `Semaine ${weekLabel({
+                start: choisie.from.toISOString(),
+                end: choisie.to.toISOString(),
+              })}`}
+        </span>
+      </p>
 
-        <button
-          type="button"
-          onClick={() => setOuvert((v) => !v)}
-          aria-expanded={ouvert}
-          aria-haspopup="dialog"
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-        >
-          <CalendarDays className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-navy">
-              {periodeCourte(choisie.from, choisie.to)}
-            </span>
-            <span className="block text-xs text-ink-soft">{semaineRelative(rang)}</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => suivante && setSemaine(suivante)}
-          disabled={!suivante}
-          aria-label="Semaine suivante"
-          className={BOUTON_PAS}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
+      <div className="mt-3" onMouseLeave={() => setSurvol(null)}>
+        <DatePicker
+          month={affiche}
+          onMonthChange={setAffiche}
+          startMonth={premierMois}
+          endMonth={dernier}
+          disabled={{ before: premier, after: dernier }}
+          onDayClick={(jour) => dansLaPlage(jour) && choisirSemaine(lundiDe(jour))}
+          onDayMouseEnter={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
+          onDayFocus={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
+          modifiers={{
+            semaine: retenue,
+            survol: survolee ?? [],
+            bandeDebut: [retenue.from, ...(survolee ? [survolee.from] : [])],
+            bandeFin: [retenue.to, ...(survolee ? [survolee.to] : [])],
+          }}
+          modifiersClassNames={{
+            ...DAY_MODIFIERS,
+            semaine: 'lf-week',
+            survol: 'lf-week-hover',
+            bandeDebut: 'lf-week-start',
+            bandeFin: 'lf-week-end',
+          }}
+          className="lf-rdp-week lf-rdp-compact mx-auto"
+        />
       </div>
 
-      {ouvert && (
-        <div
-          role="dialog"
-          aria-label="Choisir une semaine"
-          className="absolute left-0 top-full z-40 mt-2 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-[rgba(31,42,55,0.1)] bg-paper p-4 shadow-[0_24px_60px_-24px_rgba(31,42,55,0.45)]"
-        >
-          <p className="text-sm font-semibold text-navy">Choisissez une semaine</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
-            Chaque ligne du calendrier est une semaine de 7 jours.
-          </p>
+      <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+        Cliquez un jour : toute sa semaine est retenue.
+      </p>
 
-          <div className="mt-3" onMouseLeave={() => setSurvol(null)}>
-            <DatePicker
-              month={mois}
-              onMonthChange={setMois}
-              startMonth={premier}
-              endMonth={dernier}
-              disabled={{ before: premier, after: dernier }}
-              onDayClick={(jour) => dansLaPlage(jour) && choisir(lundiDe(jour))}
-              onDayMouseEnter={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
-              onDayFocus={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
-              modifiers={{
-                semaine: choisie,
-                survol: survolee ?? [],
-                bandeDebut: [choisie.from, ...(survolee ? [survolee.from] : [])],
-                bandeFin: [choisie.to, ...(survolee ? [survolee.to] : [])],
-              }}
-              modifiersClassNames={{
-                ...DAY_MODIFIERS,
-                semaine: 'lf-week',
-                survol: 'lf-week-hover',
-                bandeDebut: 'lf-week-start',
-                bandeFin: 'lf-week-end',
-              }}
-              className="lf-rdp-week mx-auto"
-            />
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
-            {semaines.slice(0, 2).map((lundi, i) => (
-              <button
-                key={lundi}
-                type="button"
-                onClick={() => choisir(lundi)}
-                aria-pressed={lundi === semaine}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  lundi === semaine ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
-                }`}
-              >
-                {semaineRelative(i)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** « Ce mois-ci », « Le mois prochain », « Dans 2 mois ». */
-function moisRelatif(rang: number): string {
-  if (rang <= 0) return 'Ce mois-ci'
-  if (rang === 1) return 'Le mois prochain'
-  return `Dans ${rang} mois`
-}
-
-/**
- * Le filtre au mois : les flèches, et le mois lui-même qui ouvre la liste.
- *
- * Retour de test du 09/11 : on cliquait sur le mois et rien ne s'ouvrait. Le
- * libellé n'était qu'un affichage ; il ouvre maintenant les mois proposés,
- * comme le champ de la semaine ouvre son calendrier.
- */
-function MoisChamp({ filters }: { filters: MenuFilters }) {
-  const { mois, setMois, moisListe } = filters
-  const [ouvert, setOuvert] = useState(false)
-  const boite = useRef<HTMLDivElement>(null)
-  const rang = moisListe.indexOf(mois)
-  const precedent = rang > 0 ? moisListe[rang - 1] : undefined
-  const suivant = rang >= 0 && rang < moisListe.length - 1 ? moisListe[rang + 1] : undefined
-
-  useEffect(() => {
-    if (!ouvert) return
-    const dehors = (e: MouseEvent) => {
-      if (!boite.current?.contains(e.target as Node)) setOuvert(false)
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOuvert(false)
-    }
-    document.addEventListener('mousedown', dehors)
-    document.addEventListener('keydown', echap)
-    return () => {
-      document.removeEventListener('mousedown', dehors)
-      document.removeEventListener('keydown', echap)
-    }
-  }, [ouvert])
-
-  return (
-    <div ref={boite} className="relative">
-      <div className="flex items-stretch gap-1.5">
-        <button
-          type="button"
-          onClick={() => precedent && setMois(precedent)}
-          disabled={!precedent}
-          aria-label="Mois précédent"
-          className={BOUTON_PAS}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => setOuvert((v) => !v)}
-          aria-expanded={ouvert}
-          aria-haspopup="dialog"
-          aria-live="polite"
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-        >
-          <CalendarDays className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-navy first-letter:uppercase">
-              {moisLabel(mois)}
-            </span>
-            <span className="block text-xs text-ink-soft">{moisRelatif(rang)}</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => suivant && setMois(suivant)}
-          disabled={!suivant}
-          aria-label="Mois suivant"
-          className={BOUTON_PAS}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-
-      {ouvert && (
-        <div
-          role="dialog"
-          aria-label="Choisir un mois"
-          className="absolute left-0 top-full z-40 mt-2 w-[16rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-[rgba(31,42,55,0.1)] bg-paper p-3 shadow-[0_24px_60px_-24px_rgba(31,42,55,0.45)]"
-        >
-          <p className="px-1 text-sm font-semibold text-navy">Choisissez un mois</p>
-          <ul className="mt-2 space-y-1">
-            {moisListe.map((m, i) => (
-              <li key={m}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMois(m)
-                    setOuvert(false)
-                  }}
-                  aria-pressed={m === mois}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                    m === mois ? 'bg-navy text-white' : 'text-navy hover:bg-cream-soft'
-                  }`}
-                >
-                  <span className="first-letter:uppercase">{moisLabel(m)}</span>
-                  <span className={`text-xs ${m === mois ? 'text-white/70' : 'text-ink-soft'}`}>
-                    {moisRelatif(i)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** À la semaine ou au mois : deux façons de dire « quand », le reste ne bouge pas. */
-function ModeDates({ filters }: { filters: MenuFilters }) {
-  return (
-    <div role="group" aria-label="Période" className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-cream-soft p-1">
-      {(['semaine', 'mois'] as const).map((m) => {
-        const on = filters.mode === m
-        return (
+      {/* Les raccourcis : les deux semaines qu'on demande le plus, et le mois entier. */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {semaines.slice(0, 2).map((lundi, i) => {
+          const on = !auMois && lundi === semaine
+          return (
+            <button
+              key={lundi}
+              type="button"
+              onClick={() => choisirSemaine(lundi)}
+              aria-pressed={on}
+              className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
+                on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
+              }`}
+            >
+              {semaineRelative(i)}
+            </button>
+          )
+        })}
+        {moisListe.includes(moisAffiche) && (
           <button
-            key={m}
             type="button"
-            onClick={() => filters.setMode(m)}
-            aria-pressed={on}
-            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
-              on
-                ? 'bg-paper text-navy shadow-[0_1px_4px_rgba(31,42,55,0.14)]'
-                : 'text-ink-mid hover:text-navy'
+            onClick={() => (moisEntierChoisi ? choisirSemaine(semaine) : choisirMois(moisAffiche))}
+            aria-pressed={moisEntierChoisi}
+            className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
+              moisEntierChoisi ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
             }`}
           >
-            {m === 'semaine' ? 'À la semaine' : 'Au mois'}
+            Tout {nomMoisAffiche}
           </button>
-        )
-      })}
+        )}
+      </div>
     </div>
   )
 }
@@ -710,8 +559,7 @@ function FilterPanel({ filters }: { filters: MenuFilters }) {
        se lit comme une suite de questions, pas comme un formulaire tassé. */
     <div className="divide-y divide-[rgba(31,42,55,0.08)] [&>*:first-child]:pt-0 [&>*:last-child]:pb-0 [&>*]:py-6">
       <FilterGroup title="Dates">
-        <ModeDates filters={filters} />
-        {filters.mode === 'mois' ? <MoisChamp filters={filters} /> : <SemaineChamp filters={filters} />}
+        <PeriodeCalendrier filters={filters} />
       </FilterGroup>
 
       <FilterGroup title="Recherche">
@@ -1013,6 +861,209 @@ function Avatar({ card, className }: { card: WeekCard; className: string }) {
   )
 }
 
+/** Vrai dès que l'élément est entré une fois dans l'écran. */
+function useVu<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [vu, setVu] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || vu) return
+    const io = new IntersectionObserver(
+      ([entree]) => {
+        if (entree.isIntersecting) {
+          setVu(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '240px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [vu])
+  return [ref, vu] as const
+}
+
+/**
+ * Les formules d'un batch cooker, dans sa carte.
+ *
+ * La liste de la semaine (`/menus/week`) ne donne que son prix le plus bas. Ses
+ * formules — nom, durée, prix — sont sur sa fiche publique (`GET /chefs/{id}`,
+ * `serviceOffers`, les actives seulement). On la lit carte par carte, et
+ * seulement quand la carte approche de l'écran : la route publique est limitée
+ * en appels, et quarante fiches d'un coup la satureraient.
+ *
+ * Le prix suit la règle de la maison : le reste à charge après crédit d'impôt
+ * d'abord, le total avant déduction dessous.
+ */
+function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
+  const fiche = useChefPublic(vu ? chefId : undefined)
+  const regles = usePricingRules().data
+  const offres = fiche.data?.serviceOffers ?? []
+
+  // Sans formule, ou si la fiche ne répond pas : le pied de carte dit déjà le tarif.
+  if (fiche.isError || (fiche.isSuccess && offres.length === 0)) return null
+
+  return (
+    <div className="mt-5 px-5">
+      <h3 className="text-sm font-semibold text-navy">Ses formules</h3>
+      {fiche.isPending ? (
+        // Deux lignes à la hauteur des formules : la carte ne saute pas à l'arrivée.
+        <div role="status" aria-busy="true" className="mt-2 space-y-2">
+          <span className="sr-only">Chargement des formules</span>
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              aria-hidden
+              className="h-[3.75rem] animate-pulse rounded-xl bg-cream-deep motion-reduce:animate-none"
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          <ul className="mt-2 divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
+            {offres.slice(0, 3).map((o) => (
+              <li key={o.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
+                  <span className="mt-0.5 block text-xs text-ink-soft">
+                    {offerDuration(o.durationMinutes)} sur place ·{' '}
+                    {o.shoppingIncluded
+                      ? o.shoppingFeeCents > 0
+                        ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`
+                        : 'courses offertes'
+                      : 'courses à votre charge'}
+                  </span>
+                </span>
+                <Prix
+                  apresCredit={
+                    regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+                  }
+                  total={offerEuros(o.priceCents)}
+                  taille="sm"
+                  align="right"
+                  className="shrink-0"
+                />
+              </li>
+            ))}
+          </ul>
+          {offres.length > 3 && (
+            <p className="mt-2 text-xs text-ink-soft">
+              + {offres.length - 3} autre{offres.length - 3 > 1 ? 's' : ''} formule
+              {offres.length - 3 > 1 ? 's' : ''} dans sa carte
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** `AAAA-MM-JJ` d'une date, dans le fuseau du visiteur. */
+const cleJour = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/**
+ * Les jours où un batch cooker a encore de la place, sur la semaine regardée.
+ *
+ * La carte disait « 9 créneaux libres » sans dire quand : on ouvrait la carte,
+ * on allait jusqu'au choix de la date, et on découvrait là que le mercredi
+ * voulu n'était pas possible. Les sept jours sont sous les yeux dès la liste.
+ *
+ * `GET /chefs/{id}/availability` rend les débuts de session possibles pour sa
+ * formule la plus courte ; un jour est libre s'il en porte au moins un. La
+ * fenêtre ne peut pas commencer dans le passé : pour la semaine en cours, elle
+ * part d'aujourd'hui, et les jours écoulés sont dits tels.
+ *
+ * Rien ne s'affiche quand il n'a pas d'horaires publiés (il est « sur
+ * demande », le pied de carte le dit) ou que la route ne répond pas.
+ */
+function JoursLibres({ chefId, semaine, vu }: { chefId: string; semaine: string; vu: boolean }) {
+  // Une seule lecture de l'heure, au montage : le rendu reste pur.
+  const [aujourdhui] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  const lundi = new Date(`${semaine}T00:00:00`)
+  const jours = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(lundi)
+    d.setDate(d.getDate() + i)
+    return d
+  })
+  // `to` est exclu côté API : le lundi suivant couvre le dimanche.
+  const finExclue = new Date(lundi)
+  finExclue.setDate(finExclue.getDate() + 7)
+  const debut = lundi < aujourdhui ? aujourdhui : lundi
+  const ecoulee = debut >= finExclue
+
+  const dispos = useChefSlots(vu && !ecoulee ? chefId : undefined, {
+    from: cleJour(debut),
+    to: cleJour(finExclue),
+  })
+
+  if (ecoulee || dispos.isError) return null
+  if (dispos.isSuccess && !dispos.data.scheduled) return null
+
+  const libres = new Set((dispos.data?.slots ?? []).map((iso) => cleJour(new Date(iso))))
+
+  return (
+    <div className="mt-5 px-5">
+      <h3 className="text-sm font-semibold text-navy">Ses jours libres cette semaine-là</h3>
+      {dispos.isPending ? (
+        <div role="status" aria-busy="true" className="mt-2 grid grid-cols-7 gap-1">
+          <span className="sr-only">Chargement des disponibilités</span>
+          {jours.map((d) => (
+            <div
+              key={d.getTime()}
+              aria-hidden
+              className="h-12 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          <ol className="mt-2 grid grid-cols-7 gap-1">
+            {jours.map((d) => {
+              const passe = d < aujourdhui
+              const libre = !passe && libres.has(cleJour(d))
+              return (
+                <li
+                  key={d.getTime()}
+                  className={`flex h-12 flex-col items-center justify-center rounded-lg text-xs leading-none ${
+                    libre
+                      ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]'
+                      : 'bg-cream-soft text-ink-soft'
+                  }`}
+                >
+                  <span aria-hidden>
+                    {d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
+                  </span>
+                  {/* Barré : l'absence de couleur seule ne dit pas « pas possible ». */}
+                  <span
+                    aria-hidden
+                    className={`mt-1 text-sm font-semibold tabular-nums ${libre ? '' : 'line-through'}`}
+                  >
+                    {d.getDate()}
+                  </span>
+                  <span className="sr-only">
+                    {d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} :{' '}
+                    {libre ? 'un créneau reste libre' : passe ? 'jour passé' : 'indisponible'}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+            {libres.size === 0
+              ? 'Plus de créneau cette semaine-là : essayez la suivante, ou écrivez-lui.'
+              : 'En vert, les jours où il reste un créneau. Barrés, ceux où il ne peut pas venir.'}
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
 /** Ce qu'on peut dire des places restantes sans inventer. */
 function placesLabel(slotsLeft: number | null): string {
   if (slotsLeft == null) return 'Sur demande'
@@ -1051,9 +1102,15 @@ export function MenuCard({
   openLabel = 'Voir la carte',
   customOrder = false,
   dietLabel,
+  semaine,
 }: {
   menu: WeekCard
   index: number
+  /**
+   * Le lundi de la semaine regardée, `AAAA-MM-JJ`. Présent, la carte montre les
+   * jours libres du batch cooker cette semaine-là ; absent (vue au mois), non.
+   */
+  semaine?: string
   onOpen: () => void
   openLabel?: string
   /**
@@ -1069,6 +1126,8 @@ export function MenuCard({
   const reste = menu.dishes.length - preview.length
   const prix = euros(menu.sessionFromCents)
   const apresCredit = euros(menu.afterTaxCreditCents)
+  // La fiche et les créneaux ne se lisent que lorsque la carte approche de l'écran.
+  const [sentinelle, vu] = useVu<HTMLSpanElement>()
 
   return (
     <motion.article
@@ -1089,6 +1148,8 @@ export function MenuCard({
           className="aspect-[21/9] w-full object-cover"
         />
       )}
+
+      <span ref={sentinelle} aria-hidden />
 
       {/* Le chef d'abord : c'est lui qu'on choisit. */}
       <header className="flex items-start gap-4 p-5 pb-4">
@@ -1195,6 +1256,10 @@ export function MenuCard({
         )}
         {menu.chef.languages.length > 1 && <LanguesChip codes={menu.chef.languages} />}
       </div>
+
+      {semaine && <JoursLibres chefId={menu.chef.id} semaine={semaine} vu={vu} />}
+
+      <Formules chefId={menu.chef.id} vu={vu} />
 
       {customOrder ? (
         <>

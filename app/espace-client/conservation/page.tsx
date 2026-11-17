@@ -132,7 +132,7 @@ function Prestation({ booking }: { booking: Booking }) {
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {sheet.data.dishes.map((dish) => (
+          {(sheet.data.dishes ?? []).map((dish) => (
             <DishCare key={dish.mealId} dish={dish} />
           ))}
         </div>

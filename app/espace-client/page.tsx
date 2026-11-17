@@ -110,6 +110,18 @@ export default function DashboardOverviewPage() {
 
   const prenomChef = prochaine?.chef?.displayName?.split(' ')[0]
 
+  /*
+   * Deux régimes coexistent côté API, et l'écran disait la même phrase aux deux.
+   * Une session réservée sur une carte est confirmée par son paiement : une fois
+   * confirmée, elle est réglée. Une session née d'une offre sur-mesure est
+   * confirmée à l'acceptation de l'offre, et se règle après la prestation.
+   * `paidCents` tranche, sans deviner d'où vient la session.
+   */
+  const dejaReglee =
+    prochaine != null &&
+    (prochaine.paidCents ?? 0) > 0 &&
+    (prochaine.paidCents ?? 0) >= (prochaine.amountTtc ?? prochaine.priceCents)
+
   return (
     <div className="space-y-6">
       {/* ── Ce qui attend un geste ─────────────────────────────────────── */}
@@ -192,7 +204,9 @@ export default function DashboardOverviewPage() {
               <p className="mt-4 max-w-[65ch] text-xs leading-relaxed text-white/55">
                 {prochaine.status === 'pending'
                   ? 'C’est le paiement qui confirme la session. Le créneau est tenu 72 heures.'
-                  : 'Vous réglez à l’issue de la prestation, et choisissez votre moyen de paiement à ce moment-là.'}
+                  : dejaReglee
+                    ? 'Cette session est réglée : vous n’avez plus rien à payer.'
+                    : 'Cette session se règle à l’issue de la prestation : vous choisirez votre moyen de paiement à ce moment-là.'}
               </p>
             </div>
 

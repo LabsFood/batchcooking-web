@@ -52,46 +52,23 @@ export default function Footer() {
       {/* ── CTA STRIPE ──────────────────────────────────────────────── */}
       <section className="relative px-4 -mb-24 z-10">
         <div className="container-xl">
-          <div className="relative bg-terra rounded-3xl overflow-hidden p-10 lg:p-14 text-white shadow-[0_30px_70px_-30px_rgba(217,105,65,0.6)]">
-            {/* Decorative dot pattern bottom-right */}
-            <div className="absolute right-8 bottom-8 grid grid-cols-6 gap-2 opacity-25 pointer-events-none">
-              {Array.from({ length: 36 }).map((_, i) => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
-              ))}
-            </div>
-            {/* Big watermark word */}
-            <span
-              aria-hidden="true"
-              className="absolute -top-6 -right-6 font-display font-bold text-white/[0.08] leading-none select-none pointer-events-none"
-              style={{ fontSize: 'clamp(8rem, 18vw, 18rem)' }}
-            >
-              Cook.
-            </span>
-
-            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div>
-                <p className="text-white/70 text-xs font-mono uppercase tracking-[0.2em] mb-4">
-                  Et maintenant ?
-                </p>
-                <h3
-                  className="font-display font-bold text-white leading-[0.95]"
-                  style={{ fontSize: 'clamp(2.2rem, 5vw, 4rem)', letterSpacing: '-0.02em' }}
-                >
-                  Cuisinons ensemble<br />
-                  <span className="italic font-medium">cette semaine.</span>
-                </h3>
-              </div>
-              <div className="lg:justify-self-end">
-                <ReserveButton
-                  asChild
-                  className="group inline-flex items-center gap-4 bg-white text-navy rounded-full pl-8 pr-3 py-3 font-semibold uppercase text-sm tracking-[0.08em] hover:bg-navy hover:text-white transition-colors duration-300"
-                >
-                  Réserver ma session
-                  <span className="w-11 h-11 rounded-full bg-terra text-white flex items-center justify-center group-hover:bg-white group-hover:text-navy transition-colors duration-300">
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                </ReserveButton>
-              </div>
+          {/*
+            Marine sur ambre : le blanc n'y fait que 2,2:1. Ni surtitre, ni mot en
+            italique, ni filigrane, ni grille de points : le titre et le bouton
+            suffisent (docs/ui-ux-guidelines.md, § 4).
+          */}
+          <div className="rounded-3xl bg-terra p-8 text-navy shadow-[0_24px_48px_-28px_rgba(31,42,55,0.55)] sm:p-10 lg:p-14">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <h2
+                className="max-w-xl font-display font-bold leading-[1.02] text-navy"
+                style={{ fontSize: 'clamp(2.2rem, 5vw, 4rem)', letterSpacing: '-0.02em' }}
+              >
+                Cuisinons ensemble cette semaine.
+              </h2>
+              <ReserveButton variant="navy" className="shrink-0 self-start lg:self-auto">
+                Réserver ma session
+                <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+              </ReserveButton>
             </div>
           </div>
         </div>
@@ -99,15 +76,6 @@ export default function Footer() {
 
       {/* ── MAIN FOOTER ────────────────────────────────────────────── */}
       <div className="bg-navy text-cream-soft pt-40 pb-10 relative overflow-hidden">
-        {/* Decorative dot grid — top left */}
-        <div className="absolute top-44 left-8 grid grid-cols-6 gap-2 opacity-15 pointer-events-none hidden md:grid">
-          {Array.from({ length: 36 }).map((_, i) => (
-            <span key={i} className="w-1.5 h-1.5 rounded-full bg-terra" />
-          ))}
-        </div>
-        {/* Decorative blurred gradient — bottom right */}
-        {/* <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(217,105,65,0.18), transparent 70%)' }} /> */}
 
         <div className="container-xl relative">
           {/* Top : Brand statement */}
@@ -119,8 +87,7 @@ export default function Footer() {
                 className="font-display font-bold text-white leading-[0.95]"
                 style={{ fontSize: 'clamp(2.2rem, 5vw, 4.5rem)', letterSpacing: '-0.025em' }}
               >
-                Le batch cooking,<br />
-                <span className="text-terra italic font-medium">à votre porte.</span>
+                Le batch cooking, à votre porte.
               </p>
               <p className="mt-6 text-cream-soft/65 max-w-md text-base leading-relaxed">
                 Un cuisinier vient préparer une semaine entière de repas chez vous,
@@ -134,9 +101,7 @@ export default function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 py-14 border-b border-white/10">
             {/* Contact */}
             <div className="lg:col-span-4">
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terra mb-5">
-                Nous contacter
-              </p>
+              <p className="mb-5 font-display text-base font-bold text-white">Nous contacter</p>
               <ul className="space-y-4">
                 <li>
                   <a href="mailto:contact@labsfood.fr"
@@ -163,9 +128,7 @@ export default function Footer() {
 
               {/* Socials */}
               <div className="mt-8">
-                <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-cream-soft/45 mb-4">
-                  Suivez-nous
-                </p>
+                <p className="mb-4 text-sm font-semibold text-cream-soft/70">Suivez-nous</p>
                 <div className="flex items-center gap-3">
                   {SOCIAL.map(({ Icon, label, href }) => (
                     <a
@@ -174,7 +137,7 @@ export default function Footer() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={label}
-                      className="group w-11 h-11 rounded-full bg-white/[0.06] border border-white/15 flex items-center justify-center text-cream-soft hover:bg-terra hover:border-terra hover:text-white transition-all duration-300 hover:-translate-y-1"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-cream-soft transition-colors duration-200 hover:border-terra hover:bg-terra hover:text-navy"
                     >
                       <Icon className="w-4 h-4" />
                     </a>
@@ -201,16 +164,13 @@ export default function Footer() {
           </div>
 
           {/* Massive brand wordmark */}
-          <div className="py-12 text-center select-none pointer-events-none">
-            <h2
-              className="font-display font-bold leading-none tracking-[-0.04em] bg-clip-text text-transparent"
-              style={{
-                fontSize: 'clamp(4rem, 16vw, 14rem)',
-                backgroundImage: 'linear-gradient(180deg, rgba(245,238,226,0.18) 0%, rgba(245,238,226,0.04) 100%)',
-              }}
+          <div aria-hidden className="pointer-events-none select-none py-12 text-center">
+            <p
+              className="font-display font-bold leading-none tracking-[-0.04em] text-white/[0.07]"
+              style={{ fontSize: 'clamp(4rem, 16vw, 14rem)' }}
             >
               Lab&apos;s Food
-            </h2>
+            </p>
           </div>
 
           {/* Bottom bar */}
@@ -223,11 +183,11 @@ export default function Footer() {
             <div className="flex items-center gap-3 text-xs text-cream-soft/55">
               <span>Paiement sécurisé</span>
               <span className="opacity-30">·</span>
-              <span className="font-mono tracking-wider">VISA</span>
+              <span>Visa</span>
               <span className="opacity-30">·</span>
-              <span className="font-mono tracking-wider">MASTERCARD</span>
+              <span>Mastercard</span>
               <span className="opacity-30">·</span>
-              <span className="font-mono tracking-wider">STRIPE</span>
+              <span>Stripe</span>
             </div>
           </div>
         </div>

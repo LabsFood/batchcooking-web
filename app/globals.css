@@ -933,6 +933,24 @@ body {
   background: transparent;
 }
 
+/* Dans la colonne des filtres de `/menu` : sept jours tiennent dans 17 rem.
+   Deux classes, pour passer devant `.rdp-root` : la feuille de
+   `react-day-picker` arrive apres la notre et reposait ses 44 px. */
+.rdp-root.lf-rdp-compact {
+  --rdp-day-height: 2.25rem;
+  --rdp-day-width: 2.25rem;
+  --rdp-day_button-height: 2rem;
+  --rdp-day_button-width: 2rem;
+  --rdp-nav_button-height: 2rem;
+  --rdp-nav_button-width: 2rem;
+}
+
+/* Etroit, le titre centre passait sous les fleches : il se cale a gauche. */
+.lf-rdp-compact .rdp-month_caption {
+  justify-content: flex-start;
+  padding-left: 0.375rem;
+}
+
 /* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par
    défaut — sur tous les calendriers, pas seulement celui de `/menu`. */
 .lf-rdp .rdp-chevron {

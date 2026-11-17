@@ -59,12 +59,12 @@ export default function EatBeforeCard({ booking }: { booking: Booking }) {
         <p className="text-sm text-ink-mid">
           {apiMessage(sheet.error, 'Les dates n’ont pas pu être lues.')}
         </p>
-      ) : sheet.data.dishes.length === 0 ? (
+      ) : (sheet.data.dishes ?? []).length === 0 ? (
         <p className="text-sm text-ink-mid">Aucun plat dans cette prestation.</p>
       ) : (
         <>
           <ul className="divide-y divide-[rgba(31,42,55,0.07)]">
-            {sheet.data.dishes.map((dish) => (
+            {(sheet.data.dishes ?? []).map((dish) => (
               <DateRow
                 key={dish.mealId}
                 missionId={booking.id}

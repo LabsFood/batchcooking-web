@@ -7,10 +7,6 @@ import {
   Wallet,
   Soup,
   ArrowRight,
-  ChefHat as ChefIcon,
-  Salad,
-  Globe2,
-  Sprout,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Skeleton } from '@/components/shared/Skeleton'
@@ -58,27 +54,10 @@ function parSemaine(prestations: Booking[], depuis: Date) {
   return semaines
 }
 
-const HIGHLIGHTS = [
-  {
-    Icon: Salad,
-    title: 'Plus de fait maison',
-    text: 'Chaque session remplace en moyenne 4 repas industriels — gain qualité immédiat.',
-  },
-  {
-    Icon: Globe2,
-    title: 'Des cuisines variées',
-    text: 'Italien, méditerranéen, asiatique, africain : vous goûtez plus large que d’habitude.',
-  },
-  {
-    Icon: Sprout,
-    title: 'Moins de gaspillage',
-    text: 'Les portions sont calibrées : ce qui est cuisiné est consommé.',
-  },
-] as const
-
 export default function StatistiquesPage() {
   const query = useMyBookings({ limit: 100 })
   const toutes = query.data?.data ?? []
+
   const terminees = toutes.filter(
     (b) => b.status === 'completed' || b.status === 'delivered',
   )
@@ -196,33 +175,6 @@ export default function StatistiquesPage() {
           </div>
         </section>
       </div>
-
-      {/* Highlights */}
-      <section className="bg-paper rounded-2xl p-6 border border-[rgba(31,42,55,0.06)]">
-        <div className="mb-5">
-          <h3 className="font-display text-xl font-bold text-navy">
-            Ce que vous y gagnez
-          </h3>
-          <p className="text-xs text-ink-mid mt-1">
-            Au-delà des chiffres, les habitudes qui changent.
-          </p>
-        </div>
-
-        <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {HIGHLIGHTS.map(({ Icon, title, text }) => (
-            <li
-              key={title}
-              className="rounded-2xl bg-cream-soft border border-[rgba(31,42,55,0.04)] p-5"
-            >
-              <span className="w-10 h-10 rounded-xl bg-mint/40 text-mint-ink flex items-center justify-center mb-3">
-                <Icon className="w-4 h-4" />
-              </span>
-              <p className="font-display text-base font-bold text-navy">{title}</p>
-              <p className="text-xs text-ink-mid leading-relaxed mt-1">{text}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   )
 }
