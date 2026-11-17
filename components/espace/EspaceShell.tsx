@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
 import { motion } from 'framer-motion'
 import {
   ChevronDown,
-  ChevronsUpDown,
   ExternalLink,
   Lock,
   LogOut,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -31,8 +32,11 @@ import { cn } from '@/lib/utils'
    rayons différents, compte rangé à deux endroits, un tiroir d'un côté et pas
    de l'autre. Une seule coque, deux configurations.
 
-   - Bureau : une colonne marine sur toute la hauteur. La navigation en haut, le
-     compte en bas — là où il ne dispute pas la place à ce qu'on vient faire.
+   - Bureau : une colonne marine sur toute la hauteur, qui se replie en une
+     rangée d'icônes (le choix est retenu d'une visite à l'autre). L'entrée
+     ouverte est une pastille claire : elle se voit au premier coup d'œil,
+     repliée comme dépliée. Le compte est dans la barre haute, à droite, là où
+     on le cherche.
    - Mobile : quatre destinations et « Plus », qui ouvre tout le reste. Plus
      aucune page n'est hors d'atteinte du pouce.
    ───────────────────────────────────────────────────────────────────────────── */
@@ -84,6 +88,38 @@ function Count({ n, onAmber }: { n?: number; onAmber?: boolean }) {
   )
 }
 
+/* ── La colonne repliée : un choix qui se retient d'une visite à l'autre ──── */
+
+const CLE_COLONNE = 'labsfood.espace.colonne'
+const abonnes = new Set<() => void>()
+
+function lireRepliee(): boolean {
+  try {
+    return window.localStorage.getItem(CLE_COLONNE) === 'repliee'
+  } catch {
+    // Navigation privée, stockage bloqué : la colonne reste dépliée.
+    return false
+  }
+}
+
+function sAbonnerColonne(prevenir: () => void) {
+  abonnes.add(prevenir)
+  window.addEventListener('storage', prevenir)
+  return () => {
+    abonnes.delete(prevenir)
+    window.removeEventListener('storage', prevenir)
+  }
+}
+
+function ecrireRepliee(repliee: boolean) {
+  try {
+    window.localStorage.setItem(CLE_COLONNE, repliee ? 'repliee' : 'depliee')
+  } catch {
+    // Sans stockage, le choix vaut pour cette page : c'est déjà ça.
+  }
+  abonnes.forEach((prevenir) => prevenir())
+}
+
 /* ── Barre latérale ───────────────────────────────────────────────────────── */
 
 export function EspaceSidebar({
@@ -91,56 +127,153 @@ export function EspaceSidebar({
   groups,
   note,
   footer,
-  accountLinks,
-  accountHint,
 }: {
   /** L'accueil de l'espace : `/espace-client` ou `/espace-chef`. */
   home: string
   groups: NavGroup[]
   /** Un mot au-dessus des entrées, quand une partie du menu est fermée. */
   note?: ReactNode
-  /** L'action de l'espace, au-dessus du compte. Une seule. */
-  footer?: ReactNode
-  accountLinks: AccountLink[]
-  /** Passé à l'éditeur de photo : la photo d'un batch cooker est publique. */
-  accountHint?: boolean
+  /** L'action de l'espace, en bas de la colonne. Une seule ; elle sait se réduire à une icône. */
+  footer?: (repliee: boolean) => ReactNode
 }) {
   const pathname = usePathname()
   const indicateur = useId()
   // Dépliage manuel : ce que l'utilisateur ouvre prime sur la section active.
   const [opened, setOpened] = useState<Record<string, boolean>>({})
+  // Le serveur ne connaît pas le choix : il rend la colonne dépliée.
+  const repliee = useSyncExternalStore(sAbonnerColonne, lireRepliee, () => false)
 
   return (
-    <aside className="sticky top-[var(--lf-dev-banner)] hidden h-[calc(100vh-var(--lf-dev-banner))] w-[17rem] shrink-0 flex-col bg-navy-deep text-white lg:flex">
-      <div className="px-5 pb-5 pt-6">
-        <Logo variant="white" size="sm" href={home} />
+    <aside
+      className={cn(
+        // déplacement : la colonne change de largeur en 200 ms
+        'sticky top-[var(--lf-dev-banner)] hidden h-[calc(100vh-var(--lf-dev-banner))] shrink-0 flex-col bg-navy-deep text-white transition-[width] duration-200 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none lg:flex',
+        repliee ? 'w-[4.5rem]' : 'w-[17rem]',
+      )}
+    >
+      <div
+        className={cn(
+          'flex shrink-0 items-center pb-4 pt-5',
+          repliee ? 'flex-col gap-3' : 'justify-between gap-2 pl-5 pr-3',
+        )}
+      >
+        {repliee ? (
+          <Logo
+            variant="mark-only"
+            size="sm"
+            href={home}
+            className="[&_img]:brightness-0 [&_img]:invert"
+          />
+        ) : (
+          <Logo variant="white" size="sm" href={home} />
+        )}
+        <button
+          type="button"
+          onClick={() => ecrireRepliee(!repliee)}
+          aria-label={repliee ? 'Déplier le menu' : 'Réduire le menu'}
+          aria-expanded={!repliee}
+          title={repliee ? 'Déplier le menu' : 'Réduire le menu'}
+          className="hit flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {repliee ? (
+            <PanelLeftOpen className="h-4 w-4" aria-hidden />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" aria-hidden />
+          )}
+        </button>
       </div>
 
-      <nav aria-label="Navigation de l’espace" className="espace-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-        {note}
+      <nav
+        aria-label="Navigation de l’espace"
+        className={cn('espace-scroll min-h-0 flex-1 overflow-y-auto pb-4', repliee ? 'px-0' : 'px-3')}
+      >
+        {!repliee && note}
         {groups.map((group, g) => (
-          <div key={group.label ?? g} className={g > 0 ? 'mt-5' : undefined}>
-            {group.label && (
+          <div
+            key={group.label ?? g}
+            className={cn(
+              g > 0 && (repliee ? 'mt-2 border-t border-white/10 pt-2' : 'mt-5'),
+            )}
+          >
+            {group.label && !repliee && (
               <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-white/40">
                 {group.label}
               </p>
             )}
-            <ul className="space-y-0.5">
+            <ul className={cn('space-y-0.5', repliee && 'flex flex-col items-center')}>
               {group.items.map((item) => {
                 const active = isActive(pathname, item, home)
                 const expanded = item.children ? (opened[item.href] ?? active) : false
                 const panelId = `nav-${item.href.replace(/\W+/g, '-')}`
+
+                // L'entrée ouverte : une pastille claire qui glisse de l'une à l'autre.
+                const fond = active && (
+                  // déplacement : le fond glisse d'une entrée à l'autre en 180 ms
+                  <motion.span
+                    layoutId={indicateur}
+                    aria-hidden
+                    className="absolute inset-0 rounded-[0.625rem] bg-paper shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+                    transition={{ duration: DURATION.fast, ease: EASE_MOVE }}
+                  />
+                )
+
+                /* Repliée : l'icône seule, son nom au survol et pour les lecteurs d'écran. */
+                if (repliee) {
+                  const carre = cn(
+                    'relative flex h-10 w-10 items-center justify-center rounded-[0.625rem]',
+                    active ? 'text-navy' : 'text-white/70',
+                    !active && !item.locked && 'transition-colors hover:bg-white/[0.08] hover:text-white',
+                    item.locked && 'opacity-40',
+                  )
+                  const icone = (
+                    <>
+                      {fond}
+                      <item.Icon className="relative h-[1.125rem] w-[1.125rem]" strokeWidth={active ? 2.2 : 1.9} aria-hidden />
+                      {(item.count ?? 0) > 0 && (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber ring-2',
+                            active ? 'ring-white' : 'ring-navy-deep',
+                          )}
+                        />
+                      )}
+                    </>
+                  )
+                  return (
+                    <li key={item.href}>
+                      {item.locked ? (
+                        <span aria-disabled="true" title={item.label} className={carre}>
+                          {icone}
+                          <span className="sr-only">
+                            {item.label}, disponible après validation de votre dossier
+                          </span>
+                        </span>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          title={item.label}
+                          aria-current={active ? 'page' : undefined}
+                          className={carre}
+                        >
+                          {icone}
+                          <span className="sr-only">
+                            {item.label}
+                            {(item.count ?? 0) > 0 ? `, ${item.count} en attente` : ''}
+                          </span>
+                        </Link>
+                      )}
+                    </li>
+                  )
+                }
+
                 const row = cn(
                   'relative flex min-w-0 flex-1 items-center gap-3 px-3 text-sm',
-                  active ? 'font-semibold text-white' : 'text-white/70 group-hover:text-white',
+                  active ? 'font-semibold text-navy' : 'text-white/70 group-hover:text-white',
                 )
                 const contenu = (
                   <>
-                    <item.Icon
-                      className={cn('h-4 w-4 shrink-0', active && 'text-amber')}
-                      strokeWidth={active ? 2.2 : 1.9}
-                      aria-hidden
-                    />
+                    <item.Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.2 : 1.9} aria-hidden />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                   </>
                 )
@@ -154,15 +287,7 @@ export function EspaceSidebar({
                         !active && !item.locked && 'transition-colors hover:bg-white/[0.06]',
                       )}
                     >
-                      {active && (
-                        // déplacement : le fond glisse d'une entrée à l'autre en 180 ms
-                        <motion.span
-                          layoutId={indicateur}
-                          aria-hidden
-                          className="absolute inset-0 rounded-[0.625rem] bg-white/[0.11]"
-                          transition={{ duration: DURATION.fast, ease: EASE_MOVE }}
-                        />
-                      )}
+                      {fond}
 
                       {item.locked ? (
                         <span aria-disabled="true" className={cn(row, 'h-full')}>
@@ -188,7 +313,12 @@ export function EspaceSidebar({
                           aria-expanded={expanded}
                           aria-controls={panelId}
                           aria-label={`${expanded ? 'Masquer' : 'Afficher'} les pages de ${item.label}`}
-                          className="hit relative mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                          className={cn(
+                            'hit relative mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                            active
+                              ? 'text-navy/60 hover:bg-navy/10 hover:text-navy'
+                              : 'text-white/55 hover:bg-white/10 hover:text-white',
+                          )}
                         >
                           <ChevronDown
                             className={cn('h-4 w-4 transition-transform duration-200', expanded && 'rotate-180')}
@@ -199,7 +329,7 @@ export function EspaceSidebar({
                     </div>
 
                     {expanded && item.children && (
-                      <ul id={panelId} className="mb-1 ml-5 mt-0.5 space-y-0.5 border-l border-white/10 pl-3">
+                      <ul id={panelId} className="mb-1 ml-5 mt-1 space-y-0.5 border-l border-white/10 pl-3">
                         {item.children.map((c) => {
                           const on = pathname === c.href
                           return (
@@ -208,12 +338,17 @@ export function EspaceSidebar({
                                 href={c.href}
                                 aria-current={on ? 'page' : undefined}
                                 className={cn(
-                                  'flex min-h-9 items-center rounded-lg px-3 text-[0.8125rem] transition-colors',
+                                  'flex min-h-9 items-center gap-2 rounded-lg px-3 text-[0.8125rem] transition-colors',
                                   on
-                                    ? 'font-semibold text-amber'
+                                    ? 'font-semibold text-white'
                                     : 'text-white/60 hover:bg-white/[0.06] hover:text-white',
                                 )}
                               >
+                                {/* La page ouverte : un point ambre, pas un changement de couleur du texte. */}
+                                <span
+                                  aria-hidden
+                                  className={cn('h-1.5 w-1.5 shrink-0 rounded-full', on ? 'bg-amber' : 'bg-transparent')}
+                                />
                                 {c.label}
                               </Link>
                             </li>
@@ -229,15 +364,16 @@ export function EspaceSidebar({
         ))}
       </nav>
 
-      <div className="space-y-2 border-t border-white/10 p-3">
-        {footer}
-        <AccountMenu links={accountLinks} publicHint={accountHint} />
-      </div>
+      {footer && (
+        <div className={cn('shrink-0 pb-4', repliee ? 'flex justify-center' : 'px-3')}>
+          {footer(repliee)}
+        </div>
+      )}
     </aside>
   )
 }
 
-/* ── Le compte, en bas de la colonne ──────────────────────────────────────── */
+/* ── Le compte, dans la barre haute ───────────────────────────────────────── */
 
 function AccountMenu({ links, publicHint }: { links: AccountLink[]; publicHint?: boolean }) {
   const [open, setOpen] = useState(false)
@@ -267,30 +403,34 @@ function AccountMenu({ links, publicHint }: { links: AccountLink[]; publicHint?:
   const nom = me.data?.fullName ?? user?.name ?? 'Mon compte'
 
   return (
-    <div ref={boite} className="relative">
+    <div ref={boite} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.06]"
+        aria-label={`Mon compte : ${nom}`}
+        className="flex h-10 items-center gap-2 rounded-full border border-[var(--line)] bg-paper pl-1 pr-2.5 transition-colors hover:border-[var(--line-strong)]"
       >
-        <Avatar url={me.data?.avatarUrl} name={nom} className="h-9 w-9 shrink-0 text-xs ring-1 ring-white/20" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-white">{nom}</span>
-          {roleLabel && <span className="block truncate text-xs text-white/55">{roleLabel}</span>}
+        <Avatar url={me.data?.avatarUrl} name={nom} className="h-8 w-8 shrink-0 text-xs" />
+        <span className="hidden max-w-[9rem] truncate text-sm font-semibold text-navy xl:inline">
+          {nom.split(' ')[0]}
         </span>
-        <ChevronsUpDown className="h-4 w-4 shrink-0 text-white/45" aria-hidden />
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 text-ink-soft transition-transform duration-200', open && 'rotate-180')}
+          aria-hidden
+        />
       </button>
 
       {open && (
         <div
           role="menu"
           aria-label="Mon compte"
-          className="absolute bottom-full left-0 z-40 mb-2 w-72 rounded-2xl border border-[var(--line)] bg-paper p-2 text-ink shadow-[var(--shadow-pop)]"
+          className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-[var(--line)] bg-paper p-2 text-ink shadow-[var(--shadow-pop)]"
         >
           {/* La photo se change là où l'on va déjà, pas dans un réglage à chercher. */}
           <AvatarEditor publicHint={publicHint} />
+          {roleLabel && <p className="px-3 pb-1 text-xs text-ink-soft">{roleLabel}</p>}
           <div className="my-1 h-px bg-[var(--line)]" />
           {links.map(({ href, label, Icon }) => (
             <Link key={href} href={href} role="menuitem" onClick={() => setOpen(false)} className="account-item">
@@ -328,12 +468,17 @@ export function EspaceTopbar({
   subtitle,
   paletteLabel,
   bell,
+  accountLinks,
+  accountHint,
 }: {
   title: string
   subtitle?: string
   paletteLabel: string
   /** La cloche de l'espace, déjà branchée sur ses alertes. */
   bell: ReactNode
+  accountLinks: AccountLink[]
+  /** Passé à l'éditeur de photo : la photo d'un batch cooker est publique. */
+  accountHint?: boolean
 }) {
   return (
     <header className="sticky top-[var(--lf-dev-banner)] z-30 border-b border-[var(--line)] bg-shell/85 backdrop-blur-md">
@@ -348,6 +493,10 @@ export function EspaceTopbar({
         <PaletteTrigger label={paletteLabel} className="hidden w-64 shrink-0 xl:flex" />
         <PaletteIconTrigger className="shrink-0 xl:hidden" />
         {bell}
+        {/* Sur mobile, le compte est dans le panneau « Plus » de la barre basse. */}
+        <div className="hidden lg:block">
+          <AccountMenu links={accountLinks} publicHint={accountHint} />
+        </div>
       </div>
     </header>
   )

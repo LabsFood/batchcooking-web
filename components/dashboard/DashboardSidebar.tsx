@@ -91,17 +91,20 @@ export default function DashboardSidebar() {
     <EspaceSidebar
       home={CLIENT_HOME}
       groups={groups}
-      accountLinks={CLIENT_ACCOUNT_LINKS}
-      footer={
+      footer={(repliee) => (
         <ReserveButton
           asChild
           href="/espace-client/menus?reserve=1"
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.625rem] bg-amber px-3 text-sm font-semibold text-navy transition-colors hover:bg-[#F7AC2B] active:scale-[0.97]"
+          className={
+            repliee
+              ? 'flex h-10 w-10 items-center justify-center rounded-[0.625rem] bg-amber text-navy transition-colors hover:bg-[#F7AC2B] active:scale-[0.97]'
+              : 'flex h-10 w-full items-center justify-center gap-2 rounded-[0.625rem] bg-amber px-3 text-sm font-semibold text-navy transition-colors hover:bg-[#F7AC2B] active:scale-[0.97]'
+          }
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Nouvelle session
+          <span className={repliee ? 'sr-only' : undefined}>Nouvelle session</span>
         </ReserveButton>
-      }
+      )}
     />
   )
 }

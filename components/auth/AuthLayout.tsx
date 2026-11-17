@@ -69,6 +69,21 @@ export default function AuthLayout({
             </div>
 
             <div className="mt-6 space-y-3 text-sm text-ink-mid">{footer}</div>
+
+            {/*
+              L'autre entrée : un batch cooker ne se crée pas de compte ici, il
+              candidate. C'est un bouton, parce que c'est un autre chemin, pas
+              une précision en bas de page.
+            */}
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-2xl bg-cream-soft px-4 py-3.5">
+              <p className="min-w-0 flex-1 basis-48 text-sm leading-relaxed text-ink-mid">
+                <span className="font-semibold text-navy">Vous cuisinez ?</span> Le compte batch
+                cooker s’ouvre sur candidature.
+              </p>
+              <Link href="/devenir-chef" className="btn btn-outline shrink-0 px-5 py-2.5 text-xs">
+                Nous rejoindre
+              </Link>
+            </div>
           </div>
         </main>
       </div>

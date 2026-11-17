@@ -161,7 +161,7 @@ Tailwind posée sur l'élément garde la main.
 
 | Brique | Où | Règle |
 |---|---|---|
-| Coque | [EspaceShell.tsx](../components/espace/EspaceShell.tsx) | Une seule pour les deux espaces : colonne marine, barre haute, barre mobile à 4 destinations et « Plus ». Un espace ne fournit que sa configuration. |
+| Coque | [EspaceShell.tsx](../components/espace/EspaceShell.tsx) | Une seule pour les deux espaces : colonne marine repliable en rail d'icônes (choix retenu), entrée ouverte en pastille claire, compte dans la barre haute, barre mobile à 4 destinations et « Plus ». Un espace ne fournit que sa configuration. |
 | Bouton | `.btn .btn-amber` / `-outline` / `-navy` / `-outline-light` | 40 px, coins de contrôle, casse normale, le libellé passe à la ligne. Un seul plein par vue. |
 | Champ | `.input-base` | Même hauteur que le bouton, filet d'un pixel. |
 | Panneau | `.panel`, `.panel-head`, `.panel-title`, `.panel-link` | La surface d'un bloc. Pas de panneau dans un panneau. |

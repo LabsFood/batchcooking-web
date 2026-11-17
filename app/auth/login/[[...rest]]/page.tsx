@@ -32,24 +32,12 @@ function LoginInner() {
         },
       ]}
       footer={
-        <>
-          <p>
-            Pas encore de compte ?{' '}
-            <Link href="/auth/register" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
-              Créer mon compte client
-            </Link>
-          </p>
-          <p>
-            Vous cuisinez ?{' '}
-            <Link href="/devenir-chef" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
-              Devenir batch cooker
-            </Link>
-            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
-              Votre compte est créé une fois votre dossier validé : vous recevez alors un lien de
-              connexion.
-            </span>
-          </p>
-        </>
+        <p>
+          Pas encore de compte ?{' '}
+          <Link href="/auth/register" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
+            Créer mon compte client
+          </Link>
+        </p>
       }
     >
       <ClerkWidgetGate>

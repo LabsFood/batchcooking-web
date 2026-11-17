@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context'
 import { AlertBell } from '@/components/shared/AlertDrawer'
 import { EspaceTopbar } from '@/components/espace/EspaceShell'
 import { useClientAlerts } from './ClientSignals'
+import { CLIENT_ACCOUNT_LINKS } from './DashboardSidebar'
 
 const TITLES: Record<string, { title: string; sub?: string }> = {
   '/espace-client': { title: 'Accueil' },
@@ -81,6 +82,7 @@ export default function DashboardTopbar() {
       title={accueil && firstName ? `Bonjour ${firstName}` : meta.title}
       subtitle={accueil ? aujourdhui() : meta.sub}
       paletteLabel="Aller à une page…"
+      accountLinks={CLIENT_ACCOUNT_LINKS}
       bell={
         // Ce qui demande une action, recalculé à chaque ouverture.
         <AlertBell alerts={alerts} loading={loading}>

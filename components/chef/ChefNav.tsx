@@ -162,8 +162,6 @@ export function ChefSidebar() {
       home={CHEF_HOME}
       groups={groups}
       note={candidate ? <LockedNote /> : undefined}
-      accountLinks={CHEF_ACCOUNT_LINKS}
-      accountHint
     />
   )
 }
@@ -219,6 +217,8 @@ export function ChefTopbar({ title, subtitle }: { title: string; subtitle?: stri
       title={title}
       subtitle={subtitle}
       paletteLabel="Un plat, un menu, une pièce…"
+      accountLinks={CHEF_ACCOUNT_LINKS}
+      accountHint
       bell={
         // Ce qui demande une action, recalculé à chaque ouverture.
         <AlertBell alerts={alerts} loading={loading}>
