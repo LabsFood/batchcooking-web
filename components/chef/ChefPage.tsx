@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { ChefTopbar } from './ChefNav'
+import { EspaceMain } from '@/components/espace/EspaceShell'
 
 /** Enveloppe commune des écrans de l'espace chef : topbar + zone de contenu. */
 export default function ChefPage({
@@ -16,9 +17,7 @@ export default function ChefPage({
   return (
     <>
       <ChefTopbar title={title} subtitle={subtitle} />
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-12">
-        {children}
-      </main>
+      <EspaceMain>{children}</EspaceMain>
     </>
   )
 }
@@ -37,7 +36,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`card-shell rounded-3xl p-5 lg:p-6 ${className}`}
+      className={`card-shell rounded-2xl p-5 lg:p-6 ${className}`}
     >
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-4">

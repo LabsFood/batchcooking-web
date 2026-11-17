@@ -3,84 +3,82 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { SignUp } from '@clerk/nextjs'
-import Logo from '@/components/shared/Logo'
+import AuthLayout from '@/components/auth/AuthLayout'
 import AuthSkeleton from '@/components/shared/AuthSkeleton'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 import ClerkWidgetGate from '@/components/shared/ClerkWidgetGate'
 import { Hint } from '@/components/shared/Hint'
-import Image from 'next/image'
+
+const IMAGE =
+  'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&auto=format&fit=crop&q=80'
 
 function RegisterInner() {
   const params = useSearchParams()
   const next = params.get('next') || '/espace-client'
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-cream">
-      {/* Left — form */}
-      <div className="flex items-center justify-center px-6 sm:px-10 py-16 lg:py-20">
-        <div className="w-full max-w-md">
-          <Logo size="md" className="mb-12" />
-
-          <p className="eyebrow mb-4">Nouveau client</p>
-          <h1 className="font-display font-bold text-navy leading-tight mb-3"
-            style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)', letterSpacing: '-0.02em' }}>
-            Bienvenue chez Lab&apos;s Food.
-          </h1>
-          <p className="text-ink-mid mb-8">Crée ton compte en 30 secondes</p>
-          <div className="mb-6">
-            <Hint id="inscription-un-seul-role">
-              Ce compte sert à réserver comme client. Un compte ne sert qu&apos;à un
-              rôle : pour cuisiner aussi pour Lab&apos;s Food, il te faudra une autre
-              adresse e-mail.
-            </Hint>
-          </div>
-
-          <ClerkWidgetGate>
-            <SignUp
-              appearance={clerkAuthAppearance}
-              signInUrl="/auth/login"
-              forceRedirectUrl={next}
-            />
-          </ClerkWidgetGate>
-
-          <p className="text-center text-xs text-ink-soft mt-6 leading-relaxed">
-            En créant un compte, tu acceptes nos{' '}
-            <Link href="/cgu" className="text-amber-ink hover:underline">CGU</Link> et notre{' '}
-            <Link href="/confidentialite" className="text-amber-ink hover:underline">politique de confidentialité</Link>.
+    <AuthLayout
+      title="Créez votre compte"
+      lead="Une adresse e-mail et un mot de passe suffisent. Vous réservez ensuite votre première session."
+      image={IMAGE}
+      asideTitle="Une semaine de repas, cuisinée chez vous."
+      points={[
+        {
+          titre: 'Vous choisissez',
+          texte: 'Un batch cooker, sa carte de la semaine et une date.',
+        },
+        {
+          titre: 'Il cuisine dans votre cuisine',
+          texte: 'En une session, puis il range et vous laisse un frigo rempli.',
+        },
+        {
+          titre: 'Le crédit d’impôt est déjà compté',
+          texte: 'Chaque prix s’affiche après les 50 % de crédit d’impôt auxquels la prestation ouvre droit.',
+        },
+      ]}
+      footer={
+        <>
+          <p className="text-xs leading-relaxed text-ink-soft">
+            En créant un compte, vous acceptez nos{' '}
+            <Link href="/cgu" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
+              CGU
+            </Link>{' '}
+            et notre{' '}
+            <Link
+              href="/confidentialite"
+              className="font-semibold text-amber-ink underline-offset-4 hover:underline"
+            >
+              politique de confidentialité
+            </Link>
+            .
           </p>
-
-          <p className="text-center text-sm text-ink-mid mt-6">
+          <p>
             Déjà un compte ?{' '}
-            <Link href="/auth/login" className="text-amber-ink font-semibold hover:underline">
+            <Link href="/auth/login" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
               Se connecter
             </Link>
           </p>
-
           {/* Un batch cooker ne se crée pas de compte ici : il candidate. */}
-          <p className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4 text-center text-sm text-ink-mid">
+          <p>
             Vous cuisinez ?{' '}
-            <Link href="/devenir-chef" className="font-semibold text-amber-ink hover:underline">
+            <Link href="/devenir-chef" className="font-semibold text-amber-ink underline-offset-4 hover:underline">
               Devenir batch cooker
             </Link>
           </p>
-        </div>
+        </>
+      }
+    >
+      <div className="mb-5">
+        <Hint id="inscription-un-seul-role">
+          Ce compte sert à réserver comme client. Un compte ne sert qu’à un rôle : pour cuisiner
+          aussi pour Lab’s Food, il vous faudra une autre adresse e-mail.
+        </Hint>
       </div>
 
-      {/* Right — brand image */}
-      <div className="hidden lg:block relative">
-        <Image src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&auto=format&fit=crop&q=80" alt="" fill sizes="50vw" className="object-cover" />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(135deg, rgba(44,62,80,0.85) 0%, rgba(243,156,18,0.55) 100%)' }}
-        />
-        <div className="absolute bottom-12 left-12 right-12">
-          <p className="font-display font-medium text-white text-3xl mb-3 leading-snug">
-            &ldquo;En 2h, j&apos;avais 7 plats pour la semaine. Game changer.&rdquo;
-          </p>
-          <p className="text-white/70 text-sm">— Sophie M., Paris 15e · Cliente Confort</p>
-        </div>
-      </div>
-    </div>
+      <ClerkWidgetGate>
+        <SignUp appearance={clerkAuthAppearance} signInUrl="/auth/login" forceRedirectUrl={next} />
+      </ClerkWidgetGate>
+    </AuthLayout>
   )
 }
 

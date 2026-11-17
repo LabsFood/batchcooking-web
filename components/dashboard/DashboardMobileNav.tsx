@@ -1,51 +1,46 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard,
-  CalendarRange,
-  ChefHat,
-  ShoppingBasket,
-  UserCircle2,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { LayoutDashboard, CalendarRange, ChefHat, MessageCircle } from 'lucide-react'
+import { EspaceMobileNav, type NavItem } from '@/components/espace/EspaceShell'
+import { CLIENT_ACCOUNT_LINKS, CLIENT_HOME, useClientNav } from './DashboardSidebar'
 
-/* Les 5 entrées les plus utilisées, alignées sur la navigation principale. */
-const ITEMS = [
-  { href: '/espace-client',           label: 'Accueil',  Icon: LayoutDashboard },
-  { href: '/espace-client/menus',     label: 'Réserver', Icon: ChefHat },
-  { href: '/espace-client/commandes', label: 'Sessions', Icon: CalendarRange },
-  { href: '/espace-client/courses',   label: 'Courses',  Icon: ShoppingBasket },
-  { href: '/espace-client/compte',    label: 'Compte',   Icon: UserCircle2 },
-]
-
+/* Quatre destinations, puis « Plus » : la liste de courses, le compte et le
+   reste y sont rangés. La messagerie remonte dans la barre — c'est là qu'un
+   message non lu doit se voir, pas derrière un panneau. */
 export default function DashboardMobileNav() {
-  const pathname = usePathname()
+  const groups = useClientNav()
+  const toutes = groups.flatMap((g) => g.items)
+  const count = (href: string) => toutes.find((i) => i.href === href)?.count
+
+  const items: NavItem[] = [
+    { href: CLIENT_HOME, label: 'Accueil', Icon: LayoutDashboard },
+    {
+      href: '/espace-client/menus',
+      label: 'Réserver',
+      Icon: ChefHat,
+      aussi: ['/espace-client/reservation', '/espace-client/personnalisation'],
+    },
+    {
+      href: '/espace-client/commandes',
+      label: 'Sessions',
+      Icon: CalendarRange,
+      count: count('/espace-client/commandes'),
+      aussi: ['/espace-client/conservation'],
+    },
+    {
+      href: '/espace-client/messages',
+      label: 'Messages',
+      Icon: MessageCircle,
+      count: count('/espace-client/messages'),
+    },
+  ]
+
   return (
-    <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 bg-navy text-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(31,42,55,0.5)] px-2 py-2">
-      <ul className="grid grid-cols-5">
-        {ITEMS.map(({ href, label, Icon }) => {
-          const active =
-            href === '/espace-client'
-              ? pathname === href
-              : pathname.startsWith(href)
-          return (
-            <li key={href}>
-              <Link
-                href={href}
-                className={cn(
-                  'flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-xs font-medium transition-colors',
-                  active ? 'text-amber' : 'text-white/55 hover:text-white',
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
+    <EspaceMobileNav
+      home={CLIENT_HOME}
+      items={items}
+      groups={groups}
+      accountLinks={CLIENT_ACCOUNT_LINKS}
+    />
   )
 }

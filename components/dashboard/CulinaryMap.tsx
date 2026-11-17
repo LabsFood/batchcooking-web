@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { motion } from 'framer-motion'
 import { fade } from '@/lib/motion'
-import { Globe2, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react'
+import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { geoNaturalEarth1, geoPath, geoGraticule10 } from 'd3-geo'
 import { feature } from 'topojson-client'
 import type { Topology } from 'topojson-specification'
@@ -15,8 +15,8 @@ import { useCulinaryMap, type ExploredCountry } from '@/lib/api/me-dashboard'
 /* ─────────────────────────────────────────────────────────────────────────────
    Carte culinaire (CL-01).
 
-   Sur l'accueil, elle tient dans une tuile : un compteur et un point qui
-   pulse. La carte elle-même s'ouvre en grand, là où elle a la place d'être
+   Sur l'accueil, elle se montre : la carte du monde, les pays goûtés en ambre,
+   et le compte à côté. Elle s'ouvre en grand, là où elle a la place d'être
    lue — survol, sélection, zoom et déplacement.
 
    Frontières : `world-atlas` (TopoJSON 110m), projetées avec d3-geo. Les pays
@@ -61,44 +61,78 @@ function useWorld() {
   }, [])
 }
 
-// ── Tuile d'accueil ─────────────────────────────────────────────────────────
+// ── Panneau d'accueil ───────────────────────────────────────────────────────
 
 export default function CulinaryMap() {
   const [open, setOpen] = useState(false)
   const { data } = useCulinaryMap()
-  const countries = data?.explored ?? []
+  const { countries: monde } = useWorld()
+  const countries = useMemo(() => data?.explored ?? [], [data])
   const total = data?.total ?? 195
   const explored = countries.length
-  const ratio = (explored / total) * 100
+  const goutes = useMemo(() => new Set(countries.map((c) => c.iso)), [countries])
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-3xl bg-navy p-5 text-left text-white transition-shadow hover:shadow-[0_24px_50px_-24px_rgba(31,42,55,0.7)]"
-      >
-        <span className="relative flex h-12 w-12 shrink-0 items-center justify-center" aria-hidden>
-          <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber text-navy">
-            <Globe2 className="h-5 w-5" />
-          </span>
-        </span>
+      <section className="panel overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+          <div className="flex flex-col p-5 lg:p-6">
+            <h2 className="panel-title">Ma carte culinaire</h2>
+            {explored === 0 ? (
+              <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+                Elle se colore pays par pays, dès qu’un plat entre dans votre frigo.
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 flex items-baseline gap-2">
+                  <span className="font-display text-4xl font-bold leading-none tabular-nums text-navy">
+                    {explored}
+                  </span>
+                  <span className="text-sm text-ink-mid">
+                    pays goûté{explored > 1 ? 's' : ''} sur {total}
+                  </span>
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-ink-mid">
+                  {countries
+                    .slice(0, 5)
+                    .map((c) => c.name)
+                    .join(', ')}
+                  {explored > 5 ? ` et ${explored - 5} autres` : ''}.
+                </p>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="btn btn-outline mt-5 self-start sm:mt-auto"
+            >
+              <Maximize2 className="h-4 w-4" aria-hidden />
+              Explorer la carte
+            </button>
+          </div>
 
-        <span className="relative min-w-0 flex-1">
-          <span className="block text-xs font-semibold uppercase tracking-wide text-amber">Ma carte culinaire</span>
-          <span className="mt-0.5 block font-display text-2xl font-bold leading-none">
-            {explored}
-            <span className="text-lg text-white/40"> / {total}</span>
-            <span className="ml-2 text-xs font-normal text-white/60">pays explorés</span>
-          </span>
-          <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <span className="block h-full rounded-full bg-amber" style={{ width: `${Math.max(ratio, 2)}%` }} />
-          </span>
-        </span>
-
-        <span className="relative hidden shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-xs font-semibold transition-colors group-hover:bg-white/20 sm:inline-flex">
-          <Maximize2 className="h-3.5 w-3.5" aria-hidden /> Ouvrir la carte
-        </span>
-      </button>
+          {/* La carte elle-même, pas un pictogramme : on voit où l'on a mangé. */}
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden
+            onClick={() => setOpen(true)}
+            className="block cursor-zoom-in border-t border-[var(--line)] bg-cream-soft p-3 sm:border-l sm:border-t-0"
+          >
+            <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-full w-full">
+              {monde.map((c) => (
+                <path
+                  key={c.id}
+                  d={c.d}
+                  fill={goutes.has(c.id) ? 'var(--amber)' : '#CFD9E2'}
+                  stroke={goutes.has(c.id) ? 'var(--amber-deep)' : 'var(--cream-soft)'}
+                  strokeWidth={0.5}
+                />
+              ))}
+            </svg>
+          </button>
+        </div>
+      </section>
 
       <MapDialog open={open} onOpenChange={setOpen} countries={countries} total={total} />
     </>
@@ -308,7 +342,10 @@ function MapDialog({
                           on ? 'bg-amber text-navy' : 'text-white/80 hover:bg-white/10'
                         }`}
                       >
-                        <span className="text-base leading-none">{c.flag}</span>
+                        <span
+                          aria-hidden
+                          className={`h-2 w-2 shrink-0 rounded-full ${on ? 'bg-navy' : 'bg-amber'}`}
+                        />
                         <span className="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
                         <span className={`text-xs ${on ? 'text-navy/70' : 'text-white/45'}`}>
                           {c.dishes.length}
@@ -325,9 +362,7 @@ function MapDialog({
                   {...fade}
                   className="mt-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10"
                 >
-                  <p className="flex items-center gap-2 font-display text-base font-bold">
-                    <span className="text-lg leading-none">{selected.flag}</span> {selected.name}
-                  </p>
+                  <p className="font-display text-base font-bold">{selected.name}</p>
                   <p className="mt-2 text-xs uppercase tracking-wide text-white/45">Plats découverts</p>
                   <ul className="mt-1.5 space-y-1">
                     {selected.dishes.map((d) => (

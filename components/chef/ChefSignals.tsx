@@ -238,7 +238,7 @@ export function useChefAlerts(): { alerts: Alert[]; loading: boolean } {
     }
 
     // ── Les offres : quelqu'un attend une réponse ──────────────────────────
-    const nOffres = (offers.data?.dishes.length ?? 0) + (offers.data?.menus.length ?? 0)
+    const nOffres = (offers.data?.dishes?.length ?? 0) + (offers.data?.menus?.length ?? 0)
     if (nOffres > 0) {
       out.push({
         id: 'offers',
