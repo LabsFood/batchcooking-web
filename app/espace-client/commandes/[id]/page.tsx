@@ -57,7 +57,7 @@ import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { ChefLegalBlock } from '@/components/client/ChefLegalBlock'
 import { DOCUMENT_LABEL, useBookingDocument, useWithdrawal } from '@/lib/api/contract'
-import { usePaymentStatus } from '@/lib/api/payments'
+import { usePaymentOptions, usePaymentStatus } from '@/lib/api/payments'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le détail d'une commande — `GET /me/bookings/{id}`.
@@ -645,9 +645,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
               </h4>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
-                {b.paidCents && b.amountTtc && b.paidCents >= b.amountTtc
-                  ? 'Réglée.'
-                  : 'Il reste une part à régler sur cette prestation.'}
+                <EtatReglement
+                  bookingId={b.id}
+                  reglee={!!b.paidCents && !!b.amountTtc && b.paidCents >= b.amountTtc}
+                />
               </p>
               <Link
                 href={`/espace-client/commandes/${b.id}/paiement`}
@@ -993,4 +994,17 @@ function ClientConflicts({ booking }: { booking: Booking }) {
   return (
     <AllergyConflicts booking={booking} side="client" candidates={chef.data?.dishes ?? []} />
   )
+}
+
+/**
+ * Où en est le règlement, comme la page de règlement le dit : une demande qui attend
+ * le batch cooker (CESU) ou l'URSSAF (avance immédiate) n'est pas « une part à régler ».
+ */
+function EtatReglement({ bookingId, reglee }: { bookingId: string; reglee: boolean }) {
+  const options = usePaymentOptions(bookingId)
+  const etat = options.data?.status
+  if (reglee || etat === 'paid') return <>Réglée.</>
+  if (etat === 'processing')
+    return <>Règlement en cours : votre demande est enregistrée, rien d’autre à faire.</>
+  return <>Il reste une part à régler sur cette prestation.</>
 }
