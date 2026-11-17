@@ -1,5 +1,8 @@
 import { legalIdentityLines, type ChefLegalIdentity } from '@/lib/api/contract'
 
+/** Le client ne voit que le nom, le statut et le contact : le détail légal reste côté batch cooker et admin. */
+const SHOWN = new Set(['Dénomination', 'Statut', 'Contact'])
+
 /**
  * L'identité légale du batch cooker (CGV art. 3.2), telle qu'il l'a renseignée.
  * Un champ vide n'est pas affiché, et ne bloque jamais la commande.
@@ -11,7 +14,7 @@ export function ChefLegalBlock({
   identity: ChefLegalIdentity | null | undefined
   displayName?: string | null
 }) {
-  const lines = legalIdentityLines(identity)
+  const lines = legalIdentityLines(identity).filter(([label]) => SHOWN.has(label))
   if (lines.length === 0) return null
   return (
     <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-4">

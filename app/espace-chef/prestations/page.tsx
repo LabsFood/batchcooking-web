@@ -2,7 +2,7 @@
 
 import { Onglets } from '@/components/shared/Onglets'
 import OptionalBadge from '@/components/shared/OptionalBadge'
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
@@ -92,7 +92,7 @@ import { ApiError } from '@/lib/api/client'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { PaymentInvoiceList } from '@/components/shared/PaymentInvoiceList'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
-import { useDishes } from '@/lib/api/chef-catalog'
+import { useDishes, useIngredientSearch } from '@/lib/api/chef-catalog'
 import EatBeforeCard from '@/components/chef/prestation/EatBeforeCard'
 import GroceriesDone from '@/components/chef/prestation/GroceriesDone'
 import GroceriesChef from '@/components/chef/prestation/GroceriesChef'
@@ -1297,6 +1297,45 @@ function ShoppingCard({
 }
 
 /**
+ * Le nom d'une ligne, avec les suggestions de la liste d'ingrédients : en
+ * choisissant une entrée, le rayon suit. Un nom libre reste permis (l'API ne
+ * relie pas la ligne à un ingrédient).
+ */
+function IngredientNameInput({
+  value,
+  label,
+  onChange,
+}: {
+  value: string
+  label: string
+  onChange: (name: string, aisle?: string) => void
+}) {
+  const listId = useId()
+  const found = useIngredientSearch(value).data ?? []
+  return (
+    <>
+      <input
+        value={value}
+        list={listId}
+        autoComplete="off"
+        onChange={(e) => {
+          const name = e.target.value
+          const hit = found.find((x) => x.name.toLowerCase() === name.trim().toLowerCase())
+          onChange(name, hit?.aisle ?? undefined)
+        }}
+        aria-label={label}
+        className="input-base min-w-32 flex-1 py-2"
+      />
+      <datalist id={listId}>
+        {found.map((x) => (
+          <option key={x.id} value={x.name} />
+        ))}
+      </datalist>
+    </>
+  )
+}
+
+/**
  * La liste, telle qu'on la veut.
  *
  * `PUT` envoie **la liste entière** : ce qui diffère des recettes est gardé
@@ -1373,14 +1412,13 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
         <ul className="space-y-2">
           {lignes.map((l, i) => (
             <li
-              key={`${l.name}-${i}`}
+              key={i}
               className="flex flex-wrap items-center gap-2 rounded-xl bg-cream-soft p-2"
             >
-              <input
+              <IngredientNameInput
                 value={l.name}
-                onChange={(e) => changer(i, { name: e.target.value })}
-                aria-label={`Ingrédient ${i + 1}`}
-                className="input-base min-w-32 flex-1 py-2"
+                label={`Ingrédient ${i + 1}`}
+                onChange={(name, aisle) => changer(i, aisle ? { name, aisle } : { name })}
               />
               {l.optional && <OptionalBadge />}
               {l.unit === TO_TASTE ? (

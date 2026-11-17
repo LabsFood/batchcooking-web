@@ -257,7 +257,9 @@ function Receipts({ bookingId }: { bookingId: string }) {
       <p className="mt-0.5 text-[12px] text-ink-soft">
         {g.capture
           ? `${euros(g.capture.cents ?? 0)} prélevés le ${when(g.capture.at)} ; le reste de l’empreinte est libéré.`
-          : `Prélèvement le ${when(g.captureDueAt)}.`}
+          : g.captureDueAt
+            ? `Prélèvement le ${when(g.captureDueAt)}.`
+            : 'Prélèvement à venir.'}
         {g.refundedCents > 0 && ` ${euros(g.refundedCents)} remboursés.`}
         {open && ` Contestation possible ${contestIn}.`}
       </p>
