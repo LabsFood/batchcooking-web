@@ -17,6 +17,7 @@ import {
   ShoppingBasket,
   Sparkles,
   Users,
+  UtensilsCrossed,
   Wallet,
 } from 'lucide-react'
 import {
@@ -48,8 +49,9 @@ import { ApiError } from '@/lib/api/client'
 import { reasonText } from '@/lib/reason-codes'
 import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
 import {
-  offerDuration,
   offerEuros,
+  offerSummary,
+  platsLabel,
   useOfferPrice,
   type OfferPrice,
 } from '@/lib/api/service-offers'
@@ -129,6 +131,8 @@ function ReservationFlow() {
   const [persons, setPersons] = useState(3)
   /** Les plats au-delà de ce que l'offre comprend. L'API les facture. */
   const [extraMeals, setExtraMeals] = useState(0)
+  /** Portions de chaque plat, choisies par le client. `null` : le foyer de sa fiche. */
+  const [portionsChoisies, setPortionsChoisies] = useState<number | null>(null)
   /** L'offre retenue : sa durée fait le créneau, son prix fait le montant. */
   const [offerId, setOfferId] = useState<string>('')
   /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
@@ -137,6 +141,12 @@ function ReservationFlow() {
   const profil = useMeProfile()
 
   const surFiche = profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile | null) : null
+  /* Les portions de chaque plat : par défaut le foyer de la fiche (un enfant,
+     une demi-part, arrondi au-dessus), sinon les adultes. La liste de courses
+     en suit les quantités variables ; les quantités fixes ne bougent pas. */
+  const foyer = surFiche?.householdAdults
+    ? surFiche.householdAdults + Math.ceil((surFiche.householdKids ?? 0) / 2)
+    : null
   const [rue, setRue] = useState<string | null>(null)
   const [cp, setCp] = useState<string | null>(null)
   const [ville, setVille] = useState<string | null>(null)
@@ -168,6 +178,12 @@ function ReservationFlow() {
   const fiche = useChefPublic(chef?.chef.id)
   const offres = fiche.data?.serviceOffers ?? []
   const offre = offres.find((o) => o.id === offerId) ?? null
+  const portions = portionsChoisies ?? foyer ?? persons
+  /* Une formule à nombre de plats fixe : exactement autant de plats, ou aucun
+     pour les choisir avec le batch cooker. L'API refuse le reste. */
+  const platsFixes = offre?.mealsIncluded ?? null
+  const platsHorsFormule =
+    platsFixes != null && selectedMeals.length > 0 && selectedMeals.length !== platsFixes
 
   /* La première offre est pré-choisie : un client qui ne change rien a déjà
      un prix et une durée valides. */
@@ -176,6 +192,7 @@ function ReservationFlow() {
     setOffrePrete(chef?.chef.id ?? null)
     setOfferId(offres[0].id)
     setCoursesParMoi(!offres[0].shoppingIncluded)
+    if (offres[0].mealsIncluded) setExtraMeals(0)
   }
 
   /*
@@ -258,12 +275,16 @@ function ReservationFlow() {
         shoppingByClient: coursesParMoi,
         ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
         ...(selectedMeals.length > 0
-          ? { meals: selectedMeals.slice(0, MAX_DISHES).map((mealId) => ({ mealId })) }
+          ? {
+              meals: selectedMeals
+                .slice(0, MAX_DISHES)
+                .map((mealId) => ({ mealId, portions })),
+            }
           : {}),
       },
       {
         onSuccess: (b) => {
-          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals })
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals, portions })
           router.push(`/espace-client/commandes/${b.id}/paiement`)
         },
         onError: (e) => {
@@ -444,6 +465,8 @@ function ReservationFlow() {
                             onClick={() => {
                               setOfferId(o.id)
                               setCoursesParMoi(!o.shoppingIncluded)
+                              // Une formule à plats fixes ne vend pas de plat en plus.
+                              if (o.mealsIncluded) setExtraMeals(0)
                               setCreneauIso('')
                               setSlot('')
                             }}
@@ -458,12 +481,7 @@ function ReservationFlow() {
                                 {o.name}
                               </span>
                               <span className="mt-0.5 block text-[11px] text-ink-soft">
-                                {offerDuration(o.durationMinutes)} sur place ·{' '}
-                                {o.shoppingIncluded
-                                  ? o.shoppingFeeCents > 0
-                                    ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`
-                                    : 'courses offertes'
-                                  : 'courses à votre charge'}
+                                {offerSummary(o)}
                               </span>
                             </span>
                             <Prix
@@ -481,6 +499,16 @@ function ReservationFlow() {
                         )
                       })}
                     </div>
+                  )}
+                  {platsHorsFormule && platsFixes != null && (
+                    <p className="mt-2 flex items-start gap-2 rounded-2xl border border-amber/40 bg-amber-soft/50 px-3.5 py-2.5 text-[12px] leading-relaxed text-navy">
+                      <UtensilsCrossed className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+                      <span>
+                        « {offre?.name} » comprend {platsLabel(platsFixes)} : vous en avez
+                        choisi {selectedMeals.length}. « Modifier les plats » rouvre la carte
+                        du chef.
+                      </span>
+                    </p>
                   )}
                 </Field>
 
@@ -537,13 +565,23 @@ function ReservationFlow() {
                     max={10}
                   />
                   <Stepper
-                    label="Plats en plus"
-                    Icon={ChefHat}
-                    value={extraMeals}
-                    setValue={setExtraMeals}
-                    min={0}
-                    max={10}
+                    label="Portions par plat"
+                    Icon={UtensilsCrossed}
+                    value={portions}
+                    setValue={setPortionsChoisies}
+                    min={1}
+                    max={20}
                   />
+                  {platsFixes == null && (
+                    <Stepper
+                      label="Plats en plus"
+                      Icon={ChefHat}
+                      value={extraMeals}
+                      setValue={setExtraMeals}
+                      min={0}
+                      max={10}
+                    />
+                  )}
                 </div>
 
                 {prix && (
@@ -551,8 +589,12 @@ function ReservationFlow() {
                     {prix.rules.includedPersons} personne
                     {prix.rules.includedPersons > 1 ? 's' : ''} comprise
                     {prix.rules.includedPersons > 1 ? 's' : ''} dans la formule, puis{' '}
-                    {offerEuros(prix.rules.extraPersonCents)} par personne. Chaque plat
-                    en plus : {offerEuros(prix.rules.extraMealCents)}.
+                    {offerEuros(prix.rules.extraPersonCents)} par personne.{' '}
+                    {platsFixes != null
+                      ? `La formule comprend ${platsLabel(platsFixes)}, ni plus ni moins.`
+                      : `Chaque plat en plus : ${offerEuros(prix.rules.extraMealCents)}.`}{' '}
+                    Les portions ne changent pas le prix : elles règlent les quantités de
+                    la liste de courses.
                   </p>
                 )}
 
@@ -627,6 +669,7 @@ function ReservationFlow() {
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
+                portions={portions}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
                 prix={prix}
@@ -642,14 +685,16 @@ function ReservationFlow() {
               </button>
               <button
                 onClick={next}
-                disabled={!offre || !creneauIso || !adresseComplete}
+                disabled={!offre || platsHorsFormule || !creneauIso || !adresseComplete}
                 className="btn btn-primary disabled:opacity-50"
               >
                 {/* Un bouton gris sans raison est une impasse : il dit ce qui
                     manque, et « Modifier les plats » rouvre la carte du chef. */}
                 {!offre
                   ? 'Choisissez une formule'
-                  : !creneauIso
+                  : platsHorsFormule && platsFixes != null
+                    ? `Choisissez ${platsLabel(platsFixes)}`
+                    : !creneauIso
                     ? 'Choisissez un créneau'
                     : !adresseComplete
                       ? 'Indiquez l’adresse complète'
@@ -693,7 +738,7 @@ function ReservationFlow() {
                     <li>
                       <strong className="font-semibold text-navy">4.</strong> Une
                       fois la session payée, vous avez <strong>14 jours</strong> pour
-                      vous rétracter : bouton « Se rétracter » dans Mes sessions.
+                      vous rétracter : Paramètres, section « Droit de rétractation ».
                     </li>
                   </ol>
                 </div>
@@ -772,6 +817,7 @@ function ReservationFlow() {
                     !casesOk ||
                     creer.isPending ||
                     !offre ||
+                    platsHorsFormule ||
                     !creneauIso ||
                     (selectedMeals.length > 0 && allergiesADeclarer)
                   }
@@ -796,6 +842,7 @@ function ReservationFlow() {
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
+                portions={portions}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
                 prix={prix}
@@ -816,19 +863,27 @@ function ReservationFlow() {
         selected={selectedMeals}
         onSelectedChange={setSelectedMeals}
         dietLabel={dietLabel}
-        renderAction={({ menu, selected }) => (
-          <button
-            type="button"
-            onClick={() => chooseChef(menu, selected)}
-            disabled={selected.length > MAX_DISHES}
-            className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            {selected.length > MAX_DISHES
-              ? `${MAX_DISHES} plats au plus`
-              : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
-            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-          </button>
-        )}
+        renderAction={({ menu, selected }) => {
+          /* La formule déjà retenue chez ce chef fixe le nombre de plats : la
+             carte le compte, et ne laisse pas en cocher davantage. */
+          const fixe = chef?.chef.id === menu.chef.id ? platsFixes : null
+          const max = fixe ?? MAX_DISHES
+          return (
+            <button
+              type="button"
+              onClick={() => chooseChef(menu, selected)}
+              disabled={selected.length > max}
+              className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {selected.length > max
+                ? `${platsLabel(max)} au plus`
+                : fixe != null
+                  ? `${selected.length}/${platsLabel(fixe)} · Continuer`
+                  : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
+              <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+            </button>
+          )
+        }}
       />
     </div>
   )
@@ -1093,6 +1148,7 @@ function SummaryCard({
   slot,
   persons,
   extraMeals,
+  portions,
   offre,
   coursesParMoi,
   prix,
@@ -1104,6 +1160,8 @@ function SummaryCard({
   slot: string
   persons: number
   extraMeals: number
+  /** Portions de chaque plat. */
+  portions: number
   offre: PublicServiceOffer | null
   coursesParMoi: boolean
   /** `null` tant que l'API n'a pas répondu. */
@@ -1134,13 +1192,21 @@ function SummaryCard({
             <Line
               Icon={Clock}
               label={offre.name}
-              sub={`${offerDuration(offre.durationMinutes)} sur place`}
+              sub={offerSummary(offre)}
             />
           )}
           <Line
             Icon={Sparkles}
-            label={`${meals.length} plat${meals.length > 1 ? 's' : ''}`}
-            sub={meals.map((m) => m.name).join(', ') || 'Au choix avec votre batch cooker'}
+            label={
+              offre?.mealsIncluded
+                ? `${meals.length} plat${meals.length > 1 ? 's' : ''} sur ${offre.mealsIncluded}`
+                : `${meals.length} plat${meals.length > 1 ? 's' : ''}`
+            }
+            sub={
+              meals.length > 0
+                ? `${meals.map((m) => m.name).join(', ')} · ${portions} portion${portions > 1 ? 's' : ''} chacun`
+                : 'Au choix avec votre batch cooker'
+            }
           />
           <Line Icon={CalendarRange} label={dateLabel} sub={slot || 'Créneau à choisir'} />
           <Line

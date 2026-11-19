@@ -38,6 +38,11 @@ export interface ServiceOffer {
   shoppingIncluded: boolean
   /** Centimes. `0` quand les courses sont offertes. */
   shoppingFeeCents: number
+  /**
+   * Le nombre de plats de la formule, fixe (« Douceur : 3 repas ») : le client
+   * en choisit exactement autant. `null` sur les offres d'avant le 19/11.
+   */
+  mealsIncluded: number | null
   /** Désactivée : invisible pour les clients, conservée pour l'historique. */
   active: boolean
 }
@@ -49,6 +54,7 @@ export interface ServiceOfferInput {
   priceCents: number
   shoppingIncluded?: boolean
   shoppingFeeCents?: number
+  mealsIncluded?: number | null
   active?: boolean
 }
 
@@ -59,7 +65,12 @@ export const OFFER_LIMITS = {
   priceMin: 1,
   priceMax: 1_000_000,
   shoppingFeeMax: 100_000,
+  mealsMin: 1,
+  mealsMax: 20,
 } as const
+
+/** « 1 plat », « 3 plats ». */
+export const platsLabel = (n: number) => `${n} plat${n > 1 ? 's' : ''}`
 
 /** Le nom que l'API se réserve pour ses propres offres. */
 export const RESERVED_OFFER_NAME = 'Prestation sur-mesure'
@@ -84,6 +95,15 @@ export function offerError(o: ServiceOfferInput): string | null {
   }
   if ((o.shoppingFeeCents ?? 0) > OFFER_LIMITS.shoppingFeeMax) {
     return 'Le forfait courses ne dépasse pas 1 000 €.'
+  }
+  const plats = o.mealsIncluded
+  if (
+    plats == null ||
+    !Number.isInteger(plats) ||
+    plats < OFFER_LIMITS.mealsMin ||
+    plats > OFFER_LIMITS.mealsMax
+  ) {
+    return 'Dites combien de plats comprend la formule : de 1 à 20.'
   }
   return null
 }
@@ -153,6 +173,29 @@ export const offerDuration = (minutes: number) => {
 
 export const offerEuros = (cents: number) =>
   (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+
+/**
+ * Une formule en une ligne, comme sur le formulaire de Lab's Food : les plats
+ * d'abord, puis la durée et les courses. « 3 plats · 3 h sur place · forfait
+ * courses 15,00 € ».
+ */
+export const offerSummary = (o: {
+  mealsIncluded?: number | null
+  durationMinutes: number
+  shoppingIncluded: boolean
+  shoppingFeeCents: number
+}) =>
+  [
+    o.mealsIncluded ? platsLabel(o.mealsIncluded) : null,
+    `${offerDuration(o.durationMinutes)} sur place`,
+    o.shoppingIncluded
+      ? o.shoppingFeeCents > 0
+        ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`
+        : 'courses offertes'
+      : 'courses à votre charge',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
 /* ── Le prix exact, avant de réserver ──────────────────────────────────────── */
 

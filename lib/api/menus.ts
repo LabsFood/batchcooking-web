@@ -263,6 +263,8 @@ export interface PublicServiceOffer {
   priceCents: number
   shoppingIncluded: boolean
   shoppingFeeCents: number
+  /** Plats de la formule, nombre fixe. `null` : au choix (offres d'avant le 19/11). */
+  mealsIncluded?: number | null
 }
 
 export interface ChefPublic extends WeekChef {

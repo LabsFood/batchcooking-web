@@ -49,7 +49,7 @@ import {
 import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
 import { afterTaxFromClientPrice, useChefSlots, usePricingRules } from '@/lib/api/bookings'
-import { offerDuration, offerEuros } from '@/lib/api/service-offers'
+import { offerEuros, offerSummary } from '@/lib/api/service-offers'
 import { fadeUp } from '@/lib/motion'
 
 /**
@@ -887,7 +887,7 @@ function useVu<T extends Element>() {
  * Les formules d'un batch cooker, dans sa carte.
  *
  * La liste de la semaine (`/menus/week`) ne donne que son prix le plus bas. Ses
- * formules — nom, durée, prix — sont sur sa fiche publique (`GET /chefs/{id}`,
+ * formules — nom, plats, durée, prix — sont sur sa fiche publique (`GET /chefs/{id}`,
  * `serviceOffers`, les actives seulement). On la lit carte par carte, et
  * seulement quand la carte approche de l'écran : la route publique est limitée
  * en appels, et quarante fiches d'un coup la satureraient.
@@ -925,14 +925,7 @@ function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
               <li key={o.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
-                  <span className="mt-0.5 block text-xs text-ink-soft">
-                    {offerDuration(o.durationMinutes)} sur place ·{' '}
-                    {o.shoppingIncluded
-                      ? o.shoppingFeeCents > 0
-                        ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`
-                        : 'courses offertes'
-                      : 'courses à votre charge'}
-                  </span>
+                  <span className="mt-0.5 block text-xs text-ink-soft">{offerSummary(o)}</span>
                 </span>
                 <Prix
                   apresCredit={

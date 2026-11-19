@@ -16,6 +16,7 @@ import {
 } from '@/lib/api/urssaf-dossier'
 import { FRANCE_INSEE, PAYS_NAISSANCE } from '@/lib/client/insee-countries'
 import { InfoPopover } from '@/components/shared/InfoPopover'
+import CityField from '@/components/chef/application/CityField'
 import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -167,8 +168,15 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
     )
   }
 
+  // La ville hors du code postal (`ADDRESS_CITY_MISMATCH`) se dit sous la ville.
+  const villeRefusee =
+    save.error instanceof ApiError &&
+    (save.error.body as { code?: string } | null)?.code === 'ADDRESS_CITY_MISMATCH'
+  const erreurVille =
+    erreur('address.city') ?? (villeRefusee ? apiMessage(save.error) : undefined)
+
   const erreurGenerale =
-    save.error && erreurs.length === 0
+    save.error && erreurs.length === 0 && !villeRefusee
       ? save.error instanceof ApiError && save.error.status === 503
         ? 'Votre dossier ne peut pas être enregistré pour le moment. Réessayez dans quelques minutes.'
         : apiMessage(save.error)
@@ -327,10 +335,27 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
         </Champ>
         <div className="grid grid-cols-[120px_1fr] gap-3">
           <Champ label="Code postal" required erreur={erreur('address.postalCode')}>
-            <input value={form.postalCode} onChange={set('postalCode')} autoComplete="postal-code" inputMode="numeric" placeholder="69001" className="input-base tabular-nums" />
+            <input
+              value={form.postalCode}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, postalCode: e.target.value.replace(/\D/g, '').slice(0, 5) }))
+              }
+              autoComplete="postal-code"
+              inputMode="numeric"
+              placeholder="69001"
+              className="input-base tabular-nums"
+            />
           </Champ>
-          <Champ label="Ville" required erreur={erreur('address.city')}>
-            <input value={form.city} onChange={set('city')} autoComplete="address-level2" placeholder="Lyon" className="input-base" />
+          {/* La ville vient du code postal : une commune qu'il dessert, jamais
+              une saisie libre (77127 ne propose que Lieusaint). */}
+          <Champ label="Ville" required erreur={erreurVille}>
+            <CityField
+              bare
+              id="dossier-city"
+              postcode={form.postalCode}
+              value={form.city}
+              onChange={(city) => setForm((f) => ({ ...f, city }))}
+            />
           </Champ>
         </div>
       </Groupe>
@@ -480,12 +505,12 @@ function CommuneNaissance({
       required
       info={INFO_COMMUNE}
       erreur={erreur}
-      aide="Tapez le nom de la commune, puis choisissez-la dans la liste."
+      aide="Tapez son nom ou son code postal, puis choisissez-la dans la liste."
     >
       <input
         value={recherche}
         onChange={(e) => setRecherche(e.target.value)}
-        placeholder="Ex. Lyon"
+        placeholder="Ex. Lyon ou 69001"
         autoComplete="off"
         className="input-base"
       />
@@ -498,15 +523,28 @@ function CommuneNaissance({
                 onClick={() => onChoix(c)}
                 className="flex min-h-10 w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-cream-soft"
               >
-                <span className="text-navy">{c.nom}</span>
-                <span className="text-xs text-ink-soft tabular-nums">{c.departement.replace(/^0/, '')}</span>
+                <span className="text-navy">
+                  {c.nom}
+                  {c.codePostal && (
+                    <span className="ml-2 text-xs text-ink-soft tabular-nums">{c.codePostal}</span>
+                  )}
+                </span>
+                {/* Deux Lieusaint : le département, en toutes lettres, les départage. */}
+                <span className="text-xs text-ink-soft">
+                  <span className="tabular-nums">{c.departement.replace(/^0/, '')}</span>
+                  {c.departementNom && ` · ${c.departementNom}`}
+                </span>
               </button>
             </li>
           ))}
         </ul>
       )}
       {communes.data?.length === 0 && (
-        <p className="mt-1.5 text-xs text-ink-soft">Aucune commune de ce nom.</p>
+        <p className="mt-1.5 text-xs text-ink-soft">
+          {/^\d+$/.test(recherche.trim())
+            ? 'Aucune commune pour ce code postal.'
+            : 'Aucune commune de ce nom.'}
+        </p>
       )}
       {communes.isError && (
         <p className="mt-1.5 text-xs text-ink-soft">La liste des communes ne répond pas. Réessayez dans un instant.</p>

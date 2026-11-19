@@ -71,6 +71,10 @@ export const REASON_TEXT = {
     'La prestation a été entièrement réalisée à votre demande : le droit de rétractation ne s’applique plus.',
   CHANGED_MEANWHILE: 'La prestation vient de changer : rechargez la page et réessayez.',
   DOCUMENT_NOT_FOUND: 'Ce document n’est pas disponible pour cette prestation.',
+  MEAL_COUNT_MISMATCH:
+    'Cette formule comprend un nombre fixe de plats : choisissez-en exactement autant sur la carte.',
+  EXTRA_MEALS_NOT_OFFERED:
+    'Cette formule a un nombre de plats fixe : elle ne prend pas de plat en plus.',
   GEO_UNAVAILABLE:
     'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 } as const

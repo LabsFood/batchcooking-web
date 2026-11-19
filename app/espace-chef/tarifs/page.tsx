@@ -13,6 +13,7 @@ import {
   Plus,
   ShoppingBasket,
   Trash2,
+  UtensilsCrossed,
   X,
 } from 'lucide-react'
 import ApprovalGate from '@/components/chef/ApprovalGate'
@@ -33,6 +34,7 @@ import {
   offerDuration,
   offerError,
   offerEuros,
+  platsLabel,
   useCreateServiceOffer,
   useDeleteServiceOffer,
   useServiceOffers,
@@ -70,6 +72,7 @@ const VIDE: ServiceOfferInput = {
   priceCents: 15000,
   shoppingIncluded: true,
   shoppingFeeCents: 1500,
+  mealsIncluded: 3,
   active: true,
 }
 
@@ -108,6 +111,7 @@ export default function ChefPricingPage() {
       priceCents: o.priceCents,
       shoppingIncluded: o.shoppingIncluded,
       shoppingFeeCents: o.shoppingFeeCents,
+      mealsIncluded: o.mealsIncluded,
       active: o.active,
     })
     setEdite(o.id)
@@ -223,6 +227,12 @@ export default function ChefPricingPage() {
                             )}
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-mid">
+                            <span className="inline-flex items-center gap-1">
+                              <UtensilsCrossed className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
+                              {o.mealsIncluded != null
+                                ? platsLabel(o.mealsIncluded)
+                                : 'Plats au choix : indiquez leur nombre'}
+                            </span>
                             <span className="inline-flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {offerDuration(o.durationMinutes)}
@@ -431,6 +441,29 @@ function OfferForm({
         />
       </label>
 
+      <label className="mt-3 block">
+        <span className="mb-1 flex items-center gap-1 text-xs text-ink-soft">
+          Nombre de plats
+          <InfoPopover label="Pourquoi un nombre fixe ?">
+            La formule est un forfait : le client choisit exactement ce nombre de
+            plats sur votre carte. Il règle ensuite les portions et les personnes
+            en plus, et la liste de courses suit ses portions.
+          </InfoPopover>
+        </span>
+        <input
+          type="number"
+          min={OFFER_LIMITS.mealsMin}
+          max={OFFER_LIMITS.mealsMax}
+          step={1}
+          value={value.mealsIncluded ?? ''}
+          onChange={(e) =>
+            set('mealsIncluded', e.target.value === '' ? null : Number(e.target.value))
+          }
+          placeholder="3"
+          className="input-base w-28 py-2 tabular-nums"
+        />
+      </label>
+
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <span className="mb-1 block text-xs text-ink-soft">Durée sur place</span>
@@ -606,6 +639,7 @@ function Apercu({
         {offre.name.trim() || 'Votre offre'}
       </p>
       <p className="mt-0.5 text-xs text-white/60">
+        {offre.mealsIncluded ? `${platsLabel(offre.mealsIncluded)} · ` : ''}
         {offerDuration(offre.durationMinutes)} sur place
       </p>
 
