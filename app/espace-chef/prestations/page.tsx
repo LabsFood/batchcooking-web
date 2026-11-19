@@ -56,7 +56,10 @@ import {
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
+  bookingLabel,
   bookingStatusText,
+  PAYMENT_METHOD_LABEL,
+  useAnswerRequest,
   bookingStatusTone,
   checkPhoto,
   euros,
@@ -266,7 +269,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
               {m.client?.name ?? 'Client'}
             </p>
             <span className={`status ${bookingStatusTone(m.status)}`}>
-              {bookingStatusText(m.status)}
+              {bookingLabel(m, 'chef')}
             </span>
           </div>
           <p className="text-sm cap-first text-ink-mid">
@@ -406,6 +409,8 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes les prestations
         </button>
 
+        {m.request?.state === 'awaiting_chef' && <RequestAnswer booking={m} />}
+
         {/* ── Un report attend une réponse ──────────────────────────────── */}
         {report && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
@@ -463,7 +468,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <span className={`status ${bookingStatusTone(m.status)}`}>
-                    {bookingStatusText(m.status)}
+                    {bookingLabel(m, 'chef')}
                   </span>
                   <p className="mt-2 font-display text-xl font-bold cap-first text-navy">
                     {longDate(m.startsAt) ?? 'Date à confirmer'}
@@ -815,6 +820,90 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
  * L'API garde le dernier mot : le délai de 48 h et la disponibilité sont
  * revérifiés à l'envoi, et son message est montré tel quel.
  */
+/**
+ * Une demande de réservation à accepter ou refuser (CGV 5.2), avant
+ * `request.acceptBy`. Accepter conclut le contrat ; refuser annule sans frais.
+ * Le client a déjà choisi son moyen et enregistré sa carte.
+ */
+function RequestAnswer({ booking: m }: { booking: Booking }) {
+  const toast = useToast()
+  const repondre = useAnswerRequest()
+  const [refus, setRefus] = useState(false)
+  const [motif, setMotif] = useState('')
+  const r = m.request!
+  const limite = r.acceptBy ? `${longDate(r.acceptBy)} à ${hour(r.acceptBy)}` : null
+  const envoyer = (accept: boolean) =>
+    repondre.mutate(
+      { id: m.id, accept, reason: motif.trim() || undefined },
+      {
+        onSuccess: () =>
+          accept
+            ? toast.success('Demande acceptée', 'La session est confirmée et le client prévenu.')
+            : toast.info('Demande refusée', 'Le client est prévenu, rien ne lui est prélevé.'),
+        onError: (e) => toast.error('La réponse n’a pas été enregistrée', apiMessage(e)),
+      },
+    )
+  return (
+    <Card className="border border-amber/40 bg-amber-soft/40">
+      <p className="font-display text-lg font-bold text-navy">Nouvelle demande de réservation</p>
+      <p className="mt-1 text-sm leading-relaxed text-ink-mid">
+        {limite ? `Répondez avant le ${limite}` : 'Répondez dans les 48 heures'} : sans réponse,
+        la demande est annulée et le créneau libéré. Le client paie après la session (
+        {PAYMENT_METHOD_LABEL[r.paymentMethod]}) ; sa carte est enregistrée.
+      </p>
+      {refus && (
+        <label className="mt-3 block text-xs font-semibold text-navy">
+          Un mot pour le client (facultatif)
+          <textarea
+            value={motif}
+            onChange={(e) => setMotif(e.target.value)}
+            maxLength={500}
+            rows={2}
+            className="input mt-1 w-full"
+          />
+        </label>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {!refus ? (
+          <>
+            <button
+              onClick={() => envoyer(true)}
+              disabled={repondre.isPending}
+              className="btn btn-primary text-xs"
+            >
+              Accepter la demande
+            </button>
+            <button
+              onClick={() => setRefus(true)}
+              disabled={repondre.isPending}
+              className="btn btn-outline text-xs"
+            >
+              Refuser
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => envoyer(false)}
+              disabled={repondre.isPending}
+              className="btn btn-primary text-xs"
+            >
+              Confirmer le refus
+            </button>
+            <button
+              onClick={() => setRefus(false)}
+              disabled={repondre.isPending}
+              className="btn btn-outline text-xs"
+            >
+              Annuler
+            </button>
+          </>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 function RescheduleCard({
   booking: m,
   enAttente,

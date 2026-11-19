@@ -61,7 +61,10 @@ export interface PaymentOptions {
   }
   /** Seulement les moyens que le batch cooker accepte. */
   methods: MethodOption[]
-  savedCards: never[]
+  /** CGV V1 (19/11) : la carte enregistrée à la réservation, débitée après la session. */
+  savedCards: { brand: string | null; last4: string }[]
+  /** CGV V1 : le moyen choisi à la réservation, présélectionné. */
+  chosenMethod?: PaymentMethodId | null
   /**
    * Recettes lot 6 : les courses, un second montant réglé à part, par carte seulement.
    * `null` quand le batch cooker ne fait pas les courses.

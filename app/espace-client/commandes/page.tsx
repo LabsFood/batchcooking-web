@@ -20,6 +20,7 @@ import {
 import {
   bookingMealNames,
   bookingPortions,
+  bookingLabel,
   bookingStatusText,
   bookingStatusTone,
   euros,
@@ -64,7 +65,8 @@ export default function OrdersListPage() {
 
   const toutes = query.data?.data ?? []
   const liste = toutes.filter(FILTERS.find((f) => f.id === filter)!.match)
-  const aRegler = toutes.filter((b) => b.status === 'pending')
+  // CGV V1 : une demande (`request`) ne se règle qu'après la session.
+  const aRegler = toutes.filter((b) => b.status === 'pending' && !b.request)
 
   if (query.isError) {
     return (
@@ -146,7 +148,7 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
   const portions = bookingPortions(b)
   const ttc = euros(b.amountTtc ?? b.priceCents)
   const reste = euros(b.amountAfterTax)
-  const aRegler = b.status === 'pending'
+  const aRegler = b.status === 'pending' && !b.request
 
   return (
     <motion.div
@@ -164,7 +166,7 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
           </p>
         </div>
         <span className={`status shrink-0 ${b.withdrawnAt ? 'status-bad' : bookingStatusTone(b.status)}`}>
-          {b.withdrawnAt ? 'Rétractée' : aRegler ? 'À régler' : bookingStatusText(b.status)}
+          {b.withdrawnAt ? 'Rétractée' : aRegler ? 'À régler' : bookingLabel(b)}
         </span>
       </div>
 

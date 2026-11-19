@@ -33,10 +33,16 @@ import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 import {
   afterTaxFromClientPrice,
+  bookingCardUrls,
+  PAYMENT_METHOD_LABEL,
   usePricingRules,
   useChefSlots,
+  useChefPaymentMethods,
   useCreateBooking,
+  useStartBookingCard,
+  type RequestPaymentMethod,
 } from '@/lib/api/bookings'
+import { useApiFetch } from '@/lib/api/client'
 import { Prix } from '@/components/shared/Prix'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile } from '@/lib/api/types'
@@ -209,6 +215,19 @@ function ReservationFlow() {
   const prix = tarif.data ?? null
 
   const creer = useCreateBooking()
+  // CGV V1 5.1 (décision du 19/11) : le moyen se choisit ici, se paie après la session.
+  const moyens = useChefPaymentMethods(chef?.chef.id)
+  const [moyen, setMoyen] = useState<RequestPaymentMethod>('cb')
+  const carte = useStartBookingCard()
+  const apiFetch = useApiFetch()
+  const offerts: RequestPaymentMethod[] = moyens.data
+    ? [
+        ...(moyens.data.card ? (['cb'] as const) : []),
+        ...(moyens.data.urssaf ? (['avance_immediate'] as const) : []),
+        ...(moyens.data.cesu ? (['cesu'] as const) : []),
+      ]
+    : []
+  const reservable = moyens.data?.card !== false
   // CGV V1 (art. 5.1) : trois cases séparées, jamais cochées d'avance.
   const terms = profil.data?.contractTerms
   const [ticks, setTicks] = useState<Ticks>({})
@@ -250,15 +269,30 @@ function ReservationFlow() {
     if (i > 0) setStep(STEPS[i - 1].id)
   }
 
+  /** Après la création : la page Stripe qui enregistre la carte (rien n'est prélevé). */
+  function enregistrerCarte(id: string) {
+    carte.mutate(
+      { id, ...bookingCardUrls(id) },
+      {
+        onSuccess: ({ url }) => {
+          window.location.href = url
+        },
+        // La demande existe : son détail propose d'enregistrer la carte à nouveau.
+        onError: () => router.push(`/espace-client/commandes/${id}`),
+      },
+    )
+  }
+
   /**
-   * Réserver, puis payer.
+   * Réserver (CGV V1, décision du 19/11).
    *
-   * L'API crée la prestation en `pending` et tient le créneau 72 h ; c'est le
-   * **paiement qui la confirme**, sur l'écran dédié qui connaît déjà la
-   * carte, le CESU et l'URSSAF. On n'a donc plus de formulaire de carte ici :
-   * on crée, et on passe la main.
+   * L'API crée une **demande** avec le moyen choisi : rien n'est prélevé. On
+   * enchaîne sur la page Stripe qui enregistre la carte, ce qui envoie la
+   * demande au batch cooker ; il a 48 h pour accepter, et le prix est prélevé
+   * après la session. Pour l'avance immédiate sans rattachement, on demande le
+   * rattachement puis on réserve à nouveau : un rattachement en cours suffit.
    */
-  function reserver() {
+  function reserver(dejaRattache = false) {
     if (!offre || !date || !creneauIso) return
     setErreur(null)
     setRefuses([])
@@ -273,6 +307,7 @@ function ReservationFlow() {
         addressCity: city,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
+        paymentMethod: moyen,
         ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
         ...(selectedMeals.length > 0
           ? {
@@ -284,8 +319,8 @@ function ReservationFlow() {
       },
       {
         onSuccess: (b) => {
-          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals, portions })
-          router.push(`/espace-client/commandes/${b.id}/paiement`)
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals, portions, moyen })
+          enregistrerCarte(b.id)
         },
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
@@ -298,6 +333,14 @@ function ReservationFlow() {
           if (body?.code === 'ALLERGEN_CONFLICT') setRefuses(body.conflicts?.map((c) => c.mealId) ?? [])
           if (body?.code === 'ALLERGENS_UNVERIFIED') setRefuses(body.mealIds ?? [])
           if (body?.code === 'ALLERGIES_NOT_DECLARED') profil.refetch()
+          if (body?.code === 'URSSAF_LINK_NONE' && !dejaRattache && chef) {
+            apiFetch('/me/urssaf-links', { method: 'POST', body: { chefProfileId: chef.chef.id } })
+              .then(() => reserver(true))
+              .catch((err: unknown) =>
+                setErreur(apiMessage(err, 'Le rattachement URSSAF n’a pas pu être demandé.')),
+              )
+            return
+          }
           const gaps = consentGaps(body)
           if (gaps) {
             // Des textes plus récents : on les relit, et le client recoche.
@@ -719,38 +762,89 @@ function ReservationFlow() {
                   </p>
                   <ol className="mt-2 space-y-2 text-[13px] leading-relaxed text-ink-mid">
                     <li>
-                      <strong className="font-semibold text-navy">1.</strong> Nous
-                      posons votre réservation chez{' '}
-                      {chef?.chef.displayName ?? 'votre batch cooker'}. Le créneau
-                      est alors tenu <strong>72 heures</strong>.
+                      <strong className="font-semibold text-navy">1.</strong> Vous
+                      choisissez ci-dessous comment vous paierez, puis vous
+                      enregistrez votre carte à l’écran suivant.{' '}
+                      <strong>Rien n’est prélevé.</strong>
                     </li>
                     <li>
-                      <strong className="font-semibold text-navy">2.</strong> Vous
-                      réglez à l’écran suivant — carte, CESU préfinancé ou URSSAF,
-                      selon ce que ce batch cooker accepte. C’est le paiement qui
-                      confirme la session.
+                      <strong className="font-semibold text-navy">2.</strong>{' '}
+                      {chef?.chef.displayName ?? 'Votre batch cooker'} a{' '}
+                      <strong>48 heures</strong> pour accepter votre demande. Sans
+                      réponse ou en cas de refus, elle est annulée sans frais.
                     </li>
                     <li>
-                      <strong className="font-semibold text-navy">3.</strong> Tant
-                      que rien n’est réglé, vous pouvez tout annuler sans frais
-                      depuis « Mes sessions ».
+                      <strong className="font-semibold text-navy">3.</strong> C’est
+                      son acceptation qui confirme la session. Vous avez alors{' '}
+                      <strong>14 jours</strong> pour vous rétracter, depuis « Mes
+                      sessions ».
                     </li>
                     <li>
-                      <strong className="font-semibold text-navy">4.</strong> Une
-                      fois la session payée, vous avez <strong>14 jours</strong> pour
-                      vous rétracter : Paramètres, section « Droit de rétractation ».
+                      <strong className="font-semibold text-navy">4.</strong> Le
+                      paiement se fait <strong>après la session</strong>, avec le
+                      moyen choisi. Annulation gratuite jusqu’à 48 heures avant.
                     </li>
                   </ol>
                 </div>
 
-                {chef?.chef.acceptsCesu && (
-                  <p className="flex items-start gap-2 rounded-2xl bg-mint/40 px-4 py-3 text-[13px] leading-relaxed text-mint-ink">
-                    <Wallet className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    {chef.chef.displayName.split(' ')[0]} accepte le{' '}
-                    <strong>CESU préfinancé</strong> : vous pourrez le choisir à
-                    l’étape suivante.
-                  </p>
-                )}
+                <fieldset className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-4">
+                  <legend className="px-1 font-display text-base font-bold text-navy">
+                    Comment paierez-vous ?
+                  </legend>
+                  {moyens.isPending && chef ? (
+                    <p className="mt-2 text-[13px] text-ink-soft">Chargement…</p>
+                  ) : !reservable ? (
+                    <p className="mt-2 text-[13px] text-ink-mid">
+                      Ce batch cooker ne peut pas encore recevoir de paiement :
+                      réservation impossible pour le moment.
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {offerts.map((m) => (
+                        <label
+                          key={m}
+                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 text-[13px] ${
+                            moyen === m
+                              ? 'border-amber bg-amber-soft/40'
+                              : 'border-[rgba(31,42,55,0.08)]'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="moyen"
+                            value={m}
+                            checked={moyen === m}
+                            onChange={() => setMoyen(m)}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            <span className="flex items-center gap-1.5 font-semibold text-navy">
+                              {m === 'cb' ? (
+                                <CreditCard className="h-4 w-4" aria-hidden />
+                              ) : (
+                                <Wallet className="h-4 w-4" aria-hidden />
+                              )}
+                              {PAYMENT_METHOD_LABEL[m]}
+                            </span>
+                            <span className="block text-ink-mid">
+                              {m === 'cb'
+                                ? 'Prélevée automatiquement à la fin de la session.'
+                                : m === 'avance_immediate'
+                                  ? 'Vous ne payez que 50 % : l’URSSAF prélève votre part après la session. Un rattachement à ce batch cooker est demandé s’il n’existe pas.'
+                                  : 'Vous déclarez vos titres après la session ; sans déclaration sous 48 h, le reste est prélevé sur votre carte.'}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                      <p className="flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
+                        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Une carte est enregistrée dans tous les cas (CGV, article 7.2) :
+                        elle sert aux courses, aux éventuels frais d’annulation, et de
+                        secours si l’URSSAF ou le CESU ne couvrent pas la session.
+                      </p>
+                    </div>
+                  )}
+                </fieldset>
 
                 {erreur && (
                   <p
@@ -812,9 +906,11 @@ function ReservationFlow() {
 
                 <button
                   type="button"
-                  onClick={reserver}
+                  onClick={() => reserver()}
                   disabled={
                     !casesOk ||
+                    !reservable ||
+                    carte.isPending ||
                     creer.isPending ||
                     !offre ||
                     platsHorsFormule ||
@@ -823,8 +919,12 @@ function ReservationFlow() {
                   }
                   className="btn btn-primary w-full justify-center disabled:opacity-60"
                 >
-                  {creer.isPending ? 'Enregistrement…' : 'Commander avec obligation de paiement'}
-                  {!creer.isPending && <ArrowRight className="h-4 w-4 icon-arrow" />}
+                  {creer.isPending || carte.isPending
+                    ? 'Enregistrement…'
+                    : 'Commander avec obligation de paiement'}
+                  {!creer.isPending && !carte.isPending && (
+                    <ArrowRight className="h-4 w-4 icon-arrow" />
+                  )}
                 </button>
                 <button
                   type="button"

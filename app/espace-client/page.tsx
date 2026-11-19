@@ -6,6 +6,7 @@ import { ArrowRight, Check, MessageCircle } from 'lucide-react'
 import {
   bookingMealNames,
   bookingPortions,
+  bookingLabel,
   bookingStatusText,
   bookingStatusTone,
   euros,
@@ -92,7 +93,7 @@ export default function DashboardOverviewPage() {
   const etape = prochaine ? FLOW.indexOf(prochaine.status as (typeof FLOW)[number]) : -1
 
   /** Une prestation `pending` non réglée tient son créneau 72 h, puis tombe. */
-  const aRegler = toutes.find((b) => b.status === 'pending' && !b.paidCents) ?? null
+  const aRegler = toutes.find((b) => b.status === 'pending' && !b.paidCents && !b.request) ?? null
 
   const terminees = toutes.filter((b) => b.status === 'completed' || b.status === 'delivered')
   const platsCuisines = terminees.reduce((n, b) => n + bookingPortions(b), 0)
@@ -202,7 +203,9 @@ export default function DashboardOverviewPage() {
               <Avancement etape={etape} />
 
               <p className="mt-4 max-w-[65ch] text-xs leading-relaxed text-white/55">
-                {prochaine.status === 'pending'
+                {prochaine.status === 'pending' && prochaine.request
+                  ? 'Votre demande attend la réponse du batch cooker (48 heures). Rien n’est prélevé avant la fin de la session.'
+                  : prochaine.status === 'pending'
                   ? 'C’est le paiement qui confirme la session. Le créneau est tenu 72 heures.'
                   : dejaReglee
                     ? 'Cette session est réglée : vous n’avez plus rien à payer.'
@@ -450,7 +453,7 @@ function SessionRow({ booking: o }: { booking: Booking }) {
   const d = new Date(o.startsAt)
   const mois = d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
   const jourSemaine = d.toLocaleDateString('fr-FR', { weekday: 'long' })
-  const aPayer = o.status === 'pending' && !o.paidCents
+  const aPayer = o.status === 'pending' && !o.paidCents && !o.request
 
   return (
     <Link href={`/espace-client/commandes/${o.id}`} className="row-link group">
@@ -468,7 +471,7 @@ function SessionRow({ booking: o }: { booking: Booking }) {
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
           <span className={cn('status', bookingStatusTone(o.status))}>
-            {aPayer ? 'À régler' : bookingStatusText(o.status)}
+            {aPayer ? 'À régler' : bookingLabel(o)}
           </span>
           <span>{bookingMealNames(o).length} plats</span>
         </span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, use, useState } from 'react'
+import { Suspense, use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -33,10 +33,14 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import {
+  bookingCardUrls,
+  bookingLabel,
   bookingPortions,
-  bookingStatusText,
   euros,
   hour,
+  PAYMENT_METHOD_LABEL,
+  useConfirmBookingCard,
+  useStartBookingCard,
   useAnswerReschedule,
   useBookingIcs,
   useMissionShoppingList,
@@ -170,7 +174,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const paye = euros(b.paidCents)
   const portions = bookingPortions(b)
 
-  const aRegler = b.status === 'pending'
+  // CGV V1 : une demande ne se règle pas avant la session ; seul l'ancien modèle « paie pour confirmer ».
+  const aRegler = b.status === 'pending' && !b.request
   const arretee = b.status === 'cancelled' || b.status === 'disputed'
   const etape = FLOW.indexOf(b.status as (typeof FLOW)[number])
 
@@ -209,7 +214,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       <Suspense fallback={null}>
         <CheckoutOutcome />
+        <CardReturn bookingId={b.id} />
       </Suspense>
+
+      {b.request && <Demande booking={b} />}
 
       {/* ── Une demande de report attend votre réponse ──────────────────── */}
       {report && (
@@ -303,7 +311,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   {portions} portions
                 </span>
               )}
-              <span className="status status-on-dark">{bookingStatusText(b.status)}</span>
+              <span className="status status-on-dark">{bookingLabel(b)}</span>
             </p>
 
             {/* Le fichier exige le jeton : on le télécharge, on ne le lie pas. */}
@@ -756,6 +764,107 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
         confirmLabel="Annuler la prestation"
       />
     </div>
+  )
+}
+
+/**
+ * Retour de la page carte (CGV 7.2) : on confirme la carte une fois, ce qui
+ * envoie la demande au batch cooker. Le webhook fait de même si le client ne
+ * revient pas.
+ */
+function CardReturn({ bookingId }: { bookingId: string }) {
+  const params = useSearchParams()
+  const confirmer = useConfirmBookingCard()
+  const fait = useRef(false)
+  const sessionId = params.get('carte') === 'ok' ? params.get('session_id') : null
+  useEffect(() => {
+    if (!sessionId || fait.current) return
+    fait.current = true
+    confirmer.mutate({ id: bookingId, sessionId })
+  }, [sessionId, bookingId, confirmer])
+  if (params.get('carte') === 'annulee') {
+    return (
+      <p role="status" className="rounded-2xl bg-amber-soft/70 p-4 text-sm text-navy">
+        <strong className="font-semibold">Carte non enregistrée.</strong> Rien n’a été
+        prélevé. Sans carte dans l’heure, la demande est abandonnée.
+      </p>
+    )
+  }
+  if (confirmer.isError) {
+    return (
+      <p role="alert" className="rounded-2xl bg-amber-soft/70 p-4 text-sm text-navy">
+        {apiMessage(confirmer.error, 'La carte n’a pas pu être confirmée.')}
+      </p>
+    )
+  }
+  return null
+}
+
+/**
+ * La demande de réservation (CGV V1, décision du 19/11) : le moyen choisi, la
+ * carte enregistrée, et la réponse du batch cooker sous 48 h. Rien n'est
+ * prélevé avant la fin de la session.
+ */
+function Demande({ booking: b }: { booking: Booking }) {
+  const r = b.request!
+  const carte = useStartBookingCard()
+  const chef = b.chef?.displayName ?? 'Votre batch cooker'
+  const quand = (iso: string | null) => (iso ? `${longDate(iso)} à ${hour(iso)}` : '')
+  const moyen = PAYMENT_METHOD_LABEL[r.paymentMethod]
+  const ligneCarte = r.card ? ` · carte ${r.card.brand ?? ''} •••• ${r.card.last4}` : ''
+
+  let titre: string
+  let texte: string
+  if (r.state === 'awaiting_card') {
+    titre = 'Enregistrez votre carte pour envoyer la demande'
+    texte =
+      'Rien n’est prélevé : la carte sert au paiement après la session, ou de secours. Sans carte dans l’heure, la demande est abandonnée.'
+  } else if (r.state === 'awaiting_chef') {
+    titre = `En attente de la réponse de ${chef}`
+    texte = `${chef} a jusqu’au ${quand(r.acceptBy)} pour accepter. Sans réponse, la demande est annulée et rien n’est prélevé.`
+  } else if (r.state === 'refused') {
+    titre = `${chef} ne peut pas assurer cette session`
+    texte = `Rien n’a été prélevé.${r.refusalReason ? ` Son message : « ${r.refusalReason} »` : ''}`
+  } else if (r.state === 'expired') {
+    titre = 'Demande restée sans réponse'
+    texte = 'Le délai de 48 heures est passé : la demande est annulée et rien n’a été prélevé.'
+  } else {
+    titre = 'Session confirmée'
+    texte = r.chargedAt
+      ? 'Le paiement a été lancé avec le moyen choisi.'
+      : `Paiement prévu ${r.chargeAt ? `le ${quand(r.chargeAt)}` : 'après la session'}, avec le moyen choisi.`
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber/40 bg-amber-soft/40 p-5">
+      <p className="font-display text-base font-bold text-navy">{titre}</p>
+      <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-mid">{texte}</p>
+      <p className="mt-2 text-[12px] text-ink-soft">
+        Moyen choisi : {moyen}
+        {ligneCarte}
+      </p>
+      {r.state === 'awaiting_card' && (
+        <button
+          type="button"
+          onClick={() =>
+            carte.mutate(
+              { id: b.id, ...bookingCardUrls(b.id) },
+              { onSuccess: ({ url }) => (window.location.href = url) },
+            )
+          }
+          disabled={carte.isPending}
+          className="btn btn-primary mt-3 text-xs"
+        >
+          {carte.isPending ? 'Ouverture…' : 'Enregistrer ma carte'}
+          <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+        </button>
+      )}
+      {carte.isError && (
+        <p role="alert" className="mt-2 text-[13px] text-navy">
+          {apiMessage(carte.error, 'La page carte n’a pas pu s’ouvrir.')}
+        </p>
+      )}
+    </section>
   )
 }
 

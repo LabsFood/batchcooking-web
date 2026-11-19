@@ -151,7 +151,11 @@ function Settlement({ id }: { id: string }) {
 function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean }) {
   const firstName = data.chef.displayName.split(' ')[0]
   const [method, setMethod] = useState<PaymentMethodId | null>(
-    () => data.methods.find((m) => m.available)?.id ?? null,
+    // CGV V1 : le moyen choisi à la réservation d'abord, s'il est encore possible.
+    () =>
+      data.methods.find((m) => m.available && m.id === data.chosenMethod)?.id ??
+      data.methods.find((m) => m.available)?.id ??
+      null,
   )
   const [cesuAmount, setCesuAmount] = useState('')
   // Seul l'e-CESU est proposé : le papier n'est plus accepté.
