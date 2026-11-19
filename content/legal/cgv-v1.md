@@ -8,7 +8,7 @@ Avec l'option Courses, LAB'S FOOD achète vos courses pour vous, par l'interméd
 
 Annulation gratuite jusqu'à 48 heures avant la Prestation. Ensuite, des frais s'appliquent (article 16), sauf si vous pouvez encore exercer votre droit de rétractation.
 
-Vous disposez d'un droit de rétractation de 14 jours, que vous pouvez exercer en ligne avec le bouton « Se rétracter ».
+Vous disposez d'un droit de rétractation de 14 jours, que vous pouvez exercer en ligne depuis les Paramètres de votre Compte, rubrique « Droit de rétractation ».
 
 Si votre batch cooker est déclaré services à la personne, vous pouvez bénéficier d'un crédit d'impôt de 50 % sur le prix de la Prestation (pas sur les courses), et payer seulement votre part grâce à l'avance immédiate de l'URSSAF.
 
@@ -214,7 +214,7 @@ Du fait que LAB’S FOOD permette d’effectuer les paiements via Stripe, vous a
 
 15.1 Délai. Le Client dispose d'un délai de 14 jours pour se rétracter, sans donner de motif et sans frais, à compter du jour de la conclusion du contrat, c'est-à-dire de l'acceptation de la Réservation par le Batch Cooker (article L.221-18 du Code de la consommation).
 
-15.2 Comment se rétracter. En ligne : dans son Compte, rubrique « Mes réservations », bouton « Se rétracter ». Ce bouton reste accessible pendant tout le délai de rétractation. Le Client confirme sa demande à la dernière étape (« Confirmer la rétractation »). Il reçoit sans délai un accusé de réception par e-mail, qui reprend le contenu de sa déclaration ainsi que la date et l'heure de son envoi.
+15.2 Comment se rétracter. En ligne : dans son Compte, rubrique « Paramètres », section « Droit de rétractation », bouton « Se rétracter ». Ce bouton reste accessible pendant tout le délai de rétractation. Le Client confirme sa demande à la dernière étape (« Confirmer la rétractation »). Il reçoit sans délai un accusé de réception par e-mail, qui reprend le contenu de sa déclaration ainsi que la date et l'heure de son envoi.
 
 Par écrit : en envoyant le formulaire de l'Annexe 1, ou toute déclaration claire, à retractation@labsfood.fr ou par courrier recommandé avec AR à l'adresse postale de LAB'S FOOD, 200 rue de la Croix Nivert, 75015 Paris. LAB'S FOOD reçoit les rétractations au nom et pour le compte du Batch Cooker.
 
@@ -306,7 +306,7 @@ Le service client de LAB'S FOOD est joignable par la messagerie de la Plateforme
 
 # ANNEXE 1. FORMULAIRE DE RÉTRACTATION
 
-Veuillez compléter et renvoyer le présent formulaire uniquement si vous souhaitez vous rétracter du contrat. Vous pouvez aussi utiliser le bouton « Se rétracter » de votre Compte.
+Veuillez compléter et renvoyer le présent formulaire uniquement si vous souhaitez vous rétracter du contrat. Vous pouvez aussi utiliser le bouton « Se rétracter » de votre Compte (Paramètres, section « Droit de rétractation »).
 
 À l'attention de LAB'S FOOD, agissant au nom et pour le compte du Batch Cooker concerné, 200 rue de la Croix Nivert, 75015 Paris, retractation@labsfood.fr :
 
@@ -330,7 +330,7 @@ Droit de rétractation. Vous avez le droit de vous rétracter du présent contra
 
 Pour exercer le droit de rétractation, vous devez nous notifier (LAB'S FOOD, contact@labsfood.fr) votre décision au moyen d'une déclaration dénuée d'ambiguïté (par exemple, lettre recommandé avec AR envoyée par la poste ou courrier électronique). Vous pouvez utiliser le modèle de formulaire de rétractation de l'Annexe 1, mais ce n'est pas obligatoire.
 
-Vous pouvez également exercer votre droit de rétractation en ligne, dans votre Compte, rubrique « Mes réservations », bouton « Se rétracter ». Si vous utilisez cette fonctionnalité en ligne, nous vous enverrons, dans les meilleurs délais, un accusé de réception de la rétractation sur un support durable (par exemple, par courriel), y compris son contenu ainsi que la date et l'heure de sa soumission.
+Vous pouvez également exercer votre droit de rétractation en ligne, dans votre Compte, rubrique « Paramètres », section « Droit de rétractation », bouton « Se rétracter ». Si vous utilisez cette fonctionnalité en ligne, nous vous enverrons, dans les meilleurs délais, un accusé de réception de la rétractation sur un support durable (par exemple, par courriel), y compris son contenu ainsi que la date et l'heure de sa soumission.
 
 Pour que le délai de rétractation soit respecté, il suffit que vous transmettiez votre communication avant l'expiration du délai.
 
