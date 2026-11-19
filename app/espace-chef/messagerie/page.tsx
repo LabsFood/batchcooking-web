@@ -8,8 +8,7 @@ import MessagingView, { MessagingSkeleton } from '@/components/messaging/Messagi
    Messagerie.
 
    Un fil par client, plus le canal support. Tout se passe dans l'application :
-   les numéros et adresses écrits dans un message sont masqués par l'API jusqu'à
-   48 h avant la prestation. La fiche du client s'ouvre d'un clic sur son nom.
+   les numéros et adresses écrits dans un message sont toujours masqués par l'API. La fiche du client s'ouvre d'un clic sur son nom.
    ───────────────────────────────────────────────────────────────────────────── */
 
 export default function ChefMessagesPage() {
