@@ -105,7 +105,7 @@ export default function BienDemarrer() {
           >
             <div
               // slow-out : la barre avance en 200 ms
-              className="h-full rounded-full bg-mint-ink transition-[width] duration-200"
+              className="h-full rounded-full bg-amber transition-[width] duration-200"
               style={{ width: `${(data.completed / data.total) * 100}%` }}
             />
           </div>

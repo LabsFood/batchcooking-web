@@ -264,7 +264,7 @@ export default function ChefHomePage() {
                 {bookings.isPending ? (
                   <Skeleton className="mt-1 h-9 w-36" />
                 ) : (
-                  <p className="mt-1 font-display text-3xl font-bold leading-tight tabular-nums text-navy">
+                  <p className="mt-1 font-display text-3xl font-bold leading-tight tabular-nums text-amber-ink">
                     {moneyCents(netMois) ?? '0 €'}
                   </p>
                 )}

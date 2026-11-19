@@ -79,7 +79,10 @@ export function Onglets<T extends string>({
                   aria-hidden
                   className="absolute inset-0 rounded-lg bg-paper shadow-[0_1px_2px_rgba(31,42,55,0.12)]"
                   transition={{ duration: DURATION.fast, ease: EASE_MOVE }}
-                />
+                >
+                  {/* Le trait ambre : il dit « c'est ici » d'un coup d'œil, et suit le fond. */}
+                  <span className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-amber" />
+                </motion.span>
               )}
               {t.Icon && <t.Icon className="relative h-4 w-4" aria-hidden />}
               <span className="relative">{t.label}</span>
