@@ -352,7 +352,7 @@ function ReservationFlow() {
                   <s.Icon className="w-4 h-4" />
                 </span>
                 <p
-                  className={`mt-2 text-[10px] uppercase tracking-[0.16em] font-semibold ${reached ? 'text-navy' : 'text-ink-soft'
+                  className={`mt-2 text-xs font-semibold ${reached ? 'text-navy' : 'text-ink-soft'
                     }`}
                 >
                   {s.label}
@@ -365,7 +365,13 @@ function ReservationFlow() {
 
       {/* Une seule cellule de grille : l'étape qui part et celle qui arrive se
           superposent le temps du fondu, sans s'empiler ni laisser de vide. */}
-      <div className="grid">
+      {/*
+        Une seule colonne, bornée : sans `minmax(0, 1fr)`, la colonne prenait la
+        largeur de son contenu le plus large (la rangée de semaines qui défile),
+        et toute la page s'élargissait à 830 px sur un téléphone — la carte d'un
+        batch cooker sortait alors de l'écran.
+      */}
+      <div className="grid grid-cols-[minmax(0,1fr)]">
       <AnimatePresence>
         {step === 'chef' && (
           <StepCard
@@ -836,6 +842,7 @@ function ReservationFlow() {
         /* La formule fixe le nombre de plats : rien à cocher avant de l'avoir
            choisie. Une formule d'avant le 19/11 (sans nombre) laisse libre. */
         maxDishes={offreCarte ? (offreCarte.mealsIncluded ?? MAX_DISHES) : 0}
+        maxDishesFixed={offreCarte?.mealsIncluded != null}
         renderBeforeDishes={(menu) => (
           <FormulePicker
             chefName={menu.chef.displayName}
@@ -891,7 +898,7 @@ function FormulePicker({
 }) {
   return (
     <div className="mb-6">
-      <p className="mb-2 text-sm font-semibold text-navy">1. Choisissez votre formule</p>
+      <p className="mb-3 text-sm font-semibold text-navy">1. Choisissez votre formule</p>
       {loading ? (
         <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
       ) : offres.length === 0 ? (
@@ -905,42 +912,66 @@ function FormulePicker({
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+        /*
+          Une formule par ligne, comme une liste de choix : côte à côte dans la
+          colonne de la carte, le prix prenait toute la place et le nom se
+          cassait mot par mot. Le nom et ce qu'elle comprend à gauche, le prix
+          aligné à droite, et la formule retenue se reconnaît à son cadre marine
+          et à sa coche, pas à un aplat de couleur.
+        */
+        <div role="radiogroup" aria-label="Formules" className="space-y-2">
           {offres.map((o) => {
             const choisie = o.id === chosenId
             return (
               <button
                 key={o.id}
                 type="button"
+                role="radio"
+                aria-checked={choisie}
                 onClick={() => onPick(o)}
-                aria-pressed={choisie}
-                className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${choisie
-                  ? 'border border-amber/40 bg-amber-soft'
-                  : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
-                  }`}
+                className={`flex w-full items-center gap-3 rounded-xl border bg-paper px-4 py-3 text-left transition-colors sm:gap-4 ${
+                  choisie
+                    ? 'border-navy shadow-[inset_0_0_0_1px_var(--navy)]'
+                    : 'border-[var(--line-strong)] hover:border-[rgba(31,42,55,0.32)]'
+                }`}
               >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-navy">{o.name}</span>
-                  <span className="mt-0.5 block text-[11px] text-ink-soft">{offerSummary(o)}</span>
+                <span
+                  aria-hidden
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                    choisie ? 'border-navy bg-navy text-white' : 'border-[var(--line-strong)] bg-paper'
+                  }`}
+                >
+                  {choisie && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <Prix
-                  apresCredit={
-                    regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
-                  }
-                  total={offerEuros(o.priceCents)}
-                  taille="sm"
-                  align="right"
-                  className="shrink-0"
-                />
+                {/* Étroit, le prix passe sous le nom : côte à côte, il l'écrasait. */}
+                <span className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                      {offerSummary(o)}
+                    </span>
+                  </span>
+                  <Prix
+                    apresCredit={
+                      regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+                    }
+                    total={offerEuros(o.priceCents)}
+                    taille="sm"
+                    className="shrink-0 sm:text-right sm:[&>p]:justify-end"
+                  />
+                </span>
               </button>
             )
           })}
         </div>
       )}
-      <p className="mt-2 text-[12px] text-ink-soft">
+      <p className="mt-3 text-xs text-ink-soft">
         Plus de plats que la formule ? C’est une{' '}
-        <Link href="/espace-client/personnalisation" className="underline underline-offset-2 hover:text-navy">
-          demande sur mesure
+        <Link
+          href="/espace-client/personnalisation"
+          className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
+        >
+          demande sur-mesure
         </Link>
         .
       </p>
@@ -965,7 +996,6 @@ function StepCard({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="col-start-1 row-start-1 card-shell rounded-2xl p-6 lg:p-8"
     >
-      <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
         {title}
       </h2>

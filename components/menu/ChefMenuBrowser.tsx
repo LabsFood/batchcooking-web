@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   Check,
   ChefHat,
-  Globe2,
   Languages,
   MapPin,
   Plus,
@@ -112,15 +111,6 @@ function LanguesChip({ codes }: { codes: string[] }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
       <Languages className="h-3 w-3" aria-hidden /> {useLangueLabels(codes)}
     </span>
-  )
-}
-
-function LanguesLigne({ codes }: { codes: string[] }) {
-  return (
-    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-      <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
-      Parle {useLangueLabels(codes)}
-    </p>
   )
 }
 
@@ -1074,7 +1064,7 @@ function DishThumb({ dish, className }: { dish: WeekDish; className: string }) {
         src={dish.imageUrl}
         alt=""
         onError={() => setCasse(true)}
-        className={`${className} object-cover`}
+        className={`${className} bg-cream-soft object-cover`}
       />
     )
   }
@@ -1326,6 +1316,7 @@ export function MenuDialog({
   dietLabel,
   renderBeforeDishes,
   maxDishes = MAX_DISHES,
+  maxDishesFixed = true,
 }: {
   menu: WeekCard | null
   onClose: () => void
@@ -1343,6 +1334,12 @@ export function MenuDialog({
   renderBeforeDishes?: (menu: WeekCard) => ReactNode
   /** Plats cochables. La formule retenue le fixe ; `0` tant qu'aucune ne l'est. */
   maxDishes?: number
+  /**
+   * `false` : `maxDishes` est un plafond technique, pas le nombre de la
+   * formule (une formule posée avant le 19/11 n'en a pas). Le compteur dit
+   * alors combien de plats sont cochés, sans « / 20 ».
+   */
+  maxDishesFixed?: boolean
 }) {
   const [own, setOwn] = useState<string[]>([])
   const selected = controlled ?? own
@@ -1422,7 +1419,9 @@ export function MenuDialog({
                       <span className="ml-2 font-normal text-ink-soft">
                         {maxDishes === 0
                           ? 'choisissez d’abord votre formule'
-                          : `${selected.length} / ${maxDishes} selon votre formule`}
+                          : maxDishesFixed
+                            ? `${selected.length} sur ${maxDishes} prévus par la formule`
+                            : `${selected.length} plat${selected.length > 1 ? 's' : ''} choisi${selected.length > 1 ? 's' : ''}`}
                       </span>
                     </p>
 
@@ -1558,9 +1557,8 @@ function ChefPanel({ card }: { card: WeekCard }) {
         ))}
       </dl>
 
-      {(card.chef.badges.length > 0 ||
-        card.chef.languages.length > 0 ||
-        card.chef.acceptsCesu) && (
+      {/* Les langues sont déjà dans la liste au-dessus (« Parle ») : pas une seconde fois ici. */}
+      {(card.chef.badges.length > 0 || card.chef.acceptsCesu) && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
           {card.chef.acceptsCesu && (
             <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
@@ -1574,17 +1572,12 @@ function ChefPanel({ card }: { card: WeekCard }) {
               {card.chef.badges.join(', ')}
             </p>
           )}
-          {card.chef.languages.length > 0 && (
-            <LanguesLigne codes={card.chef.languages} />
-          )}
         </div>
       )}
 
       {(chef?.menus?.length ?? 0) > 1 && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            <Globe2 className="h-3.5 w-3.5 text-amber" aria-hidden /> Ses autres cartes
-          </p>
+          <p className="mb-2 text-sm font-semibold text-navy">Ses autres cartes</p>
           <ul className="space-y-1 text-[13px] text-ink-mid">
             {chef?.menus
               .filter((m) => m.id !== card.menuId)
