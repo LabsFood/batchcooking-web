@@ -56,8 +56,6 @@ export const REASON_TEXT = {
   INGREDIENT_NOT_PENDING:
     'Cet ingrédient a été validé ou remplacé entre-temps : rechargez la page.',
   TIER_CANNOT_PUBLISH: 'Votre palier ne permet pas encore de publier.',
-  ADDRESS_NOT_FOUND:
-    'Cette adresse est introuvable dans ce code postal. Vérifiez le numéro et le nom de la rue.',
   ADDRESS_CITY_MISMATCH:
     'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
   CONTRACT_CONSENT_REQUIRED:

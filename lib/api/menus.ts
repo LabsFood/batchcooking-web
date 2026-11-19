@@ -302,6 +302,31 @@ export function useChefPublic(id: string | undefined) {
   })
 }
 
+/** Un batch cooker de la liste d'une demande sur mesure : son nom, rien de plus. */
+export interface CoveringChef {
+  id: string
+  displayName: string
+  city: string | null
+}
+
+/**
+ * Les batch cookers qui couvrent la commune d'une prestation — `GET /chefs`.
+ * Approuvés, en ligne, par ordre alphabétique. Rien n'est demandé tant que la
+ * commune n'est pas choisie : la liste dépend du lieu, pas l'inverse.
+ * `422 ADDRESS_CITY_MISMATCH` si la commune n'est pas du code postal.
+ */
+export function useChefsCovering(postalCode: string, city: string) {
+  const apiFetch = useApiFetch()
+  const params = new URLSearchParams({ postalCode, city })
+  return useQuery({
+    queryKey: ['chefs', 'covering', postalCode, city],
+    queryFn: () => apiFetch<{ data: CoveringChef[] }>(`/chefs?${params}`),
+    enabled: /^\d{5}$/.test(postalCode) && city.trim().length > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+}
+
 /* ── Mise en forme ─────────────────────────────────────────────────────────── */
 
 /** « 15000 » → « 150 € ». `null` reste `null`. */
