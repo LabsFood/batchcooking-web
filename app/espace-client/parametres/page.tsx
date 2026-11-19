@@ -13,6 +13,7 @@ import { useMeProfile, useUpdateMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile, ClientProfilePatch, MeProfile } from '@/lib/api/types'
 import DeleteMyAccount from '@/components/client/DeleteMyAccount'
 import ChangePassword from '@/components/shared/ChangePassword'
+import WithdrawalSettings from '@/components/client/WithdrawalSettings'
 
 export default function ParametresPage() {
   const { signOut } = useAuth()
@@ -42,6 +43,8 @@ export default function ParametresPage() {
       <Notifications prefs={me.data?.notificationPreferences} />
 
       <MesDonnees />
+
+      <Retractation />
 
       {/* Danger zone */}
       <div className="lg:col-span-2 bg-red-50 border border-red-200 rounded-2xl p-6">
@@ -214,6 +217,17 @@ function Notifications({ prefs }: { prefs?: { email: boolean; sms: boolean } }) 
 /* ── Mes données ───────────────────────────────────────────────────────────── */
 
 /** `GET /me/export` : le droit d'accès et de portabilité, en un fichier JSON. */
+function Retractation() {
+  return (
+    <Section title="Droit de rétractation" Icon={Mail}>
+      <p className="text-sm text-ink-mid leading-relaxed">
+        Vous avez 14 jours après la confirmation d’une réservation pour vous rétracter, sans motif.
+      </p>
+      <WithdrawalSettings />
+    </Section>
+  )
+}
+
 function MesDonnees() {
   const apiFetch = useApiFetch()
   const [pending, setPending] = useState(false)

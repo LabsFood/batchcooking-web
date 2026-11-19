@@ -94,7 +94,7 @@ export default function ShoppingListPage() {
       .sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? ''))
   }, [commandes.data])
 
-  const active = concernees.find((b) => b.id === choisie) ?? concernees[0] ?? null
+  const active = concernees.find((b) => b.id === choisie) ?? null
 
   if (commandes.isPending) {
     // Le bandeau (session, compteur, boutons) puis les rayons, comme la liste réelle.
@@ -108,6 +108,10 @@ export default function ShoppingListPage() {
         <RayonsSkeleton />
       </SkeletonGroup>
     )
+  }
+
+  if (!active && concernees.length > 0) {
+    return <Sessions sessions={concernees} onChoisir={setChoisie} />
   }
 
   if (!active) {
@@ -132,8 +136,7 @@ export default function ShoppingListPage() {
     <Liste
       key={active.id}
       booking={active}
-      autres={concernees}
-      onChoisir={setChoisie}
+      onRetour={() => setChoisie(null)}
     />
   )
 }
@@ -142,8 +145,7 @@ export default function ShoppingListPage() {
 
 type ListeProps = {
   booking: Booking
-  autres: Booking[]
-  onChoisir: (id: string) => void
+  onRetour: () => void
 }
 
 /** Le batch cooker fait les courses : on lui répond. Sinon, la liste est à soi. */
@@ -166,7 +168,7 @@ function Liste(props: ListeProps) {
 
 /* ── Cas 2 : le client fait ses courses ────────────────────────────────────── */
 
-function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
+function ListeLibre({ booking, onRetour }: ListeProps) {
   const courses = useMissionShoppingList(booking.id)
   const [possedes, setPossedes] = useState<string[]>([])
   const [storeId, setStoreId] = useState(STORES[0].id)
@@ -219,13 +221,14 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
                 {restants} article{restants > 1 ? 's' : ''} à acheter
               </p>
             )}
+            <Plats booking={booking} />
             <p className="mt-1 text-xs text-ink-soft">
               {possedes.length} déjà dans vos placards · {total} au total
               {courses.data?.persons ? ` · pour ${courses.data.persons} personnes` : ''}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <div className="relative">
               <Store
                 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
@@ -258,9 +261,9 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           </div>
         </div>
 
-        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
+        <Retour onRetour={onRetour} />
 
-        <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft print:hidden">
           « Faire mes courses » copie la liste restante dans le presse-papier puis
           ouvre {store.name} — il ne reste qu&apos;à la coller dans la recherche.
         </p>
@@ -350,7 +353,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
         </div>
       )}
 
-      <p className="text-center text-xs text-ink-soft">
+      <p className="text-center text-xs text-ink-soft print:hidden">
         Cochez « j’ai déjà » pour retirer un article de l’export.
       </p>
     </div>
@@ -374,8 +377,7 @@ const TITRE: Record<ShoppingListStatus, string> = {
 
 function Reponse({
   booking,
-  autres,
-  onChoisir,
+  onRetour,
   liste,
   onRecharger,
 }: ListeProps & { liste: MissionShoppingList; onRecharger: () => void }) {
@@ -511,7 +513,7 @@ function Reponse({
           </p>
         )}
 
-        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
+        <Retour onRetour={onRetour} />
       </div>
 
       {modifiable && (
@@ -634,22 +636,45 @@ function Reponse({
 
 /* ── Plusieurs sessions à venir ────────────────────────────────────────────── */
 
-function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
-  if (autres.length < 2) return null
+function Retour({ onRetour }: { onRetour: () => void }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.06)] pt-4">
-      <span className="text-xs uppercase tracking-[0.12em] text-ink-soft">
-        Autre session
-      </span>
-      {autres.map((b) => (
+    <div className="mt-4 border-t border-[rgba(31,42,55,0.06)] pt-4 print:hidden">
+      <button
+        onClick={onRetour}
+        className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft hover:text-navy"
+      >
+        ← Toutes mes sessions
+      </button>
+    </div>
+  )
+}
+
+/** Ce qu'on cuisine : les plats réservés, avec leurs portions. */
+function Plats({ booking }: { booking: Booking }) {
+  const plats = booking.meals ?? []
+  if (plats.length === 0) return null
+  return (
+    <p className="mt-1 text-sm text-ink-mid">
+      <span className="font-semibold text-navy">Au menu : </span>
+      {plats.map((m) => `${m.name ?? 'Plat'} (${m.portions} portion${m.portions > 1 ? 's' : ''})`).join(' · ')}
+    </p>
+  )
+}
+
+/** Le point d'entrée : une carte par session réservée, la liste s'ouvre au clic. */
+function Sessions({ sessions, onChoisir }: { sessions: Booking[]; onChoisir: (id: string) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-mid">Choisissez la session dont vous voulez la liste de courses.</p>
+      {sessions.map((b) => (
         <button
           key={b.id}
           onClick={() => onChoisir(b.id)}
-          className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-            b.id === booking.id ? 'bg-navy text-white' : 'bg-cream-soft text-navy hover:bg-cream-deep'
-          }`}
+          className="card-shell block w-full rounded-2xl p-5 text-left transition-colors hover:bg-cream-soft"
         >
-          {sessionLabel(b)}
+          <p className="eyebrow mb-1">{sessionLabel(b)}</p>
+          <Plats booking={b} />
+          <p className="mt-1 text-xs text-ink-soft">{bookingStatusText(b.status)}</p>
         </button>
       ))}
     </div>

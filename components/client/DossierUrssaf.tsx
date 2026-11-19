@@ -199,24 +199,38 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
       </div>
 
       <Groupe titre="État civil">
-        <Champ label="Civilité">
+        <Champ label="Civilité" required>
           <select value={form.civility} onChange={set('civility')} className="input-base">
             <option value="F">Madame</option>
             <option value="M">Monsieur</option>
           </select>
         </Champ>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Champ label="Nom de naissance" erreur={erreur('birthName')}>
-            <input value={form.birthName} onChange={set('birthName')} autoComplete="family-name" className="input-base" />
+          <Champ
+            label="Nom de naissance"
+            required
+            erreur={erreur('birthName')}
+            info={<>Le nom figurant sur votre acte de naissance. Lettres, espaces, tirets et apostrophes seulement, sans commencer ni finir par un tiret ou une apostrophe.</>}
+          >
+            <input value={form.birthName} onChange={set('birthName')} autoComplete="family-name" placeholder="Durand" className="input-base" />
           </Champ>
-          <Champ label="Nom d’usage (facultatif)" erreur={erreur('usageName')}>
-            <input value={form.usageName ?? ''} onChange={set('usageName')} className="input-base" />
+          <Champ
+            label="Nom d’usage (facultatif)"
+            erreur={erreur('usageName')}
+            info={<>Si vous êtes mariez, indiquez le nom que vous utilisez au quotidien, par exemple votre nom d’époux. À laisser vide s’il est identique à votre nom de naissance.</>}
+          >
+            <input value={form.usageName ?? ''} onChange={set('usageName')} placeholder="Martin" className="input-base" />
           </Champ>
         </div>
-        <Champ label="Prénoms, dans l’ordre de l’état civil" erreur={erreur('firstNames')}>
-          <input value={form.firstNames} onChange={set('firstNames')} autoComplete="given-name" className="input-base" />
+        <Champ
+          label="Prénoms, dans l’ordre de l’état civil"
+          required
+          erreur={erreur('firstNames')}
+          info={<>Vos prénoms séparés par un espace. Pour un prénom composé, indiquez-le tel que vous l’utilisez (Jean-Pierre) ; sinon, le premier prénom suffit.</>}
+        >
+          <input value={form.firstNames} onChange={set('firstNames')} autoComplete="given-name" placeholder="Jeanne Marie" className="input-base" />
         </Champ>
-        <Champ label="Date de naissance" erreur={erreur('birthDate')}>
+        <Champ label="Date de naissance" required erreur={erreur('birthDate')}>
           <input type="date" value={form.birthDate} onChange={set('birthDate')} autoComplete="bday" className="input-base tabular-nums" />
         </Champ>
       </Groupe>
@@ -264,7 +278,12 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
             }
           />
         ) : (
-          <Champ label="Pays de naissance" erreur={erreur('birthCountryCode')}>
+          <Champ
+            label="Pays de naissance"
+            required
+            erreur={erreur('birthCountryCode')}
+            info={<>Le pays où vous êtes né(e), tel qu’il figure sur votre acte de naissance. Pas besoin de commune ni de département pour une naissance à l’étranger.</>}
+          >
             <select value={form.birthCountryCode} onChange={set('birthCountryCode')} className="input-base">
               <option value="">Choisissez le pays</option>
               {PAYS_NAISSANCE.map((p) => (
@@ -279,25 +298,39 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
 
       <Groupe titre="Coordonnées">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Champ label="Mobile" erreur={erreur('mobilePhone')}>
+          <Champ
+            label="Mobile"
+            required
+            erreur={erreur('mobilePhone')}
+            info={<>Un numéro de portable français : 10 chiffres commençant par 06 ou 07, ou +33. L’URSSAF s’en sert pour vous joindre.</>}
+          >
             <input type="tel" value={form.mobilePhone} onChange={set('mobilePhone')} autoComplete="tel" placeholder="06 12 34 56 78" className="input-base tabular-nums" />
           </Champ>
-          <Champ label="Email" erreur={erreur('email')}>
-            <input type="email" value={form.email} onChange={set('email')} autoComplete="email" className="input-base" />
+          <Champ
+            label="Email"
+            required
+            erreur={erreur('email')}
+            info={<>Une adresse email valide : l’URSSAF y envoie l’invitation à activer votre compte et à valider chaque paiement.</>}
+          >
+            <input type="email" value={form.email} onChange={set('email')} autoComplete="email" placeholder="jeanne.durand@exemple.fr" className="input-base" />
           </Champ>
         </div>
-        <Champ label="Adresse" erreur={erreur('address.line1')}>
+        <Champ label="Adresse" required erreur={erreur('address.line1')}>
           <input value={form.line1} onChange={set('line1')} autoComplete="address-line1" placeholder="12 rue des Lilas" className="input-base" />
         </Champ>
-        <Champ label="Complément (facultatif)" erreur={erreur('address.line2')}>
-          <input value={form.line2 ?? ''} onChange={set('line2')} autoComplete="address-line2" className="input-base" />
+        <Champ
+          label="Complément (facultatif)"
+          erreur={erreur('address.line2')}
+          info={<>Bâtiment, étage, escalier, lieu-dit… tout ce qui aide à trouver votre logement.</>}
+        >
+          <input value={form.line2 ?? ''} onChange={set('line2')} autoComplete="address-line2" placeholder="Bâtiment A, 3e étage" className="input-base" />
         </Champ>
         <div className="grid grid-cols-[120px_1fr] gap-3">
-          <Champ label="Code postal" erreur={erreur('address.postalCode')}>
-            <input value={form.postalCode} onChange={set('postalCode')} autoComplete="postal-code" inputMode="numeric" className="input-base tabular-nums" />
+          <Champ label="Code postal" required erreur={erreur('address.postalCode')}>
+            <input value={form.postalCode} onChange={set('postalCode')} autoComplete="postal-code" inputMode="numeric" placeholder="69001" className="input-base tabular-nums" />
           </Champ>
-          <Champ label="Ville" erreur={erreur('address.city')}>
-            <input value={form.city} onChange={set('city')} autoComplete="address-level2" className="input-base" />
+          <Champ label="Ville" required erreur={erreur('address.city')}>
+            <input value={form.city} onChange={set('city')} autoComplete="address-level2" placeholder="Lyon" className="input-base" />
           </Champ>
         </div>
       </Groupe>
@@ -305,7 +338,9 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
       <Groupe titre="Compte prélevé par l’URSSAF">
         <Champ
           label="IBAN"
+          required
           erreur={erreur('iban')}
+          info={<>Le numéro de votre compte, sur votre RIB : « FR » suivi de 25 chiffres ou lettres, avec ou sans espaces. C’est ce compte que l’URSSAF prélève.</>}
           aide={
             ibanEnregistre
               ? `IBAN enregistré se terminant par ${ibanEnregistre}. Saisissez-le à nouveau pour enregistrer une modification.`
@@ -322,11 +357,21 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
           />
         </Champ>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Champ label="BIC" erreur={erreur('bic')}>
-            <input value={form.bic} onChange={set('bic')} autoComplete="off" spellCheck={false} className="input-base font-mono" />
+          <Champ
+            label="BIC"
+            required
+            erreur={erreur('bic')}
+            info={<>Le code de votre banque, sur votre RIB : 8 caractères, ou 11 s’il se termine par trois lettres (souvent XXX).</>}
+          >
+            <input value={form.bic} onChange={set('bic')} autoComplete="off" spellCheck={false} placeholder="BNAPFRPPXXX" className="input-base font-mono" />
           </Champ>
-          <Champ label="Titulaire du compte" erreur={erreur('accountHolder')}>
-            <input value={form.accountHolder} onChange={set('accountHolder')} autoComplete="name" className="input-base" />
+          <Champ
+            label="Titulaire du compte"
+            required
+            erreur={erreur('accountHolder')}
+            info={<>La personne au nom de qui le compte est ouvert, comme indiqué sur le RIB : civilité, nom et prénom.</>}
+          >
+            <input value={form.accountHolder} onChange={set('accountHolder')} autoComplete="name" placeholder="Jeanne Martin" className="input-base" />
           </Champ>
         </div>
       </Groupe>
@@ -395,6 +440,10 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
   )
 }
 
+const INFO_COMMUNE = (
+  <>Le lieu de naissance de votre acte de naissance. Choisissez-la dans la liste : son code officiel (INSEE) est transmis à l’URSSAF avec son département.</>
+)
+
 /** Commune de naissance : une commune de la base officielle, avec son code INSEE. */
 function CommuneNaissance({
   nom,
@@ -412,7 +461,7 @@ function CommuneNaissance({
 
   if (nom && code) {
     return (
-      <Champ label="Commune de naissance" erreur={erreur}>
+      <Champ label="Commune de naissance" required erreur={erreur} info={INFO_COMMUNE}>
         <div className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(31,42,55,0.1)] bg-paper px-4 py-3">
           <p className="text-sm text-navy">
             {nom} <span className="font-mono text-xs text-ink-soft">{code}</span>
@@ -428,6 +477,8 @@ function CommuneNaissance({
   return (
     <Champ
       label="Commune de naissance"
+      required
+      info={INFO_COMMUNE}
       erreur={erreur}
       aide="Tapez le nom de la commune, puis choisissez-la dans la liste."
     >
@@ -477,16 +528,31 @@ function Champ({
   label,
   erreur,
   aide,
+  required,
+  info,
   children,
 }: {
   label: string
   erreur?: string
   aide?: string
+  /** Champ obligatoire : astérisque après le libellé. */
+  required?: boolean
+  /** Explication du champ, d'après le contrat d'API de l'URSSAF (popover au clic). */
+  info?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs uppercase tracking-[0.12em] text-ink-soft">{label}</span>
+      <span className="mb-1.5 flex items-center gap-1 text-xs uppercase tracking-[0.12em] text-ink-soft">
+        {label}
+        {required && (
+          <>
+            <span aria-hidden className="text-red-700">*</span>
+            <span className="sr-only">(obligatoire)</span>
+          </>
+        )}
+        {info && <InfoPopover label={`À propos de : ${label}`}>{info}</InfoPopover>}
+      </span>
       {children}
       {erreur ? (
         <span className="mt-1.5 block text-xs text-red-700">{erreur}</span>
