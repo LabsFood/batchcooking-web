@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Us
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
+import ProposerPrestation from '@/components/chef/ProposerPrestation'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
 import DatePicker from '@/components/shared/DatePicker'
 import OfferDishes from '@/components/shared/OfferDishes'
@@ -82,6 +83,10 @@ export default function ChefOffersPage() {
     >
       <div className="space-y-5">
         <ApprovalGate quoi="Vos réponses aux demandes partent" />
+
+        <div className="flex justify-end">
+          <ProposerPrestation />
+        </div>
 
         <Card title={`Demandes à traiter (${toAnswer.length})`}>
           {quotes.isPending ? (

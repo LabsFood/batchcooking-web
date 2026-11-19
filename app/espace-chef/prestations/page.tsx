@@ -28,7 +28,6 @@ import {
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
-import ProposerPrestation from '@/components/chef/ProposerPrestation'
 import DocDialog from '@/components/chef/documents/DocDialog'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import DatePicker from '@/components/shared/DatePicker'
@@ -163,10 +162,6 @@ export default function ChefMissionsPage() {
           </Card>
         ) : (
           <>
-            <div className="flex justify-end">
-              <ProposerPrestation />
-            </div>
-
             <Onglets
               label="Filtrer les prestations"
               value={filter}
