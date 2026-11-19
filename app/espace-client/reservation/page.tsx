@@ -118,7 +118,8 @@ function ReservationFlow() {
     const trouve = filters.menus.find((m) => m.chef.id === chefParam)
     if (trouve) {
       setChef(trouve)
-      if (initialMeals.length > 0) setStep('infos')
+      // Les plats arrivent cochés, la formule reste à choisir : la carte s'ouvre dessus.
+      if (initialMeals.length > 0) setOpenMenu(trouve)
     }
   }
 
@@ -185,14 +186,19 @@ function ReservationFlow() {
   const platsHorsFormule =
     platsFixes != null && selectedMeals.length > 0 && selectedMeals.length !== platsFixes
 
-  /* La première offre est pré-choisie : un client qui ne change rien a déjà
-     un prix et une durée valides. */
-  const [offrePrete, setOffrePrete] = useState<string | null>(null)
-  if (offres.length > 0 && offrePrete !== chef?.chef.id) {
-    setOffrePrete(chef?.chef.id ?? null)
-    setOfferId(offres[0].id)
-    setCoursesParMoi(!offres[0].shoppingIncluded)
-    if (offres[0].mealsIncluded) setExtraMeals(0)
+  /* La formule se choisit dans la carte, avant les plats : son nombre de plats
+     borne la sélection, sans aller-retour. Rien n'est pré-choisi. Une formule
+     d'un autre chef ne compte pas ici. */
+  const ficheCarte = useChefPublic(openMenu?.chef.id)
+  const offresCarte = ficheCarte.data?.serviceOffers ?? []
+  const offreCarte = offresCarte.find((o) => o.id === offerId) ?? null
+  const pickOffer = (o: PublicServiceOffer) => {
+    setOfferId(o.id)
+    setCoursesParMoi(!o.shoppingIncluded)
+    // Une formule à plats fixes ne vend pas de plat en plus.
+    if (o.mealsIncluded) setExtraMeals(0)
+    setCreneauIso('')
+    setSlot('')
   }
 
   /*
@@ -236,7 +242,6 @@ function ReservationFlow() {
   const chooseChef = (menu: WeekCard, dishes: string[]) => {
     setChef(menu)
     setSelectedMeals(dishes)
-    setOffrePrete(null)
     setOpenMenu(null)
     setStep('infos')
   }
@@ -440,65 +445,30 @@ function ReservationFlow() {
                 <Field label="Formule">
                   {fiche.isPending ? (
                     <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
-                  ) : offres.length === 0 ? (
-                    <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
-                      <p className="text-[13px] leading-relaxed text-navy">
-                        {chef?.chef.displayName ?? 'Ce batch cooker'} n’a pas encore
-                        publié ses formules : il n’est pas réservable en ligne.
-                      </p>
-                      <Link
-                        href="/espace-client/personnalisation"
-                        className="btn btn-outline mt-3 text-xs"
+                  ) : offre ? (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber-soft p-3.5">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-navy">{offre.name}</span>
+                        <span className="mt-0.5 block text-[11px] text-ink-soft">
+                          {offerSummary(offre)}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => chef && openCarte(chef)}
+                        className="btn btn-outline shrink-0 text-xs"
                       >
-                        Faire une demande sur mesure
-                        <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-                      </Link>
+                        Changer
+                      </button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {offres.map((o) => {
-                        const choisie = o.id === offerId
-                        return (
-                          <button
-                            key={o.id}
-                            type="button"
-                            onClick={() => {
-                              setOfferId(o.id)
-                              setCoursesParMoi(!o.shoppingIncluded)
-                              // Une formule à plats fixes ne vend pas de plat en plus.
-                              if (o.mealsIncluded) setExtraMeals(0)
-                              setCreneauIso('')
-                              setSlot('')
-                            }}
-                            aria-pressed={choisie}
-                            className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${choisie
-                              ? 'border border-amber/40 bg-amber-soft'
-                              : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
-                              }`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-sm font-semibold text-navy">
-                                {o.name}
-                              </span>
-                              <span className="mt-0.5 block text-[11px] text-ink-soft">
-                                {offerSummary(o)}
-                              </span>
-                            </span>
-                            <Prix
-                              apresCredit={
-                                regles
-                                  ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
-                                  : null
-                              }
-                              total={offerEuros(o.priceCents)}
-                              taille="sm"
-                              align="right"
-                              className="shrink-0"
-                            />
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => (chef ? openCarte(chef) : setStep('chef'))}
+                      className="btn btn-outline text-xs"
+                    >
+                      Choisir une formule
+                    </button>
                   )}
                   {platsHorsFormule && platsFixes != null && (
                     <p className="mt-2 flex items-start gap-2 rounded-2xl border border-amber/40 bg-amber-soft/50 px-3.5 py-2.5 text-[12px] leading-relaxed text-navy">
@@ -863,28 +833,117 @@ function ReservationFlow() {
         selected={selectedMeals}
         onSelectedChange={setSelectedMeals}
         dietLabel={dietLabel}
+        /* La formule fixe le nombre de plats : rien à cocher avant de l'avoir
+           choisie. Une formule d'avant le 19/11 (sans nombre) laisse libre. */
+        maxDishes={offreCarte ? (offreCarte.mealsIncluded ?? MAX_DISHES) : 0}
+        renderBeforeDishes={(menu) => (
+          <FormulePicker
+            chefName={menu.chef.displayName}
+            loading={ficheCarte.isPending}
+            offres={offresCarte}
+            chosenId={offreCarte?.id ?? null}
+            onPick={pickOffer}
+            regles={regles}
+          />
+        )}
         renderAction={({ menu, selected }) => {
-          /* La formule déjà retenue chez ce chef fixe le nombre de plats : la
-             carte le compte, et ne laisse pas en cocher davantage. */
-          const fixe = chef?.chef.id === menu.chef.id ? platsFixes : null
-          const max = fixe ?? MAX_DISHES
+          const fixe = offreCarte?.mealsIncluded ?? null
+          const max = offreCarte ? (fixe ?? MAX_DISHES) : 0
+          const horsFormule = fixe != null && selected.length > 0 && selected.length !== fixe
           return (
             <button
               type="button"
               onClick={() => chooseChef(menu, selected)}
-              disabled={selected.length > max}
+              disabled={!offreCarte || selected.length > max || horsFormule}
               className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
             >
-              {selected.length > max
-                ? `${platsLabel(max)} au plus`
-                : fixe != null
-                  ? `${selected.length}/${platsLabel(fixe)} · Continuer`
-                  : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
+              {!offreCarte
+                ? 'Choisissez une formule'
+                : selected.length > max
+                  ? `${platsLabel(max)} au plus`
+                  : fixe != null
+                    ? `${selected.length}/${platsLabel(fixe)} · Continuer`
+                    : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
               <ArrowRight className="icon-arrow h-3.5 w-3.5" />
             </button>
           )
         }}
       />
+    </div>
+  )
+}
+
+/** Les formules d'un chef, en tête de sa carte : elles fixent combien de plats cocher. */
+function FormulePicker({
+  chefName,
+  loading,
+  offres,
+  chosenId,
+  onPick,
+  regles,
+}: {
+  chefName: string
+  loading: boolean
+  offres: PublicServiceOffer[]
+  chosenId: string | null
+  onPick: (o: PublicServiceOffer) => void
+  regles: ReturnType<typeof usePricingRules>['data']
+}) {
+  return (
+    <div className="mb-6">
+      <p className="mb-2 text-sm font-semibold text-navy">1. Choisissez votre formule</p>
+      {loading ? (
+        <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
+      ) : offres.length === 0 ? (
+        <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
+          <p className="text-[13px] leading-relaxed text-navy">
+            {chefName} n’a pas encore publié ses formules : il n’est pas réservable en ligne.
+          </p>
+          <Link href="/espace-client/personnalisation" className="btn btn-outline mt-3 text-xs">
+            Faire une demande sur mesure
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          {offres.map((o) => {
+            const choisie = o.id === chosenId
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => onPick(o)}
+                aria-pressed={choisie}
+                className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${choisie
+                  ? 'border border-amber/40 bg-amber-soft'
+                  : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
+                  }`}
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-navy">{o.name}</span>
+                  <span className="mt-0.5 block text-[11px] text-ink-soft">{offerSummary(o)}</span>
+                </span>
+                <Prix
+                  apresCredit={
+                    regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+                  }
+                  total={offerEuros(o.priceCents)}
+                  taille="sm"
+                  align="right"
+                  className="shrink-0"
+                />
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <p className="mt-2 text-[12px] text-ink-soft">
+        Plus de plats que la formule ? C’est une{' '}
+        <Link href="/espace-client/personnalisation" className="underline underline-offset-2 hover:text-navy">
+          demande sur mesure
+        </Link>
+        .
+      </p>
     </div>
   )
 }

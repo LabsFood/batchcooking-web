@@ -32,6 +32,7 @@ import {
 import {
   OFFER_LIMITS,
   offerDuration,
+  DEFAULT_OFFER_MINUTES,
   offerError,
   offerEuros,
   platsLabel,
@@ -68,7 +69,6 @@ const DUREES = [120, 150, 180, 240, 300, 360]
 const VIDE: ServiceOfferInput = {
   name: '',
   description: '',
-  durationMinutes: 180,
   priceCents: 15000,
   shoppingIncluded: true,
   shoppingFeeCents: 1500,
@@ -466,8 +466,27 @@ function OfferForm({
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <span className="mb-1 block text-xs text-ink-soft">Durée sur place</span>
+          <span className="mb-1 flex items-center gap-1 text-xs text-ink-soft">
+            Créneau bloqué (facultatif)
+            <InfoPopover label="À quoi sert la durée ?">
+              Elle réserve le temps dans votre agenda quand un client prend cette
+              formule. Le client ne la voit pas sur la carte. Sans durée, on
+              bloque {offerDuration(DEFAULT_OFFER_MINUTES)}.
+            </InfoPopover>
+          </span>
           <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => set('durationMinutes', undefined)}
+              aria-pressed={value.durationMinutes == null}
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                value.durationMinutes == null
+                  ? 'border-navy bg-navy text-white'
+                  : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
+              }`}
+            >
+              Par défaut
+            </button>
             {DUREES.map((d) => (
               <button
                 key={d}
@@ -489,13 +508,16 @@ function OfferForm({
             min={OFFER_LIMITS.durationMin}
             max={OFFER_LIMITS.durationMax}
             step={15}
-            value={value.durationMinutes}
-            onChange={(e) => set('durationMinutes', Number(e.target.value))}
+            value={value.durationMinutes ?? ''}
+            onChange={(e) =>
+              set('durationMinutes', e.target.value === '' ? undefined : Number(e.target.value))
+            }
+            placeholder={String(DEFAULT_OFFER_MINUTES)}
             aria-label="Durée en minutes"
             className="input-base mt-2 py-2"
           />
           <span className="mt-1 block text-xs text-ink-soft">
-            En minutes, de 30 à 720.
+            En minutes, de 30 à 720. Vide : {offerDuration(DEFAULT_OFFER_MINUTES)}.
           </span>
         </div>
 
@@ -639,8 +661,7 @@ function Apercu({
         {offre.name.trim() || 'Votre offre'}
       </p>
       <p className="mt-0.5 text-xs text-white/60">
-        {offre.mealsIncluded ? `${platsLabel(offre.mealsIncluded)} · ` : ''}
-        {offerDuration(offre.durationMinutes)} sur place
+        {offre.mealsIncluded ? platsLabel(offre.mealsIncluded) : 'Nombre de plats à indiquer'}
       </p>
 
       <p className="tabular-nums mt-3 font-display text-3xl font-bold">{offerEuros(total)}</p>

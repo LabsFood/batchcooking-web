@@ -30,7 +30,10 @@ export interface ServiceOffer {
   id: string
   name: string
   description: string | null
-  /** 30 à 720 — c'est elle qui découpe l'agenda en créneaux. */
+  /**
+   * 30 à 720 : le créneau bloqué dans l'agenda. Le client ne la lit pas sur
+   * la carte de la formule. Sans durée saisie, l'API en met 240.
+   */
   durationMinutes: number
   /** Prix client, en centimes. */
   priceCents: number
@@ -50,7 +53,8 @@ export interface ServiceOffer {
 export interface ServiceOfferInput {
   name: string
   description?: string | null
-  durationMinutes: number
+  /** Facultative : omise, l'API bloque `DEFAULT_OFFER_MINUTES`. */
+  durationMinutes?: number
   priceCents: number
   shoppingIncluded?: boolean
   shoppingFeeCents?: number
@@ -72,6 +76,9 @@ export const OFFER_LIMITS = {
 /** « 1 plat », « 3 plats ». */
 export const platsLabel = (n: number) => `${n} plat${n > 1 ? 's' : ''}`
 
+/** Le créneau que l'API bloque quand le chef ne donne pas de durée. */
+export const DEFAULT_OFFER_MINUTES = 240
+
 /** Le nom que l'API se réserve pour ses propres offres. */
 export const RESERVED_OFFER_NAME = 'Prestation sur-mesure'
 
@@ -84,7 +91,10 @@ export function offerError(o: ServiceOfferInput): string | null {
   if (o.name.trim().toLowerCase() === RESERVED_OFFER_NAME.toLowerCase()) {
     return `« ${RESERVED_OFFER_NAME} » est réservé aux devis : choisissez un autre nom.`
   }
-  if (o.durationMinutes < OFFER_LIMITS.durationMin || o.durationMinutes > OFFER_LIMITS.durationMax) {
+  if (
+    o.durationMinutes != null &&
+    (o.durationMinutes < OFFER_LIMITS.durationMin || o.durationMinutes > OFFER_LIMITS.durationMax)
+  ) {
     return 'La durée va de 30 minutes à 12 heures.'
   }
   if (o.priceCents < OFFER_LIMITS.priceMin || o.priceCents > OFFER_LIMITS.priceMax) {
@@ -175,19 +185,17 @@ export const offerEuros = (cents: number) =>
   (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 
 /**
- * Une formule en une ligne, comme sur le formulaire de Lab's Food : les plats
- * d'abord, puis la durée et les courses. « 3 plats · 3 h sur place · forfait
- * courses 15,00 € ».
+ * Une formule en une ligne, comme le client la lit : les plats, puis les
+ * courses. « 3 plats · forfait courses 15,00 € ». La durée n'y est pas : elle
+ * ne sert qu'à bloquer le créneau.
  */
 export const offerSummary = (o: {
   mealsIncluded?: number | null
-  durationMinutes: number
   shoppingIncluded: boolean
   shoppingFeeCents: number
 }) =>
   [
     o.mealsIncluded ? platsLabel(o.mealsIncluded) : null,
-    `${offerDuration(o.durationMinutes)} sur place`,
     o.shoppingIncluded
       ? o.shoppingFeeCents > 0
         ? `forfait courses ${offerEuros(o.shoppingFeeCents)}`

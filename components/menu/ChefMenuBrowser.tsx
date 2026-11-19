@@ -1324,6 +1324,8 @@ export function MenuDialog({
   selected: controlled,
   onSelectedChange,
   dietLabel,
+  renderBeforeDishes,
+  maxDishes = MAX_DISHES,
 }: {
   menu: WeekCard | null
   onClose: () => void
@@ -1337,19 +1339,23 @@ export function MenuDialog({
   selected?: string[]
   onSelectedChange?: (ids: string[]) => void
   dietLabel: (code: string) => string
+  /** Au-dessus des plats : la réservation y fait choisir la formule d'abord. */
+  renderBeforeDishes?: (menu: WeekCard) => ReactNode
+  /** Plats cochables. La formule retenue le fixe ; `0` tant qu'aucune ne l'est. */
+  maxDishes?: number
 }) {
   const [own, setOwn] = useState<string[]>([])
   const selected = controlled ?? own
   const setSelected = (ids: string[]) => (onSelectedChange ?? setOwn)(ids)
 
   const dishes = menu?.dishes ?? []
-  const full = selected.length >= MAX_DISHES
+  const full = selected.length >= maxDishes
 
   const toggle = (id: string) =>
     setSelected(
       selected.includes(id)
         ? selected.filter((x) => x !== id)
-        : selected.length < MAX_DISHES
+        : selected.length < maxDishes
           ? [...selected, id]
           : selected,
     )
@@ -1409,10 +1415,14 @@ export function MenuDialog({
                       </p>
                     )}
 
+                    {renderBeforeDishes?.(menu)}
+
                     <p className="mb-3 text-sm font-semibold text-navy">
                       Choisissez vos plats
                       <span className="ml-2 font-normal text-ink-soft">
-                        {selected.length} / {MAX_DISHES} selon votre formule
+                        {maxDishes === 0
+                          ? 'choisissez d’abord votre formule'
+                          : `${selected.length} / ${maxDishes} selon votre formule`}
                       </span>
                     </p>
 
