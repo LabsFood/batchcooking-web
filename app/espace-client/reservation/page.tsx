@@ -228,6 +228,12 @@ function ReservationFlow() {
       ]
     : []
   const reservable = moyens.data?.card !== false
+  /*
+   * Un moyen choisi chez un batch cooker peut ne pas exister chez le suivant
+   * (le CESU, l'URSSAF) : l'API refuserait alors la demande. On retombe sur le
+   * premier moyen proposé. Ajustement pendant le rendu, pas dans un effet.
+   */
+  if (offerts.length > 0 && !offerts.includes(moyen)) setMoyen(offerts[0])
   // CGV V1 (art. 5.1) : trois cases séparées, jamais cochées d'avance.
   const terms = profil.data?.contractTerms
   const [ticks, setTicks] = useState<Ticks>({})
@@ -787,56 +793,83 @@ function ReservationFlow() {
                   </ol>
                 </div>
 
-                <fieldset className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-4">
-                  <legend className="px-1 font-display text-base font-bold text-navy">
+                {/*
+                  Le même choix que la formule : une ligne par moyen, le moyen retenu
+                  se reconnaît à son cadre marine et à sa pastille pleine. Le bouton
+                  radio natif reste dessous, pour le clavier et les lecteurs d'écran.
+                */}
+                <fieldset className="panel p-4 sm:p-5">
+                  <legend className="sr-only">Comment paierez-vous ?</legend>
+                  <p aria-hidden className="font-display text-base font-bold text-navy">
                     Comment paierez-vous ?
-                  </legend>
+                  </p>
                   {moyens.isPending && chef ? (
-                    <p className="mt-2 text-[13px] text-ink-soft">Chargement…</p>
+                    <div role="status" aria-busy="true" className="mt-3 space-y-2">
+                      <span className="sr-only">Chargement des moyens de paiement</span>
+                      {[0, 1].map((i) => (
+                        <div
+                          key={i}
+                          aria-hidden
+                          className="h-16 animate-pulse rounded-xl bg-cream-deep motion-reduce:animate-none"
+                        />
+                      ))}
+                    </div>
                   ) : !reservable ? (
-                    <p className="mt-2 text-[13px] text-ink-mid">
+                    <p className="mt-2 text-sm leading-relaxed text-ink-mid">
                       Ce batch cooker ne peut pas encore recevoir de paiement :
                       réservation impossible pour le moment.
                     </p>
                   ) : (
-                    <div className="mt-2 space-y-2">
-                      {offerts.map((m) => (
-                        <label
-                          key={m}
-                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 text-[13px] ${
-                            moyen === m
-                              ? 'border-amber bg-amber-soft/40'
-                              : 'border-[rgba(31,42,55,0.08)]'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="moyen"
-                            value={m}
-                            checked={moyen === m}
-                            onChange={() => setMoyen(m)}
-                            className="mt-0.5"
-                          />
-                          <span>
-                            <span className="flex items-center gap-1.5 font-semibold text-navy">
-                              {m === 'cb' ? (
-                                <CreditCard className="h-4 w-4" aria-hidden />
-                              ) : (
-                                <Wallet className="h-4 w-4" aria-hidden />
-                              )}
-                              {PAYMENT_METHOD_LABEL[m]}
+                    <div className="mt-3 space-y-2">
+                      {offerts.map((m) => {
+                        const choisi = moyen === m
+                        return (
+                          <label
+                            key={m}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-paper px-4 py-3 transition-colors ${
+                              choisi
+                                ? 'border-navy shadow-[inset_0_0_0_1px_var(--navy)]'
+                                : 'border-[var(--line-strong)] hover:border-[rgba(31,42,55,0.32)]'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="moyen"
+                              value={m}
+                              checked={choisi}
+                              onChange={() => setMoyen(m)}
+                              className="peer sr-only"
+                            />
+                            <span
+                              aria-hidden
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-amber-deep peer-focus-visible:ring-offset-2 ${
+                                choisi ? 'border-navy bg-navy text-white' : 'border-[var(--line-strong)]'
+                              }`}
+                            >
+                              {choisi && <Check className="h-3 w-3" strokeWidth={3} />}
                             </span>
-                            <span className="block text-ink-mid">
-                              {m === 'cb'
-                                ? 'Prélevée automatiquement à la fin de la session.'
-                                : m === 'avance_immediate'
-                                  ? 'Vous ne payez que 50 % : l’URSSAF prélève votre part après la session. Un rattachement à ce batch cooker est demandé s’il n’existe pas.'
-                                  : 'Vous déclarez vos titres après la session ; sans déclaration sous 48 h, le reste est prélevé sur votre carte.'}
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-1.5 text-sm font-semibold text-navy">
+                                {m === 'cb' ? (
+                                  <CreditCard className="h-4 w-4 text-ink-soft" aria-hidden />
+                                ) : (
+                                  <Wallet className="h-4 w-4 text-ink-soft" aria-hidden />
+                                )}
+                                {PAYMENT_METHOD_LABEL[m]}
+                              </span>
+                              <span className="mt-0.5 block text-xs leading-relaxed text-ink-mid">
+                                {m === 'cb'
+                                  ? // CGV 7.3 : une session à moins de 48 h est prélevée dès l'acceptation.
+                                    'Prélevée à la fin de la session, ou dès que le batch cooker accepte si la session a lieu dans moins de 48 heures.'
+                                  : m === 'avance_immediate'
+                                    ? 'Vous ne payez que 50 % : l’URSSAF prélève votre part après la session. Un rattachement à ce batch cooker est demandé s’il n’existe pas.'
+                                    : 'Vous déclarez vos titres après la session ; sans déclaration sous 48 h, le reste est prélevé sur votre carte.'}
+                              </span>
                             </span>
-                          </span>
-                        </label>
-                      ))}
-                      <p className="flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
+                          </label>
+                        )
+                      })}
+                      <p className="flex items-start gap-2 pt-1 text-xs leading-relaxed text-ink-soft">
                         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                         Une carte est enregistrée dans tous les cas (CGV, article 7.2) :
                         elle sert aux courses, aux éventuels frais d’annulation, et de

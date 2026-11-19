@@ -261,7 +261,7 @@ function ContactNotice() {
     <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-soft px-3 py-2 text-xs text-ink-mid">
       <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-soft" aria-hidden />
       <span>
-        Tout les échanges se passent ici.
+        Tous les échanges se passent ici.
       </span>
     </p>
   )
