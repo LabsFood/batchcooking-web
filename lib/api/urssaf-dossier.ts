@@ -11,7 +11,7 @@ import { useMeKey } from './keys'
    Ce que l'URSSAF demande avant de pouvoir avancer le crédit d'impôt : état
    civil, lieu de naissance, coordonnées et compte bancaire. L'API le chiffre
    avant de le ranger ; Lab's Food le saisit pour le client sur l'espace de la
-   coopérative (Unipros). L'IBAN ne revient jamais : seulement ses 4 derniers
+   coopérative. L'IBAN ne revient jamais : seulement ses 4 derniers
    chiffres (`ibanLast4`), et il se redonne à chaque modification.
    ───────────────────────────────────────────────────────────────────────────── */
 

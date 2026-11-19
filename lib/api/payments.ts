@@ -40,8 +40,6 @@ export interface MethodOption {
   dueNowCents: number
   /** Avance immédiate : ce que l'URSSAF prélèvera ensuite sur son compte. */
   debitedLaterCents?: number
-  /** Avance immédiate, voie manuelle : la coopérative par laquelle elle passe (« Unipros »). */
-  intermediary?: string
   maxCesuCents?: number
   /** Le numéro avec lequel le client paie son batch cooker chez son émetteur. */
   crcesuNan?: string | null

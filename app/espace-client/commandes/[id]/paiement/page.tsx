@@ -511,9 +511,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
               <div className="mt-5 rounded-2xl bg-white/10 p-4 text-[13px] leading-relaxed">
                 <p>
                   Vous confirmez que la prestation du {longDate(data.startsAt)} a bien eu lieu.{' '}
-                  {chosen?.intermediary
-                    ? `Lab’s Food transmet la demande à l’URSSAF par ${chosen.intermediary} : rien n’est encaissé ici.`
-                    : 'La demande part à l’URSSAF : rien n’est encaissé ici.'}
+                  Lab’s Food s’occupe de l’inscription et de la gestion administrative de la demande : rien n’est encaissé ici.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button onClick={confirmAdvance} disabled={pending} className="btn btn-amber flex-1 justify-center text-xs disabled:opacity-60">
@@ -561,11 +559,7 @@ function MethodCard({
   children?: React.ReactNode
 }) {
   const spec = PAYMENT_METHODS[option.id]
-  // Voie manuelle : la coopérative par laquelle passe l'avance est nommée.
-  const label =
-    option.id === 'urssaf' && option.intermediary
-      ? `${spec.label} (crédit d’impôt 50 %) par ${option.intermediary}`
-      : spec.label
+  const label = option.id === 'urssaf' ? `${spec.label} (crédit d’impôt 50 %)` : spec.label
   const Icon = METHOD_ICON[option.id]
   return (
     <div>

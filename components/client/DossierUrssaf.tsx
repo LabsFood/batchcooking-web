@@ -183,7 +183,7 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
             Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de suite :
             l’URSSAF ne prélève que le reste, sur le compte indiqué ici, et règle votre
             batch cooker directement. Pour vous inscrire auprès d’elle, Lab’s Food saisit
-            ces informations pour vous sur l’espace de sa coopérative, Unipros.
+            cette demande pour vous.
           </InfoPopover>
         </h2>
         <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
