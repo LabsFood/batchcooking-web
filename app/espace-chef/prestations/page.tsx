@@ -1089,8 +1089,8 @@ function RescheduleCard({
 /**
  * Plats dressés, contenants étiquetés, cuisine rendue.
  *
- * Même trio que partout ailleurs, et 5 Mo au plus — moitié moins que les
- * pièces jointes de messagerie. Elles accompagnent le compte rendu du client.
+ * Même trio que partout ailleurs, et la même compression avant l'envoi
+ * (`optimize-photo.ts`). Elles accompagnent le compte rendu du client.
  */
 function PhotosCard({ booking: m }: { booking: Booking }) {
   const toast = useToast()
@@ -1150,7 +1150,7 @@ function PhotosCard({ booking: m }: { booking: Booking }) {
       />
       <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
         Plats dressés, contenants étiquetés, cuisine rendue : elles accompagnent
-        le compte rendu du client. JPG, PNG ou WebP, 5 Mo au plus.
+        le compte rendu du client. JPG, PNG ou WebP, 20 Mo au plus.
       </p>
 
       {erreur && (
