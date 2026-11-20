@@ -1,10 +1,12 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import BrandGuidelines from '@/components/shared/BrandGuidelines'
 
-export const metadata: Metadata = {
-  title: 'Charte Graphique',
-  description: "Identité visuelle Lab's Food — couleurs, typographie, usage par branche.",
-}
+export const metadata = pageMetadata({
+  title: 'Charte graphique',
+  description: "Identité visuelle Lab's Food : couleurs, typographie, usage par branche.",
+  path: '/brand',
+  noIndex: true,
+})
 
 export default function BrandPage() {
   return (
