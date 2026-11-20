@@ -18,6 +18,7 @@ import { FRANCE_INSEE, PAYS_NAISSANCE } from '@/lib/client/insee-countries'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import CityField from '@/components/chef/application/CityField'
 import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
+import { useToast } from '@/components/shared/Toaster'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le dossier URSSAF : ce que l'avance immédiate demande, une fois.
@@ -130,6 +131,7 @@ export default function DossierUrssaf() {
 function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form }) {
   const save = useSaveUrssafDossier()
   const remove = useDeleteUrssafDossier()
+  const toast = useToast()
   const [form, setForm] = useState<Form>(initial)
   const [enregistre, setEnregistre] = useState(false)
   const [aSupprimer, setASupprimer] = useState(false)
@@ -163,7 +165,10 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
         onSuccess: () => {
           setEnregistre(true)
           setForm((f) => ({ ...f, iban: '' }))
+          toast.success('Votre dossier est enregistré')
         },
+        // Le détail reste sous les champs concernés ; le toast dit que ça n'est pas parti.
+        onError: () => toast.error('Votre dossier n’a pas été enregistré', 'Le détail est sous le formulaire.'),
       },
     )
   }
@@ -440,7 +445,11 @@ function Formulaire({ mine, initial }: { mine: MyUrssafDossier; initial: Form })
               <button
                 onClick={() =>
                   remove.mutate(undefined, {
-                    onSuccess: () => setASupprimer(false),
+                    onSuccess: () => {
+                      setASupprimer(false)
+                      toast.success('Votre dossier est supprimé')
+                    },
+                    onError: () => toast.error('Votre dossier n’a pas été supprimé', 'Réessayez dans un instant.'),
                   })
                 }
                 disabled={remove.isPending}

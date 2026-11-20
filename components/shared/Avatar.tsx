@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
 import { Camera, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/shared/Toaster'
 import { useMe } from '@/lib/api/me'
 import {
   AVATAR_MUTATION,
@@ -121,6 +122,7 @@ export function AvatarButtons({
   const me = useMe()
   const envoi = useUploadAvatar()
   const retrait = useRemoveAvatar()
+  const toast = useToast()
   const champ = useRef<HTMLInputElement>(null)
   const champId = useId()
   const [erreur, setErreur] = useState<string | null>(null)
@@ -140,6 +142,7 @@ export function AvatarButtons({
     envoi.mutate(file, {
       onSuccess: () => {
         if (champ.current) champ.current.value = ''
+        toast.success('Votre photo est enregistrée')
       },
       onError: (e) => setErreur(photoMessage(e)),
     })
@@ -176,6 +179,7 @@ export function AvatarButtons({
             type="button"
             onClick={() =>
               retrait.mutate(undefined, {
+                onSuccess: () => toast.success('Votre photo est retirée'),
                 onError: (e) => setErreur(photoMessage(e)),
               })
             }

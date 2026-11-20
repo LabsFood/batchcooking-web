@@ -3,13 +3,13 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowRight, ChefHat, Info } from 'lucide-react'
+import { ArrowRight, Info } from 'lucide-react'
 import {
   MenuCard,
   MenuDialog,
   MenuFilterButton,
   MenuFilterDrawer,
-  MenuFilterSidebar,
+  MenuFilterToolbar,
   MenusError,
   MenusLoading,
   NoMenus,
@@ -22,7 +22,11 @@ import { useDiets } from '@/lib/api/referentials'
    Menus et plats, côté client connecté.
 
    C'est la page `/menu` du site, à l'intérieur du tableau de bord : même
-   composant de parcours, même colonne de filtres, mêmes cartes. Elle en
+   composant de parcours, même barre de filtres, mêmes cartes.
+
+   Les filtres sont une barre au-dessus des résultats (un tiroir sous `lg`) :
+   en colonne, un calendrier qu'on touche une fois prenait un tiers de la
+   largeur et serrait les cartes à deux. Elle en
    différait par un bandeau et une barre de filtres horizontale — ce qui
    revenait à faire découvrir deux fois le même écran à la même personne,
    avant et après connexion.
@@ -66,11 +70,11 @@ function DashboardMenusInner() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10">
-        <MenuFilterSidebar filters={filters} className="lg:self-start" />
+      <MenuFilterToolbar filters={filters} className="hidden lg:flex" />
 
+      <div>
         <div>
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="font-display text-2xl font-bold leading-tight text-navy">
                 {periode}
@@ -102,7 +106,7 @@ function DashboardMenusInner() {
               </Link>
             </NoMenus>
           ) : (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
               {menus.map((menu, i) => (
                 <MenuCard
                   key={menu.chef.id}
@@ -119,20 +123,22 @@ function DashboardMenusInner() {
           )}
 
           {/* Demande sur-mesure : la même porte de sortie que sur le site. */}
-          <div className="mt-12 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-8 text-center">
-            <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
-              <ChefHat className="h-6 w-6 text-amber-ink" aria-hidden />
-            </span>
-            <h2 className="mb-2 font-display text-xl font-bold text-navy">
-              Aucune carte ne vous ressemble ?
-            </h2>
-            <p className="mx-auto mb-5 max-w-md text-sm leading-relaxed text-ink-mid">
-              Décrivez vos envies, vos allergies et votre budget : les batch cookers
-              disponibles vous répondent avec une proposition chiffrée.
-            </p>
-            <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs whitespace-normal text-balance">
-              Faire une demande sur mesure
-              <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          <div className="mt-12 flex flex-col gap-5 rounded-3xl bg-navy p-6 text-white sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+            <div className="max-w-xl">
+              <h2 className="font-display text-xl font-bold leading-tight sm:text-2xl">
+                Aucune carte ne vous ressemble ?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">
+                Décrivez vos envies, vos allergies et votre budget : les batch cookers
+                disponibles vous répondent avec une proposition chiffrée.
+              </p>
+            </div>
+            <Link
+              href="/espace-client/personnalisation"
+              className="btn btn-amber shrink-0 self-start lg:self-auto"
+            >
+              Faire une demande sur-mesure
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>

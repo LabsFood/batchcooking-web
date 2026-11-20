@@ -11,6 +11,7 @@ import { AvatarButtons, AvatarPending } from '@/components/shared/Avatar'
 import { ApiError } from '@/lib/api/client'
 import type { ClientProfile, ClientProfilePatch } from '@/lib/api/types'
 import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
+import { useToast } from '@/components/shared/Toaster'
 
 const SUGGEST = {
   diets: ['Végétarien', 'Vegan', 'Sans-porc', 'Sans-bœuf', 'Halal', 'Casher', 'Sans-gluten', 'Sans-lactose'],
@@ -118,6 +119,7 @@ function ProfileForm({
   const { user } = useAuth()
   const me = useMe()
   const update = useUpdateMeProfile()
+  const toast = useToast()
   const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
   /* Politique de confidentialité V1 §5 : les régimes peuvent révéler la santé ou
      la religion. Ils ne s'enregistrent qu'avec le consentement à la version en
@@ -147,7 +149,10 @@ function ProfileForm({
       householdKids: Math.min(20, Math.max(0, prefs.household.kids)),
       ...(consentRegimes && consent ? { consent: true, consentVersion: consent.version } : {}),
     }
-    update.mutate(patch)
+    update.mutate(patch, {
+      onSuccess: () => toast.success('Vos goûts sont enregistrés'),
+      onError: () => toast.error('Vos goûts n’ont pas été enregistrés', 'Réessayez dans un instant.'),
+    })
   }
 
   return (
