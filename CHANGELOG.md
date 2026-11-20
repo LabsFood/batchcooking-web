@@ -1,3 +1,117 @@
+## [1.5.0](https://github.com/LabsFood/batchcooking-web/compare/v1.4.0...v1.5.0) (2026-11-20)
+
+### Features
+
+* add mealsIncluded feature to service offers and update related components ([7fe2b99](https://github.com/LabsFood/batchcooking-web/commit/7fe2b993235200167fbcd06c513df73c6e9465cb))
+* add withdrawal settings component and integrate retraction functionality in user settings ([fd384ad](https://github.com/LabsFood/batchcooking-web/commit/fd384ad25c33e310065016e407f6a0abc3048194))
+* **chef:** Proposer une prestation moves to Offres sur-mesure, no address to type ([6032f7e](https://github.com/LabsFood/batchcooking-web/commit/6032f7e4f6c2ac53af9e4f9f6a53ef3293aa582a))
+* **compte:** un toast à chaque sauvegarde de Mon compte ([f63f3a5](https://github.com/LabsFood/batchcooking-web/commit/f63f3a51e4d9d5148e6283f0bbd297a5bbffa0e9))
+* **espace-chef:** le batch cooker approuvé modifie ses zones d'intervention ([e4ae8d7](https://github.com/LabsFood/batchcooking-web/commit/e4ae8d721751dac95d6544f191d7face75dc753d))
+* **espace-client:** add personalized request form and quote management page ([57cbcef](https://github.com/LabsFood/batchcooking-web/commit/57cbcef53eaa26f5fa890598033ee6c9e0ff801e))
+* **espaces:** colonne repliable, globe culinaire, entrées du site clarifiées ([1c3bbfc](https://github.com/LabsFood/batchcooking-web/commit/1c3bbfc4284a1def6205adb8317ce7918e16e0cd))
+* **espaces:** coque commune, accueils et pages de connexion refaits ([868ad74](https://github.com/LabsFood/batchcooking-web/commit/868ad74f4e48af35d5705ff05af5cb241268f80b))
+* **espaces:** la couleur de la marque dans la navigation ([dd2486c](https://github.com/LabsFood/batchcooking-web/commit/dd2486cae0a26cf9a426cc06ed557b9a5fbfe830))
+* **faq:** allergies, liste de courses et fiche recette ([#79](https://github.com/LabsFood/batchcooking-web/issues/79)) ([6722206](https://github.com/LabsFood/batchcooking-web/commit/672220627a2bbc71ba18254eb39506d6e6c79e08))
+* **faq:** remplacer la FAQ par celle validée par l'équipe ([58669e4](https://github.com/LabsFood/batchcooking-web/commit/58669e4bcb149f5292128679f2c16f7b989859e4))
+* implement chefs covering functionality and update request form structure ([6321834](https://github.com/LabsFood/batchcooking-web/commit/6321834a141defdd4842d4cf59cb31cf3b29cb96))
+* **legal:** align the site with the updated CGV V1 front plan ([4a0b9c6](https://github.com/LabsFood/batchcooking-web/commit/4a0b9c6b781eb5de05518d6358dd2ff328245766))
+* **legal:** CGV V1 front (booking boxes, withdrawal, documents, cookies, legal pages) ([db93d52](https://github.com/LabsFood/batchcooking-web/commit/db93d52872945f51aee4caad86f11b2343602089))
+* **menus:** filtres en barre au-dessus des cartes, cartes allégées ([10191e2](https://github.com/LabsFood/batchcooking-web/commit/10191e207f92f10f9819abdd7e2b376145a2f2df))
+* **menu:** un seul calendrier, les formules et les jours libres dans la carte ([3c34c28](https://github.com/LabsFood/batchcooking-web/commit/3c34c283d04fabdf45b5069e94d5f8538029393e))
+* **paiement:** dossier URSSAF du client et avance immédiate par Unipros ([#88](https://github.com/LabsFood/batchcooking-web/issues/88)) ([57cc611](https://github.com/LabsFood/batchcooking-web/commit/57cc6115116c04eba68385f09869fc2debe16ec3)), closes [LF-BackEnd#92](https://github.com/LabsFood/LF-BackEnd/issues/92)
+* **parametres:** sections en lecture, « Modifier » pour les éditer, toast à chaque sauvegarde ([44690d1](https://github.com/LabsFood/batchcooking-web/commit/44690d15a96f6a0f20dd2fea51b832153264853a))
+* **photos:** resize and convert photos to WebP before upload ([6a2b803](https://github.com/LabsFood/batchcooking-web/commit/6a2b8032dac5532e17e8f55b497eb75711ddaafe))
+* **recettes:** « Courses faites », the explained recap and the list reminders ([#84](https://github.com/LabsFood/batchcooking-web/issues/84)) ([e3cd477](https://github.com/LabsFood/batchcooking-web/commit/e3cd4777a127942c3cd9ac9c83229fa50413810c))
+* **recettes:** lot 6 groundwork — advised forfait courses and its name ([#85](https://github.com/LabsFood/batchcooking-web/issues/85)) ([f97908b](https://github.com/LabsFood/batchcooking-web/commit/f97908b72a6d378c5c45c135cef5e66280dff5f2))
+* **recettes:** lot 6, the groceries paid apart on the site ([#92](https://github.com/LabsFood/batchcooking-web/issues/92)) ([a819005](https://github.com/LabsFood/batchcooking-web/commit/a819005133af3f1480ee483d4e139f902e101d54))
+* **recettes:** recipe foundation V4 (lot 2b) and frozen menu (lot 3) ([#83](https://github.com/LabsFood/batchcooking-web/issues/83)) ([3e3d685](https://github.com/LabsFood/batchcooking-web/commit/3e3d68580b72221425dda96d8f4f5341fab60818))
+* **reservation:** CGV V1 request flow — choose the payment method, save the card, chef accepts within 48 h ([#95](https://github.com/LabsFood/batchcooking-web/issues/95)) ([7ac6604](https://github.com/LabsFood/batchcooking-web/commit/7ac6604ef6047bb9ef18c575266cf3be126f6a45)), closes [#97](https://github.com/LabsFood/batchcooking-web/issues/97)
+* **reservation:** pick the formula before the dishes; offer duration optional and off the card ([b68e9db](https://github.com/LabsFood/batchcooking-web/commit/b68e9db978772eb3dea26d3d044f97a96923a611))
+* **sur-mesure:** dishes and menus in an offer, allergy warning, express dishes ([#89](https://github.com/LabsFood/batchcooking-web/issues/89)) ([d7770d6](https://github.com/LabsFood/batchcooking-web/commit/d7770d648eb5b487f8db73cf29a301fcb513963e))
+* **ui:** hero avec prix, squelettes de chargement, guidelines UI/UX et passe anti-slop ([#87](https://github.com/LabsFood/batchcooking-web/issues/87)) ([93314b1](https://github.com/LabsFood/batchcooking-web/commit/93314b1b9823689979e5d2a09396a9836452eaef)), closes [#5F6B7A](https://github.com/LabsFood/batchcooking-web/issues/5F6B7A) [#9A5B00](https://github.com/LabsFood/batchcooking-web/issues/9A5B00)
+
+### Bug Fixes
+
+* **accueil:** remettre le hero d'origine ([416f3a5](https://github.com/LabsFood/batchcooking-web/commit/416f3a5468a91e6c49c7bde86a15f1a8672c2d85))
+* **api:** appeler l'API en direct, sans le relais /lf-api ([18cf536](https://github.com/LabsFood/batchcooking-web/commit/18cf536c106117f52c103685a8d83edd6d7606d1))
+* **client:** la carte culinaire lit /me/culinary-map au lieu des pays simulés ([44189d6](https://github.com/LabsFood/batchcooking-web/commit/44189d68d2dc7e14fdffc032538922818c5ebb0c))
+* **dialogs:** la confirmation posée sur une fiche reste cliquable ([7f641ef](https://github.com/LabsFood/batchcooking-web/commit/7f641efceb6f120f750c04f45995439079a2360c))
+* **espace-chef:** editable grocery list names, suggested from the ingredient base ([0cb6da4](https://github.com/LabsFood/batchcooking-web/commit/0cb6da46d6f56918c50b71bb2e07f6a249683fcc))
+* **espace-chef:** un seul lien « Mes plats » sur la page d’un plat ([530dd43](https://github.com/LabsFood/batchcooking-web/commit/530dd43c623ab921651cde5a0c1eb9fad5318e28))
+* **espace-client:** hide the batch cooker's legal details from the client ([f2e7cd6](https://github.com/LabsFood/batchcooking-web/commit/f2e7cd647f02b6979cf04a1392802f6211dfd322))
+* **espace-client:** règlement en cours and a capture date that may be missing ([0e8954b](https://github.com/LabsFood/batchcooking-web/commit/0e8954badf9602919cca2e982ce505c25cfdc7d3))
+* **footer:** « Comment ça marche ? » sur une ligne ([30ec046](https://github.com/LabsFood/batchcooking-web/commit/30ec046d1d40930ebabb4c38fe5f0b9181f50646))
+* **menus:** les formules d'une carte, et les couleurs des calendriers ([4f466ed](https://github.com/LabsFood/batchcooking-web/commit/4f466ed179777955135a61028c5102c26903ee3b))
+* **posthog:** relay /ingest assets through eu.i.posthog.com ([71075b4](https://github.com/LabsFood/batchcooking-web/commit/71075b4f65e9a79fbe7f391dcb12551b2e681f08))
+* **recettes:** optional shopping lines and the pilotage at the v5 state ([#91](https://github.com/LabsFood/batchcooking-web/issues/91)) ([7fefb9d](https://github.com/LabsFood/batchcooking-web/commit/7fefb9de9571f425bc4ffd7b3913460e73aa1953))
+* **reservation:** le choix de la formule et la carte d'un batch cooker ([7ebca61](https://github.com/LabsFood/batchcooking-web/commit/7ebca6169299f479aeeadb3903c86967cc1a0643))
+* update retraction process instructions for clarity in user settings ([f4912ac](https://github.com/LabsFood/batchcooking-web/commit/f4912acb46317f3195fcf641c07b7e4a76c1c728))
+
+## [1.4.0](https://github.com/LabsFood/batchcooking-web/compare/v1.3.0...v1.4.0) (2026-11-10)
+
+### Features
+
+* add about page and chef space litiges view with layout components and mock data ([6e1b0ee](https://github.com/LabsFood/batchcooking-web/commit/6e1b0ee7fe100f903a317d97c2e73038770f0498))
+* Bien démarrer côté client et mes ingrédients côté chef (LF-0221, BLK-33) ([#76](https://github.com/LabsFood/batchcooking-web/issues/76)) ([e38b95e](https://github.com/LabsFood/batchcooking-web/commit/e38b95e18da2c846666a6f84e61f8d880ac8a83b))
+* **cookies:** le choix des cookies est obligatoire pour continuer ([e46aa7a](https://github.com/LabsFood/batchcooking-web/commit/e46aa7a3f11adbe2c9fd6c3e9be0421b9e1f6255))
+* **espace-chef:** refaire le composeur d'offre sur-mesure ([731fb27](https://github.com/LabsFood/batchcooking-web/commit/731fb27c52e8d90f266df2a63621a6566bcc6993))
+* **espace-client:** prix après crédit d'impôt en tête, accueil et sur-mesure refaits ([81daa6d](https://github.com/LabsFood/batchcooking-web/commit/81daa6d822b0926759d168f90dfb1d97b82fddf1))
+* **espace-client:** retirer l'onglet « Avance immédiate » de Mon compte ([325f6ad](https://github.com/LabsFood/batchcooking-web/commit/325f6ad9386a5853321ef4c4ebca518ef2e85263))
+* **observability:** Sentry errors and consent-gated PostHog analytics ([#71](https://github.com/LabsFood/batchcooking-web/issues/71)) ([29f0193](https://github.com/LabsFood/batchcooking-web/commit/29f01934ed8abd226dfde2923a0ad5992bbe0959)), closes [confidentialite#cookies](https://github.com/LabsFood/confidentialite/issues/cookies)
+* **ui:** donner un sol aux espaces connectés, pour que les cartes s'en détachent ([78cec53](https://github.com/LabsFood/batchcooking-web/commit/78cec53943567ad287af0c2c70c2f3baef4197ac)), closes [#FFFFFF](https://github.com/LabsFood/batchcooking-web/issues/FFFFFF) [#FBFCFD](https://github.com/LabsFood/batchcooking-web/issues/FBFCFD) [#EDF2F7](https://github.com/LabsFood/batchcooking-web/issues/EDF2F7)
+* **ui:** motion polish on buttons, popovers, dialogs and reservation steps ([#69](https://github.com/LabsFood/batchcooking-web/issues/69)) ([a990cac](https://github.com/LabsFood/batchcooking-web/commit/a990caca95a4473a365c25d3428a7a52b212b396))
+* **ui:** multiselect pour les langues, et des listes rangées par ordre alphabétique ([765c003](https://github.com/LabsFood/batchcooking-web/commit/765c003a4c36476e5ae00fcb610d1a5727c8ddbf))
+
+### Bug Fixes
+
+* **auth:** une clé fixe pour les Server Actions (BATCHCOOKING-WEB-1) ([694bce8](https://github.com/LabsFood/batchcooking-web/commit/694bce8c915a91ea72a2b163f2f9223c278fe8d9))
+* **espace-chef:** les deux boutons Stripe ne tiennent plus côte à côte ([c2d0bda](https://github.com/LabsFood/batchcooking-web/commit/c2d0bda80066c40228a8175f1155ca648811a914))
+* **espace-client:** desserrer le pied de carte et le bloc « Quand » ([45528b8](https://github.com/LabsFood/batchcooking-web/commit/45528b86629bc089ea90c88d2bc2570774cb715a))
+* **menu:** le bouton sur-mesure passe à la ligne au lieu d'élargir la page ([29784af](https://github.com/LabsFood/batchcooking-web/commit/29784afcdd5614c24e25fd0b00529a02102a812b))
+* **palette:** ignorer les keydown sans touche (BATCHCOOKING-WEB-2) ([912cc32](https://github.com/LabsFood/batchcooking-web/commit/912cc3242ca8a301a0bf8d90a8d31915cf6b8da4))
+
+## [1.3.0](https://github.com/LabsFood/batchcooking-web/compare/v1.2.0...v1.3.0) (2026-11-04)
+
+### Features
+
+* add Concept, HowItWorks, and Footer components for home page ([22627cd](https://github.com/LabsFood/batchcooking-web/commit/22627cd9e4e43ea5b8c036d502a5d02db48be9d8))
+
+## [1.2.0](https://github.com/LabsFood/batchcooking-web/compare/v1.1.0...v1.2.0) (2026-11-03)
+
+### Features
+
+* add become-chef and client reservation pages with API integration ([da6c70c](https://github.com/LabsFood/batchcooking-web/commit/da6c70cb5639b367f4f421b7e3b2abe54c191939))
+
+## [1.1.0](https://github.com/LabsFood/batchcooking-web/compare/v1.0.0...v1.1.0) (2026-11-03)
+
+### Features
+
+* **accounts:** hints to read before creating an account ([013cccd](https://github.com/LabsFood/batchcooking-web/commit/013cccdf79de93a1c0c00d75ee9f671f04364e6e))
+* add client reservation flow page ([c72b922](https://github.com/LabsFood/batchcooking-web/commit/c72b922a4b8b43e2485adb03e3224db8197e8a9a))
+* add FoodCarousel and HowItWorks homepage components with assets ([4ee9096](https://github.com/LabsFood/batchcooking-web/commit/4ee90962204da0638e7f13a97a982d6707c055d9))
+* add public API referentials hooks and utilities ([bd72471](https://github.com/LabsFood/batchcooking-web/commit/bd724716601b545d4abc9fadf2a8627782099b4f))
+* add responsive Navbar component with authentication and mobile menu ([b87b924](https://github.com/LabsFood/batchcooking-web/commit/b87b9248bc9e1099cb75f4a43c12e70a7bec6e22))
+* **allergies:** replace a dish in conflict after a new allergy ([f98d4b6](https://github.com/LabsFood/batchcooking-web/commit/f98d4b6ebe10f79d22b22fc6195f2c2d69a4b259))
+* **allergies:** show whether a booking's allergies are verified ([43bbc67](https://github.com/LabsFood/batchcooking-web/commit/43bbc67f2268f4743cfd262b89f9de86f74df8cf))
+* **candidature:** mail link when no company, no own SAP and the cooperative declines ([6f7fead](https://github.com/LabsFood/batchcooking-web/commit/6f7fead4a8651100f9db94ef9c27766649dd28f7))
+* **chef:** say the times are private and show the chef's tier ([7a7dc88](https://github.com/LabsFood/batchcooking-web/commit/7a7dc8830af847cc2a1d3bf786ba0f061bb149a4))
+* **courses:** the client answers the shopping list, the batch cooker sends it ([aa76745](https://github.com/LabsFood/batchcooking-web/commit/aa7674537c6f2d84c0ae982212cb4065f845ac3e))
+* **courses:** the client answers the shopping list, the batch cooker sends it ([37129fe](https://github.com/LabsFood/batchcooking-web/commit/37129feaf983e2a5d462e61158621f81617d0eaa))
+* create about page with company story and values ([a77475f](https://github.com/LabsFood/batchcooking-web/commit/a77475ffc0c1f658156a64e95dd3573796a6de7b))
+* Enhance recipe management with new dietary and reheating features ([e6f9f91](https://github.com/LabsFood/batchcooking-web/commit/e6f9f91da8eb214844780ff0c54d6c69e2b1772d))
+* implement chef approval logic and restrict access to certain pages for unverified users ([df5913f](https://github.com/LabsFood/batchcooking-web/commit/df5913f8a9b852577cb1730ade5056fb287289db))
+* **notifications:** show the API notifications at the top of the bell ([51cbd98](https://github.com/LabsFood/batchcooking-web/commit/51cbd98af86c07e88ee53c6d37bd7dc8516362eb))
+* **profil:** declare allergies with consent, or "aucune" ([92d1640](https://github.com/LabsFood/batchcooking-web/commit/92d16406dcad77d8e4f4d13238099634a877a4d7))
+* **reservation:** declare allergies before booking a menu ([8a5c6c7](https://github.com/LabsFood/batchcooking-web/commit/8a5c6c710b967f9fabe3699112a6c08255f25614))
+* **shared:** add hints that stay until they are clicked ([716baea](https://github.com/LabsFood/batchcooking-web/commit/716baea58fb74980e525217c7d011cec8ee48c32))
+* **shared:** add the explanation popover and the reason-code texts ([2c5e9b5](https://github.com/LabsFood/batchcooking-web/commit/2c5e9b5e51a5e87ec754b85ddf404fd731cc17c8))
+* update API and application logic for SAP declarations and commune validation ([8c8bcb0](https://github.com/LabsFood/batchcooking-web/commit/8c8bcb04eebf19ac5b53a8ffa9f1870c7f59e942))
+
+### Bug Fixes
+
+* **espace-chef:** change password and delete account work on the settings page ([903cd6a](https://github.com/LabsFood/batchcooking-web/commit/903cd6aa3151c2f6b64a6cfc74688aae1ab7ffc6))
+* update package-lock.json dependencies ([42d8c66](https://github.com/LabsFood/batchcooking-web/commit/42d8c66bb16c0f8f92edf4eef097873b354435d5))
+
 ## 1.0.0 (2026-10-31)
 
 ### Features
