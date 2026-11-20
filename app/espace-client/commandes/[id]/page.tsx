@@ -447,11 +447,19 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
         <section className="space-y-6 lg:col-span-2">
           {/* ── Plats ──────────────────────────────────────────────────── */}
           <div className="rounded-2xl card-shell p-6">
-            <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
-              <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
-              <span className="ml-auto flex items-center gap-2">
+            {/* Même en-tête que « Liste de courses » plus bas : le titre et le
+                groupe de badges sont deux enfants d'un conteneur `flex-wrap`.
+                Tenus sur une seule ligne, sur un écran de téléphone le titre se
+                coupait en « Plats » / « prévus » et la pilule « Menu figé » en
+                deux lignes. Les badges sortent aussi du `h3`, dont ils
+                polluaient le nom accessible. */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
+                <ChefHat className="h-4 w-4 shrink-0 text-amber" aria-hidden /> Plats prévus
+              </h3>
+              <span className="flex flex-wrap items-center gap-2">
                 {b.menuFrozen && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
                     Menu figé
                     <InfoPopover label="Pourquoi le menu est-il figé ?">
                       À 3 jours de la prestation, le menu est figé : vos plats ne changent
@@ -463,7 +471,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 )}
                 <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
               </span>
-            </h3>
+            </div>
             {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
                 Aucun plat rattaché à cette session.
