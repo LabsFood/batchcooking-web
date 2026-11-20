@@ -36,7 +36,8 @@ export function useClientNav(): NavGroup[] {
   const unread = useUnreadCount().data ?? 0
   const bookings = useMyBookings({ limit: 50 })
   const aRegler = (bookings.data?.data ?? []).filter(
-    (b) => b.status === 'pending' && !b.paidCents,
+    // Une demande (CGV V1) attend le batch cooker, pas un paiement : elle ne compte pas.
+    (b) => b.status === 'pending' && !b.paidCents && !b.request,
   ).length
 
   return [
