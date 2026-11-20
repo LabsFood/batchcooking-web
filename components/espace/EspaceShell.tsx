@@ -206,13 +206,14 @@ export function EspaceSidebar({
                 const expanded = item.children ? (opened[item.href] ?? active) : false
                 const panelId = `nav-${item.href.replace(/\W+/g, '-')}`
 
-                // L'entrée ouverte : une pastille claire qui glisse de l'une à l'autre.
+                // L'entrée ouverte : une pastille ambre qui glisse de l'une à l'autre.
+                // Texte marine sur ambre : 5:1, lisible ; le blanc n'y ferait que 2,2:1.
                 const fond = active && (
                   // déplacement : le fond glisse d'une entrée à l'autre en 180 ms
                   <motion.span
                     layoutId={indicateur}
                     aria-hidden
-                    className="absolute inset-0 rounded-[0.625rem] bg-paper shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+                    className="absolute inset-0 rounded-[0.625rem] bg-amber shadow-[0_1px_2px_rgba(0,0,0,0.25)]"
                     transition={{ duration: DURATION.fast, ease: EASE_MOVE }}
                   />
                 )
@@ -234,7 +235,7 @@ export function EspaceSidebar({
                           aria-hidden
                           className={cn(
                             'absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber ring-2',
-                            active ? 'ring-white' : 'ring-navy-deep',
+                            active ? 'bg-navy ring-amber' : 'ring-navy-deep',
                           )}
                         />
                       )}
@@ -302,7 +303,7 @@ export function EspaceSidebar({
                           className={cn(row, 'h-full rounded-[0.625rem]')}
                         >
                           {contenu}
-                          <Count n={item.count} />
+                          <Count n={item.count} onAmber={active} />
                         </Link>
                       )}
 
@@ -316,7 +317,7 @@ export function EspaceSidebar({
                           className={cn(
                             'hit relative mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
                             active
-                              ? 'text-navy/60 hover:bg-navy/10 hover:text-navy'
+                              ? 'text-navy/70 hover:bg-navy/10 hover:text-navy'
                               : 'text-white/55 hover:bg-white/10 hover:text-white',
                           )}
                         >
@@ -651,7 +652,8 @@ export function EspaceMobileNav({
                         const cls = cn(
                           'flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm',
                           e.tete ? '' : 'pl-10 text-white/75',
-                          on ? 'bg-white/[0.11] font-semibold text-white' : 'text-white/85',
+                          // La page ouverte : la même pastille ambre que dans la colonne.
+                          on ? 'bg-amber font-semibold text-navy' : 'text-white/85',
                         )
                         return (
                           <li key={e.href}>
@@ -664,10 +666,10 @@ export function EspaceMobileNav({
                             ) : (
                               <Link href={e.href} onClick={() => setOpen(false)} className={cls}>
                                 {e.tete && (
-                                  <item.Icon className={cn('h-4 w-4 shrink-0', on && 'text-amber')} aria-hidden />
+                                  <item.Icon className="h-4 w-4 shrink-0" aria-hidden />
                                 )}
                                 <span className="flex-1">{e.label}</span>
-                                <Count n={e.count} />
+                                <Count n={e.count} onAmber={on} />
                               </Link>
                             )}
                           </li>
