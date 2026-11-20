@@ -50,14 +50,14 @@ export default function PresenceCarte() {
   // Sans formule, la question ne se pose pas : on reste affiché « sur demande ».
   if (actives.length === 0 || creneaux.isPending || creneaux.isError) return null
 
-  const libres = creneaux.data?.slots.length ?? 0
+  const libres = creneaux.data?.slots?.length ?? 0
   if (libres > 0) return null
 
   const heures = plusCourte / 60
 
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber-soft/60 p-4">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+    <div className="panel flex items-start gap-3 p-5">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
       <div className="min-w-0 text-sm">
         <p className="font-semibold text-navy">
           Vous n’apparaissez pas sur la carte de cette semaine
@@ -71,16 +71,16 @@ export default function PresenceCarte() {
           </span>
           .
         </p>
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-soft">
-          <CalendarCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p className="mt-2 flex items-start gap-1.5 text-[0.8125rem] text-ink-soft">
+          <CalendarCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           Pour être visible plus souvent&nbsp;: ouvrez des créneaux, ou créez une
           formule plus courte.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/espace-chef/agenda" className="btn btn-outline text-xs">
+          <Link href="/espace-chef/agenda" className="btn btn-outline">
             Mes disponibilités
           </Link>
-          <Link href="/espace-chef/tarifs" className="btn btn-outline text-xs">
+          <Link href="/espace-chef/tarifs" className="btn btn-outline">
             Mes formules
           </Link>
         </div>

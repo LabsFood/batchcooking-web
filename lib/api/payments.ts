@@ -28,7 +28,12 @@ export type PaymentState = 'not-due' | 'due' | 'processing' | 'paid' | 'failed'
 export interface MethodOption {
   id: PaymentMethodId
   available: boolean
-  reasonCode?: 'URSSAF_LINK_NONE' | 'URSSAF_LINK_PENDING' | 'URSSAF_LINK_REFUSED'
+  reasonCode?:
+    | 'URSSAF_LINK_NONE'
+    | 'URSSAF_LINK_PENDING'
+    | 'URSSAF_LINK_REFUSED'
+    | 'URSSAF_DOSSIER_MISSING'
+    | 'CESU_PENDING'
   /** À afficher tel quel. */
   reason?: string
   /** Ce que le client règle sur le site, maintenant, avec ce moyen. */
@@ -56,7 +61,21 @@ export interface PaymentOptions {
   }
   /** Seulement les moyens que le batch cooker accepte. */
   methods: MethodOption[]
-  savedCards: never[]
+  /** CGV V1 (19/11) : la carte enregistrée à la réservation, débitée après la session. */
+  savedCards: { brand: string | null; last4: string }[]
+  /** CGV V1 : le moyen choisi à la réservation, présélectionné. */
+  chosenMethod?: PaymentMethodId | null
+  /**
+   * Recettes lot 6 : les courses, un second montant réglé à part, par carte seulement.
+   * `null` quand le batch cooker ne fait pas les courses.
+   */
+  groceries: {
+    status: string
+    budgetCents: number
+    capturedCents: number | null
+    cardSaved: boolean
+    methods: readonly ['cb']
+  } | null
 }
 
 export type CesuMedium = 'ecesu'
@@ -148,7 +167,7 @@ export function useSettleWithUrssaf(bookingId: string) {
   const refresh = useRefresh(bookingId)
   return useMutation({
     mutationFn: () =>
-      apiFetch<{ status: 'processing'; debitedCents: number; transmittedAt: string }>(
+      apiFetch<{ status: 'processing'; debitedCents: number; transmittedAt: string | null }>(
         `/bookings/${bookingId}/settle`,
         { method: 'POST', body: { method: 'urssaf' } },
       ),

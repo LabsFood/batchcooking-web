@@ -69,7 +69,7 @@ export function DayLegend({
   return (
     <ul className={cn('flex flex-wrap gap-x-4 gap-y-1.5', className)}>
       {items.map((i) => (
-        <li key={i.tone} className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+        <li key={i.tone} className="flex items-center gap-1.5 text-xs text-ink-soft">
           <span aria-hidden className={cn('h-2 w-2 rounded-full', LEGEND_DOT[i.tone])} />
           {i.label}
         </li>

@@ -34,7 +34,7 @@ export default function GlobalError({
           <div className="flex gap-3">
             <button
               onClick={retry}
-              className="px-5 py-2.5 rounded-full bg-amber hover:bg-amber-deep text-navy text-sm font-semibold transition-colors"
+              className="px-5 py-2.5 rounded-xl bg-amber hover:bg-amber-deep text-navy text-sm font-semibold transition-colors"
             >
               Réessayer
             </button>
@@ -42,7 +42,7 @@ export default function GlobalError({
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
-              className="px-5 py-2.5 rounded-full border border-navy/20 text-navy text-sm font-semibold"
+              className="px-5 py-2.5 rounded-xl border border-navy/20 text-navy text-sm font-semibold"
             >
               Accueil
             </a>

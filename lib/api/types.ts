@@ -61,6 +61,13 @@ export interface ChefProfile {
   tier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4'
   /** Le nom du palier, réglé dans la console : sur `GET /me/profile`. */
   tierLabel?: string
+  /** Les zones couvertes : celles de la candidature, puis celles que le batch cooker règle seul. */
+  interventionZones?: {
+    regionCode?: string
+    regionLabel?: string
+    scope?: 'region' | 'cities'
+    cities?: { name?: string; dept?: string; insee?: string }[]
+  }[]
 }
 
 /** Recettes lot 1 : jamais « OK » tant que rien n'a été vérifié. */
@@ -83,6 +90,8 @@ export interface MeProfile {
   profile: ClientProfile | ChefProfile | null
   /** Le texte à accepter avant de lister des allergies, et sa version à renvoyer. */
   healthConsent?: { version: string; text: string }
+  /** CGV V1 : les textes des cases de commande et leur version à renvoyer. */
+  contractTerms?: import('./contract').ContractTerms
   /** Fixé par l'API pour tout le monde : les emails sont transactionnels, le SMS n'existe pas encore. */
   notificationPreferences?: { email: boolean; sms: boolean }
 }
@@ -116,6 +125,9 @@ export interface ChefProfilePatch {
 /** Corps de `PATCH /me/profile` (mise à jour partielle). */
 export interface ClientProfilePatch {
   dietaryPreferences?: string[]
+  /** Le consentement santé coché avec les régimes (politique de confidentialité V1 §5). */
+  consent?: boolean
+  consentVersion?: string
   dislikes?: string[]
   favorites?: string[]
   spiceLevel?: number

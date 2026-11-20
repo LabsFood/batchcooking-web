@@ -1,9 +1,10 @@
 'use client'
 
-import { Suspense, use, useState } from 'react'
+import { Suspense, use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { fade } from '@/lib/motion'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -24,7 +25,6 @@ import {
   RotateCw,
   ShieldCheck,
   ShoppingBasket,
-  Sparkles,
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
@@ -32,10 +32,14 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import {
+  bookingCardUrls,
+  bookingLabel,
   bookingPortions,
-  bookingStatusText,
   euros,
   hour,
+  PAYMENT_METHOD_LABEL,
+  useConfirmBookingCard,
+  useStartBookingCard,
   useAnswerReschedule,
   useBookingIcs,
   useMissionShoppingList,
@@ -45,11 +49,18 @@ import {
   type BookingPhoto,
 } from '@/lib/api/bookings'
 import { aisleLabel } from '@/lib/recipe-fields'
+import OptionalBadge from '@/components/shared/OptionalBadge'
+import GroceriesClient from '@/components/client/GroceriesClient'
+import { useAisles } from '@/lib/api/referentials'
 import { AllergyBadge, AllergyConflicts } from '@/components/shared/AllergyStatus'
 import { Prix } from '@/components/shared/Prix'
 import { useChefPublic } from '@/lib/api/menus'
 import { apiMessage } from '@/lib/api/messages'
-import { usePaymentStatus } from '@/lib/api/payments'
+import { reasonText } from '@/lib/reason-codes'
+import { ApiError } from '@/lib/api/client'
+import { InfoPopover } from '@/components/shared/InfoPopover'
+import { DOCUMENT_LABEL, useBookingDocument } from '@/lib/api/contract'
+import { usePaymentOptions, usePaymentStatus } from '@/lib/api/payments'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Le détail d'une commande — `GET /me/bookings/{id}`.
@@ -101,9 +112,9 @@ export default function OrderDetailPage({
   if (query.isPending) {
     return (
       <div className="space-y-6">
-        <div className="h-40 animate-pulse rounded-3xl bg-paper" />
-        <div className="h-24 animate-pulse rounded-3xl bg-paper" />
-        <div className="h-64 animate-pulse rounded-3xl bg-paper" />
+        <div className="h-40 animate-pulse rounded-2xl bg-paper" />
+        <div className="h-24 animate-pulse rounded-2xl bg-paper" />
+        <div className="h-64 animate-pulse rounded-2xl bg-paper" />
       </div>
     )
   }
@@ -113,7 +124,7 @@ export default function OrderDetailPage({
       <div className="mx-auto max-w-xl py-16 text-center">
         <UtensilsCrossed className="mx-auto h-8 w-8 text-ink-soft" aria-hidden />
         <h2 className="mt-4 font-display text-2xl font-bold text-navy">
-          Commande introuvable
+          Session introuvable
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-mid">
           Elle n’existe plus, ou elle n’est pas rattachée à votre compte.
@@ -123,7 +134,7 @@ export default function OrderDetailPage({
             <RotateCw className="h-3.5 w-3.5" aria-hidden /> Réessayer
           </button>
           <Link href="/espace-client/commandes" className="btn btn-primary text-xs">
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes mes commandes
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes mes sessions
           </Link>
         </div>
       </div>
@@ -140,12 +151,20 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const repondre = useAnswerReschedule('client')
   const ics = useBookingIcs()
   const [aAnnuler, setAAnnuler] = useState(false)
+  const document = useBookingDocument()
+  const retractation = b.withdrawal ?? null
+  // La rétractation vit dans les paramètres du compte, plus ici.
+  const documents = (b.documents ?? []).filter((d) => d.kind !== 'withdrawal-form')
 
   const ttc = euros(b.amountTtc ?? b.priceCents)
   /* Les courses ont leur ligne : l'API les facture à part depuis le 17/10, et
      elles disparaîtraient dans un total. */
   const prestation = euros(b.priceCents)
   const forfaitCourses = b.shoppingFeeCents ? euros(b.shoppingFeeCents) : null
+  // Recettes lot 4 (LF-0293) : chaque ligne du récapitulatif à part, expliquée.
+  const supplementCents = (b.extraPersonsCents ?? 0) + (b.extraMealsCents ?? 0)
+  const supplement = supplementCents > 0 ? euros(supplementCents) : null
+  const totalCourses = b.groceriesAmountCents != null ? euros(b.groceriesAmountCents) : null
   const reste = euros(b.amountAfterTax)
   const credit =
     b.amountTtc != null && b.amountAfterTax != null
@@ -154,7 +173,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const paye = euros(b.paidCents)
   const portions = bookingPortions(b)
 
-  const aRegler = b.status === 'pending'
+  // CGV V1 : une demande ne se règle pas avant la session ; seul l'ancien modèle « paie pour confirmer ».
+  const aRegler = b.status === 'pending' && !b.request
   const arretee = b.status === 'cancelled' || b.status === 'disputed'
   const etape = FLOW.indexOf(b.status as (typeof FLOW)[number])
 
@@ -166,7 +186,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
    * à l'autre. Le bouton reste donc offert sur une prestation confirmée, et
    * l'API répond `409` si elle a commencé — le message est affiché tel quel.
    */
-  const annulable = (b.status === 'pending' && !b.paidCents) || b.status === 'confirmed'
+  const annulable =
+    ((b.status === 'pending' && !b.paidCents) || b.status === 'confirmed') &&
+    // CGV V1 : pendant le délai, la rétractation (gratuite) passe devant l'annulation.
+    !retractation?.open
 
   /** Un report proposé par le batch cooker attend une réponse. */
   const report =
@@ -175,6 +198,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       : null
 
   const groupes = courses.data?.groups ?? []
+  // Les rayons en vigueur (l'API), dans l'ordre du magasin, à défaut la liste fixe.
+  const aisles = useAisles()
 
   return (
     <div className="space-y-6">
@@ -183,16 +208,19 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
         className="inline-flex items-center gap-2 text-xs text-ink-mid hover:text-navy"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        Toutes mes commandes
+        Toutes mes sessions
       </Link>
 
       <Suspense fallback={null}>
         <CheckoutOutcome />
+        <CardReturn bookingId={b.id} />
       </Suspense>
+
+      {b.request && <Demande booking={b} />}
 
       {/* ── Une demande de report attend votre réponse ──────────────────── */}
       {report && (
-        <section className="rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+        <section className="rounded-2xl border border-amber/40 bg-amber-soft/60 p-5">
           <p className="flex items-start gap-2 font-display text-base font-bold text-navy">
             <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
             Votre batch cooker propose un autre horaire
@@ -252,46 +280,37 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       {/* ── L'essentiel ──────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-8"
+        // fondu : le bandeau apparaît en 180 ms
+        {...fade}
+        className="overflow-hidden rounded-3xl bg-navy p-6 text-white lg:p-8"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-amber/30 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            {b.reference && (
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
-                {b.reference}
-              </p>
-            )}
-            <h2 className="mt-2 font-display text-3xl font-bold capitalize leading-tight lg:text-4xl">
+            {b.reference && <p className="font-mono text-xs text-white/60">{b.reference}</p>}
+            <h2 className="mt-2 font-display text-3xl font-bold cap-first leading-tight lg:text-4xl">
               {longDate(b.startsAt) ?? 'Date à confirmer'}
             </h2>
-            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/65">
+            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums text-white/75">
               {hour(b.startsAt) && (
                 <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-amber" aria-hidden />
+                  <Clock className="h-4 w-4 text-white/55" aria-hidden />
                   {hour(b.startsAt)}
                   {hour(b.endsAt) ? ` → ${hour(b.endsAt)}` : ''}
                 </span>
               )}
               {b.chef?.displayName && (
                 <span className="inline-flex items-center gap-1.5">
-                  <ChefHat className="h-4 w-4 text-amber" aria-hidden />
+                  <ChefHat className="h-4 w-4 text-white/55" aria-hidden />
                   {b.chef.displayName}
                 </span>
               )}
               {portions > 0 && (
                 <span className="inline-flex items-center gap-1.5">
-                  <UtensilsCrossed className="h-4 w-4 text-amber" aria-hidden />
+                  <UtensilsCrossed className="h-4 w-4 text-white/55" aria-hidden />
                   {portions} portions
                 </span>
               )}
-              <span>{bookingStatusText(b.status)}</span>
+              <span className="status status-on-dark">{bookingLabel(b)}</span>
             </p>
 
             {/* Le fichier exige le jeton : on le télécharge, on ne le lie pas. */}
@@ -315,12 +334,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   )
                 }
                 disabled={ics.isPending}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-60"
+                className="btn btn-outline-light mt-5"
               >
                 {ics.isPending ? (
-                  <RotateCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  <RotateCw className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
                 ) : (
-                  <CalendarPlus className="h-3.5 w-3.5 text-amber" aria-hidden />
+                  <CalendarPlus className="h-4 w-4" aria-hidden />
                 )}
                 Ajouter à mon agenda
               </button>
@@ -340,14 +359,14 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       {/* ── À régler ─────────────────────────────────────────────────────── */}
       {aRegler && (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-amber/40 bg-amber-soft/60 p-5">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber/40 bg-amber-soft/60 p-5">
           <div className="min-w-0">
             <p className="font-display text-base font-bold text-navy">
-              Cette commande attend son règlement
+              Cette session attend son règlement
             </p>
             <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-mid">
               C’est le paiement qui la confirme auprès de votre batch cooker. Le
-              créneau est tenu 72 heures, puis la commande est annulée.
+              créneau est tenu 72 heures, puis la réservation est annulée.
             </p>
             <ResteAPayer bookingId={b.id} />
           </div>
@@ -362,15 +381,15 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       )}
 
       {/* ── Suivi ────────────────────────────────────────────────────────── */}
-      <section className="rounded-3xl card-shell p-6 lg:p-7">
+      <section className="rounded-2xl card-shell p-6 lg:p-7">
         <h3 className="mb-5 font-display text-lg font-bold text-navy">
-          Suivi de la commande
+          Suivi de la session
         </h3>
         {arretee ? (
           <p className="text-sm font-semibold text-red-700">
             {b.status === 'disputed'
-              ? 'Cette commande fait l’objet d’un litige. Notre équipe vous répond par la messagerie.'
-              : 'Cette commande a été annulée.'}
+              ? 'Cette session fait l’objet d’un litige. Notre équipe vous répond par la messagerie.'
+              : 'Cette session a été annulée.'}
           </p>
         ) : b.status === 'completed' ? (
           <p className="flex items-center gap-2 text-sm font-semibold text-mint-ink">
@@ -404,11 +423,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                     )}
                   </span>
                   <p
-                    className={`mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                    className={`mt-2 text-xs font-semibold ${
                       atteinte ? 'text-navy' : 'text-ink-soft'
                     }`}
                   >
-                    {STEP_LABEL[step]}
+                    {/* Une demande (CGV V1) n'est pas « à régler » : elle attend le batch cooker. */}
+                    {step === 'pending' && b.request ? 'Demandée' : STEP_LABEL[step]}
                   </p>
                 </div>
               )
@@ -426,16 +446,27 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-2">
           {/* ── Plats ──────────────────────────────────────────────────── */}
-          <div className="rounded-3xl card-shell p-6">
+          <div className="rounded-2xl card-shell p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
               <ChefHat className="h-4 w-4 text-amber" aria-hidden /> Plats prévus
-              <span className="ml-auto">
+              <span className="ml-auto flex items-center gap-2">
+                {b.menuFrozen && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-[11px] font-semibold text-navy">
+                    Menu figé
+                    <InfoPopover label="Pourquoi le menu est-il figé ?">
+                      À 3 jours de la prestation, le menu est figé : vos plats ne changent
+                      plus, et votre batch cooker les cuisine tels que vous les avez choisis.
+                      Seul un plat devenu incompatible avec une allergie déclarée peut être
+                      remplacé.
+                    </InfoPopover>
+                  </span>
+                )}
                 <AllergyBadge check={b.allergyCheck} reasons={b.allergyCheckReasons} />
               </span>
             </h3>
             {(b.meals?.length ?? 0) === 0 ? (
               <p className="text-sm text-ink-soft">
-                Aucun plat rattaché à cette commande.
+                Aucun plat rattaché à cette session.
               </p>
             ) : (
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -463,13 +494,13 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {(b.photos?.length ?? 0) > 0 && <PhotosSession photos={b.photos!} />}
 
           {/* ── Liste de courses ───────────────────────────────────────── */}
-          <div className="rounded-3xl card-shell p-6">
+          <div className="rounded-2xl card-shell p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 font-display text-lg font-bold text-navy">
                 <ShoppingBasket className="h-4 w-4 text-amber" aria-hidden /> Liste de
                 courses
               </h3>
-              <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-mid">
+              <span className="rounded-lg bg-cream-soft px-2.5 py-1 text-xs font-semibold text-ink-mid">
                 {b.shoppingByClient ? 'À votre charge' : 'Faites par le batch cooker'}
               </span>
             </div>
@@ -490,8 +521,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 {groupes.map((g, gi) => (
                   <div key={g.aisle || gi}>
                     {g.aisle && (
-                      <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
-                        {aisleLabel(g.aisle)}
+                      <p className="mb-2 text-sm font-semibold text-navy">
+                        {aisleLabel(g.aisle, aisles)}
                       </p>
                     )}
                     <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -500,7 +531,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                           key={`${l.name}-${li}`}
                           className="flex items-center justify-between gap-2 rounded-xl bg-cream-soft px-3 py-2 text-sm"
                         >
-                          <span className="min-w-0 text-navy">{l.name}</span>
+                          <span className="min-w-0 text-navy">
+                            {l.name}
+                            {l.optional && <OptionalBadge />}
+                          </span>
                           <span className="shrink-0 text-xs tabular-nums text-ink-soft">
                             {l.qty > 0
                               ? `${l.qty.toLocaleString('fr-FR')} ${l.unit}`.trim()
@@ -515,12 +549,17 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
             )}
           </div>
 
+          {/* ── Les courses payées à part (lot 6) ──────────────────────── */}
+          {!b.shoppingByClient && (
+            <Suspense fallback={null}>
+              <GroceriesClient bookingId={b.id} />
+            </Suspense>
+          )}
+
           {/* ── Vos consignes ──────────────────────────────────────────── */}
           {b.notes && (
-            <div className="rounded-3xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
-              <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-amber-deep">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden /> Vos consignes
-              </p>
+            <div className="rounded-2xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
+              <p className="mb-1.5 font-semibold">Vos consignes</p>
               {b.notes}
             </div>
           )}
@@ -528,17 +567,34 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
         {/* ── Colonne de droite ─────────────────────────────────────────── */}
         <aside className="space-y-4">
-          <div className="rounded-3xl card-shell p-5">
+          <div className="rounded-2xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <Receipt className="h-4 w-4 text-amber" aria-hidden /> Récapitulatif
             </h4>
             {ttc ? (
               <>
               <ul className="space-y-2 text-sm text-ink-mid">
-                {forfaitCourses && prestation ? (
+                {(forfaitCourses || supplement) && prestation ? (
                   <>
-                    <Row label="Prestation" value={prestation} />
-                    <Row label="Courses" value={forfaitCourses} />
+                    <Row
+                      label="Formule de prestation"
+                      value={prestation}
+                      info="Le prix du service du batch cooker, selon la formule choisie."
+                    />
+                    {forfaitCourses && (
+                      <Row
+                        label="Forfait courses"
+                        value={forfaitCourses}
+                        info="Rémunère le temps que votre batch cooker passe à faire vos courses. Il fait partie de la prestation : il figure sur la facture et ouvre droit au crédit d’impôt. Le prix des produits n’y est pas compris."
+                      />
+                    )}
+                    {supplement && (
+                      <Row
+                        label="Supplément"
+                        value={supplement}
+                        info="Personnes ou plats ajoutés au-delà de ce que la formule couvre."
+                      />
+                    )}
                     <Row label="Total TTC" value={ttc} />
                   </>
                 ) : (
@@ -553,6 +609,15 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   Vous faites les courses vous-même : aucun forfait n’est facturé.
                 </p>
               )}
+              {!b.shoppingByClient && (b.groceriesValidatedAt || totalCourses) && (
+                <ul className="mt-3 space-y-2 border-t border-[rgba(31,42,55,0.07)] pt-3 text-sm text-ink-mid">
+                  <Row
+                    label="Total des courses"
+                    value={totalCourses ?? 'Courses faites'}
+                    info="Le prix des ingrédients achetés pour vous, d’après le ticket de votre batch cooker. Il n’est pas compris dans le total ci-dessus : hors facture et hors crédit d’impôt. Affiché à titre d’information."
+                  />
+                </ul>
+              )}
               </>
             ) : (
               <p className="text-sm text-ink-soft">Montant non communiqué par l’API.</p>
@@ -560,7 +625,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           </div>
 
           {b.addressLine && (
-            <div className="rounded-3xl card-shell p-5">
+            <div className="rounded-2xl card-shell p-5">
               <h4 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-navy">
                 <MapPin className="h-4 w-4 text-amber" aria-hidden /> Où
               </h4>
@@ -572,14 +637,15 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           )}
 
           {!aRegler && b.status !== 'cancelled' && (
-            <div className="rounded-3xl card-shell p-5">
+            <div className="rounded-2xl card-shell p-5">
               <h4 className="flex items-center gap-2 font-display text-base font-bold text-navy">
                 <BadgeEuro className="h-4 w-4 text-amber" aria-hidden /> Règlement
               </h4>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-mid">
-                {b.paidCents && b.amountTtc && b.paidCents >= b.amountTtc
-                  ? 'Réglée.'
-                  : 'Il reste une part à régler sur cette prestation.'}
+                <EtatReglement
+                  bookingId={b.id}
+                  reglee={!!b.paidCents && !!b.amountTtc && b.paidCents >= b.amountTtc}
+                />
               </p>
               <Link
                 href={`/espace-client/commandes/${b.id}/paiement`}
@@ -595,11 +661,36 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
               carte, demain le mandat de débours. Hors de « Règlement » : une
               commande partagée CESU + carte reste `pending`, et sa part carte a
               déjà sa facture. */}
-          <div className="rounded-3xl card-shell p-5">
+          <div className="rounded-2xl card-shell p-5">
             <h4 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-navy">
               <FileText className="h-4 w-4 text-amber" aria-hidden /> Documents
               <PaymentInvoicesInfo side="client" />
             </h4>
+            {documents.length > 0 && (
+              <ul className="mb-3 space-y-1.5">
+                {documents.map((d) => (
+                  <li key={d.kind}>
+                    <button
+                      onClick={() =>
+                        document.mutate(
+                          { id: b.id, kind: d.kind, filename: d.filename },
+                          {
+                            onError: (e) =>
+                              toast.error(
+                                'Le document n’a pas pu être téléchargé',
+                                reasonText(e instanceof ApiError ? e.body : null) ?? apiMessage(e),
+                              ),
+                          },
+                        )
+                      }
+                      className="text-left text-[13px] font-semibold text-navy underline underline-offset-2"
+                    >
+                      {DOCUMENT_LABEL[d.kind]}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <PaymentInvoiceList
               side="client"
               bookingId={b.id}
@@ -609,7 +700,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
           <Link
             href="/espace-client/messages"
-            className="flex items-center gap-3 rounded-3xl border border-mint-deep/40 bg-mint/40 p-4 transition-colors hover:bg-mint/60"
+            className="flex items-center gap-3 rounded-2xl border border-mint-deep/40 bg-mint/40 p-4 transition-colors hover:bg-mint/60"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint-deep/20 text-mint-ink">
               <MessageCircle className="h-4 w-4" aria-hidden />
@@ -675,6 +766,121 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 }
 
 /**
+ * Retour de la page carte (CGV 7.2) : on confirme la carte une fois, ce qui
+ * envoie la demande au batch cooker. Le webhook fait de même si le client ne
+ * revient pas.
+ */
+function CardReturn({ bookingId }: { bookingId: string }) {
+  const params = useSearchParams()
+  const confirmer = useConfirmBookingCard()
+  const fait = useRef(false)
+  const sessionId = params.get('carte') === 'ok' ? params.get('session_id') : null
+  useEffect(() => {
+    if (!sessionId || fait.current) return
+    fait.current = true
+    confirmer.mutate({ id: bookingId, sessionId })
+  }, [sessionId, bookingId, confirmer])
+  if (params.get('carte') === 'annulee') {
+    return (
+      <p
+        role="status"
+        className="rounded-2xl border border-amber/50 bg-[var(--warn-soft)] px-5 py-3.5 text-sm leading-relaxed text-navy"
+      >
+        <strong className="font-semibold">Carte non enregistrée.</strong> Rien n’a été
+        prélevé. Sans carte dans l’heure, la demande est abandonnée.
+      </p>
+    )
+  }
+  if (confirmer.isError) {
+    return (
+      <p
+        role="alert"
+        className="rounded-2xl border border-[var(--bad-ink)]/30 bg-[var(--bad-soft)] px-5 py-3.5 text-sm leading-relaxed text-[var(--bad-ink)]"
+      >
+        {apiMessage(confirmer.error, 'La carte n’a pas pu être confirmée.')}
+      </p>
+    )
+  }
+  return null
+}
+
+/**
+ * La demande de réservation (CGV V1, décision du 19/11) : le moyen choisi, la
+ * carte enregistrée, et la réponse du batch cooker sous 48 h. Rien n'est
+ * prélevé avant la fin de la session.
+ */
+function Demande({ booking: b }: { booking: Booking }) {
+  const r = b.request!
+  const carte = useStartBookingCard()
+  const chef = b.chef?.displayName ?? 'Votre batch cooker'
+  const quand = (iso: string | null) => (iso ? `${longDate(iso)} à ${hour(iso)}` : '')
+  const moyen = PAYMENT_METHOD_LABEL[r.paymentMethod]
+  const ligneCarte = r.card ? ` · carte ${r.card.brand ?? ''} •••• ${r.card.last4}` : ''
+
+  let titre: string
+  let texte: string
+  if (r.state === 'awaiting_card') {
+    titre = 'Enregistrez votre carte pour envoyer la demande'
+    texte =
+      'Rien n’est prélevé : la carte sert au paiement après la session, ou de secours. Sans carte dans l’heure, la demande est abandonnée.'
+  } else if (r.state === 'awaiting_chef') {
+    titre = `En attente de la réponse de ${chef}`
+    texte = `${chef} a jusqu’au ${quand(r.acceptBy)} pour accepter. Sans réponse, la demande est annulée et rien n’est prélevé.`
+  } else if (r.state === 'refused') {
+    titre = `${chef} ne peut pas assurer cette session`
+    texte = `Rien n’a été prélevé.${r.refusalReason ? ` Son message : « ${r.refusalReason} »` : ''}`
+  } else if (r.state === 'expired') {
+    titre = 'Demande restée sans réponse'
+    texte = 'Le délai de 48 heures est passé : la demande est annulée et rien n’a été prélevé.'
+  } else {
+    titre = 'Session confirmée'
+    texte = r.chargedAt
+      ? 'Le paiement a été lancé avec le moyen choisi.'
+      : `Paiement prévu ${r.chargeAt ? `le ${quand(r.chargeAt)}` : 'après la session'}, avec le moyen choisi.`
+  }
+
+  // La couleur dit l'état : à faire ou en attente (ambre), confirmée (vert), refusée ou expirée (rouge).
+  const ton =
+    r.state === 'accepted'
+      ? 'border-[var(--ok-ink)]/25 bg-[var(--ok-soft)]'
+      : r.state === 'refused' || r.state === 'expired'
+        ? 'border-[var(--bad-ink)]/25 bg-[var(--bad-soft)]'
+        : 'border-amber/50 bg-[var(--warn-soft)]'
+
+  return (
+    <section className={`rounded-2xl border p-5 lg:p-6 ${ton}`}>
+      <h2 className="font-display text-lg font-bold text-navy">{titre}</h2>
+      <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">{texte}</p>
+      <p className="mt-2 text-xs tabular-nums text-ink-soft">
+        Moyen choisi : {moyen}
+        {ligneCarte}
+      </p>
+      {r.state === 'awaiting_card' && (
+        <button
+          type="button"
+          onClick={() =>
+            carte.mutate(
+              { id: b.id, ...bookingCardUrls(b.id) },
+              { onSuccess: ({ url }) => (window.location.href = url) },
+            )
+          }
+          disabled={carte.isPending}
+          className="btn btn-amber mt-4"
+        >
+          {carte.isPending ? 'Ouverture…' : 'Enregistrer ma carte'}
+          <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+        </button>
+      )}
+      {carte.isError && (
+        <p role="alert" className="mt-2 text-sm text-[var(--bad-ink)]">
+          {apiMessage(carte.error, 'La page carte n’a pas pu s’ouvrir.')}
+        </p>
+      )}
+    </section>
+  )
+}
+
+/**
  * Retour de Stripe. Le paramètre est posé par `successUrl` / `cancelUrl` de la
  * session : c'est la seule chose que le navigateur rapporte du paiement.
  */
@@ -686,7 +892,7 @@ function CheckoutOutcome() {
   return (
     <div
       role="status"
-      className={`flex items-start gap-3 rounded-3xl p-4 text-sm leading-relaxed ${
+      className={`flex items-start gap-3 rounded-2xl p-4 text-sm leading-relaxed ${
         ok ? 'bg-mint/50 text-navy' : 'bg-amber-soft/70 text-navy'
       }`}
     >
@@ -728,7 +934,7 @@ function CheckoutOutcome() {
  */
 function PhotosSession({ photos }: { photos: BookingPhoto[] }) {
   return (
-    <div className="rounded-3xl card-shell p-6">
+    <div className="rounded-2xl card-shell p-6">
       <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-navy">
         <Camera className="h-4 w-4 text-amber" aria-hidden /> Photos de la session
       </h3>
@@ -768,15 +974,21 @@ function Row({
   value,
   bold,
   accent,
+  info,
 }: {
   label: string
   value: string
   bold?: boolean
   accent?: boolean
+  /** L'explication de la ligne, dans un popover (lot 4). */
+  info?: string
 }) {
   return (
     <li className="flex items-baseline justify-between gap-3">
-      <span className="text-ink-soft">{label}</span>
+      <span className="inline-flex items-center gap-1 text-ink-soft">
+        {label}
+        {info && <InfoPopover label={`Qu’est-ce que « ${label} » ?`}>{info}</InfoPopover>}
+      </span>
       <span
         className={`text-right tabular-nums ${
           accent ? 'text-amber-deep' : bold ? 'font-bold text-navy' : 'text-navy'
@@ -825,4 +1037,17 @@ function ClientConflicts({ booking }: { booking: Booking }) {
   return (
     <AllergyConflicts booking={booking} side="client" candidates={chef.data?.dishes ?? []} />
   )
+}
+
+/**
+ * Où en est le règlement, comme la page de règlement le dit : une demande qui attend
+ * le batch cooker (CESU) ou l'URSSAF (avance immédiate) n'est pas « une part à régler ».
+ */
+function EtatReglement({ bookingId, reglee }: { bookingId: string; reglee: boolean }) {
+  const options = usePaymentOptions(bookingId)
+  const etat = options.data?.status
+  if (reglee || etat === 'paid') return <>Réglée.</>
+  if (etat === 'processing')
+    return <>Règlement en cours : votre demande est enregistrée, rien d’autre à faire.</>
+  return <>Il reste une part à régler sur cette prestation.</>
 }

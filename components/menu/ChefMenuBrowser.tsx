@@ -4,13 +4,12 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { motion } from 'framer-motion'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
+  ArrowRight,
   CalendarCheck,
   CalendarDays,
   Check,
   ChefHat,
-  ChevronLeft,
-  ChevronRight,
-  Globe2,
+  ChevronDown,
   Languages,
   MapPin,
   Plus,
@@ -36,18 +35,30 @@ import {
   semainesDuMois,
   useChefPublic,
   useWeeksMenus,
+  weekLabel,
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
 import {
   refLabel,
+  useAllergens,
   useDiets,
   useLanguages,
   useRecipeProfiles,
   useRegions,
 } from '@/lib/api/referentials'
-import { seasonsLine } from '@/lib/recipe-fields'
+import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
+import { afterTaxFromClientPrice, useChefSlots, usePricingRules } from '@/lib/api/bookings'
+import { offerEuros, offerSummary } from '@/lib/api/service-offers'
+import { fadeUp } from '@/lib/motion'
+
+/**
+ * Un aliment « sans gluten » ou « sans lactose » peut avoir croisé l'allergène en
+ * cuisine : la fiche le dit, comme l'étiquette d'un produit (§4.8).
+ */
+const TRACES_DIETS = new Set(['gluten-free', 'lactose-free'])
+const TRACES_NOTE = 'traces possibles pendant la préparation'
 
 /** Les régimes que calcule la liste commune et ceux que l'on déclare (§4.8). */
 const DIET_LABEL: Record<string, string> = {
@@ -99,18 +110,9 @@ function useLangueLabels(codes: string[]): string {
 
 function LanguesChip({ codes }: { codes: string[] }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
+    <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
       <Languages className="h-3 w-3" aria-hidden /> {useLangueLabels(codes)}
     </span>
-  )
-}
-
-function LanguesLigne({ codes }: { codes: string[] }) {
-  return (
-    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
-      <Languages className="h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
-      Parle {useLangueLabels(codes)}
-    </p>
   )
 }
 
@@ -344,7 +346,7 @@ function SemainePicker({ filters }: { filters: MenuFilters }) {
   )
 }
 
-/* ── Filtres en colonne ────────────────────────────────────────────────────── */
+/* ── Panneau de filtres (tiroir mobile) ────────────────────────────────────────────────────── */
 
 /** Combien de filtres sont posés — la semaine n'y compte pas, comme dans `active`. */
 function nbFiltres(f: MenuFilters): number {
@@ -363,14 +365,6 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   )
 }
 
-/** « 2 – 8 nov. », ou « 30 nov. – 6 déc. » à cheval sur deux mois : tient dans le champ. */
-function periodeCourte(from: Date, to: Date): string {
-  const mois = (d: Date) => d.toLocaleDateString('fr-FR', { month: 'short' })
-  return from.getMonth() === to.getMonth()
-    ? `${from.getDate()} – ${to.getDate()} ${mois(to)}`
-    : `${from.getDate()} ${mois(from)} – ${to.getDate()} ${mois(to)}`
-}
-
 /** « Cette semaine », « Semaine prochaine », « Dans 3 semaines ». */
 function semaineRelative(rang: number): string {
   if (rang <= 0) return 'Cette semaine'
@@ -386,237 +380,156 @@ function bornes(lundi: string): { from: Date; to: Date } {
   return { from, to }
 }
 
-const BOUTON_PAS =
-  'flex w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper text-ink-mid transition-colors hover:border-[rgba(31,42,55,0.3)] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber disabled:pointer-events-none disabled:opacity-35'
+/** `AAAA-MM` d'une date, dans le fuseau du visiteur. */
+const cleMois = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
 /**
- * Le filtre de dates : une semaine, du lundi au dimanche.
+ * Le filtre de dates : un seul calendrier, toujours sous les yeux.
  *
- * Le champ dit en clair la période regardée (« lun. 2 nov. → dim. 8 nov. ») et
- * les flèches passent d'une semaine à l'autre — c'est le geste le plus
- * fréquent. Le calendrier ne sert qu'à sauter plus loin : au survol, toute la
- * ligne de la semaine se colore, pour qu'on voie avant de cliquer qu'on choisit
- * sept jours et pas une date. C'est la semaine que l'API sait filtrer (`week`
- * accepte n'importe quel jour de la semaine voulue).
+ * Il y avait deux façons de dire « quand » — un bouton « à la semaine » avec
+ * son champ et son calendrier caché, un bouton « au mois » avec sa liste — et
+ * il fallait choisir la façon avant de choisir la date. Il n'y a plus qu'un
+ * geste : on clique un jour, sa semaine est retenue (l'API filtre à la
+ * semaine, `week` accepte n'importe quel jour de la semaine voulue). Au
+ * survol, toute la ligne se colore : on voit qu'on choisit sept jours, pas
+ * une date. Pour voir large, « Tout le mois » retient le mois affiché.
+ *
+ * La période choisie est dite en toutes lettres au-dessus : le calendrier
+ * montre, la phrase confirme.
  */
-function SemaineChamp({ filters }: { filters: MenuFilters }) {
-  const { semaine, setSemaine, semaines } = filters
-  const [ouvert, setOuvert] = useState(false)
+function PeriodeCalendrier({ filters }: { filters: MenuFilters }) {
+  const { mode, setMode, semaine, setSemaine, semaines, mois, setMois, moisListe } = filters
   const [survol, setSurvol] = useState<string | null>(null)
-  const boite = useRef<HTMLDivElement>(null)
+  const auMois = mode === 'mois'
 
   const choisie = bornes(semaine)
   const premier = bornes(semaines[0]).from
-  const dernier = bornes(semaines[semaines.length - 1]).to
-  const rang = semaines.indexOf(semaine)
-  const precedente = rang > 0 ? semaines[rang - 1] : undefined
-  const suivante = rang >= 0 && rang < semaines.length - 1 ? semaines[rang + 1] : undefined
-  const survolee = survol && survol !== semaine ? bornes(survol) : null
+  // Le calendrier va jusqu'à la fin du dernier mois proposé : une semaine s'y
+  // choisit aussi loin qu'un mois entier.
+  const [anFin, moisFin] = moisListe[moisListe.length - 1].split('-').map(Number)
+  const dernier = new Date(anFin, moisFin, 0)
+  const [anDebut, moisDebut] = moisListe[0].split('-').map(Number)
+  const premierMois = new Date(anDebut, moisDebut - 1, 1)
 
-  /* Le mois affiché suit la semaine choisie, y compris quand ce sont les
-     flèches qui la changent : ajustement pendant le rendu, comme la navbar. */
-  const [mois, setMois] = useState(choisie.from)
-  const [vue, setVue] = useState(semaine)
-  if (semaine !== vue) {
-    setVue(semaine)
-    setMois(choisie.from)
+  /* Le mois affiché suit ce qui est choisi, y compris quand le choix vient
+     d'ailleurs (remise à zéro, raccourcis) : ajustement pendant le rendu. */
+  const cle = auMois ? `m:${mois}` : `s:${semaine}`
+  const [vue, setVue] = useState(cle)
+  const [affiche, setAffiche] = useState(() =>
+    choisie.from < premierMois ? premierMois : choisie.from,
+  )
+  if (cle !== vue) {
+    setVue(cle)
+    if (auMois) {
+      const [a, m] = mois.split('-').map(Number)
+      setAffiche(new Date(a, m - 1, 1))
+    } else {
+      setAffiche(choisie.from < premierMois ? premierMois : choisie.from)
+    }
   }
 
-  useEffect(() => {
-    if (!ouvert) return
-    const dehors = (e: MouseEvent) => {
-      if (!boite.current?.contains(e.target as Node)) setOuvert(false)
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOuvert(false)
-    }
-    document.addEventListener('mousedown', dehors)
-    document.addEventListener('keydown', echap)
-    return () => {
-      document.removeEventListener('mousedown', dehors)
-      document.removeEventListener('keydown', echap)
-    }
-  }, [ouvert])
-
-  const choisir = (lundi: string) => {
-    setSemaine(lundi)
-    setOuvert(false)
-    setSurvol(null)
+  // Le mois retenu, borné à ce qui est encore réservable.
+  const [anChoisi, moisChoisi] = mois.split('-').map(Number)
+  const debutMois = new Date(anChoisi, moisChoisi - 1, 1)
+  const moisRetenu = {
+    from: debutMois < premier ? premier : debutMois,
+    to: new Date(anChoisi, moisChoisi, 0),
   }
 
+  const retenue = auMois ? moisRetenu : choisie
+  const survolee = survol && (auMois || survol !== semaine) ? bornes(survol) : null
   const dansLaPlage = (d: Date) => d >= premier && d <= dernier
 
-  return (
-    <div ref={boite} className="relative">
-      <div className="flex items-stretch gap-1.5">
-        <button
-          type="button"
-          onClick={() => precedente && setSemaine(precedente)}
-          disabled={!precedente}
-          aria-label="Semaine précédente"
-          className={BOUTON_PAS}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-        </button>
+  const choisirSemaine = (lundi: string) => {
+    setSemaine(lundi)
+    if (auMois) setMode('semaine')
+    setSurvol(null)
+  }
+  const choisirMois = (cible: string) => {
+    // `setMode` se cale sur le mois de la semaine en cours : le mois voulu passe après.
+    setMode('mois')
+    setMois(cible)
+  }
 
-        <button
-          type="button"
-          onClick={() => setOuvert((v) => !v)}
-          aria-expanded={ouvert}
-          aria-haspopup="dialog"
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(31,42,55,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-        >
-          <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-navy">
-              {periodeCourte(choisie.from, choisie.to)}
-            </span>
-            <span className="block text-xs text-ink-soft">{semaineRelative(rang)}</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => suivante && setSemaine(suivante)}
-          disabled={!suivante}
-          aria-label="Semaine suivante"
-          className={BOUTON_PAS}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-
-      {ouvert && (
-        <div
-          role="dialog"
-          aria-label="Choisir une semaine"
-          className="absolute left-0 top-full z-40 mt-2 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-[rgba(31,42,55,0.1)] bg-paper p-4 shadow-[0_24px_60px_-24px_rgba(31,42,55,0.45)]"
-        >
-          <p className="text-sm font-semibold text-navy">Choisissez une semaine</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
-            Chaque ligne du calendrier est une semaine de 7 jours.
-          </p>
-
-          <div className="mt-3" onMouseLeave={() => setSurvol(null)}>
-            <DatePicker
-              month={mois}
-              onMonthChange={setMois}
-              startMonth={premier}
-              endMonth={dernier}
-              disabled={{ before: premier, after: dernier }}
-              onDayClick={(jour) => dansLaPlage(jour) && choisir(lundiDe(jour))}
-              onDayMouseEnter={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
-              onDayFocus={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
-              modifiers={{
-                semaine: choisie,
-                survol: survolee ?? [],
-                bandeDebut: [choisie.from, ...(survolee ? [survolee.from] : [])],
-                bandeFin: [choisie.to, ...(survolee ? [survolee.to] : [])],
-              }}
-              modifiersClassNames={{
-                ...DAY_MODIFIERS,
-                semaine: 'lf-week',
-                survol: 'lf-week-hover',
-                bandeDebut: 'lf-week-start',
-                bandeFin: 'lf-week-end',
-              }}
-              className="lf-rdp-week mx-auto"
-            />
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-[rgba(31,42,55,0.08)] pt-3">
-            {semaines.slice(0, 2).map((lundi, i) => (
-              <button
-                key={lundi}
-                type="button"
-                onClick={() => choisir(lundi)}
-                aria-pressed={lundi === semaine}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  lundi === semaine ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
-                }`}
-              >
-                {semaineRelative(i)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** « Ce mois-ci », « Le mois prochain », « Dans 2 mois ». */
-function moisRelatif(rang: number): string {
-  if (rang <= 0) return 'Ce mois-ci'
-  if (rang === 1) return 'Le mois prochain'
-  return `Dans ${rang} mois`
-}
-
-/** Le filtre au mois : les flèches suffisent, il n'y a que trois mois à parcourir. */
-function MoisChamp({ filters }: { filters: MenuFilters }) {
-  const { mois, setMois, moisListe } = filters
-  const rang = moisListe.indexOf(mois)
-  const precedent = rang > 0 ? moisListe[rang - 1] : undefined
-  const suivant = rang >= 0 && rang < moisListe.length - 1 ? moisListe[rang + 1] : undefined
+  const moisAffiche = cleMois(affiche)
+  const nomMoisAffiche = affiche.toLocaleDateString('fr-FR', { month: 'long' })
+  const moisEntierChoisi = auMois && mois === moisAffiche
 
   return (
-    <div className="flex items-stretch gap-1.5">
-      <button
-        type="button"
-        onClick={() => precedent && setMois(precedent)}
-        disabled={!precedent}
-        aria-label="Mois précédent"
-        className={BOUTON_PAS}
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-      </button>
-      <div
-        aria-live="polite"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(31,42,55,0.12)] bg-paper px-3.5 py-2.5"
-      >
-        <CalendarDays className="h-4 w-4 shrink-0 text-terra" aria-hidden />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-navy first-letter:uppercase">
-            {moisLabel(mois)}
-          </span>
-          <span className="block text-xs text-ink-soft">{moisRelatif(rang)}</span>
+    <div>
+      <p className="text-sm text-ink-mid" aria-live="polite">
+        <span className="font-semibold text-navy">
+          {auMois
+            ? `Tout ${moisLabel(mois)}`
+            : `Semaine ${weekLabel({
+                start: choisie.from.toISOString(),
+                end: choisie.to.toISOString(),
+              })}`}
         </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => suivant && setMois(suivant)}
-        disabled={!suivant}
-        aria-label="Mois suivant"
-        className={BOUTON_PAS}
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
-    </div>
-  )
-}
+      </p>
 
-/** À la semaine ou au mois : deux façons de dire « quand », le reste ne bouge pas. */
-function ModeDates({ filters }: { filters: MenuFilters }) {
-  return (
-    <div role="group" aria-label="Période" className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-cream-soft p-1">
-      {(['semaine', 'mois'] as const).map((m) => {
-        const on = filters.mode === m
-        return (
+      <div className="mt-3" onMouseLeave={() => setSurvol(null)}>
+        <DatePicker
+          month={affiche}
+          onMonthChange={setAffiche}
+          startMonth={premierMois}
+          endMonth={dernier}
+          disabled={{ before: premier, after: dernier }}
+          onDayClick={(jour) => dansLaPlage(jour) && choisirSemaine(lundiDe(jour))}
+          onDayMouseEnter={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
+          onDayFocus={(jour) => setSurvol(dansLaPlage(jour) ? lundiDe(jour) : null)}
+          modifiers={{
+            semaine: retenue,
+            survol: survolee ?? [],
+            bandeDebut: [retenue.from, ...(survolee ? [survolee.from] : [])],
+            bandeFin: [retenue.to, ...(survolee ? [survolee.to] : [])],
+          }}
+          modifiersClassNames={{
+            ...DAY_MODIFIERS,
+            semaine: 'lf-week',
+            survol: 'lf-week-hover',
+            bandeDebut: 'lf-week-start',
+            bandeFin: 'lf-week-end',
+          }}
+          className="lf-rdp-week lf-rdp-compact mx-auto"
+        />
+      </div>
+
+      <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+        Cliquez un jour : toute sa semaine est retenue.
+      </p>
+
+      {/* Les raccourcis : les deux semaines qu'on demande le plus, et le mois entier. */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {semaines.slice(0, 2).map((lundi, i) => {
+          const on = !auMois && lundi === semaine
+          return (
+            <button
+              key={lundi}
+              type="button"
+              onClick={() => choisirSemaine(lundi)}
+              aria-pressed={on}
+              className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
+                on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
+              }`}
+            >
+              {semaineRelative(i)}
+            </button>
+          )
+        })}
+        {moisListe.includes(moisAffiche) && (
           <button
-            key={m}
             type="button"
-            onClick={() => filters.setMode(m)}
-            aria-pressed={on}
-            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
-              on
-                ? 'bg-paper text-navy shadow-[0_1px_4px_rgba(31,42,55,0.14)]'
-                : 'text-ink-mid hover:text-navy'
+            onClick={() => (moisEntierChoisi ? choisirSemaine(semaine) : choisirMois(moisAffiche))}
+            aria-pressed={moisEntierChoisi}
+            className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
+              moisEntierChoisi ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:text-navy'
             }`}
           >
-            {m === 'semaine' ? 'À la semaine' : 'Au mois'}
+            Tout {nomMoisAffiche}
           </button>
-        )
-      })}
+        )}
+      </div>
     </div>
   )
 }
@@ -638,8 +551,7 @@ function FilterPanel({ filters }: { filters: MenuFilters }) {
        se lit comme une suite de questions, pas comme un formulaire tassé. */
     <div className="divide-y divide-[rgba(31,42,55,0.08)] [&>*:first-child]:pt-0 [&>*:last-child]:pb-0 [&>*]:py-6">
       <FilterGroup title="Dates">
-        <ModeDates filters={filters} />
-        {filters.mode === 'mois' ? <MoisChamp filters={filters} /> : <SemaineChamp filters={filters} />}
+        <PeriodeCalendrier filters={filters} />
       </FilterGroup>
 
       <FilterGroup title="Recherche">
@@ -710,32 +622,254 @@ function FilterPanel({ filters }: { filters: MenuFilters }) {
   )
 }
 
-/** Les filtres en colonne, à gauche des cartes, à partir de `lg`. Dessous : le tiroir. */
-export function MenuFilterSidebar({
+/* ── Filtres en barre, au-dessus des cartes ────────────────────────────────── */
+
+const OUTIL =
+  'inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber'
+const OUTIL_REPOS = 'border-[var(--line)] bg-paper text-navy hover:border-[var(--line-strong)]'
+const OUTIL_ACTIF = 'border-amber bg-amber-soft/60 text-navy'
+
+/**
+ * Un bouton de la barre qui déplie un panneau dessous : le calendrier, les
+ * régimes. Il se referme au clic dehors et à Échap, et rend alors le focus au
+ * bouton. Pas une liste de menu : le panneau contient des contrôles (un
+ * calendrier, des cases), on y navigue à la tabulation.
+ */
+function Deroulant({
+  label,
+  icon,
+  actif,
+  compte,
+  titre,
+  children,
+}: {
+  label: ReactNode
+  icon: ReactNode
+  actif?: boolean
+  compte?: number
+  /** Ce que contient le panneau, pour un lecteur d'écran. */
+  titre: string
+  children: (fermer: () => void) => ReactNode
+}) {
+  const [ouvert, setOuvert] = useState(false)
+  const racine = useRef<HTMLDivElement>(null)
+  const id = useId()
+  const boutonId = `${id}-bouton`
+  // Le focus revient au bouton par son id : la fonction passe au panneau
+  // pendant le rendu, elle ne doit pas lire de ref.
+  const rendreFocus = () => document.getElementById(boutonId)?.focus()
+
+  useEffect(() => {
+    if (!ouvert) return
+    const dehors = (e: PointerEvent) => {
+      if (!racine.current?.contains(e.target as Node)) setOuvert(false)
+    }
+    const echap = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOuvert(false)
+      document.getElementById(boutonId)?.focus()
+    }
+    document.addEventListener('pointerdown', dehors)
+    document.addEventListener('keydown', echap)
+    return () => {
+      document.removeEventListener('pointerdown', dehors)
+      document.removeEventListener('keydown', echap)
+    }
+  }, [ouvert, boutonId])
+
+  const fermer = () => {
+    setOuvert(false)
+    rendreFocus()
+  }
+
+  return (
+    <div ref={racine} className="relative">
+      <button
+        id={boutonId}
+        type="button"
+        aria-expanded={ouvert}
+        aria-controls={id}
+        onClick={() => setOuvert((o) => !o)}
+        className={cn(OUTIL, actif || ouvert ? OUTIL_ACTIF : OUTIL_REPOS)}
+      >
+        {icon}
+        {label}
+        {!!compte && (
+          <span className="rounded-full bg-amber px-1.5 text-xs font-bold tabular-nums text-navy">
+            {compte}
+          </span>
+        )}
+        <ChevronDown
+          className={cn('h-4 w-4 text-ink-soft transition-transform duration-150', ouvert && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {ouvert && (
+        <div
+          id={id}
+          role="dialog"
+          aria-label={titre}
+          className="absolute left-0 top-full z-30 mt-2 rounded-2xl border border-[var(--line)] bg-paper p-5 shadow-[var(--shadow-pop)]"
+        >
+          {children(fermer)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Les filtres en une barre, au-dessus des cartes, à partir de `lg`.
+ *
+ * En colonne, ils prenaient un tiers de la largeur pour un calendrier qu'on
+ * touche une fois : les cartes, elles, se serraient à deux. En barre, la
+ * période et les régimes se déplient à la demande, la recherche et la région
+ * restent sous la main, et les cartes reprennent toute la largeur.
+ * Sous `lg`, le tiroir reste : une barre de six contrôles ne tient pas.
+ */
+export function MenuFilterToolbar({
   filters,
   className,
 }: {
   filters: MenuFilters
   className?: string
 }) {
+  const { query, setQuery, region, setRegion, diets, toggleDiet, shoppingOnly, setShoppingOnly } =
+    filters
+  const { regions } = useRegions([])
+  const dietOptions = useDiets([])
+
+  const { from, to } = bornes(filters.semaine)
+  const periode =
+    filters.mode === 'mois'
+      ? `Tout ${moisLabel(filters.mois)}`
+      : // « Du 23 au 29 novembre » : le titre des résultats dit déjà « Semaine ».
+        weekLabel({ start: from.toISOString(), end: to.toISOString() })
+
   return (
-    <aside aria-label="Filtres" className={cn('hidden lg:block', className)}>
-      <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-bold text-navy">Filtrer les cartes</h2>
-          {filters.active && (
-            <button
-              type="button"
-              onClick={filters.reset}
-              className="text-xs font-semibold text-terra underline underline-offset-4"
-            >
-              Tout effacer
-            </button>
-          )}
-        </div>
-        <FilterPanel filters={filters} />
+    <div
+      role="search"
+      aria-label="Filtrer les cartes"
+      className={cn(
+        'flex-wrap items-center gap-2 rounded-2xl border border-[var(--line)] bg-paper p-2.5 shadow-[var(--shadow-card)]',
+        className,
+      )}
+    >
+      <Deroulant
+        titre="Choisir la période"
+        icon={<CalendarDays className="h-4 w-4 text-amber-ink" aria-hidden />}
+        label={<span className="cap-first">{periode}</span>}
+      >
+        {(fermer) => (
+          <div className="w-[19rem]">
+            {/* Choisir une semaine ou un mois referme le panneau : c'est fait. */}
+            <PeriodeCalendrier
+              filters={{
+                ...filters,
+                setSemaine: (v) => {
+                  filters.setSemaine(v)
+                  fermer()
+                },
+                setMois: (v) => {
+                  filters.setMois(v)
+                  fermer()
+                },
+              }}
+            />
+          </div>
+        )}
+      </Deroulant>
+
+      {/* Sous 1400 px, la barre ne tient pas sur une ligne : la recherche passe
+          dessous, sur toute la largeur, plutôt qu'un bouton orphelin. */}
+      <div className="relative order-last min-w-[11rem] flex-1 basis-full min-[1400px]:order-none min-[1400px]:basis-0">
+        <Search
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Un chef, une ville, un plat…"
+          aria-label="Rechercher un chef, une ville ou un plat"
+          className="h-11 w-full rounded-xl border border-[var(--line)] bg-cream-soft/50 pl-10 pr-3 text-sm text-navy placeholder:text-ink-soft focus:border-amber focus:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
+        />
       </div>
-    </aside>
+
+      <div className="relative">
+        <MapPin
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-ink"
+          aria-hidden
+        />
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          aria-label="Filtrer par région"
+          className={cn(OUTIL, 'max-w-[13rem] appearance-none truncate pl-10 pr-9', region !== 'all' ? OUTIL_ACTIF : OUTIL_REPOS)}
+        >
+          <option value="all">Toutes les régions</option>
+          {regions.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+          aria-hidden
+        />
+      </div>
+
+      {dietOptions.length > 0 && (
+        <Deroulant
+          titre="Régime alimentaire"
+          icon={<SlidersHorizontal className="h-4 w-4 text-amber-ink" aria-hidden />}
+          label="Régimes"
+          actif={diets.length > 0}
+          compte={diets.length}
+        >
+          {() => (
+            <ul className="w-56 space-y-1">
+              {dietOptions.map((d) => (
+                <li key={d.code}>
+                  <label className={LIGNE_CASE}>
+                    <input
+                      type="checkbox"
+                      checked={diets.includes(d.code)}
+                      onChange={() => toggleDiet(d.code)}
+                      className={CASE}
+                    />
+                    {d.label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Deroulant>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShoppingOnly(!shoppingOnly)}
+        aria-pressed={shoppingOnly}
+        className={cn(OUTIL, shoppingOnly ? OUTIL_ACTIF : OUTIL_REPOS)}
+      >
+        <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
+        Courses incluses
+        {shoppingOnly && <Check className="h-4 w-4" aria-hidden />}
+      </button>
+
+      {filters.active && (
+        <button
+          type="button"
+          onClick={filters.reset}
+          className="hit ml-1 shrink-0 px-2 text-sm font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+        >
+          Tout effacer
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -755,7 +889,7 @@ export function MenuFilterButton({
       <SlidersHorizontal className="h-4 w-4" aria-hidden />
       Filtrer les cartes
       {n > 0 && (
-        <span className="rounded-full bg-terra px-1.5 text-[11px] font-bold text-white">{n}</span>
+        <span className="rounded-full bg-terra px-1.5 text-xs font-bold text-white">{n}</span>
       )}
     </button>
   )
@@ -821,9 +955,9 @@ export function MenuFilterDrawer({
 /** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
 export function MenusLoading() {
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-[26rem] animate-pulse rounded-2xl bg-paper" />
+        <div key={i} className="h-[30rem] animate-pulse rounded-2xl bg-paper" />
       ))}
     </div>
   )
@@ -909,12 +1043,16 @@ export function NoMenus({
 /* ── Carte d'un batch cooker ───────────────────────────────────────────────── */
 
 function Avatar({ card, className }: { card: WeekCard; className: string }) {
-  if (card.chef.avatarUrl) {
+  // Une photo qui ne charge pas (lien expiré, fichier retiré) laissait un trou
+  // à la place du visage : on retombe sur les initiales.
+  const [casse, setCasse] = useState(false)
+  if (card.chef.avatarUrl && !casse) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={card.chef.avatarUrl}
         alt=""
+        onError={() => setCasse(true)}
         className={`${className} shrink-0 rounded-full object-cover`}
       />
     )
@@ -937,6 +1075,197 @@ function Avatar({ card, className }: { card: WeekCard; className: string }) {
   )
 }
 
+/** Vrai dès que l'élément est entré une fois dans l'écran. */
+function useVu<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [vu, setVu] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || vu) return
+    const io = new IntersectionObserver(
+      ([entree]) => {
+        if (entree.isIntersecting) {
+          setVu(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '240px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [vu])
+  return [ref, vu] as const
+}
+
+/**
+ * Les formules d'un batch cooker, dans sa carte.
+ *
+ * La liste de la semaine (`/menus/week`) ne donne que son prix le plus bas. Ses
+ * formules — nom, plats, durée, prix — sont sur sa fiche publique (`GET /chefs/{id}`,
+ * `serviceOffers`, les actives seulement). On la lit carte par carte, et
+ * seulement quand la carte approche de l'écran : la route publique est limitée
+ * en appels, et quarante fiches d'un coup la satureraient.
+ *
+ * Le prix suit la règle de la maison : le reste à charge après crédit d'impôt
+ * d'abord, le total avant déduction dessous.
+ */
+function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
+  const fiche = useChefPublic(vu ? chefId : undefined)
+  const regles = usePricingRules().data
+  const offres = fiche.data?.serviceOffers ?? []
+
+  // Sans formule, ou si la fiche ne répond pas : le pied de carte dit déjà le tarif.
+  if (fiche.isError || (fiche.isSuccess && offres.length === 0)) return null
+
+  return (
+    <div className="mt-4 px-5">
+      <h3 className="text-xs font-semibold text-ink-mid">Ses formules</h3>
+      {fiche.isPending ? (
+        // Deux lignes à la hauteur des formules : la carte ne saute pas à l'arrivée.
+        <div role="status" aria-busy="true" className="mt-2 space-y-1.5">
+          <span className="sr-only">Chargement des formules</span>
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              aria-hidden
+              className="h-10 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Une ligne par formule : son nom, et ce qu'elle coûte vraiment. Le
+              détail (plats, durée, total avant crédit) est dans sa carte. */}
+          <ul className="mt-2 divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
+            {offres.slice(0, 2).map((o) => {
+              const apres = regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+              return (
+                <li key={o.id} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                  <span className="min-w-0 truncate text-sm font-semibold text-navy" title={o.name}>
+                    {o.name}
+                  </span>
+                  <span className="shrink-0 text-sm font-bold tabular-nums text-navy">
+                    {apres ?? offerEuros(o.priceCents)}
+                    {apres && <span className="ml-1 text-xs font-normal text-ink-soft">après crédit</span>}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          {offres.length > 2 && (
+            <p className="mt-1.5 text-xs text-ink-soft">
+              + {offres.length - 2} autre{offres.length - 2 > 1 ? 's' : ''} formule
+              {offres.length - 2 > 1 ? 's' : ''} dans sa carte
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** `AAAA-MM-JJ` d'une date, dans le fuseau du visiteur. */
+const cleJour = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/**
+ * Les jours où un batch cooker a encore de la place, sur la semaine regardée.
+ *
+ * La carte disait « 9 créneaux libres » sans dire quand : on ouvrait la carte,
+ * on allait jusqu'au choix de la date, et on découvrait là que le mercredi
+ * voulu n'était pas possible. Les sept jours sont sous les yeux dès la liste.
+ *
+ * `GET /chefs/{id}/availability` rend les débuts de session possibles pour sa
+ * formule la plus courte ; un jour est libre s'il en porte au moins un. La
+ * fenêtre ne peut pas commencer dans le passé : pour la semaine en cours, elle
+ * part d'aujourd'hui, et les jours écoulés sont dits tels.
+ *
+ * Rien ne s'affiche quand il n'a pas d'horaires publiés (il est « sur
+ * demande », le pied de carte le dit) ou que la route ne répond pas.
+ */
+function JoursLibres({ chefId, semaine, vu }: { chefId: string; semaine: string; vu: boolean }) {
+  // Une seule lecture de l'heure, au montage : le rendu reste pur.
+  const [aujourdhui] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  const lundi = new Date(`${semaine}T00:00:00`)
+  const jours = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(lundi)
+    d.setDate(d.getDate() + i)
+    return d
+  })
+  // `to` est exclu côté API : le lundi suivant couvre le dimanche.
+  const finExclue = new Date(lundi)
+  finExclue.setDate(finExclue.getDate() + 7)
+  const debut = lundi < aujourdhui ? aujourdhui : lundi
+  const ecoulee = debut >= finExclue
+
+  const dispos = useChefSlots(vu && !ecoulee ? chefId : undefined, {
+    from: cleJour(debut),
+    to: cleJour(finExclue),
+  })
+
+  if (ecoulee || dispos.isError) return null
+  if (dispos.isSuccess && !dispos.data.scheduled) return null
+
+  const libres = new Set((dispos.data?.slots ?? []).map((iso) => cleJour(new Date(iso))))
+
+  return (
+    <div className="mt-4 px-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-semibold text-ink-mid">Ses jours libres</h3>
+        {dispos.isSuccess && libres.size === 0 && (
+          <p className="text-xs text-amber-ink">Complet : essayez la semaine suivante</p>
+        )}
+      </div>
+      {dispos.isPending ? (
+        <div role="status" aria-busy="true" className="mt-2 grid grid-cols-7 gap-1">
+          <span className="sr-only">Chargement des disponibilités</span>
+          {jours.map((d) => (
+            <div
+              key={d.getTime()}
+              aria-hidden
+              className="h-10 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
+            />
+          ))}
+        </div>
+      ) : (
+        <ol className="mt-2 grid grid-cols-7 gap-1">
+          {jours.map((d) => {
+            const passe = d < aujourdhui
+            const libre = !passe && libres.has(cleJour(d))
+            return (
+              <li
+                key={d.getTime()}
+                className={`flex h-10 flex-col items-center justify-center rounded-lg text-[11px] leading-none ${
+                  libre ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : 'bg-cream-soft text-ink-soft'
+                }`}
+              >
+                <span aria-hidden>
+                  {d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
+                </span>
+                {/* Barré : l'absence de couleur seule ne dit pas « pas possible ». */}
+                <span
+                  aria-hidden
+                  className={`mt-0.5 text-[13px] font-semibold tabular-nums ${libre ? '' : 'line-through'}`}
+                >
+                  {d.getDate()}
+                </span>
+                <span className="sr-only">
+                  {d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} :{' '}
+                  {libre ? 'un créneau reste libre' : passe ? 'jour passé' : 'indisponible'}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 /** Ce qu'on peut dire des places restantes sans inventer. */
 function placesLabel(slotsLeft: number | null): string {
   if (slotsLeft == null) return 'Sur demande'
@@ -945,9 +1274,18 @@ function placesLabel(slotsLeft: number | null): string {
 }
 
 function DishThumb({ dish, className }: { dish: WeekDish; className: string }) {
-  if (dish.imageUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={dish.imageUrl} alt="" className={`${className} object-cover`} />
+  // Même repli que l'avatar : pas de case vide quand la photo ne répond pas.
+  const [casse, setCasse] = useState(false)
+  if (dish.imageUrl && !casse) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={dish.imageUrl}
+        alt=""
+        onError={() => setCasse(true)}
+        className={`${className} bg-cream-soft object-cover`}
+      />
+    )
   }
   return (
     <span
@@ -966,9 +1304,15 @@ export function MenuCard({
   openLabel = 'Voir la carte',
   customOrder = false,
   dietLabel,
+  semaine,
 }: {
   menu: WeekCard
   index: number
+  /**
+   * Le lundi de la semaine regardée, `AAAA-MM-JJ`. Présent, la carte montre les
+   * jours libres du batch cooker cette semaine-là ; absent (vue au mois), non.
+   */
+  semaine?: string
   onOpen: () => void
   openLabel?: string
   /**
@@ -980,17 +1324,19 @@ export function MenuCard({
   /** Traduit un code de régime en libellé lisible. */
   dietLabel: (code: string) => string
 }) {
-  const preview = menu.dishes.slice(0, 3)
+  // Quatre cases : quatre plats, ou trois et « +N » pour les autres.
+  const preview = menu.dishes.length > 4 ? menu.dishes.slice(0, 3) : menu.dishes
   const reste = menu.dishes.length - preview.length
   const prix = euros(menu.sessionFromCents)
   const apresCredit = euros(menu.afterTaxCreditCents)
+  // La fiche et les créneaux ne se lisent que lorsque la carte approche de l'écran.
+  const [sentinelle, vu] = useVu<HTMLSpanElement>()
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.06, 0.24), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper transition-colors hover:border-[rgba(31,42,55,0.18)]"
+      // slow-out : la carte se pose en 240 ms, décalée de 40 ms par rang
+      {...fadeUp(Math.min(index * 0.04, 0.16))}
+      className="flex flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-paper shadow-[var(--shadow-card)] transition-colors hover:border-[var(--line-strong)]"
     >
       {/*
         La couverture de la carte, quand le batch cooker en a mis une.
@@ -1002,13 +1348,15 @@ export function MenuCard({
         <img
           src={menu.imageUrl}
           alt=""
-          className="aspect-[21/9] w-full object-cover"
+          className="aspect-[3/1] w-full object-cover"
         />
       )}
 
+      <span ref={sentinelle} aria-hidden />
+
       {/* Le chef d'abord : c'est lui qu'on choisit. */}
-      <header className="flex items-start gap-4 p-5 pb-4">
-        <Avatar card={menu} className="h-14 w-14 text-lg" />
+      <header className="flex items-start gap-3.5 p-5 pb-3">
+        <Avatar card={menu} className="h-12 w-12 text-base" />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -1016,14 +1364,14 @@ export function MenuCard({
               {menu.chef.displayName}
             </h2>
             {menu.chef.newcomer && (
-              <span className="rounded-full bg-mint px-2 py-0.5 text-[10px] font-semibold text-mint-ink">
+              <span className="rounded-full bg-mint px-2 py-0.5 text-xs font-semibold text-mint-ink">
                 Nouveau
               </span>
             )}
             {/* Le CESU préfinancé change ce que le client paiera réellement :
                 il se voit dès la carte, pas au moment de payer. */}
             {menu.chef.acceptsCesu && (
-              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[10px] font-semibold text-amber-deep">
+              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-deep">
                 CESU accepté
               </span>
             )}
@@ -1052,93 +1400,104 @@ export function MenuCard({
       </header>
 
       <div className="px-5">
-        <h3 className="font-display text-xl font-bold leading-tight tracking-[-0.01em] text-navy">
+        <h3 className="font-display text-lg font-bold leading-tight tracking-[-0.01em] text-navy">
           {menu.hasMenu && menu.title ? menu.title : 'Ses plats de la semaine'}
         </h3>
-        {menu.pitch ? (
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-mid">{menu.pitch}</p>
-        ) : (
-          !menu.hasMenu && (
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-              Pas de carte composée cette semaine : choisissez parmi ses plats.
-            </p>
-          )
+        {menu.pitch && (
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-mid">{menu.pitch}</p>
         )}
       </div>
 
-      <ul className="mt-4 space-y-px px-5">
-        {preview.map((dish) => (
-          <li
-            key={dish.id}
-            className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-cream-soft"
-          >
-            <DishThumb dish={dish} className="h-12 w-12 shrink-0 rounded-lg" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-navy">{dish.name}</span>
-              <span className="block truncate text-xs text-ink-soft">
-                {[countryLabel(dish.country), `${dish.portions} portions`]
-                  .filter(Boolean)
-                  .join(' · ')}
+      {/* Les plats en vignettes : on voit la cuisine d'un coup d'œil, la liste
+          complète (pays, portions, allergènes) est dans sa carte. */}
+      {menu.dishes.length === 0 ? (
+        <p className="mt-3 px-5 text-sm text-ink-soft">Aucun plat publié pour l’instant.</p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-4 gap-2 px-5">
+          {preview.map((dish) => (
+            <li key={dish.id} className="min-w-0">
+              <DishThumb dish={dish} className="aspect-square w-full rounded-xl" />
+              <span className="mt-1.5 line-clamp-2 text-xs font-medium leading-snug text-navy" title={dish.name}>
+                {dish.name}
               </span>
-            </span>
-          </li>
-        ))}
-        {reste > 0 && (
-          <li className="px-2 pt-1 text-xs text-ink-soft">
-            + {reste} autre{reste > 1 ? 's' : ''} plat{reste > 1 ? 's' : ''} dans cette carte
-          </li>
-        )}
-        {menu.dishes.length === 0 && (
-          <li className="px-2 py-3 text-sm text-ink-soft">Aucun plat publié pour l’instant.</li>
-        )}
-      </ul>
+            </li>
+          ))}
+          {reste > 0 && (
+            <li className="min-w-0">
+              <button
+                type="button"
+                onClick={onOpen}
+                aria-label={`Voir les ${reste} autres plats`}
+                className="flex aspect-square w-full flex-col items-center justify-center rounded-xl bg-cream-soft text-navy transition-colors hover:bg-cream-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              >
+                <span className="font-display text-lg font-bold tabular-nums">+{reste}</span>
+                <span className="text-[11px] text-ink-soft">plat{reste > 1 ? 's' : ''}</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-1.5 px-5">
-        {menu.coveredDiets.map((d) => (
-          <span
-            key={d}
-            className="rounded-full bg-mint/60 px-2.5 py-1 text-[11px] font-medium text-mint-ink"
-          >
-            Toute la carte {dietLabel(d).toLowerCase()}
-          </span>
-        ))}
-        {menu.shoppingIncluded && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-navy">
-            <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
-          </span>
-        )}
-        {menu.chef.languages.length > 1 && <LanguesChip codes={menu.chef.languages} />}
-      </div>
+      {(menu.coveredDiets.length > 0 || menu.shoppingIncluded) && (
+        <div className="mt-3 flex flex-wrap gap-1.5 px-5">
+          {menu.coveredDiets.map((d) => (
+            <span
+              key={d}
+              className="rounded-full bg-mint/60 px-2.5 py-1 text-xs font-medium text-mint-ink"
+            >
+              Toute la carte {dietLabel(d).toLowerCase()}
+              {/* La promesse la plus forte de la page : la mention des traces la suit aussi. */}
+              {TRACES_DIETS.has(d) && `, ${TRACES_NOTE}`}
+            </span>
+          ))}
+          {menu.shoppingIncluded && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
+              <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
+            </span>
+          )}
+        </div>
+      )}
+
+      {/*
+        La liste de la semaine dit déjà si ces blocs auront quelque chose à
+        montrer : sans créneau configuré (`slotsLeft` nul), pas de jours libres ;
+        sans formule (`sessionFromCents` nul), pas de formules. On ne pose donc
+        pas un squelette qui disparaîtrait ensuite en faisant sauter la carte.
+      */}
+      {semaine && menu.slotsLeft != null && (
+        <JoursLibres chefId={menu.chef.id} semaine={semaine} vu={vu} />
+      )}
+
+      {menu.sessionFromCents != null && <Formules chefId={menu.chef.id} vu={vu} />}
 
       {customOrder ? (
         <>
           {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
-          <div aria-hidden className="min-h-5 flex-1" />
-          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-5">
+          <div aria-hidden className="min-h-4 flex-1" />
+          <footer className="border-t border-[var(--line)] px-5 pb-4 pt-4">
             {/* Alignés en haut : « 3 créneaux libres » tombait sinon sur la
                 dernière ligne du prix et se lisait comme sa suite. */}
             <div className="flex items-start justify-between gap-4">
               <Tarif prix={prix} apresCredit={apresCredit} />
               <Places slotsLeft={menu.slotsLeft} />
             </div>
-            {/* Côte à côte quand la carte est large (une par ligne), l'une sous
-                l'autre quand elles sont deux par ligne. */}
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row xl:flex-col">
-              <button
-                type="button"
-                onClick={onOpen}
-                className="btn btn-primary flex-1 justify-center py-3 text-xs"
-              >
-                {openLabel}
-              </button>
-              <ReserveButton
-                href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
-                variant="outline"
-                className="flex-1 justify-center py-3 text-xs"
-              >
-                Commande personnalisée
-              </ReserveButton>
-            </div>
+            {/* Un seul bouton : ouvrir la carte. La demande sur-mesure est une
+                autre route, plus rare — elle reste à portée, en lien. */}
+            <button
+              type="button"
+              onClick={onOpen}
+              className="btn btn-primary mt-4 w-full justify-center"
+            >
+              {openLabel}
+            </button>
+            <ReserveButton
+              asChild
+              href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
+              className="hit mx-auto mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+            >
+              Lui adresser une demande sur-mesure
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </ReserveButton>
           </footer>
         </>
       ) : (
@@ -1164,7 +1523,7 @@ function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
       className={`shrink-0 whitespace-nowrap text-xs leading-none ${
-        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-terra' : 'text-ink-soft'
+        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-amber-ink' : 'text-ink-soft'
       }`}
     >
       {placesLabel(slotsLeft)}
@@ -1181,6 +1540,9 @@ export function MenuDialog({
   selected: controlled,
   onSelectedChange,
   dietLabel,
+  renderBeforeDishes,
+  maxDishes = MAX_DISHES,
+  maxDishesFixed = true,
 }: {
   menu: WeekCard | null
   onClose: () => void
@@ -1194,19 +1556,29 @@ export function MenuDialog({
   selected?: string[]
   onSelectedChange?: (ids: string[]) => void
   dietLabel: (code: string) => string
+  /** Au-dessus des plats : la réservation y fait choisir la formule d'abord. */
+  renderBeforeDishes?: (menu: WeekCard) => ReactNode
+  /** Plats cochables. La formule retenue le fixe ; `0` tant qu'aucune ne l'est. */
+  maxDishes?: number
+  /**
+   * `false` : `maxDishes` est un plafond technique, pas le nombre de la
+   * formule (une formule posée avant le 19/11 n'en a pas). Le compteur dit
+   * alors combien de plats sont cochés, sans « / 20 ».
+   */
+  maxDishesFixed?: boolean
 }) {
   const [own, setOwn] = useState<string[]>([])
   const selected = controlled ?? own
   const setSelected = (ids: string[]) => (onSelectedChange ?? setOwn)(ids)
 
   const dishes = menu?.dishes ?? []
-  const full = selected.length >= MAX_DISHES
+  const full = selected.length >= maxDishes
 
   const toggle = (id: string) =>
     setSelected(
       selected.includes(id)
         ? selected.filter((x) => x !== id)
-        : selected.length < MAX_DISHES
+        : selected.length < maxDishes
           ? [...selected, id]
           : selected,
     )
@@ -1266,10 +1638,16 @@ export function MenuDialog({
                       </p>
                     )}
 
+                    {renderBeforeDishes?.(menu)}
+
                     <p className="mb-3 text-sm font-semibold text-navy">
                       Choisissez vos plats
                       <span className="ml-2 font-normal text-ink-soft">
-                        {selected.length} / {MAX_DISHES} selon votre formule
+                        {maxDishes === 0
+                          ? 'choisissez d’abord votre formule'
+                          : maxDishesFixed
+                            ? `${selected.length} sur ${maxDishes} prévus par la formule`
+                            : `${selected.length} plat${selected.length > 1 ? 's' : ''} choisi${selected.length > 1 ? 's' : ''}`}
                       </span>
                     </p>
 
@@ -1374,7 +1752,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
         {card.chef.sessionsDone > 0
           ? `${card.chef.sessionsDone} session${card.chef.sessionsDone > 1 ? 's' : ''} réalisée${card.chef.sessionsDone > 1 ? 's' : ''}`
           : 'Aucune session pour l’instant'}
-        {card.chef.newcomer && <span className="text-terra"> · nouveau sur Lab’s Food</span>}
+        {card.chef.newcomer && <span className="text-amber-ink"> · nouveau sur Lab’s Food</span>}
       </p>
 
       {card.chef.rating != null ? (
@@ -1405,9 +1783,8 @@ function ChefPanel({ card }: { card: WeekCard }) {
         ))}
       </dl>
 
-      {(card.chef.badges.length > 0 ||
-        card.chef.languages.length > 0 ||
-        card.chef.acceptsCesu) && (
+      {/* Les langues sont déjà dans la liste au-dessus (« Parle ») : pas une seconde fois ici. */}
+      {(card.chef.badges.length > 0 || card.chef.acceptsCesu) && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
           {card.chef.acceptsCesu && (
             <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-mid">
@@ -1421,17 +1798,12 @@ function ChefPanel({ card }: { card: WeekCard }) {
               {card.chef.badges.join(', ')}
             </p>
           )}
-          {card.chef.languages.length > 0 && (
-            <LanguesLigne codes={card.chef.languages} />
-          )}
         </div>
       )}
 
       {(chef?.menus?.length ?? 0) > 1 && (
         <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            <Globe2 className="h-3.5 w-3.5 text-amber" aria-hidden /> Ses autres cartes
-          </p>
+          <p className="mb-2 text-sm font-semibold text-navy">Ses autres cartes</p>
           <ul className="space-y-1 text-[13px] text-ink-mid">
             {chef?.menus
               .filter((m) => m.id !== card.menuId)
@@ -1460,6 +1832,11 @@ function DishRow({
   dietLabel: (code: string) => string
 }) {
   const profiles = useRecipeProfiles()
+  // Le repli des quatorze : un client lit « Lait », jamais le code `milk`.
+  const allergenList = useAllergens(REGULATED_ALLERGENS)
+  const conditional = new Set(dish.conditionalAllergens ?? [])
+  // Les allergènes hors des quatorze (le sarrasin) : un client allergique doit les lire aussi.
+  const customAllergens = dish.customAllergens ?? []
   return (
     <li>
       <button
@@ -1503,43 +1880,62 @@ function DishRow({
             {/* Recettes §4.8 : les régimes calculés d'après les ingrédients quand
                 le calcul se fait, sinon ceux indiqués par le batch cooker ; puis
                 ceux qu'il déclare (halal, casher), les saisons et les profils. */}
+            {/* « Sans gluten » et « sans lactose » d'abord : coupés par le plafond, leur mention de traces disparaîtrait avec eux. */}
             {[...(dish.computedDiets ?? dish.diets), ...(dish.declaredDiets ?? [])]
+              .sort((a, b) => Number(TRACES_DIETS.has(b)) - Number(TRACES_DIETS.has(a)))
               .slice(0, 3)
               .map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-cream-soft px-2 py-0.5 text-[10px] text-navy"
+                  className="rounded-full bg-cream-soft px-2 py-0.5 text-xs text-navy"
                 >
                   {DIET_LABEL[tag] ?? dietLabel(tag)}
+                  {TRACES_DIETS.has(tag) && `, ${TRACES_NOTE}`}
                 </span>
               ))}
             {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
-              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-[10px] text-mint-ink">
+              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-xs text-mint-ink">
                 {seasonsLine(dish.seasonMonths ?? null)}
               </span>
             )}
             {(dish.profiles ?? []).slice(0, 2).map((p) => (
               <span
                 key={p}
-                className="rounded-full bg-amber-soft/60 px-2 py-0.5 text-[10px] text-[#8B6200]"
+                className="rounded-full bg-amber-soft/60 px-2 py-0.5 text-xs text-[#8B6200]"
               >
                 {refLabel(profiles, p)}
               </span>
             ))}
             {/* Toute la ligne est un bouton : pas de popover à l'intérieur. */}
             {dish.computedDiets && dish.computedDiets.length > 0 && (
-              <span className="text-[10px] italic text-ink-soft">
+              <span className="text-xs italic text-ink-soft">
                 régimes selon les produits achetés
               </span>
             )}
             {/* L'allergène est une information de sécurité : on la montre
                 telle quelle, et l'absence déclarée se dit aussi. */}
-            {dish.allergens.length > 0 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-red-700">
-                {dish.allergens.join(', ')}
-              </span>
+            {dish.allergens.length > 0 || customAllergens.length > 0 ? (
+              <>
+                {dish.allergens.map((code) => (
+                  <span
+                    key={code}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+                  >
+                    {refLabel(allergenList, code)}
+                    {conditional.has(code) && ', si l’ingrédient facultatif est utilisé'}
+                  </span>
+                ))}
+                {customAllergens.map((name) => (
+                  <span
+                    key={`autre-${name}`}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </>
             ) : dish.allergensNone ? (
-              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-[10px] text-mint-ink">
+              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs text-mint-ink">
                 Sans allergène déclaré
               </span>
             ) : null}

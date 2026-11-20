@@ -90,7 +90,7 @@ export default function DocumentSlot({
             ) : (
               <span className="flex h-full w-full flex-col items-center justify-center text-navy">
                 <FileText className="h-5 w-5" aria-hidden />
-                <span className="mt-0.5 text-[9px] font-bold tracking-wide">PDF</span>
+                <span className="mt-0.5 text-xs font-bold tracking-wide">PDF</span>
               </span>
             )}
             <span className="absolute inset-0 flex items-center justify-center bg-navy/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
@@ -181,7 +181,7 @@ export default function DocumentSlot({
               )}
               <Dialog.Close
                 aria-label="Fermer l’aperçu"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                className="hit flex h-9 w-9 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
               >
                 <X className="h-4 w-4" />
               </Dialog.Close>
@@ -219,7 +219,7 @@ function IconAction({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
+      className={`hit flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber ${
         danger ? 'text-ink-mid hover:bg-red-50 hover:text-red-700' : 'text-ink-mid hover:bg-cream-soft hover:text-navy'
       }`}
     >

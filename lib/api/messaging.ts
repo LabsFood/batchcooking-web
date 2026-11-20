@@ -57,7 +57,7 @@ export interface Conversation {
     role: SenderRole
     name: string
     avatarUrl: string | null
-    /** Renseigné seulement une fois les coordonnées libérées (J-2). */
+    /** Toujours `null` : les coordonnées ne sont jamais partagées. */
     phone: string | null
   }
   booking: {
@@ -68,6 +68,7 @@ export interface Conversation {
     endsAt: string
   } | null
   writable: boolean
+  /** Toujours `false` / `null` : aucune libération de coordonnées. */
   contactReleased: boolean
   contactReleaseAt: string | null
   lastMessage: Message | null
@@ -389,6 +390,28 @@ export function useOpenForBooking() {
       apiFetch<ConversationDetail>('/me/conversations', {
         method: 'POST',
         body: { bookingId },
+      }),
+    onSuccess: (conversation) => {
+      queryClient.setQueryData(keys.conversation(conversation.id), conversation)
+      void queryClient.invalidateQueries({ queryKey: keys.conversations })
+    },
+  })
+}
+
+/**
+ * Ouvre (ou retrouve) le fil entre le client et le batch cooker d'une demande
+ * sur-mesure, avant toute acceptation : pour parler d'un plat ou d'une allergie.
+ */
+export function useOpenForQuote() {
+  const apiFetch = useApiFetch()
+  const queryClient = useQueryClient()
+  const keys = useMessagingKeys()
+
+  return useMutation({
+    mutationFn: (quoteId: string) =>
+      apiFetch<ConversationDetail>('/me/conversations', {
+        method: 'POST',
+        body: { quoteId },
       }),
     onSuccess: (conversation) => {
       queryClient.setQueryData(keys.conversation(conversation.id), conversation)

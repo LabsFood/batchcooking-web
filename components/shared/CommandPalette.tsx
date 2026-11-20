@@ -220,7 +220,7 @@ function Palette({
               aria-label="Rechercher"
               className="h-14 flex-1 bg-transparent text-[15px] text-navy outline-none placeholder:text-ink-soft"
             />
-            <kbd className="hidden shrink-0 rounded-md bg-cream-soft px-1.5 py-1 font-mono text-[10px] text-ink-soft sm:block">
+            <kbd className="hidden shrink-0 rounded-md bg-cream-soft px-1.5 py-1 font-mono text-xs text-ink-soft sm:block">
               Échap
             </kbd>
           </div>
@@ -244,7 +244,7 @@ function Palette({
                 return (
                   <li key={it.id}>
                     {nouveauGroupe && (
-                      <p className="px-3 pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.18em] text-ink-soft">
+                      <p className="px-3 pb-1 pt-3 text-xs uppercase tracking-[0.12em] text-ink-soft">
                         {it.group}
                       </p>
                     )}
@@ -262,7 +262,7 @@ function Palette({
                     >
                       {Icon ? (
                         <Icon
-                          className={cn('h-4 w-4 shrink-0', actif ? 'text-amber-deep' : 'text-ink-soft')}
+                          className={cn('h-4 w-4 shrink-0', actif ? 'text-amber-ink' : 'text-ink-soft')}
                           aria-hidden
                         />
                       ) : (
@@ -272,7 +272,7 @@ function Palette({
                         {it.label}
                       </span>
                       {it.hint && (
-                        <span className="hidden shrink-0 text-[11px] text-ink-soft sm:block">
+                        <span className="hidden shrink-0 text-xs text-ink-soft sm:block">
                           {it.hint}
                         </span>
                       )}
@@ -288,7 +288,7 @@ function Palette({
             </ul>
           )}
 
-          <div className="flex items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] bg-cream-soft px-4 py-2.5 text-[11px] text-ink-soft">
+          <div className="flex items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] bg-cream-soft px-4 py-2.5 text-xs text-ink-soft">
             <span className="flex items-center gap-3">
               <span>
                 <kbd className="rounded bg-paper px-1 font-mono">↑</kbd>
@@ -338,13 +338,13 @@ export function PaletteTrigger({
       type="button"
       onClick={open}
       className={cn(
-        'group flex items-center gap-2.5 rounded-full border border-[rgba(31,42,55,0.08)] bg-paper py-2.5 pl-4 pr-2.5 text-left text-sm text-ink-soft transition-colors hover:border-amber',
+        'group flex items-center gap-2.5 rounded-xl border border-[rgba(31,42,55,0.08)] bg-paper py-2.5 pl-4 pr-2.5 text-left text-sm text-ink-soft transition-colors hover:border-amber',
         className,
       )}
     >
       <Search className="h-4 w-4 shrink-0" aria-hidden />
       <span className="flex-1 truncate">{label}</span>
-      <kbd className="shrink-0 rounded-md bg-cream-soft px-1.5 py-0.5 font-mono text-[10px] text-ink-mid">
+      <kbd className="shrink-0 rounded-md bg-cream-soft px-1.5 py-0.5 font-mono text-xs text-ink-mid">
         {mac ? '⌘K' : 'Ctrl K'}
       </kbd>
     </button>

@@ -44,8 +44,30 @@ export interface MyStats {
 
 /** `GET /me/culinary-map` — les pays goûtés, pour la carte du monde. */
 export interface CulinaryMap {
-  countries?: { iso3166Numeric?: string; code?: string; name?: string; dishes?: number }[]
   total?: number
+  explored?: {
+    code?: string
+    /** La clé de `world-atlas` : « 250 » pour la France. */
+    iso3166Numeric?: string
+    name?: string
+    firstTastedAt?: string
+    dishes?: string[]
+  }[]
+}
+
+/** Un pays goûté, prêt pour la carte. */
+export interface ExploredCountry {
+  code: string
+  name: string
+  flag: string
+  iso: string
+  dishes: string[]
+  firstAt: string
+}
+
+/** `FR` → 🇫🇷 : deux indicateurs régionaux, pas besoin que l'API envoie le drapeau. */
+function flagOf(code: string) {
+  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)))
 }
 
 export function useMyDashboard() {
@@ -71,10 +93,22 @@ export function useCulinaryMap() {
   return useQuery({
     queryKey: ['me', 'culinary-map'],
     queryFn: async () => {
-      const r = await apiFetch<CulinaryMap | CulinaryMap['countries']>('/me/culinary-map')
-      // Tolérant : un tableau nu ou l'enveloppe `{ countries, total }`.
-      if (Array.isArray(r)) return { countries: r, total: r.length }
-      return r
+      const r = await apiFetch<CulinaryMap>('/me/culinary-map')
+      const explored: ExploredCountry[] = (r.explored ?? []).flatMap((c) =>
+        c.code && c.iso3166Numeric
+          ? [
+              {
+                code: c.code,
+                name: c.name ?? c.code,
+                flag: flagOf(c.code),
+                iso: c.iso3166Numeric,
+                dishes: c.dishes ?? [],
+                firstAt: c.firstTastedAt ?? '',
+              },
+            ]
+          : [],
+      )
+      return { total: r.total ?? 195, explored }
     },
     retry: false,
   })

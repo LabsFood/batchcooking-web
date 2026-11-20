@@ -9,7 +9,7 @@ import {
   MenuDialog,
   MenuFilterButton,
   MenuFilterDrawer,
-  MenuFilterSidebar,
+  MenuFilterToolbar,
   MenusError,
   MenusLoading,
   NoMenus,
@@ -26,8 +26,8 @@ import { useDiets } from '@/lib/api/referentials'
    carte par chef, ses plats en aperçu — et la sélection des plats se fait à
    l'intérieur du menu retenu.
 
-   L'en-tête dit comment s'y prendre : les filtres sont dans la colonne de
-   gauche (dans un tiroir sur mobile), et la demande sur-mesure est à portée
+   L'en-tête dit comment s'y prendre : les filtres sont dans la barre
+   au-dessus des cartes (dans un tiroir sur mobile), et la demande sur-mesure est à portée
    pour celui qui cherche autre chose que ce qui est proposé.
 
    Le parcours de choix vit dans `components/menu/ChefMenuBrowser` : la
@@ -64,7 +64,7 @@ export default function MenuClient() {
   return (
     <div className="page-transition min-h-screen bg-cream pt-24">
       {/* ── En-tête ──────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-navy py-16 text-white lg:py-20">
+      <section className="relative overflow-hidden bg-navy py-12 text-white lg:py-16">
         {/* Image de fond : elle porte l'appétit, le voile porte la lisibilité. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -81,53 +81,61 @@ export default function MenuClient() {
               'linear-gradient(105deg, rgba(31,45,61,0.96) 0%, rgba(44,62,80,0.9) 45%, rgba(44,62,80,0.62) 100%)',
           }}
         />
-        <div className="container-xl relative mx-auto flex max-w-4xl flex-col items-center text-center">
+        <div className="container-xl relative">
+          {/* Le titre ne change pas de couleur en cours de phrase : il se lit d'un trait. */}
           <h1
-            className="mb-5 font-display font-bold leading-[1.05] text-white [text-wrap:balance]"
-            style={{ fontSize: 'clamp(2.2rem, 5.4vw, 4rem)', letterSpacing: '-0.02em' }}
+            className="max-w-3xl font-display font-bold leading-[1.05] text-white [text-wrap:balance]"
+            style={{ fontSize: 'clamp(2.1rem, 4.6vw, 3.5rem)', letterSpacing: '-0.02em' }}
           >
-            Choisissez votre batch cooker,{' '}
-            <span className="font-medium italic text-terra">composez votre menu.</span>
+            Choisissez votre batch cooker, composez votre menu.
           </h1>
-          <p className="max-w-2xl text-lg leading-relaxed text-white/75 [text-wrap:pretty]">
+          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/75 [text-wrap:pretty]">
             Chaque batch cooker a sa propre carte. Indiquez vos dates, votre région et vos envies :
             vous verrez qui peut venir cuisiner chez vous.
           </p>
 
-          <ul className="mt-8 flex flex-col items-center gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-8">
-            {DEMARCHE.map(({ Icon, text }) => (
+          {/* La démarche est une suite : elle se numérote. */}
+          <ol className="mt-7 flex flex-col gap-3 text-sm text-white/85 sm:flex-row sm:flex-wrap sm:gap-x-8">
+            {DEMARCHE.map(({ Icon, text }, i) => (
               <li key={text} className="flex items-center gap-2.5">
-                <Icon className="h-4 w-4 shrink-0 text-amber" aria-hidden />
-                {text}
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
+                <span>
+                  <span className="sr-only">Étape {i + 1} : </span>
+                  {text}
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
             <MenuFilterButton
               filters={filters}
               onClick={() => setTiroir(true)}
               className="btn btn-amber lg:hidden"
             />
-            <ReserveButton href="/espace-client/personnalisation" variant="outline-light">
-              Faire une demande sur mesure
-              <ArrowRight className="icon-arrow h-4 w-4" />
+            {/* Le secondaire est un lien : le bouton de la page, c'est « Voir la carte ». */}
+            <ReserveButton
+              asChild
+              href="/espace-client/personnalisation"
+              className="hit inline-flex items-center gap-2 text-sm font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white"
+            >
+              Une envie particulière, une allergie ? Faites une demande sur-mesure
+              <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
             </ReserveButton>
           </div>
-          <p className="mt-4 text-sm text-white/60">
-            Une envie particulière, une allergie ? Dites-le nous avec une demande sur mesure.
-          </p>
         </div>
       </section>
 
       {/* ── Filtres + cartes ─────────────────────────────────────────────── */}
       <section className="py-12 lg:py-14">
         <div className="container-xl">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-12">
-            <MenuFilterSidebar filters={filters} className="lg:self-start" />
+          <MenuFilterToolbar filters={filters} className="mb-8 hidden lg:flex" />
 
+          <div>
             <div>
-              <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h2 className="font-display text-2xl font-bold leading-tight text-navy">
                     {periode}
@@ -154,7 +162,7 @@ export default function MenuClient() {
               ) : menus.length === 0 ? (
                 <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
               ) : (
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                   {menus.map((menu, i) => (
                     <MenuCard
                       key={menu.chef.id}
@@ -163,6 +171,7 @@ export default function MenuClient() {
                       onOpen={() => setOpen(menu)}
                       customOrder
                       dietLabel={dietLabel}
+                      semaine={filters.mode === 'semaine' ? filters.semaine : undefined}
                     />
                   ))}
                 </div>
@@ -171,19 +180,24 @@ export default function MenuClient() {
           </div>
 
           {/* Demande sur-mesure */}
-          <div className="mt-16 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-10 text-center">
-            <span className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
-              <ChefHat className="h-7 w-7 text-terra" aria-hidden />
-            </span>
-            <h2 className="mb-3 font-display text-2xl font-bold text-navy">Aucune carte ne vous ressemble ?</h2>
-            <p className="mx-auto mb-6 max-w-md leading-relaxed text-ink-mid">
-              Décrivez vos envies, vos allergies et votre budget : les batch cookers disponibles vous répondent avec
-              une proposition chiffrée.
-            </p>
-            {/* Dans p-10 sur 375 px, le libellé ne tient pas sur une ligne : il passe
-                à la ligne au lieu d'élargir la page. */}
-            <ReserveButton href="/espace-client/personnalisation" className="whitespace-normal text-balance">
-              Faire une demande sur mesure
+          <div className="mt-16 flex flex-col gap-6 rounded-3xl bg-navy p-7 text-white sm:p-10 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+            <div className="max-w-xl">
+              <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">
+                Aucune carte ne vous ressemble ?
+              </h2>
+              <p className="mt-3 leading-relaxed text-white/75">
+                Décrivez vos envies, vos allergies et votre budget : les batch cookers disponibles
+                vous répondent avec une proposition chiffrée.
+              </p>
+            </div>
+            {/* Sur 375 px, le libellé ne tient pas sur une ligne : il passe à la
+                ligne au lieu d'élargir la page. */}
+            <ReserveButton
+              href="/espace-client/personnalisation"
+              variant="amber"
+              className="shrink-0 whitespace-normal text-balance"
+            >
+              Faire une demande sur-mesure
               <ArrowRight className="icon-arrow h-4 w-4" />
             </ReserveButton>
           </div>

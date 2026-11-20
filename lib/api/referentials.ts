@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { AISLE_ITEMS, UNITS, acceptUnits, type UnitItem } from '@/lib/recipe-fields'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Référentiels de l'API — publics, sans jeton.
@@ -21,13 +22,16 @@ export interface RefItem {
   label: string
 }
 
-async function fetchRef<K extends string>(path: string, key: K): Promise<RefItem[]> {
+async function fetchRef<K extends string, T extends RefItem = RefItem>(
+  path: string,
+  key: K,
+): Promise<T[]> {
   if (!API_URL) throw new Error("L'API n'est pas configurée.")
   const res = await fetch(`${API_URL}/referentials/${path}`, {
     headers: { Accept: 'application/json' },
   })
   if (!res.ok) throw new Error(`Référentiel ${path} indisponible (${res.status}).`)
-  const body = (await res.json()) as Record<K, RefItem[]>
+  const body = (await res.json()) as Record<K, T[]>
   return body[key] ?? []
 }
 
@@ -83,6 +87,39 @@ export function useCommunes(postcode: string) {
   })
 }
 
+/** Une commune d'une région, telle que `interventionZones[].cities` l'attend. */
+export interface RegionCommune {
+  name: string
+  insee: string
+  department: string
+}
+
+/**
+ * Toutes les communes d'une région, par ordre alphabétique (l'API trie).
+ *
+ * `GET /referentials/regions/{code}/communes` : la base officielle, relayée et
+ * gardée 24 h par l'API. Jusqu'au 10/11 on n'avait que quelques villes de
+ * référence par région, et le reste à chercher : une candidate de Mérignac ne
+ * trouvait pas sa ville en dépliant sa région. N'appeler qu'à l'ouverture
+ * d'une région : la plus grande pèse plusieurs milliers de lignes.
+ */
+export function useRegionCommunes(regionCode: string, enabled = true) {
+  return useQuery({
+    queryKey: ['referentials', 'communes', regionCode],
+    enabled: enabled && !!API_URL,
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`${API_URL}/referentials/regions/${regionCode}/communes`, {
+        headers: { Accept: 'application/json' },
+        signal,
+      })
+      if (!res.ok) throw new Error(`Communes de la région ${regionCode} indisponibles (${res.status}).`)
+      return ((await res.json()) as { communes: RegionCommune[] }).communes ?? []
+    },
+  })
+}
+
 export function useDiets(fallback: RefItem[] = []) {
   const q = useQuery({
     queryKey: ['referentials', 'diets'],
@@ -95,9 +132,10 @@ export function useDiets(fallback: RefItem[] = []) {
 /**
  * Les langues qu'un batch cooker peut déclarer parler avec ses clients.
  *
- * Référentiel fermé côté API — vingt-quatre codes, du français au wolof. Un
- * champ libre aurait donné « Anglais », « anglais », « EN » et « English »
- * dans la même liste, et aucun filtre possible.
+ * Référentiel fermé côté API — toutes les langues ISO 639-1 (184 depuis le
+ * 10/11), nommées en français. Un champ libre aurait donné « Anglais »,
+ * « anglais », « EN » et « English » dans la même liste, et aucun filtre
+ * possible.
  */
 export function useLanguages(fallback: RefItem[] = []) {
   const q = useQuery({
@@ -202,3 +240,36 @@ export const DECLARED_DIETS: RefItem[] = [
   { code: 'halal', label: 'Halal' },
   { code: 'kosher', label: 'Casher' },
 ]
+
+/**
+ * §4.12 : les 14 unités d'une ligne, avec leur pluriel. Le repli est la liste
+ * figée de `lib/recipe-fields.ts` : une ligne ne se saisit pas sans unités.
+ *
+ * Les unités servies rejoignent celles qu'une ligne accepte (`acceptUnits`) :
+ * une unité que la liste déroulante propose rend toujours la ligne prête.
+ */
+export function useUnits(): UnitItem[] {
+  const q = useQuery({
+    queryKey: ['referentials', 'units'],
+    queryFn: async () => {
+      const list = await fetchRef<'units', UnitItem>('units', 'units')
+      acceptUnits(list.map((u) => u.code))
+      return list
+    },
+    staleTime: HOUR,
+  })
+  return q.data?.length ? q.data : UNITS
+}
+
+/**
+ * §5.4 : les rayons en vigueur, dans l'ordre d'un parcours en magasin. Un admin
+ * peut les changer : de l'ordre d'une heure de fraîcheur, pas plus.
+ */
+export function useAisles(): RefItem[] {
+  const q = useQuery({
+    queryKey: ['referentials', 'aisles'],
+    queryFn: () => fetchRef('aisles', 'aisles'),
+    staleTime: 5 * 60 * 1000,
+  })
+  return q.data?.length ? q.data : AISLE_ITEMS
+}

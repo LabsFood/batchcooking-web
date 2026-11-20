@@ -242,17 +242,68 @@ MISES_A_JOUR = {
     "B-39": ("Livré", "Branché le 24/10"),
 }
 
+# Module Recettes (plan v5), ajouté le 16/11 : un critère par clause « Terminé quand ».
+RECETTES = [
+    # Lot 0 — fondations
+    ("Fondations (lot 0)", "R-01", "La vitrine publique d'un batch cooker ne montre ni temps de préparation, ni étapes, ni étiquettes personnelles.", "Ouvrir la vitrine d'un chef : aucun temps ni étape ; test de liste blanche vert.", "/chefs/[slug]", "GET /chefs/{id}/showcase", "Livré", "Lot 0"),
+    ("Fondations (lot 0)", "R-02", "Je vois côté chef un libellé de palier changé dans la console, sans déploiement.", "Changer un libellé dans Paramètres, recharger l'espace chef.", "/parametres", "PUT /admin/settings/chef-tiers", "Livré", "Lot 0"),
+    ("Fondations (lot 0)", "R-03", "J'ouvre chaque explication au clic, au toucher et au clavier.", "Tabuler jusqu'à un « i », Entrée ouvre, Échap ferme.", "tous", "—", "Livré", "Lot 0"),
+    ("Fondations (lot 0)", "R-04", "Une notification créée par l'API apparaît dans la cloche et passe en lue.", "Déclencher un événement, ouvrir la cloche, cliquer.", "cloche", "GET /me/notifications", "Livré", "Lot 0"),
+    # Lot 1 — allergies
+    ("Allergies (lot 1)", "R-05", "Client, je ne peux valider aucun menu sans déclarer mes allergies ou « aucune ».", "Compte neuf : réserver, le bouton renvoie vers les allergies.", "/espace-client/personnalisation", "PUT /me/profile/allergies", "Livré", "Lot 1"),
+    ("Allergies (lot 1)", "R-06", "Un plat contenant un allergène que j'ai déclaré est refusé.", "Déclarer « lait », ajouter un plat au lait : refus ALLERGEN_CONFLICT.", "réservation", "POST /bookings", "Livré", "Lot 1"),
+    ("Allergies (lot 1)", "R-07", "Une allergie ajoutée après validation signale le plat en conflit au client et au chef ; le remplacement passe même à J-2.", "Valider un menu, ajouter l'allergie, remplacer le plat.", "/espace-client/commandes/[id]", "PUT /me/bookings/{id}/dishes", "Livré", "Lot 1"),
+    ("Allergies (lot 1)", "R-08", "Aucune valeur d'allergie n'apparaît dans les journaux, même en nombre par client.", "Lire les journaux après une déclaration : seul l'identifiant du profil.", "—", "—", "Livré", "Corrigé le 16/11"),
+    # Lot 2 / 2b — fiche recette
+    ("Fiche recette (lots 2, 2b)", "R-09", "Une fiche incomplète ne se publie pas et liste tout ce qui manque d'un coup.", "Publier une fiche sans étape : le panneau liste chaque manque.", "/espace-chef/recettes/[id]", "POST /me/dishes/{id}/publish", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-10", "Modifier un ingrédient d'un plat publié le rend non réservable jusqu'à revérification ; une consigne de réchauffage, non.", "Changer un ingrédient puis une consigne, regarder « Prête ».", "/espace-chef/recettes/[id]", "PATCH /me/dishes/{id}", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-11", "La sauvegarde automatique ne crée aucune version.", "Modifier un brouillon : « Version n » ne change pas.", "/espace-chef/recettes/[id]", "PATCH /me/dishes/{id}", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-12", "Une recette dont toutes les lignes sont reliées affiche régimes et saisons ; une ligne non reliée affiche « non calculé ».", "Relier puis délier un ingrédient.", "/espace-chef/recettes/[id]", "GET /me/dishes/{id}", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-13", "Une quantité fixe ne bouge pas quand les portions doublent.", "Cocher « quantité fixe », doubler les portions.", "/espace-chef/recettes/[id]", "—", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-14", "Le PDF de la fiche porte le filigrane LAB'S FOOD.", "Télécharger la fiche.", "/espace-chef/recettes/[id]", "GET /me/dishes/{id}/pdf", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-15", "La copie d'un plat ou d'un menu s'ouvre en brouillon, jamais publiée ; deux copies du même plat sont possibles.", "Dupliquer deux fois.", "/espace-chef/recettes", "POST /me/dishes/{id}/duplicate", "Livré", ""),
+    ("Fiche recette (lots 2, 2b)", "R-16", "Un enregistrement avec une lockVersion périmée répond 409 sans rien écrire.", "Deux onglets, enregistrer dans les deux.", "/espace-chef/recettes/[id]", "PATCH /me/dishes/{id}", "Livré", "Lot 2b"),
+    ("Fiche recette (lots 2, 2b)", "R-17", "La reprise des recettes ne fait disparaître aucun allergène.", "npm run db:recipes:reprise:dry puis comparer.", "—", "—", "À brancher", "Reprise jamais jouée sur une base réelle"),
+    ("Fiche recette (lots 2, 2b)", "R-18", "Un plat sans vraie photo ne se publie pas (BLK-32).", "Publier sans photo : PHOTO_MISSING.", "/espace-chef/recettes/[id]", "POST /me/dishes/{id}/publish", "Livré", "Lot 2b"),
+    ("Fiche recette (lots 2, 2b)", "R-19", "Une conservation au frais au-delà du seuil réglé dans la console déclenche l'alerte FRIDGE_LONG.", "Régler 3 jours dans Paramètres, saisir 4 jours au frais.", "/espace-chef/recettes/[id]", "GET /me/dishes/{id}", "Livré", "Seuil de la console depuis le 16/11"),
+    # Lot 3 — menu figé
+    ("Menu figé (lot 3)", "R-20", "Une recette modifiée après validation ne change pas la prestation.", "Valider, modifier la recette, ouvrir la fiche de prestation.", "/espace-chef/prestations", "GET /chef-missions/{id}/recipes", "Livré", ""),
+    ("Menu figé (lot 3)", "R-21", "Client, une modification de menu à J-2 est refusée.", "Réservation à J-2 : la modification est grisée, l'API répond MENU_FROZEN.", "/espace-client/commandes/[id]", "PUT /me/bookings/{id}/dishes", "Livré", ""),
+    ("Menu figé (lot 3)", "R-22", "Chaque date « à manger avant » modifiée par le chef apparaît dans l'historique.", "Modifier une date, lire l'historique.", "/espace-chef/prestations", "PATCH /chef-missions/{id}/eat-before", "Livré", ""),
+    # Lot 4 — liste de courses
+    ("Liste de courses (lot 4)", "R-23", "Client, je coche, commente et renvoie ma liste ; le chef la reçoit avec les commentaires.", "Cocher « J'ai déjà », commenter, envoyer.", "/espace-client/courses", "POST /me/bookings/{id}/shopping-list/submit", "Livré", ""),
+    ("Liste de courses (lot 4)", "R-24", "Après midi la veille, la liste est figée ; une liste non renvoyée devient la liste finale.", "Passer midi la veille.", "/espace-client/courses", "GET /me/bookings/{id}/shopping-list", "Livré", ""),
+    ("Liste de courses (lot 4)", "R-25", "Chaque rappel n'est envoyé qu'une fois, dans l'application.", "Relancer la tâche planifiée deux fois.", "cloche", "—", "Livré", ""),
+    ("Liste de courses (lot 4)", "R-26", "Le récapitulatif client montre formule, forfait courses, supplément et total des courses.", "Ouvrir une commande avec courses.", "/espace-client/commandes/[id]", "GET /me/bookings/{id}", "Livré", ""),
+    ("Liste de courses (lot 4)", "R-27", "La liste est groupée par rayon, dans l'ordre du magasin, à l'écran et dans le PDF du mandat.", "Ouvrir la commande, télécharger le mandat.", "/espace-client/commandes/[id]", "GET /me/bookings/{id}/documents/debours-mandate", "Livré", "16/11"),
+    ("Liste de courses (lot 4)", "R-28", "Une ligne facultative dans toutes les recettes porte le badge « facultatif » ; une ligne cachée au client reste listée.", "Recette avec persil facultatif.", "/espace-client/courses", "GET /me/bookings/{id}/shopping-list", "Livré", "Décision du 16/11"),
+    # Lot 5 — IA
+    ("Recettes par IA (lot 5)", "R-29", "Une réponse mal formée est refusée après 2 essais.", "—", "/espace-chef/recettes", "—", "Bloqué", "Lot 5 repoussé (BLK-30)"),
+    ("Recettes par IA (lot 5)", "R-30", "Une recette générée ne se publie pas sans vérification ; le 11e essai du jour est refusé.", "—", "/espace-chef/recettes", "—", "Bloqué", "Lot 5 repoussé (BLK-30)"),
+    # Lot 6 — courses payées à part (décisions du 16/11)
+    ("Courses payées à part (lot 6)", "R-31", "Le Budget Courses est le plafond réglé dans la console ; la base refuse une capture au-dessus.", "Lire GET …/groceries ; tenter une capture au-dessus en base.", "/espace-client/commandes/[id]", "GET /me/bookings/{id}/groceries", "Livré", "16/11"),
+    ("Courses payées à part (lot 6)", "R-32", "L’empreinte est posée une seule fois au Verrouillage (T-48h) et survit à un redémarrage.", "Deux passages de la tâche planifiée : une seule empreinte.", "—", "—", "Livré", "Test d’intégration du 16/11, Stripe simulé"),
+    ("Courses payées à part (lot 6)", "R-33", "Client, je confirme ou j’annule les courses avant l’heure limite ; sans clic, le batch cooker attend (silence éteint).", "Envoyer le message, laisser passer l’heure limite.", "/espace-client/commandes/[id]", "POST /me/bookings/{id}/groceries/confirm", "Livré", ""),
+    ("Courses payées à part (lot 6)", "R-34", "Un total de tickets au-dessus du Budget est refusé.", "Déposer 100,01 € de lignes.", "/espace-chef/prestations", "POST /chef-missions/{id}/groceries/receipts", "Livré", ""),
+    ("Courses payées à part (lot 6)", "R-35", "Le prélèvement prend le total exact des lignes avec ticket et libère le reste.", "Attendre 24 h après le dépôt.", "/espace-client/commandes/[id]", "—", "Livré", "Stripe simulé"),
+    ("Courses payées à part (lot 6)", "R-36", "Une contestation après 48 h est refusée ; fondée, la ligne est remboursée.", "Contester puis trancher dans la console.", "/espace-client/commandes/[id]", "POST …/groceries/lines/{id}/contest", "Livré", ""),
+    ("Courses payées à part (lot 6)", "R-37", "Aucun paiement de courses ne crée de commission ni de facture ; la demande URSSAF ne porte jamais les débours.", "Lire commissions et factures A ; lire la demande URSSAF.", "/transactions", "GET /admin/urssaf-payments", "Livré", ""),
+    ("Courses payées à part (lot 6)", "R-38", "Une reprise URSSAF (statut 120) rend la commission par un avoir dans la suite des factures B.", "Marquer la reprise dans Transactions.", "/transactions", "POST /admin/urssaf-payments/{id}/reprise", "Livré", ""),
+    ("Courses payées à part (lot 6)", "R-39", "Une contestation bancaire perdue est récupérée auprès du fautif que l’admin désigne.", "Désigner le fautif sur la réservation.", "/reservations/[id]", "POST /admin/groceries/disputes/{id}/fault", "À brancher", "Jamais essayé avec Stripe réel"),
+]
+
 MODULES = [
     ("Visiteur — site public", VISITEUR),
     ("Client", CLIENT),
     ("Batch cooker", CHEF),
     ("Admin — console", ADMIN),
+    ("Recettes — tous rôles", RECETTES),
 ]
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 sortie = os.path.join(ICI, "07-uac.csv")
 with io.open(sortie, "w", encoding="utf-8-sig", newline="") as f:
-    w = csv.writer(f, delimiter=";", lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+    w = csv.writer(f, delimiter=";", lineterminator="\n", quoting=csv.QUOTE_MINIMAL)
     w.writerow(ENTETES)
     for module, lignes in MODULES:
         for theme, ref, critere, verif, ecran, route, statut, remarque in lignes:
@@ -260,7 +311,9 @@ with io.open(sortie, "w", encoding="utf-8-sig", newline="") as f:
             role = module.split(" —")[0].lower()
             w.writerow([
                 module, theme, ref,
-                f"En tant que {role}, {critere[0].lower()}{critere[1:]}",
+                # Recettes mêle les rôles : chaque critère dit déjà qui agit.
+                critere if module.startswith("Recettes")
+                else f"En tant que {role}, {critere[0].lower()}{critere[1:]}",
                 verif, ecran, route, statut, "FALSE", remarque,
             ])
 

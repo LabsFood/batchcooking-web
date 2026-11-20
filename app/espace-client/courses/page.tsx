@@ -26,10 +26,12 @@ import {
   type ShoppingMark,
 } from '@/lib/api/bookings'
 import { ApiError } from '@/lib/api/client'
-import { aisleLabel } from '@/lib/recipe-fields'
+import { aisleLabel, displayQuantity } from '@/lib/recipe-fields'
+import OptionalBadge from '@/components/shared/OptionalBadge'
 import { reasonText } from '@/lib/reason-codes'
 import { STORES } from '@/lib/client/mock'
 import { Hint } from '@/components/shared/Hint'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 
@@ -60,6 +62,27 @@ import { useToast } from '@/components/shared/Toaster'
 /** Les étapes où une liste de courses sert encore à quelque chose. */
 const A_VENIR = ['confirmed', 'shopping', 'cooking']
 
+/** Deux rayons de quatre lignes (`py-2.5` + texte = 40 px), dans la grille des vrais rayons. */
+function RayonsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      {[0, 1].map((i) => (
+        <SkeletonCard key={i} className="rounded-2xl">
+          <div className="mb-3 flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-xl" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+          <div className="space-y-1.5">
+            {[0, 1, 2, 3].map((j) => (
+              <Skeleton key={j} className="h-10 rounded-xl" />
+            ))}
+          </div>
+        </SkeletonCard>
+      ))}
+    </div>
+  )
+}
+
 export default function ShoppingListPage() {
   const commandes = useMyBookings({ limit: 50 })
   const [choisie, setChoisie] = useState<string | null>(null)
@@ -71,20 +94,30 @@ export default function ShoppingListPage() {
       .sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? ''))
   }, [commandes.data])
 
-  const active = concernees.find((b) => b.id === choisie) ?? concernees[0] ?? null
+  const active = concernees.find((b) => b.id === choisie) ?? null
 
   if (commandes.isPending) {
+    // Le bandeau (session, compteur, boutons) puis les rayons, comme la liste réelle.
     return (
-      <div className="flex items-center justify-center rounded-3xl card-shell py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
-      </div>
+      <SkeletonGroup className="space-y-5">
+        <SkeletonCard className="rounded-2xl lg:p-6">
+          <Skeleton className="mb-2 h-4 w-40" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="mt-1 h-4 w-72 max-w-full" />
+        </SkeletonCard>
+        <RayonsSkeleton />
+      </SkeletonGroup>
     )
+  }
+
+  if (!active && concernees.length > 0) {
+    return <Sessions sessions={concernees} onChoisir={setChoisie} />
   }
 
   if (!active) {
     return (
-      <div className="rounded-3xl card-shell p-10 text-center">
-        <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber" aria-hidden />
+      <div className="rounded-2xl card-shell p-10 text-center">
+        <ShoppingBasket className="mx-auto mb-4 h-7 w-7 text-amber-ink" aria-hidden />
         <p className="font-display text-xl font-bold text-navy">
           Aucune session en préparation
         </p>
@@ -103,8 +136,7 @@ export default function ShoppingListPage() {
     <Liste
       key={active.id}
       booking={active}
-      autres={concernees}
-      onChoisir={setChoisie}
+      onRetour={() => setChoisie(null)}
     />
   )
 }
@@ -113,8 +145,7 @@ export default function ShoppingListPage() {
 
 type ListeProps = {
   booking: Booking
-  autres: Booking[]
-  onChoisir: (id: string) => void
+  onRetour: () => void
 }
 
 /** Le batch cooker fait les courses : on lui répond. Sinon, la liste est à soi. */
@@ -137,7 +168,7 @@ function Liste(props: ListeProps) {
 
 /* ── Cas 2 : le client fait ses courses ────────────────────────────────────── */
 
-function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
+function ListeLibre({ booking, onRetour }: ListeProps) {
   const courses = useMissionShoppingList(booking.id)
   const [possedes, setPossedes] = useState<string[]>([])
   const [storeId, setStoreId] = useState(STORES[0].id)
@@ -177,26 +208,27 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
   return (
     <div className="space-y-5">
       {/* ── Ce qu'on prépare, et pour quand ──────────────────────────────── */}
-      <div className="card-shell rounded-3xl p-5 lg:p-6">
+      <div className="card-shell rounded-2xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
               {booking.startsAt ? sessionLabel(booking) : 'Prochaine session'}
             </p>
             {courses.isPending ? (
-              <p className="font-display text-2xl font-bold text-ink-soft">…</p>
+              <Skeleton className="h-8 w-56" />
             ) : (
               <p className="font-display text-2xl font-bold text-navy">
                 {restants} article{restants > 1 ? 's' : ''} à acheter
               </p>
             )}
+            <Plats booking={booking} />
             <p className="mt-1 text-xs text-ink-soft">
               {possedes.length} déjà dans vos placards · {total} au total
               {courses.data?.persons ? ` · pour ${courses.data.persons} personnes` : ''}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <div className="relative">
               <Store
                 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
@@ -229,9 +261,9 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           </div>
         </div>
 
-        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
+        <Retour onRetour={onRetour} />
 
-        <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft print:hidden">
           « Faire mes courses » copie la liste restante dans le presse-papier puis
           ouvre {store.name} — il ne reste qu&apos;à la coller dans la recherche.
         </p>
@@ -239,17 +271,17 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
 
       {/* ── Les rayons ───────────────────────────────────────────────────── */}
       {courses.isPending ? (
-        <div className="flex items-center justify-center rounded-3xl card-shell py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-ink-soft" aria-hidden />
-        </div>
+        <SkeletonGroup>
+          <RayonsSkeleton />
+        </SkeletonGroup>
       ) : courses.isError ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           La liste n’a pas pu être chargée. Elle se calcule depuis les recettes :
           si votre batch cooker ne les a pas encore renseignées, elle apparaîtra
           dès qu’il l’aura fait.
         </p>
       ) : groupes.length === 0 ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -258,16 +290,16 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl card-shell p-5"
+              className="rounded-2xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
-                  <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
+                  <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
                 </span>
                 <h3 className="font-display text-base font-bold text-navy">
                   {aisleLabel(aisle) ?? aisle}
                 </h3>
-                <span className="text-[11px] text-ink-soft">({lines.length})</span>
+                <span className="text-xs text-ink-soft">({lines.length})</span>
               </div>
 
               <ul className="space-y-1.5">
@@ -298,16 +330,17 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
                           }`}
                         >
                           {l.name}
+                          {l.optional && <OptionalBadge />}
                           {l.edited && (
                             <span
                               title="Ligne corrigée par votre batch cooker"
                               className="ml-1.5 inline-flex translate-y-px"
                             >
-                              <Pencil className="h-3 w-3 text-amber-deep" aria-hidden />
+                              <Pencil className="h-3 w-3 text-amber-ink" aria-hidden />
                             </span>
                           )}
                         </span>
-                        <span className="shrink-0 font-mono text-xs text-ink-soft">
+                        <span className="tabular-nums shrink-0 text-xs text-ink-soft">
                           {quantite(l)}
                         </span>
                       </button>
@@ -320,7 +353,7 @@ function ListeLibre({ booking, autres, onChoisir }: ListeProps) {
         </div>
       )}
 
-      <p className="text-center text-xs text-ink-soft">
+      <p className="text-center text-xs text-ink-soft print:hidden">
         Cochez « j’ai déjà » pour retirer un article de l’export.
       </p>
     </div>
@@ -344,8 +377,7 @@ const TITRE: Record<ShoppingListStatus, string> = {
 
 function Reponse({
   booking,
-  autres,
-  onChoisir,
+  onRetour,
   liste,
   onRecharger,
 }: ListeProps & { liste: MissionShoppingList; onRecharger: () => void }) {
@@ -409,7 +441,7 @@ function Reponse({
 
   return (
     <div className="space-y-5">
-      <div className="card-shell rounded-3xl p-5 lg:p-6">
+      <div className="card-shell rounded-2xl p-5 lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="eyebrow mb-2">
@@ -442,6 +474,18 @@ function Reponse({
                 </InfoPopover>
               </p>
             )}
+            {/* Recettes lot 4 : le batch cooker a validé les courses. */}
+            {liste.groceries?.validatedAt && (
+              <p className="mt-2 text-[13px] text-mint-ink">
+                Courses faites par votre batch cooker
+                {liste.groceries.amountCents != null &&
+                  ` · ticket de ${(liste.groceries.amountCents / 100).toLocaleString('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR',
+                  })}, à titre d’information`}
+                .
+              </p>
+            )}
           </div>
 
           {modifiable && (
@@ -463,13 +507,13 @@ function Reponse({
         </div>
 
         {modifiable && modifie && (
-          <p className="mt-3 text-[12px] font-semibold text-amber-deep">
+          <p className="mt-3 text-[12px] font-semibold text-amber-ink">
             Modifications non envoyées : votre batch cooker voit encore la version
             précédente.
           </p>
         )}
 
-        <AutresSessions booking={booking} autres={autres} onChoisir={onChoisir} />
+        <Retour onRetour={onRetour} />
       </div>
 
       {modifiable && (
@@ -489,7 +533,7 @@ function Reponse({
       )}
 
       {groupes.length === 0 ? (
-        <p className="rounded-3xl card-shell p-8 text-center text-sm text-ink-mid">
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
@@ -498,16 +542,16 @@ function Reponse({
           {groupes.map(({ aisle, lines }) => (
             <section
               key={aisle}
-              className="rounded-3xl card-shell p-5"
+              className="rounded-2xl card-shell p-5"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-soft">
-                  <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
+                  <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
                 </span>
                 <h3 className="font-display text-base font-bold text-navy">
                   {aisleLabel(aisle) ?? aisle}
                 </h3>
-                <span className="text-[11px] text-ink-soft">({lines.length})</span>
+                <span className="text-xs text-ink-soft">({lines.length})</span>
               </div>
 
               <ul className="space-y-1.5">
@@ -548,7 +592,7 @@ function Reponse({
                             {l.name}
                             {m.alreadyHave && <span className="sr-only"> (j’ai déjà)</span>}
                           </span>
-                          <span className="shrink-0 font-mono text-xs text-ink-soft">
+                          <span className="tabular-nums shrink-0 text-xs text-ink-soft">
                             {quantite(l)}
                           </span>
                         </button>
@@ -557,7 +601,7 @@ function Reponse({
                             type="button"
                             onClick={() => setOuverts((o) => [...o, k])}
                             aria-label={`Commenter ${l.name}`}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+                            className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
                           >
                             <MessageSquare className="h-4 w-4" aria-hidden />
                           </button>
@@ -574,7 +618,7 @@ function Reponse({
                             className="input-base mt-1 w-full py-1.5 text-[13px]"
                           />
                         ) : (
-                          <p className="ml-11 mt-0.5 text-[12px] italic text-ink-mid">
+                          <p className="ml-11 mt-0.5 text-xs text-ink-mid">
                             « {m.comment} »
                           </p>
                         ))}
@@ -592,22 +636,45 @@ function Reponse({
 
 /* ── Plusieurs sessions à venir ────────────────────────────────────────────── */
 
-function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
-  if (autres.length < 2) return null
+function Retour({ onRetour }: { onRetour: () => void }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[rgba(31,42,55,0.06)] pt-4">
-      <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft">
-        Autre session
-      </span>
-      {autres.map((b) => (
+    <div className="mt-4 border-t border-[rgba(31,42,55,0.06)] pt-4 print:hidden">
+      <button
+        onClick={onRetour}
+        className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft hover:text-navy"
+      >
+        ← Toutes mes sessions
+      </button>
+    </div>
+  )
+}
+
+/** Ce qu'on cuisine : les plats réservés, avec leurs portions. */
+function Plats({ booking }: { booking: Booking }) {
+  const plats = booking.meals ?? []
+  if (plats.length === 0) return null
+  return (
+    <p className="mt-1 text-sm text-ink-mid">
+      <span className="font-semibold text-navy">Au menu : </span>
+      {plats.map((m) => `${m.name ?? 'Plat'} (${m.portions} portion${m.portions > 1 ? 's' : ''})`).join(' · ')}
+    </p>
+  )
+}
+
+/** Le point d'entrée : une carte par session réservée, la liste s'ouvre au clic. */
+function Sessions({ sessions, onChoisir }: { sessions: Booking[]; onChoisir: (id: string) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-mid">Choisissez la session dont vous voulez la liste de courses.</p>
+      {sessions.map((b) => (
         <button
           key={b.id}
           onClick={() => onChoisir(b.id)}
-          className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-            b.id === booking.id ? 'bg-navy text-white' : 'bg-cream-soft text-navy hover:bg-cream-deep'
-          }`}
+          className="card-shell block w-full rounded-2xl p-5 text-left transition-colors hover:bg-cream-soft"
         >
-          {sessionLabel(b)}
+          <p className="eyebrow mb-1">{sessionLabel(b)}</p>
+          <Plats booking={b} />
+          <p className="mt-1 text-xs text-ink-soft">{bookingStatusText(b.status)}</p>
         </button>
       ))}
     </div>
@@ -619,8 +686,8 @@ function AutresSessions({ booking, autres, onChoisir }: ListeProps) {
 /** L'API ne numérote pas les lignes : le rayon, le nom et le rang suffisent. */
 const clef = (aisle: string, l: MissionLine, i: number) => `${aisle}:${l.name}:${i}`
 
-/** « 400 g », « 2 pièces » — l'unité telle que la recette l'a écrite. */
-const quantite = (l: MissionLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ''}`
+/** « 400 g », « 2 gousses », « selon le goût » — sans nombre pour une ligne au goût. */
+const quantite = (l: MissionLine) => displayQuantity(l.qty, l.unit)
 
 function sessionLabel(b: Booking): string {
   if (!b.startsAt) return bookingStatusText(b.status)

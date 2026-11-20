@@ -17,6 +17,7 @@ import {
   ShoppingBasket,
   Sparkles,
   Users,
+  UtensilsCrossed,
   Wallet,
 } from 'lucide-react'
 import {
@@ -32,10 +33,16 @@ import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 import {
   afterTaxFromClientPrice,
+  bookingCardUrls,
+  PAYMENT_METHOD_LABEL,
   usePricingRules,
   useChefSlots,
+  useChefPaymentMethods,
   useCreateBooking,
+  useStartBookingCard,
+  type RequestPaymentMethod,
 } from '@/lib/api/bookings'
+import { useApiFetch } from '@/lib/api/client'
 import { Prix } from '@/components/shared/Prix'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile } from '@/lib/api/types'
@@ -48,13 +55,17 @@ import { ApiError } from '@/lib/api/client'
 import { reasonText } from '@/lib/reason-codes'
 import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
 import {
-  offerDuration,
   offerEuros,
+  offerSummary,
+  platsLabel,
   useOfferPrice,
   type OfferPrice,
 } from '@/lib/api/service-offers'
 import type { PublicServiceOffer } from '@/lib/api/menus'
 import { track } from '@/lib/analytics'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
+import { ChefLegalBlock } from '@/components/client/ChefLegalBlock'
+import { consentGaps, neededGaps, type ContractGap } from '@/lib/api/contract'
 
 /*
  * Trois étapes, plus quatre : la confirmation n'appartient plus à ce tunnel.
@@ -113,7 +124,8 @@ function ReservationFlow() {
     const trouve = filters.menus.find((m) => m.chef.id === chefParam)
     if (trouve) {
       setChef(trouve)
-      if (initialMeals.length > 0) setStep('infos')
+      // Les plats arrivent cochés, la formule reste à choisir : la carte s'ouvre dessus.
+      if (initialMeals.length > 0) setOpenMenu(trouve)
     }
   }
 
@@ -126,6 +138,8 @@ function ReservationFlow() {
   const [persons, setPersons] = useState(3)
   /** Les plats au-delà de ce que l'offre comprend. L'API les facture. */
   const [extraMeals, setExtraMeals] = useState(0)
+  /** Portions de chaque plat, choisies par le client. `null` : le foyer de sa fiche. */
+  const [portionsChoisies, setPortionsChoisies] = useState<number | null>(null)
   /** L'offre retenue : sa durée fait le créneau, son prix fait le montant. */
   const [offerId, setOfferId] = useState<string>('')
   /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
@@ -134,6 +148,12 @@ function ReservationFlow() {
   const profil = useMeProfile()
 
   const surFiche = profil.data?.profileType === 'client' ? (profil.data.profile as ClientProfile | null) : null
+  /* Les portions de chaque plat : par défaut le foyer de la fiche (un enfant,
+     une demi-part, arrondi au-dessus), sinon les adultes. La liste de courses
+     en suit les quantités variables ; les quantités fixes ne bougent pas. */
+  const foyer = surFiche?.householdAdults
+    ? surFiche.householdAdults + Math.ceil((surFiche.householdKids ?? 0) / 2)
+    : null
   const [rue, setRue] = useState<string | null>(null)
   const [cp, setCp] = useState<string | null>(null)
   const [ville, setVille] = useState<string | null>(null)
@@ -165,14 +185,26 @@ function ReservationFlow() {
   const fiche = useChefPublic(chef?.chef.id)
   const offres = fiche.data?.serviceOffers ?? []
   const offre = offres.find((o) => o.id === offerId) ?? null
+  const portions = portionsChoisies ?? foyer ?? persons
+  /* Une formule à nombre de plats fixe : exactement autant de plats, ou aucun
+     pour les choisir avec le batch cooker. L'API refuse le reste. */
+  const platsFixes = offre?.mealsIncluded ?? null
+  const platsHorsFormule =
+    platsFixes != null && selectedMeals.length > 0 && selectedMeals.length !== platsFixes
 
-  /* La première offre est pré-choisie : un client qui ne change rien a déjà
-     un prix et une durée valides. */
-  const [offrePrete, setOffrePrete] = useState<string | null>(null)
-  if (offres.length > 0 && offrePrete !== chef?.chef.id) {
-    setOffrePrete(chef?.chef.id ?? null)
-    setOfferId(offres[0].id)
-    setCoursesParMoi(!offres[0].shoppingIncluded)
+  /* La formule se choisit dans la carte, avant les plats : son nombre de plats
+     borne la sélection, sans aller-retour. Rien n'est pré-choisi. Une formule
+     d'un autre chef ne compte pas ici. */
+  const ficheCarte = useChefPublic(openMenu?.chef.id)
+  const offresCarte = ficheCarte.data?.serviceOffers ?? []
+  const offreCarte = offresCarte.find((o) => o.id === offerId) ?? null
+  const pickOffer = (o: PublicServiceOffer) => {
+    setOfferId(o.id)
+    setCoursesParMoi(!o.shoppingIncluded)
+    // Une formule à plats fixes ne vend pas de plat en plus.
+    if (o.mealsIncluded) setExtraMeals(0)
+    setCreneauIso('')
+    setSlot('')
   }
 
   /*
@@ -189,6 +221,40 @@ function ReservationFlow() {
   const prix = tarif.data ?? null
 
   const creer = useCreateBooking()
+  // CGV V1 5.1 (décision du 19/11) : le moyen se choisit ici, se paie après la session.
+  const moyens = useChefPaymentMethods(chef?.chef.id)
+  const [moyen, setMoyen] = useState<RequestPaymentMethod>('cb')
+  const carte = useStartBookingCard()
+  const apiFetch = useApiFetch()
+  const offerts: RequestPaymentMethod[] = moyens.data
+    ? [
+        ...(moyens.data.card ? (['cb'] as const) : []),
+        ...(moyens.data.urssaf ? (['avance_immediate'] as const) : []),
+        ...(moyens.data.cesu ? (['cesu'] as const) : []),
+      ]
+    : []
+  const reservable = moyens.data?.card !== false
+  /*
+   * Un moyen choisi chez un batch cooker peut ne pas exister chez le suivant
+   * (le CESU, l'URSSAF) : l'API refuserait alors la demande. On retombe sur le
+   * premier moyen proposé. Ajustement pendant le rendu, pas dans un effet.
+   */
+  if (offerts.length > 0 && !offerts.includes(moyen)) setMoyen(offerts[0])
+  // CGV V1 (art. 5.1) : trois cases séparées, jamais cochées d'avance.
+  const terms = profil.data?.contractTerms
+  const [ticks, setTicks] = useState<Ticks>({})
+  const [manquantes, setManquantes] = useState<ContractGap[]>([])
+  const cases = Array.from(
+    new Set([
+      ...neededGaps({
+        chefShops: !!offre?.shoppingIncluded && !coursesParMoi,
+        startsAt: creneauIso,
+        windowDays: 21,
+      }),
+      ...manquantes,
+    ]),
+  )
+  const casesOk = !terms || allTicked(cases, ticks)
 
   /** Ouvrir une carte. Changer de chef repart de zéro : les plats cochés
       appartiennent à la carte précédente, pas à celle-ci. */
@@ -201,7 +267,6 @@ function ReservationFlow() {
   const chooseChef = (menu: WeekCard, dishes: string[]) => {
     setChef(menu)
     setSelectedMeals(dishes)
-    setOffrePrete(null)
     setOpenMenu(null)
     setStep('infos')
   }
@@ -215,15 +280,30 @@ function ReservationFlow() {
     if (i > 0) setStep(STEPS[i - 1].id)
   }
 
+  /** Après la création : la page Stripe qui enregistre la carte (rien n'est prélevé). */
+  function enregistrerCarte(id: string) {
+    carte.mutate(
+      { id, ...bookingCardUrls(id) },
+      {
+        onSuccess: ({ url }) => {
+          window.location.href = url
+        },
+        // La demande existe : son détail propose d'enregistrer la carte à nouveau.
+        onError: () => router.push(`/espace-client/commandes/${id}`),
+      },
+    )
+  }
+
   /**
-   * Réserver, puis payer.
+   * Réserver (CGV V1, décision du 19/11).
    *
-   * L'API crée la prestation en `pending` et tient le créneau 72 h ; c'est le
-   * **paiement qui la confirme**, sur l'écran dédié qui connaît déjà la
-   * carte, le CESU et l'URSSAF. On n'a donc plus de formulaire de carte ici :
-   * on crée, et on passe la main.
+   * L'API crée une **demande** avec le moyen choisi : rien n'est prélevé. On
+   * enchaîne sur la page Stripe qui enregistre la carte, ce qui envoie la
+   * demande au batch cooker ; il a 48 h pour accepter, et le prix est prélevé
+   * après la session. Pour l'avance immédiate sans rattachement, on demande le
+   * rattachement puis on réserve à nouveau : un rattachement en cours suffit.
    */
-  function reserver() {
+  function reserver(dejaRattache = false) {
     if (!offre || !date || !creneauIso) return
     setErreur(null)
     setRefuses([])
@@ -238,14 +318,20 @@ function ReservationFlow() {
         addressCity: city,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         shoppingByClient: coursesParMoi,
+        paymentMethod: moyen,
+        ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
         ...(selectedMeals.length > 0
-          ? { meals: selectedMeals.slice(0, MAX_DISHES).map((mealId) => ({ mealId })) }
+          ? {
+              meals: selectedMeals
+                .slice(0, MAX_DISHES)
+                .map((mealId) => ({ mealId, portions })),
+            }
           : {}),
       },
       {
         onSuccess: (b) => {
-          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals })
-          router.push(`/espace-client/commandes/${b.id}/paiement`)
+          track('booking_requested', { persons, meals: selectedMeals.length, extraMeals, portions, moyen })
+          enregistrerCarte(b.id)
         },
         onError: (e) => {
           /* Un 400 nomme ses champs depuis le 17/10 : on dit lequel plutôt
@@ -258,6 +344,23 @@ function ReservationFlow() {
           if (body?.code === 'ALLERGEN_CONFLICT') setRefuses(body.conflicts?.map((c) => c.mealId) ?? [])
           if (body?.code === 'ALLERGENS_UNVERIFIED') setRefuses(body.mealIds ?? [])
           if (body?.code === 'ALLERGIES_NOT_DECLARED') profil.refetch()
+          if (body?.code === 'URSSAF_LINK_NONE' && !dejaRattache && chef) {
+            apiFetch('/me/urssaf-links', { method: 'POST', body: { chefProfileId: chef.chef.id } })
+              .then(() => reserver(true))
+              .catch((err: unknown) =>
+                setErreur(apiMessage(err, 'Le rattachement URSSAF n’a pas pu être demandé.')),
+              )
+            return
+          }
+          const gaps = consentGaps(body)
+          if (gaps) {
+            // Des textes plus récents : on les relit, et le client recoche.
+            if (terms && gaps.version !== terms.version) {
+              setTicks({})
+              profil.refetch()
+            }
+            setManquantes(gaps.missing)
+          }
           setErreur(
             reasonText(body) ?? apiMessage(e, 'La réservation n’a pas pu être enregistrée.'),
           )
@@ -269,7 +372,7 @@ function ReservationFlow() {
   return (
     <div className="space-y-6">
       {/* Stepper */}
-      <div className="card-shell rounded-3xl p-5">
+      <div className="card-shell rounded-2xl p-5">
         <div className="relative grid grid-cols-4 gap-2">
           <div className="absolute left-0 right-0 top-4 h-px bg-[rgba(31,42,55,0.08)]" />
           <div
@@ -298,7 +401,7 @@ function ReservationFlow() {
                   <s.Icon className="w-4 h-4" />
                 </span>
                 <p
-                  className={`mt-2 text-[10px] uppercase tracking-[0.16em] font-semibold ${reached ? 'text-navy' : 'text-ink-soft'
+                  className={`mt-2 text-xs font-semibold ${reached ? 'text-navy' : 'text-ink-soft'
                     }`}
                 >
                   {s.label}
@@ -311,7 +414,13 @@ function ReservationFlow() {
 
       {/* Une seule cellule de grille : l'étape qui part et celle qui arrive se
           superposent le temps du fondu, sans s'empiler ni laisser de vide. */}
-      <div className="grid">
+      {/*
+        Une seule colonne, bornée : sans `minmax(0, 1fr)`, la colonne prenait la
+        largeur de son contenu le plus large (la rangée de semaines qui défile),
+        et toute la page s'élargissait à 830 px sur un téléphone — la carte d'un
+        batch cooker sortait alors de l'écran.
+      */}
+      <div className="grid grid-cols-[minmax(0,1fr)]">
       <AnimatePresence>
         {step === 'chef' && (
           <StepCard
@@ -351,6 +460,7 @@ function ReservationFlow() {
                       onOpen={() => openCarte(menu)}
                       openLabel="Voir sa carte"
                       dietLabel={dietLabel}
+                      semaine={filters.mode === 'semaine' ? filters.semaine : undefined}
                     />
                   ))}
                 </div>
@@ -390,68 +500,40 @@ function ReservationFlow() {
                 <Field label="Formule">
                   {fiche.isPending ? (
                     <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
-                  ) : offres.length === 0 ? (
-                    <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
-                      <p className="text-[13px] leading-relaxed text-navy">
-                        {chef?.chef.displayName ?? 'Ce batch cooker'} n’a pas encore
-                        publié ses formules : il n’est pas réservable en ligne.
-                      </p>
-                      <Link
-                        href="/espace-client/personnalisation"
-                        className="btn btn-outline mt-3 text-xs"
+                  ) : offre ? (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber-soft p-3.5">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-navy">{offre.name}</span>
+                        <span className="mt-0.5 block text-[11px] text-ink-soft">
+                          {offerSummary(offre)}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => chef && openCarte(chef)}
+                        className="btn btn-outline shrink-0 text-xs"
                       >
-                        Faire une demande sur mesure
-                        <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-                      </Link>
+                        Changer
+                      </button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {offres.map((o) => {
-                        const choisie = o.id === offerId
-                        return (
-                          <button
-                            key={o.id}
-                            type="button"
-                            onClick={() => {
-                              setOfferId(o.id)
-                              setCoursesParMoi(!o.shoppingIncluded)
-                              setCreneauIso('')
-                              setSlot('')
-                            }}
-                            aria-pressed={choisie}
-                            className={`flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-left transition-colors ${choisie
-                              ? 'border border-amber/40 bg-amber-soft'
-                              : 'border border-[rgba(31,42,55,0.08)] bg-paper hover:border-amber/40'
-                              }`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-sm font-semibold text-navy">
-                                {o.name}
-                              </span>
-                              <span className="mt-0.5 block text-[11px] text-ink-soft">
-                                {offerDuration(o.durationMinutes)} sur place ·{' '}
-                                {o.shoppingIncluded
-                                  ? o.shoppingFeeCents > 0
-                                    ? `courses ${offerEuros(o.shoppingFeeCents)}`
-                                    : 'courses offertes'
-                                  : 'courses à votre charge'}
-                              </span>
-                            </span>
-                            <Prix
-                              apresCredit={
-                                regles
-                                  ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
-                                  : null
-                              }
-                              total={offerEuros(o.priceCents)}
-                              taille="sm"
-                              align="right"
-                              className="shrink-0"
-                            />
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => (chef ? openCarte(chef) : setStep('chef'))}
+                      className="btn btn-outline text-xs"
+                    >
+                      Choisir une formule
+                    </button>
+                  )}
+                  {platsHorsFormule && platsFixes != null && (
+                    <p className="mt-2 flex items-start gap-2 rounded-2xl border border-amber/40 bg-amber-soft/50 px-3.5 py-2.5 text-[12px] leading-relaxed text-navy">
+                      <UtensilsCrossed className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
+                      <span>
+                        « {offre?.name} » comprend {platsLabel(platsFixes)} : vous en avez
+                        choisi {selectedMeals.length}. « Modifier les plats » rouvre la carte
+                        du chef.
+                      </span>
+                    </p>
                   )}
                 </Field>
 
@@ -508,13 +590,23 @@ function ReservationFlow() {
                     max={10}
                   />
                   <Stepper
-                    label="Plats en plus"
-                    Icon={ChefHat}
-                    value={extraMeals}
-                    setValue={setExtraMeals}
-                    min={0}
-                    max={10}
+                    label="Portions par plat"
+                    Icon={UtensilsCrossed}
+                    value={portions}
+                    setValue={setPortionsChoisies}
+                    min={1}
+                    max={20}
                   />
+                  {platsFixes == null && (
+                    <Stepper
+                      label="Plats en plus"
+                      Icon={ChefHat}
+                      value={extraMeals}
+                      setValue={setExtraMeals}
+                      min={0}
+                      max={10}
+                    />
+                  )}
                 </div>
 
                 {prix && (
@@ -522,8 +614,12 @@ function ReservationFlow() {
                     {prix.rules.includedPersons} personne
                     {prix.rules.includedPersons > 1 ? 's' : ''} comprise
                     {prix.rules.includedPersons > 1 ? 's' : ''} dans la formule, puis{' '}
-                    {offerEuros(prix.rules.extraPersonCents)} par personne. Chaque plat
-                    en plus : {offerEuros(prix.rules.extraMealCents)}.
+                    {offerEuros(prix.rules.extraPersonCents)} par personne.{' '}
+                    {platsFixes != null
+                      ? `La formule comprend ${platsLabel(platsFixes)}, ni plus ni moins.`
+                      : `Chaque plat en plus : ${offerEuros(prix.rules.extraMealCents)}.`}{' '}
+                    Les portions ne changent pas le prix : elles règlent les quantités de
+                    la liste de courses.
                   </p>
                 )}
 
@@ -598,6 +694,7 @@ function ReservationFlow() {
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
+                portions={portions}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
                 prix={prix}
@@ -613,14 +710,16 @@ function ReservationFlow() {
               </button>
               <button
                 onClick={next}
-                disabled={!offre || !creneauIso || !adresseComplete}
+                disabled={!offre || platsHorsFormule || !creneauIso || !adresseComplete}
                 className="btn btn-primary disabled:opacity-50"
               >
                 {/* Un bouton gris sans raison est une impasse : il dit ce qui
                     manque, et « Modifier les plats » rouvre la carte du chef. */}
                 {!offre
                   ? 'Choisissez une formule'
-                  : !creneauIso
+                  : platsHorsFormule && platsFixes != null
+                    ? `Choisissez ${platsLabel(platsFixes)}`
+                    : !creneauIso
                     ? 'Choisissez un créneau'
                     : !adresseComplete
                       ? 'Indiquez l’adresse complète'
@@ -645,33 +744,116 @@ function ReservationFlow() {
                   </p>
                   <ol className="mt-2 space-y-2 text-[13px] leading-relaxed text-ink-mid">
                     <li>
-                      <strong className="font-semibold text-navy">1.</strong> Nous
-                      posons votre réservation chez{' '}
-                      {chef?.chef.displayName ?? 'votre batch cooker'}. Le créneau
-                      est alors tenu <strong>72 heures</strong>.
+                      <strong className="font-semibold text-navy">1.</strong> Vous
+                      choisissez ci-dessous comment vous paierez, puis vous
+                      enregistrez votre carte à l’écran suivant.{' '}
+                      <strong>Rien n’est prélevé.</strong>
                     </li>
                     <li>
-                      <strong className="font-semibold text-navy">2.</strong> Vous
-                      réglez à l’écran suivant — carte, CESU préfinancé ou URSSAF,
-                      selon ce que ce batch cooker accepte. C’est le paiement qui
-                      confirme la session.
+                      <strong className="font-semibold text-navy">2.</strong>{' '}
+                      {chef?.chef.displayName ?? 'Votre batch cooker'} a{' '}
+                      <strong>48 heures</strong> pour accepter votre demande. Sans
+                      réponse ou en cas de refus, elle est annulée sans frais.
                     </li>
                     <li>
-                      <strong className="font-semibold text-navy">3.</strong> Tant
-                      que rien n’est réglé, vous pouvez tout annuler sans frais
-                      depuis « Mes commandes ».
+                      <strong className="font-semibold text-navy">3.</strong> C’est
+                      son acceptation qui confirme la session. Vous avez alors{' '}
+                      <strong>14 jours</strong> pour vous rétracter, depuis « Mes
+                      sessions ».
+                    </li>
+                    <li>
+                      <strong className="font-semibold text-navy">4.</strong> Le
+                      paiement se fait <strong>après la session</strong>, avec le
+                      moyen choisi. Annulation gratuite jusqu’à 48 heures avant.
                     </li>
                   </ol>
                 </div>
 
-                {chef?.chef.acceptsCesu && (
-                  <p className="flex items-start gap-2 rounded-2xl bg-mint/40 px-4 py-3 text-[13px] leading-relaxed text-mint-ink">
-                    <Wallet className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    {chef.chef.displayName.split(' ')[0]} accepte le{' '}
-                    <strong>CESU préfinancé</strong> : vous pourrez le choisir à
-                    l’étape suivante.
+                {/*
+                  Le même choix que la formule : une ligne par moyen, le moyen retenu
+                  se reconnaît à son cadre marine et à sa pastille pleine. Le bouton
+                  radio natif reste dessous, pour le clavier et les lecteurs d'écran.
+                */}
+                <fieldset className="panel p-4 sm:p-5">
+                  <legend className="sr-only">Comment paierez-vous ?</legend>
+                  <p aria-hidden className="font-display text-base font-bold text-navy">
+                    Comment paierez-vous ?
                   </p>
-                )}
+                  {moyens.isPending && chef ? (
+                    <div role="status" aria-busy="true" className="mt-3 space-y-2">
+                      <span className="sr-only">Chargement des moyens de paiement</span>
+                      {[0, 1].map((i) => (
+                        <div
+                          key={i}
+                          aria-hidden
+                          className="h-16 animate-pulse rounded-xl bg-cream-deep motion-reduce:animate-none"
+                        />
+                      ))}
+                    </div>
+                  ) : !reservable ? (
+                    <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+                      Ce batch cooker ne peut pas encore recevoir de paiement :
+                      réservation impossible pour le moment.
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {offerts.map((m) => {
+                        const choisi = moyen === m
+                        return (
+                          <label
+                            key={m}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-paper px-4 py-3 transition-colors ${
+                              choisi
+                                ? 'border-navy shadow-[inset_0_0_0_1px_var(--navy)]'
+                                : 'border-[var(--line-strong)] hover:border-[rgba(31,42,55,0.32)]'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="moyen"
+                              value={m}
+                              checked={choisi}
+                              onChange={() => setMoyen(m)}
+                              className="peer sr-only"
+                            />
+                            <span
+                              aria-hidden
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-amber-deep peer-focus-visible:ring-offset-2 ${
+                                choisi ? 'border-navy bg-navy text-white' : 'border-[var(--line-strong)]'
+                              }`}
+                            >
+                              {choisi && <Check className="h-3 w-3" strokeWidth={3} />}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-1.5 text-sm font-semibold text-navy">
+                                {m === 'cb' ? (
+                                  <CreditCard className="h-4 w-4 text-ink-soft" aria-hidden />
+                                ) : (
+                                  <Wallet className="h-4 w-4 text-ink-soft" aria-hidden />
+                                )}
+                                {PAYMENT_METHOD_LABEL[m]}
+                              </span>
+                              <span className="mt-0.5 block text-xs leading-relaxed text-ink-mid">
+                                {m === 'cb'
+                                  ? // CGV 7.3 : une session à moins de 48 h est prélevée dès l'acceptation.
+                                    'Prélevée à la fin de la session, ou dès que le batch cooker accepte si la session a lieu dans moins de 48 heures.'
+                                  : m === 'avance_immediate'
+                                    ? 'Vous ne payez que 50 % : l’URSSAF prélève votre part après la session. Un rattachement à ce batch cooker est demandé s’il n’existe pas.'
+                                    : 'Vous déclarez vos titres après la session ; sans déclaration sous 48 h, le reste est prélevé sur votre carte.'}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                      <p className="flex items-start gap-2 pt-1 text-xs leading-relaxed text-ink-soft">
+                        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Une carte est enregistrée dans tous les cas (CGV, article 7.2) :
+                        elle sert aux courses, aux éventuels frais d’annulation, et de
+                        secours si l’URSSAF ou le CESU ne couvrent pas la session.
+                      </p>
+                    </div>
+                  )}
+                </fieldset>
 
                 {erreur && (
                   <p
@@ -716,19 +898,42 @@ function ReservationFlow() {
                   </div>
                 )}
 
+                <ChefLegalBlock
+                  identity={fiche.data?.legalIdentity}
+                  displayName={chef?.chef.displayName}
+                />
+
+                {terms && (
+                  <ContractBoxes
+                    terms={terms}
+                    gaps={cases}
+                    ticks={ticks}
+                    onChange={setTicks}
+                    missing={manquantes}
+                  />
+                )}
+
                 <button
                   type="button"
-                  onClick={reserver}
+                  onClick={() => reserver()}
                   disabled={
+                    !casesOk ||
+                    !reservable ||
+                    carte.isPending ||
                     creer.isPending ||
                     !offre ||
+                    platsHorsFormule ||
                     !creneauIso ||
                     (selectedMeals.length > 0 && allergiesADeclarer)
                   }
                   className="btn btn-primary w-full justify-center disabled:opacity-60"
                 >
-                  {creer.isPending ? 'Enregistrement…' : 'Réserver et payer'}
-                  {!creer.isPending && <ArrowRight className="h-4 w-4 icon-arrow" />}
+                  {creer.isPending || carte.isPending
+                    ? 'Enregistrement…'
+                    : 'Commander avec obligation de paiement'}
+                  {!creer.isPending && !carte.isPending && (
+                    <ArrowRight className="h-4 w-4 icon-arrow" />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -746,6 +951,7 @@ function ReservationFlow() {
                 slot={slot}
                 persons={persons}
                 extraMeals={extraMeals}
+                portions={portions}
                 offre={offre}
                 coursesParMoi={coursesParMoi}
                 prix={prix}
@@ -766,20 +972,142 @@ function ReservationFlow() {
         selected={selectedMeals}
         onSelectedChange={setSelectedMeals}
         dietLabel={dietLabel}
-        renderAction={({ menu, selected }) => (
-          <button
-            type="button"
-            onClick={() => chooseChef(menu, selected)}
-            disabled={selected.length > MAX_DISHES}
-            className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            {selected.length > MAX_DISHES
-              ? `${MAX_DISHES} plats au plus`
-              : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
-            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-          </button>
+        /* La formule fixe le nombre de plats : rien à cocher avant de l'avoir
+           choisie. Une formule d'avant le 19/11 (sans nombre) laisse libre. */
+        maxDishes={offreCarte ? (offreCarte.mealsIncluded ?? MAX_DISHES) : 0}
+        maxDishesFixed={offreCarte?.mealsIncluded != null}
+        renderBeforeDishes={(menu) => (
+          <FormulePicker
+            chefName={menu.chef.displayName}
+            loading={ficheCarte.isPending}
+            offres={offresCarte}
+            chosenId={offreCarte?.id ?? null}
+            onPick={pickOffer}
+            regles={regles}
+          />
         )}
+        renderAction={({ menu, selected }) => {
+          const fixe = offreCarte?.mealsIncluded ?? null
+          const max = offreCarte ? (fixe ?? MAX_DISHES) : 0
+          const horsFormule = fixe != null && selected.length > 0 && selected.length !== fixe
+          return (
+            <button
+              type="button"
+              onClick={() => chooseChef(menu, selected)}
+              disabled={!offreCarte || selected.length > max || horsFormule}
+              className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {!offreCarte
+                ? 'Choisissez une formule'
+                : selected.length > max
+                  ? `${platsLabel(max)} au plus`
+                  : fixe != null
+                    ? `${selected.length}/${platsLabel(fixe)} · Continuer`
+                    : `Continuer avec ${menu.chef.displayName.split(' ')[0]}`}
+              <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+            </button>
+          )
+        }}
       />
+    </div>
+  )
+}
+
+/** Les formules d'un chef, en tête de sa carte : elles fixent combien de plats cocher. */
+function FormulePicker({
+  chefName,
+  loading,
+  offres,
+  chosenId,
+  onPick,
+  regles,
+}: {
+  chefName: string
+  loading: boolean
+  offres: PublicServiceOffer[]
+  chosenId: string | null
+  onPick: (o: PublicServiceOffer) => void
+  regles: ReturnType<typeof usePricingRules>['data']
+}) {
+  return (
+    <div className="mb-6">
+      <p className="mb-3 text-sm font-semibold text-navy">1. Choisissez votre formule</p>
+      {loading ? (
+        <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
+      ) : offres.length === 0 ? (
+        <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
+          <p className="text-[13px] leading-relaxed text-navy">
+            {chefName} n’a pas encore publié ses formules : il n’est pas réservable en ligne.
+          </p>
+          <Link href="/espace-client/personnalisation" className="btn btn-outline mt-3 text-xs">
+            Faire une demande sur mesure
+            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+          </Link>
+        </div>
+      ) : (
+        /*
+          Une formule par ligne, comme une liste de choix : côte à côte dans la
+          colonne de la carte, le prix prenait toute la place et le nom se
+          cassait mot par mot. Le nom et ce qu'elle comprend à gauche, le prix
+          aligné à droite, et la formule retenue se reconnaît à son cadre marine
+          et à sa coche, pas à un aplat de couleur.
+        */
+        <div role="radiogroup" aria-label="Formules" className="space-y-2">
+          {offres.map((o) => {
+            const choisie = o.id === chosenId
+            return (
+              <button
+                key={o.id}
+                type="button"
+                role="radio"
+                aria-checked={choisie}
+                onClick={() => onPick(o)}
+                className={`flex w-full items-center gap-3 rounded-xl border bg-paper px-4 py-3 text-left transition-colors sm:gap-4 ${
+                  choisie
+                    ? 'border-navy shadow-[inset_0_0_0_1px_var(--navy)]'
+                    : 'border-[var(--line-strong)] hover:border-[rgba(31,42,55,0.32)]'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                    choisie ? 'border-navy bg-navy text-white' : 'border-[var(--line-strong)] bg-paper'
+                  }`}
+                >
+                  {choisie && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                {/* Étroit, le prix passe sous le nom : côte à côte, il l'écrasait. */}
+                <span className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                      {offerSummary(o)}
+                    </span>
+                  </span>
+                  <Prix
+                    apresCredit={
+                      regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+                    }
+                    total={offerEuros(o.priceCents)}
+                    taille="sm"
+                    className="shrink-0 sm:text-right sm:[&>p]:justify-end"
+                  />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <p className="mt-3 text-xs text-ink-soft">
+        Plus de plats que la formule ? C’est une{' '}
+        <Link
+          href="/espace-client/personnalisation"
+          className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
+        >
+          demande sur-mesure
+        </Link>
+        .
+      </p>
     </div>
   )
 }
@@ -799,9 +1127,8 @@ function StepCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="col-start-1 row-start-1 card-shell rounded-3xl p-6 lg:p-8"
+      className="col-start-1 row-start-1 card-shell rounded-2xl p-6 lg:p-8"
     >
-      <p className="eyebrow mb-2">Réservation</p>
       <h2 className="font-display text-2xl lg:text-3xl font-bold text-navy leading-tight">
         {title}
       </h2>
@@ -1043,6 +1370,7 @@ function SummaryCard({
   slot,
   persons,
   extraMeals,
+  portions,
   offre,
   coursesParMoi,
   prix,
@@ -1054,6 +1382,8 @@ function SummaryCard({
   slot: string
   persons: number
   extraMeals: number
+  /** Portions de chaque plat. */
+  portions: number
   offre: PublicServiceOffer | null
   coursesParMoi: boolean
   /** `null` tant que l'API n'a pas répondu. */
@@ -1084,13 +1414,21 @@ function SummaryCard({
             <Line
               Icon={Clock}
               label={offre.name}
-              sub={`${offerDuration(offre.durationMinutes)} sur place`}
+              sub={offerSummary(offre)}
             />
           )}
           <Line
             Icon={Sparkles}
-            label={`${meals.length} plat${meals.length > 1 ? 's' : ''}`}
-            sub={meals.map((m) => m.name).join(', ') || 'Au choix avec votre batch cooker'}
+            label={
+              offre?.mealsIncluded
+                ? `${meals.length} plat${meals.length > 1 ? 's' : ''} sur ${offre.mealsIncluded}`
+                : `${meals.length} plat${meals.length > 1 ? 's' : ''}`
+            }
+            sub={
+              meals.length > 0
+                ? `${meals.map((m) => m.name).join(', ')} · ${portions} portion${portions > 1 ? 's' : ''} chacun`
+                : 'Au choix avec votre batch cooker'
+            }
           />
           <Line Icon={CalendarRange} label={dateLabel} sub={slot || 'Créneau à choisir'} />
           <Line
@@ -1126,7 +1464,10 @@ function SummaryCard({
         <div className="mt-5 pt-5 border-t border-white/10 space-y-1.5">
           {prix ? (
             <>
-              <Row label="Prestation" value={offerEuros(prix.priceCents)} />
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                Prestation
+              </p>
+              <Row label="Formule" value={offerEuros(prix.priceCents)} />
               {prix.extraPersonsCents > 0 && (
                 <Row
                   label={`+ ${persons - prix.rules.includedPersons} personne${persons - prix.rules.includedPersons > 1 ? 's' : ''}`}
@@ -1140,7 +1481,18 @@ function SummaryCard({
                 />
               )}
               {prix.shoppingFeeCents > 0 && (
-                <Row label="Courses" value={offerEuros(prix.shoppingFeeCents)} />
+                <>
+                  {/* CGV 10 : le forfait est le temps du batch cooker, il ouvre droit
+                      au crédit d'impôt ; les ingrédients sont des débours, à part. */}
+                  <p className="pt-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">
+                    Courses
+                  </p>
+                  <Row label="Forfait courses" value={offerEuros(prix.shoppingFeeCents)} />
+                  <p className="text-[11px] leading-relaxed text-white/55">
+                    Courses (ingrédients) : payées à part par carte, au montant exact, sans
+                    marge. Elles n’ouvrent pas droit au crédit d’impôt.
+                  </p>
+                </>
               )}
               <div className="pt-3 border-t border-white/10">
                 <Prix

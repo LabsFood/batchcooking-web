@@ -69,7 +69,7 @@ export default function ImageLightbox({
           type="button"
           onClick={onClose}
           aria-label="Fermer l'aperçu"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20"
+          className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20"
         >
           <X className="h-4 w-4" />
         </button>

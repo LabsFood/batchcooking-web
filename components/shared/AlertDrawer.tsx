@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import {
   notificationHref,
   notificationTitle,
@@ -57,7 +58,7 @@ const TONES: Record<
   },
   todo: {
     Icon: Clock,
-    texte: 'text-amber-deep',
+    texte: 'text-amber-ink',
     fond: 'bg-amber/8',
     bord: 'border-amber/30',
   },
@@ -90,6 +91,7 @@ export function AlertBell({
   const flux = useNotifications()
   const lire = useMarkNotificationRead()
   const router = useRouter()
+  const pathname = usePathname()
   const notifications = flux.data?.data ?? []
   const n = countActionable(alerts) + (flux.data?.unreadCount ?? 0)
 
@@ -109,7 +111,7 @@ export function AlertBell({
         >
           <Bell className="h-4 w-4" aria-hidden />
           {!loading && n > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-mono text-[9px] font-bold text-white">
+            <span className="tabular-nums absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-bold text-white">
               {n > 9 ? '9+' : n}
             </span>
           )}
@@ -134,7 +136,7 @@ export function AlertBell({
             </div>
             <Dialog.Close
               aria-label="Fermer"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-deep hover:text-navy"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-deep hover:text-navy"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>
@@ -143,7 +145,7 @@ export function AlertBell({
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {notifications.length > 0 && (
               <section aria-label="Notifications" className="mb-4">
-                <p className="mb-2 px-1 text-[11px] leading-relaxed text-ink-soft">
+                <p className="mb-2 px-1 text-xs leading-relaxed text-ink-soft">
                   Vos notifications s’affichent ici, dans l’application. Aucun e-mail
                   n’est envoyé pour l’instant.
                 </p>
@@ -154,7 +156,7 @@ export function AlertBell({
                         type="button"
                         onClick={() => {
                           if (!notif.readAt) lire.mutate(notif.id)
-                          const href = notificationHref(notif.type, notif.subjectId)
+                          const href = notificationHref(notif.type, notif.subjectId, pathname)
                           if (href) {
                             setOpen(false)
                             router.push(href)
@@ -170,7 +172,7 @@ export function AlertBell({
                         <Bell
                           className={cn(
                             'mt-0.5 h-4 w-4 shrink-0',
-                            notif.readAt ? 'text-ink-soft' : 'text-amber-deep',
+                            notif.readAt ? 'text-ink-soft' : 'text-amber-ink',
                           )}
                           aria-hidden
                         />
@@ -200,11 +202,18 @@ export function AlertBell({
               </section>
             )}
             {loading ? (
-              <div className="space-y-2">
+              // Des rangées blanches sur le fond crème du tiroir, comme les vraies.
+              <SkeletonGroup className="space-y-2">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-20 animate-pulse rounded-2xl bg-paper" />
+                  <SkeletonCard key={i} className="flex items-start gap-3 p-3.5">
+                    <Skeleton className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/3" />
+                    </div>
+                  </SkeletonCard>
                 ))}
-              </div>
+              </SkeletonGroup>
             ) : alerts.length === 0 ? (
               notifications.length === 0 && (
                 <div className="flex flex-col items-center px-4 py-12 text-center">
@@ -275,7 +284,7 @@ export function AlertBell({
           </div>
 
           {children && (
-            <footer className="border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-3.5 text-[11px] leading-relaxed text-ink-soft">
+            <footer className="border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-3.5 text-xs leading-relaxed text-ink-soft">
               {children}
             </footer>
           )}

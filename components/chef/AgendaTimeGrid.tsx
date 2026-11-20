@@ -202,7 +202,7 @@ export default function AgendaTimeGrid({
                     choisi ? 'bg-cream-soft' : ''
                   }`}
                 >
-                  <p className="text-[10px] uppercase tracking-wide text-ink-soft">
+                  <p className="text-xs uppercase tracking-wide text-ink-soft">
                     {WEEKDAYS[weekdayIndex(d)].slice(0, 3)}
                   </p>
                   <p
@@ -212,7 +212,7 @@ export default function AgendaTimeGrid({
                   >
                     {d.getDate()}
                   </p>
-                  <p className="mt-0.5 truncate text-[10px] tabular-nums text-ink-soft">
+                  <p className="mt-0.5 truncate text-xs tabular-nums text-ink-soft">
                     {ferme
                       ? 'Fermé'
                       : ranges.length === 0
@@ -237,7 +237,7 @@ export default function AgendaTimeGrid({
               {heures.slice(0, -1).map((h) => (
                 <span
                   key={h}
-                  className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-ink-soft"
+                  className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-ink-soft"
                   style={{ top: y(h) }}
                 >
                   {minuteLabel(h)}
@@ -274,7 +274,7 @@ export default function AgendaTimeGrid({
               ))}
 
               {ferme !== null && items.length === 0 && (
-                <p className="absolute inset-x-1 top-2 flex items-center justify-center gap-1 text-center text-[10px] text-ink-soft">
+                <p className="absolute inset-x-1 top-2 flex items-center justify-center gap-1 text-center text-xs text-ink-soft">
                   <CalendarOff className="h-3 w-3 shrink-0" aria-hidden />
                   {ferme || 'Fermé'}
                 </p>
@@ -302,17 +302,17 @@ export default function AgendaTimeGrid({
                 const largeur = 100 / it.lanes
                 const corps = (
                   <>
-                    <p className="truncate text-[11px] font-semibold leading-tight">
+                    <p className="truncate text-xs font-semibold leading-tight">
                       {it.kind === 'block' && (
                         <Lock className="mr-1 inline h-2.5 w-2.5 align-[-1px]" aria-hidden />
                       )}
                       {it.title}
                     </p>
                     {it.sub && bas - haut > 34 && (
-                      <p className="truncate text-[10px] leading-tight opacity-70">{it.sub}</p>
+                      <p className="truncate text-xs leading-tight opacity-70">{it.sub}</p>
                     )}
                     {it.alerte && bas - haut > 50 && (
-                      <p className="mt-0.5 truncate text-[10px] font-semibold leading-tight text-amber">
+                      <p className="mt-0.5 truncate text-xs font-semibold leading-tight text-amber">
                         {it.kind === 'prestation' ? 'Report proposé' : 'En attente de vous'}
                       </p>
                     )}
@@ -348,16 +348,16 @@ export default function AgendaTimeGrid({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[rgba(31,42,55,0.07)] px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+        <span className="flex items-center gap-1.5 text-xs text-ink-soft">
           <span aria-hidden className="h-2 w-2 rounded-full bg-navy" /> Prestation
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+        <span className="flex items-center gap-1.5 text-xs text-ink-soft">
           <span aria-hidden className="h-2 w-2 rounded-full bg-amber" /> Demande sur-mesure
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+        <span className="flex items-center gap-1.5 text-xs text-ink-soft">
           <span aria-hidden className="h-2 w-2 rounded-full bg-ink-soft" /> Créneau bloqué
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+        <span className="flex items-center gap-1.5 text-xs text-ink-soft">
           <span aria-hidden className="h-2 w-2 rounded-full bg-cream-deep" /> Hors horaires
         </span>
       </div>

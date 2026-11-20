@@ -14,12 +14,15 @@ import {
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
+/* Les familles de `.status` (globals.css) : une seule étiquette d'état pour
+   les deux espaces. Ce composant gardait sa propre palette, à côté de celle des
+   écrans client et d'une troisième, en capitales, sur les prestations. */
 const TONE_CLASS: Record<Tone, string> = {
-  neutral: 'bg-cream-deep text-ink-mid',
-  info: 'bg-mint text-mint-ink',
-  success: 'bg-mint-deep text-mint-ink',
-  warning: 'bg-amber-soft text-amber-deep',
-  danger: 'bg-red-100 text-red-700',
+  neutral: '',
+  info: 'status-info',
+  success: 'status-ok',
+  warning: 'status-warn',
+  danger: 'status-bad',
 }
 
 export const DOC_TONE: Record<DocStatus, Tone> = {
@@ -64,26 +67,15 @@ export const MISSION_TONE: Record<MissionStatus, Tone> = {
 export default function StatusBadge({
   tone = 'neutral',
   children,
-  dot = false,
   className,
 }: {
   tone?: Tone
   children: React.ReactNode
+  /** Gardé pour les appels existants : le point fait partie de l'étiquette. */
   dot?: boolean
   className?: string
 }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap',
-        TONE_CLASS[tone],
-        className,
-      )}
-    >
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />}
-      {children}
-    </span>
-  )
+  return <span className={cn('status', TONE_CLASS[tone], className)}>{children}</span>
 }
 
 /* Raccourcis typés — évitent de répéter le couple libellé + ton. */

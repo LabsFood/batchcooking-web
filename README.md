@@ -156,6 +156,10 @@ labs-food/
 
 ## Design system
 
+Les règles d'usage à l'écran (mouvement, anti-slop, contraste, états de
+chargement, checklist de revue) sont dans
+[docs/ui-ux-guidelines.md](docs/ui-ux-guidelines.md).
+
 **Typographie** — Fraunces (titres ; variable font servie en local depuis
 `public/fraunces-font-family/`), Montserrat (corps), DM Mono (labels et
 références).

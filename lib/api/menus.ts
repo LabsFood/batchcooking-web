@@ -36,6 +36,8 @@ export interface WeekDish {
   diets: string[]
   customDiets: string[]
   allergens: string[]
+  /** Parmi `allergens`, ceux qui ne viennent que d'un ingrédient facultatif : « si utilisé ». */
+  conditionalAllergens?: string[]
   allergensNone: boolean
   customAllergens: string[]
   /** §4.8 : calculés d'après les ingrédients ; null tant que le calcul ne se fait pas. */
@@ -261,6 +263,8 @@ export interface PublicServiceOffer {
   priceCents: number
   shoppingIncluded: boolean
   shoppingFeeCents: number
+  /** Plats de la formule, nombre fixe. `null` : au choix (offres d'avant le 19/11). */
+  mealsIncluded?: number | null
 }
 
 export interface ChefPublic extends WeekChef {
@@ -276,6 +280,8 @@ export interface ChefPublic extends WeekChef {
    * réservable que sur demande.
    */
   serviceOffers?: PublicServiceOffer[]
+  /** CGV art. 3.2 : l'identité légale, dans la mesure où elle est renseignée. */
+  legalIdentity?: import('./contract').ChefLegalIdentity | null
 }
 
 /**
@@ -291,6 +297,31 @@ export function useChefPublic(id: string | undefined) {
     queryKey: ['chefs', id],
     queryFn: () => apiFetch<ChefPublic>(`/chefs/${id}`),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+}
+
+/** Un batch cooker de la liste d'une demande sur mesure : son nom, rien de plus. */
+export interface CoveringChef {
+  id: string
+  displayName: string
+  city: string | null
+}
+
+/**
+ * Les batch cookers qui couvrent la commune d'une prestation — `GET /chefs`.
+ * Approuvés, en ligne, par ordre alphabétique. Rien n'est demandé tant que la
+ * commune n'est pas choisie : la liste dépend du lieu, pas l'inverse.
+ * `422 ADDRESS_CITY_MISMATCH` si la commune n'est pas du code postal.
+ */
+export function useChefsCovering(postalCode: string, city: string) {
+  const apiFetch = useApiFetch()
+  const params = new URLSearchParams({ postalCode, city })
+  return useQuery({
+    queryKey: ['chefs', 'covering', postalCode, city],
+    queryFn: () => apiFetch<{ data: CoveringChef[] }>(`/chefs?${params}`),
+    enabled: /^\d{5}$/.test(postalCode) && city.trim().length > 0,
     staleTime: 5 * 60 * 1000,
     retry: false,
   })

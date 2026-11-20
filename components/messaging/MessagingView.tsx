@@ -2,16 +2,18 @@
 
 import { useEffect, useRef } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Headset, Loader2, MessageCircle, UserRound } from 'lucide-react'
+import { Headset, MessageCircle, UserRound } from 'lucide-react'
 import {
   useConversations,
   useMarkRead,
   useOpenForBooking,
+  useOpenForQuote,
   useOpenSupport,
   type Conversation,
 } from '@/lib/api/messaging'
 import { cn } from '@/lib/utils'
-import Thread from './Thread'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
+import Thread, { BubblesSkeleton } from './Thread'
 import { contextLine, previewOf, shortWhen } from './format'
 
 /**
@@ -37,10 +39,12 @@ export default function MessagingView({
   const params = useSearchParams()
   const selectedId = params.get('c')
   const bookingId = params.get('booking')
+  const quoteId = params.get('quote')
 
   const conversations = useConversations()
   const openSupport = useOpenSupport()
   const openForBooking = useOpenForBooking()
+  const openForQuote = useOpenForQuote()
   const markRead = useMarkRead()
 
   const list = conversations.data ?? []
@@ -61,12 +65,24 @@ export default function MessagingView({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché par le seul paramètre d'URL
   }, [bookingId])
 
+  // `?quote=` : une demande sur-mesure, avant toute acceptation (15/11). Même principe.
+  const openedQuote = useRef<string | null>(null)
+  useEffect(() => {
+    if (!quoteId || openedQuote.current === quoteId) return
+    openedQuote.current = quoteId
+    openForQuote.mutate(quoteId, {
+      onSuccess: (conversation) => select(conversation.id),
+      onError: () => select(null),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché par le seul paramètre d'URL
+  }, [quoteId])
+
   // Sur grand écran, un fil est toujours ouvert : le plus récent par défaut.
   useEffect(() => {
-    if (selectedId || bookingId || list.length === 0) return
+    if (selectedId || bookingId || quoteId || list.length === 0) return
     if (window.matchMedia('(min-width: 1024px)').matches) select(list[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- au chargement de la liste
-  }, [selectedId, bookingId, list.length])
+  }, [selectedId, bookingId, quoteId, list.length])
 
   // Ouvrir un fil, ou y recevoir un message pendant qu'il est ouvert, c'est le lire.
   const marked = useRef<string | null>(null)
@@ -85,16 +101,12 @@ export default function MessagingView({
   const hasSupport = list.some((c) => c.type === 'support')
 
   if (conversations.isPending) {
-    return (
-      <p className="flex items-center justify-center gap-2 py-16 text-sm text-ink-soft">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Chargement de la messagerie…
-      </p>
-    )
+    return <MessagingSkeleton />
   }
 
   if (conversations.isError) {
     return (
-      <div role="alert" className="rounded-3xl bg-paper p-8 text-center">
+      <div role="alert" className="rounded-2xl bg-paper p-8 text-center">
         <p className="text-sm text-ink-mid">La messagerie n&apos;a pas pu être chargée.</p>
         <button
           type="button"
@@ -109,7 +121,7 @@ export default function MessagingView({
 
   if (list.length === 0) {
     return (
-      <div className="mx-auto max-w-md rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center">
+      <div className="mx-auto max-w-md rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-8 text-center">
         <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-amber">
           <MessageCircle className="h-6 w-6" aria-hidden />
         </span>
@@ -132,7 +144,7 @@ export default function MessagingView({
       {/* Liste — sur mobile, cède la place au fil ouvert. */}
       <aside
         className={cn(
-          'overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper',
+          'overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper',
           active && 'hidden lg:block',
         )}
       >
@@ -171,11 +183,42 @@ export default function MessagingView({
           onOpenSupport={startSupport}
         />
       ) : (
-        <div className="hidden items-center justify-center rounded-3xl border border-[rgba(31,42,55,0.06)] bg-paper text-sm text-ink-soft lg:flex">
+        <div className="hidden items-center justify-center rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper text-sm text-ink-soft lg:flex">
           Choisissez une conversation.
         </div>
       )}
     </div>
+  )
+}
+
+/** La liste (300 px, rangées de 82 px) et le fil ouvert, comme à l'arrivée des données. */
+export function MessagingSkeleton() {
+  return (
+    <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr]">
+      <div className="overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper">
+        <div className="divide-y divide-[rgba(31,42,55,0.06)]">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="space-y-0.5 px-4 py-3.5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-48 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden h-[72vh] min-h-[520px] rounded-2xl border border-[rgba(31,42,55,0.06)] bg-paper p-5 lg:block lg:p-6">
+        <div className="flex items-center gap-3 border-b border-[rgba(31,42,55,0.08)] pb-4">
+          <Skeleton className="h-11 w-11 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+        </div>
+        <div className="py-4">
+          <BubblesSkeleton />
+        </div>
+      </div>
+    </SkeletonGroup>
   )
 }
 
@@ -208,21 +251,21 @@ function ConversationRow({
         </p>
         {conversation.unreadCount > 0 && (
           <span
-            className="rounded-full bg-amber px-1.5 py-0.5 text-[10px] font-bold text-navy"
+            className="rounded-full bg-amber px-1.5 py-0.5 text-xs font-bold text-navy"
             aria-label={`${conversation.unreadCount} non lu${conversation.unreadCount > 1 ? 's' : ''}`}
           >
             {conversation.unreadCount}
           </span>
         )}
       </div>
-      <p className="text-[11px] text-ink-soft">{contextLine(conversation)}</p>
+      <p className="text-xs text-ink-soft">{contextLine(conversation)}</p>
       <p className="mt-0.5 flex items-baseline justify-between gap-2 text-xs text-ink-mid">
         <span className="min-w-0 truncate">
           {lastIsMine && 'Vous : '}
           {previewOf(conversation.lastMessage)}
         </span>
         {conversation.lastMessageAt && (
-          <span className="shrink-0 text-[10px] text-ink-soft">
+          <span className="shrink-0 text-xs text-ink-soft">
             {shortWhen(conversation.lastMessageAt)}
           </span>
         )}

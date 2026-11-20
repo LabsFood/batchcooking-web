@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import CityField from '@/components/chef/application/CityField'
 import { CalendarPlus, Loader2, X } from 'lucide-react'
 import DatePicker from '@/components/shared/DatePicker'
 import { SlotPicker } from '@/components/shared/TimeField'
@@ -60,9 +59,6 @@ function Formulaire({ onClose }: { onClose: () => void }) {
   const [jour, setJour] = useState<Date | undefined>()
   const [debut, setDebut] = useState<string | null>(null)
   const [personnes, setPersonnes] = useState(2)
-  const [adresse, setAdresse] = useState('')
-  const [ville, setVille] = useState('')
-  const [codePostal, setCodePostal] = useState('')
   const [notes, setNotes] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -93,9 +89,6 @@ function Formulaire({ onClose }: { onClose: () => void }) {
         serviceOfferId: offerId,
         startsAt: debut,
         persons: personnes,
-        addressLine: adresse.trim() || undefined,
-        addressCity: ville.trim() || undefined,
-        addressPostalCode: codePostal.trim() || undefined,
         notes: notes.trim() || undefined,
       },
       {
@@ -119,7 +112,7 @@ function Formulaire({ onClose }: { onClose: () => void }) {
       aria-label="Proposer une prestation"
       className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
     >
-      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-paper p-6 sm:rounded-3xl">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-paper p-6 sm:rounded-2xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-xl font-bold text-navy">
@@ -133,7 +126,7 @@ function Formulaire({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="shrink-0 rounded-full p-1.5 text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
+            className="hit shrink-0 rounded-full p-1.5 text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
@@ -218,38 +211,19 @@ function Formulaire({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="block text-sm font-semibold text-navy">
-              Personnes
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={personnes}
-                onChange={(e) => setPersonnes(Number(e.target.value))}
-                className="input-base mt-1.5"
-              />
-            </label>
-            <label className="block text-sm font-semibold text-navy">
-              Code postal
-              <input
-                value={codePostal}
-                onChange={(e) => setCodePostal(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                inputMode="numeric"
-                placeholder="Là où vous cuisinerez"
-                className="input-base mt-1.5"
-              />
-            </label>
-            <CityField id="prestation-city" postcode={codePostal} value={ville} onChange={setVille} />
-          </div>
-
           <label className="block text-sm font-semibold text-navy">
-            Adresse
+            Personnes
             <input
-              value={adresse}
-              onChange={(e) => setAdresse(e.target.value)}
-              className="input-base mt-1.5"
+              type="number"
+              min={1}
+              max={20}
+              value={personnes}
+              onChange={(e) => setPersonnes(Number(e.target.value))}
+              className="input-base mt-1.5 sm:max-w-[10rem]"
             />
+            <span className="mt-1.5 block text-[13px] font-normal text-ink-soft">
+              La séance a lieu à l’adresse de votre client, celle de son profil.
+            </span>
           </label>
 
           <label className="block text-sm font-semibold text-navy">

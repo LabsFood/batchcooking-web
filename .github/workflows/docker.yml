@@ -8,8 +8,16 @@ name: Batch cooking web image
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:
@@ -27,8 +35,11 @@ jobs:
   checks:
     uses: ./.github/workflows/ci.yml
 
+  # The image is built on pushes to main and develop only: a PR runs the checks
+  # alone, which keeps GitHub Actions within the free plan's monthly minutes.
   build-run:
     needs: checks
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:

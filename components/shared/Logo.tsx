@@ -29,7 +29,7 @@ export default function Logo({
   const inner = (
     <span className={cn('group inline-flex items-center gap-2.5 leading-none', className)}>
       <span
-        className="relative flex-shrink-0 transition-transform duration-500 group-hover:rotate-[-6deg]"
+        className="relative flex-shrink-0"
         style={{ width: mark, height: mark }}
       >
         <Image
@@ -57,7 +57,7 @@ export default function Logo({
           </span>
           <span
             className={cn(
-              'font-mono mt-1 tracking-[0.22em] uppercase',
+              ' mt-1 tracking-[0.12em] uppercase',
               size === 'sm' ? 'text-[8px]' : 'text-[9px]',
               isWhite ? 'text-white/55' : 'text-ink-soft',
             )}

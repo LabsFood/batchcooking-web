@@ -1,5 +1,6 @@
 'use client'
 
+import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -12,6 +13,7 @@ import {
   Plus,
   ShoppingBasket,
   Trash2,
+  UtensilsCrossed,
   X,
 } from 'lucide-react'
 import ApprovalGate from '@/components/chef/ApprovalGate'
@@ -20,6 +22,7 @@ import { CeQueChangeUneFormule } from '@/components/chef/PresenceCarte'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { useToast } from '@/components/shared/Toaster'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { ApiError } from '@/lib/api/client'
 import {
   afterTaxFromClientPrice,
@@ -29,8 +32,10 @@ import {
 import {
   OFFER_LIMITS,
   offerDuration,
+  DEFAULT_OFFER_MINUTES,
   offerError,
   offerEuros,
+  platsLabel,
   useCreateServiceOffer,
   useDeleteServiceOffer,
   useServiceOffers,
@@ -64,10 +69,10 @@ const DUREES = [120, 150, 180, 240, 300, 360]
 const VIDE: ServiceOfferInput = {
   name: '',
   description: '',
-  durationMinutes: 180,
   priceCents: 15000,
   shoppingIncluded: true,
   shoppingFeeCents: 1500,
+  mealsIncluded: 3,
   active: true,
 }
 
@@ -106,6 +111,7 @@ export default function ChefPricingPage() {
       priceCents: o.priceCents,
       shoppingIncluded: o.shoppingIncluded,
       shoppingFeeCents: o.shoppingFeeCents,
+      mealsIncluded: o.mealsIncluded,
       active: o.active,
     })
     setEdite(o.id)
@@ -189,10 +195,10 @@ export default function ChefPricingPage() {
               }
             >
               {query.isPending ? (
-                <div className="space-y-2">
-                  <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
-                  <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
-                </div>
+                <SkeletonGroup className="space-y-2">
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                </SkeletonGroup>
               ) : offres.length === 0 && edite === null ? (
                 <Empty
                   text={
@@ -217,21 +223,25 @@ export default function ChefPricingPage() {
                           <p className="flex items-center gap-2 font-display text-base font-bold text-navy">
                             {o.name}
                             {!o.active && (
-                              <span className="rounded-full bg-cream-deep px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
-                                Hors ligne
-                              </span>
+                              <span className="status font-sans">Hors ligne</span>
                             )}
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-mid">
                             <span className="inline-flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                              <UtensilsCrossed className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
+                              {o.mealsIncluded != null
+                                ? platsLabel(o.mealsIncluded)
+                                : 'Plats au choix : indiquez leur nombre'}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {offerDuration(o.durationMinutes)}
                             </span>
                             <span className="inline-flex items-center gap-1">
-                              <ShoppingBasket className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+                              <ShoppingBasket className="tabular-nums h-3.5 w-3.5 text-amber-ink" aria-hidden />
                               {o.shoppingIncluded
                                 ? o.shoppingFeeCents > 0
-                                  ? `Courses ${offerEuros(o.shoppingFeeCents)}`
+                                  ? `Forfait courses ${offerEuros(o.shoppingFeeCents)}`
                                   : 'Courses offertes'
                                 : 'Sans les courses'}
                             </span>
@@ -244,10 +254,10 @@ export default function ChefPricingPage() {
                         </div>
 
                         <div className="text-right">
-                          <p className="font-display text-xl font-bold text-navy">
+                          <p className="tabular-nums font-display text-xl font-bold text-navy">
                             {offerEuros(o.priceCents + (o.shoppingIncluded ? o.shoppingFeeCents : 0))}
                           </p>
-                          <p className="text-[11px] text-ink-soft">
+                          <p className="tabular-nums text-xs text-ink-soft">
                             {rules.data
                               ? `soit ${offerEuros(
                                   afterTaxFromClientPrice(
@@ -321,7 +331,7 @@ export default function ChefPricingPage() {
             )}
 
             <div className="mt-4 rounded-xl bg-white/5 px-3 py-2.5">
-              <p className="text-[10px] leading-relaxed text-white/50">
+              <p className="text-xs leading-relaxed text-white/50">
                 {rules.data
                   ? `Commission Lab’s Food : ${(rules.data.commissionBps / 100).toLocaleString('fr-FR')} % du prix client. Crédit d’impôt : ${(rules.data.taxCreditBps / 100).toLocaleString('fr-FR')} %.`
                   : 'Commission et crédit d’impôt lus sur l’API.'}
@@ -405,7 +415,7 @@ function OfferForm({
       </p>
 
       <label className="block">
-        <span className="mb-1 block text-[11px] text-ink-soft">
+        <span className="mb-1 block text-xs text-ink-soft">
           Nom — c’est ce que le client lit
         </span>
         <input
@@ -418,7 +428,7 @@ function OfferForm({
       </label>
 
       <label className="mt-3 block">
-        <span className="mb-1 block text-[11px] text-ink-soft">
+        <span className="mb-1 block text-xs text-ink-soft">
           Description (facultative)
         </span>
         <textarea
@@ -431,17 +441,59 @@ function OfferForm({
         />
       </label>
 
+      <label className="mt-3 block">
+        <span className="mb-1 flex items-center gap-1 text-xs text-ink-soft">
+          Nombre de plats
+          <InfoPopover label="Pourquoi un nombre fixe ?">
+            La formule est un forfait : le client choisit exactement ce nombre de
+            plats sur votre carte. Il règle ensuite les portions et les personnes
+            en plus, et la liste de courses suit ses portions.
+          </InfoPopover>
+        </span>
+        <input
+          type="number"
+          min={OFFER_LIMITS.mealsMin}
+          max={OFFER_LIMITS.mealsMax}
+          step={1}
+          value={value.mealsIncluded ?? ''}
+          onChange={(e) =>
+            set('mealsIncluded', e.target.value === '' ? null : Number(e.target.value))
+          }
+          placeholder="3"
+          className="input-base w-28 py-2 tabular-nums"
+        />
+      </label>
+
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <span className="mb-1 block text-[11px] text-ink-soft">Durée sur place</span>
+          <span className="mb-1 flex items-center gap-1 text-xs text-ink-soft">
+            Créneau bloqué (facultatif)
+            <InfoPopover label="À quoi sert la durée ?">
+              Elle réserve le temps dans votre agenda quand un client prend cette
+              formule. Le client ne la voit pas sur la carte. Sans durée, on
+              bloque {offerDuration(DEFAULT_OFFER_MINUTES)}.
+            </InfoPopover>
+          </span>
           <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => set('durationMinutes', undefined)}
+              aria-pressed={value.durationMinutes == null}
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                value.durationMinutes == null
+                  ? 'border-navy bg-navy text-white'
+                  : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
+              }`}
+            >
+              Par défaut
+            </button>
             {DUREES.map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => set('durationMinutes', d)}
                 aria-pressed={value.durationMinutes === d}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
                   value.durationMinutes === d
                     ? 'border-navy bg-navy text-white'
                     : 'border-[rgba(31,42,55,0.12)] text-ink-mid hover:border-navy hover:text-navy'
@@ -456,18 +508,21 @@ function OfferForm({
             min={OFFER_LIMITS.durationMin}
             max={OFFER_LIMITS.durationMax}
             step={15}
-            value={value.durationMinutes}
-            onChange={(e) => set('durationMinutes', Number(e.target.value))}
+            value={value.durationMinutes ?? ''}
+            onChange={(e) =>
+              set('durationMinutes', e.target.value === '' ? undefined : Number(e.target.value))
+            }
+            placeholder={String(DEFAULT_OFFER_MINUTES)}
             aria-label="Durée en minutes"
             className="input-base mt-2 py-2"
           />
-          <span className="mt-1 block text-[11px] text-ink-soft">
-            En minutes, de 30 à 720.
+          <span className="mt-1 block text-xs text-ink-soft">
+            En minutes, de 30 à 720. Vide : {offerDuration(DEFAULT_OFFER_MINUTES)}.
           </span>
         </div>
 
         <div>
-          <span className="mb-1 block text-[11px] text-ink-soft">Prix client</span>
+          <span className="mb-1 block text-xs text-ink-soft">Prix client</span>
           <div className="relative">
             <input
               type="number"
@@ -477,11 +532,11 @@ function OfferForm({
               onChange={(e) => set('priceCents', Math.round(Number(e.target.value) * 100))}
               className="input-base py-2 pr-8 font-semibold"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
+            <span className="tabular-nums absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
               €
             </span>
           </div>
-          <span className="mt-1 block text-[11px] leading-relaxed text-ink-soft">
+          <span className="tabular-nums mt-1 block text-xs leading-relaxed text-ink-soft">
             {rules
               ? `Vous en touchez ${offerEuros(
                   Math.round((value.priceCents * (10000 - rules.commissionBps)) / 10000),
@@ -501,7 +556,7 @@ function OfferForm({
           />
           <span className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy">
-              <ShoppingBasket className="h-4 w-4 text-terra" aria-hidden /> Je fais les
+              <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden /> Je fais les
               courses
             </span>
             <span className="mt-0.5 block text-xs text-ink-soft">
@@ -513,7 +568,7 @@ function OfferForm({
 
         {value.shoppingIncluded && (
           <div className="mt-3 pl-7">
-            <span className="mb-1 block text-[11px] text-ink-soft">
+            <span className="mb-1 block text-xs text-ink-soft">
               Forfait courses — 0 pour les offrir
             </span>
             <div className="relative w-36">
@@ -527,13 +582,23 @@ function OfferForm({
                 }
                 className="input-base py-2 pr-8"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
+              <span className="tabular-nums absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">
                 €
               </span>
             </div>
             {(value.shoppingFeeCents ?? 0) === 0 && (
-              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-mint-ink">
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-mint-ink">
                 <Gift className="h-3 w-3" aria-hidden /> Les courses sont offertes.
+              </p>
+            )}
+            {/* Recettes lot 6 : un conseil, jamais un refus. */}
+            {rules?.groceries && rules.groceries.recommendedShoppingFeeMinCents > 0 && (
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-soft">
+                {offerEuros(rules.groceries.recommendedShoppingFeeMinCents)} minimum recommandé
+                <InfoPopover label="À quoi sert le forfait courses ?">
+                  Il rémunère votre temps de courses. La commission est la même que sur la
+                  prestation. Le prix des produits n’y est pas compris.
+                </InfoPopover>
               </p>
             )}
           </div>
@@ -550,7 +615,7 @@ function OfferForm({
       </label>
 
       {erreur && (
-        <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-amber-deep">
+        <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-amber-ink">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           {erreur}
         </p>
@@ -596,21 +661,21 @@ function Apercu({
         {offre.name.trim() || 'Votre offre'}
       </p>
       <p className="mt-0.5 text-xs text-white/60">
-        {offerDuration(offre.durationMinutes)} sur place
+        {offre.mealsIncluded ? platsLabel(offre.mealsIncluded) : 'Nombre de plats à indiquer'}
       </p>
 
-      <p className="mt-3 font-display text-3xl font-bold">{offerEuros(total)}</p>
+      <p className="tabular-nums mt-3 font-display text-3xl font-bold">{offerEuros(total)}</p>
       {rules && (
-        <p className="mt-1 text-sm font-semibold text-amber">
+        <p className="tabular-nums mt-1 text-sm font-semibold text-amber">
           soit {offerEuros(afterTaxFromClientPrice(total, rules))} après crédit d’impôt
         </p>
       )}
 
-      <div className="my-4 border-t border-white/10" />
+      <div className="tabular-nums my-4 border-t border-white/10" />
 
       <Detail label="Prestation" value={offerEuros(offre.priceCents)} />
       <Detail
-        label="Courses"
+        label="Forfait courses"
         value={
           offre.shoppingIncluded
             ? courses > 0

@@ -1,5 +1,6 @@
 'use client'
 
+import GroceriesStatementCard from '@/components/chef/GroceriesStatementCard'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
+import ChefLegalForm from '@/components/chef/ChefLegalForm'
 import { useToast } from '@/components/shared/Toaster'
 import { apiMessage } from '@/lib/api/messages'
 import {
@@ -505,6 +507,10 @@ function PayoutMode() {
             )}
           </Card>
         </div>
+
+        <GroceriesStatementCard />
+
+        <ChefLegalForm />
 
         <p className="flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

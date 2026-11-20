@@ -1,15 +1,24 @@
 'use client'
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
-import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Sparkles, Users, X } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Loader2, Mail, MapPin, Phone, Send, Users, Wallet, X } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
+import ProposerPrestation from '@/components/chef/ProposerPrestation'
 import StatusBadge, { OfferBadge } from '@/components/chef/StatusBadge'
 import DatePicker from '@/components/shared/DatePicker'
+import OfferDishes from '@/components/shared/OfferDishes'
+import OfferDishesPicker, {
+  EMPTY_CHOICE,
+  countDishes,
+  type OfferDishesChoice,
+} from '@/components/chef/offres/OfferDishesPicker'
+import { useMenus } from '@/lib/api/chef-catalog'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
 import {
+  MAX_OFFER_DISHES,
   SLOT_LABEL,
   centsToEuros,
   dayLabel,
@@ -33,6 +42,9 @@ const MESSAGES: Record<string, string> = {
   DATE_TOO_SOON: 'La date proposée doit être à partir de demain.',
   DATE_TOO_FAR: 'La date proposée doit être dans l’année qui vient.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
+  OFFER_DISH_INVALID:
+    'Un plat ou un menu n’est plus disponible (dépublié, ou plat express retiré). Rechargez la page et choisissez de nouveau.',
+  OFFER_TOO_MANY_DISHES: `Une offre porte ${MAX_OFFER_DISHES} plats au plus, menus compris.`,
 }
 
 /** Un jour à `n` jours d'ici, en date locale, au format des champs date. */
@@ -57,6 +69,8 @@ export default function ChefOffersPage() {
      demande, il n'y a plus rien à chiffrer ni à attendre. */
   const toAnswer = all.filter((q) => ['submitted', 'in_review', 'declined'].includes(q.status))
   const confirmed = all.filter((q) => q.status === 'accepted')
+  // Une offre attend le client : on montre ses plats et l'avertissement allergie.
+  const waiting = all.filter((q) => q.status === 'quoted' && (q.activeOffer?.dishes?.length ?? 0) > 0)
   const selected = toAnswer.find((q) => q.id === selectedId) ?? null
   const offers = all
     .flatMap((quote) => quote.offers.map((offer) => ({ quote, offer })))
@@ -70,9 +84,27 @@ export default function ChefOffersPage() {
       <div className="space-y-5">
         <ApprovalGate quoi="Vos réponses aux demandes partent" />
 
+        <div className="flex justify-end">
+          <ProposerPrestation />
+        </div>
+
         <Card title={`Demandes à traiter (${toAnswer.length})`}>
           {quotes.isPending ? (
-            <Empty text="Chargement…" />
+            // Deux demandes en grille, comme `RequestItem` : titre + détail, pastilles, action.
+            <SkeletonGroup className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {[0, 1].map((i) => (
+                <div key={i} className="rounded-2xl border border-transparent p-4">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="mt-1 h-4 w-1/2" />
+                  <div className="mt-3 flex gap-1.5">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="mt-3 h-5 w-full" />
+                  <Skeleton className="mt-4 h-10 w-36 rounded-full" />
+                </div>
+              ))}
+            </SkeletonGroup>
           ) : quotes.isError ? (
             <div className="py-8 text-center text-sm text-ink-soft">
               {quotes.error instanceof ApiError && quotes.error.status === 403
@@ -101,6 +133,30 @@ export default function ChefOffersPage() {
           <OfferComposer key={selected.id} quote={selected} onClose={() => setSelectedId(null)} />
         )}
 
+        {waiting.length > 0 && (
+          <Card title={`En attente du client (${waiting.length})`}>
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {waiting.map((quote) => (
+                <li key={quote.id} className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-display text-base font-bold text-navy">{quote.title}</p>
+                      <p className="text-xs text-ink-soft">{quote.client?.name ?? 'Client'}</p>
+                    </div>
+                    {quote.activeOffer && <OfferBadge status={quote.activeOffer.status} />}
+                  </div>
+                  <OfferDishes
+                    dishes={quote.activeOffer?.dishes ?? []}
+                    allergy={quote.activeOffer?.allergy}
+                    viewer="chef"
+                    talkHref={`/espace-chef/messagerie?quote=${quote.id}`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+
         {confirmed.length > 0 && (
           <Card title={`Prestations confirmées (${confirmed.length})`}>
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -118,7 +174,7 @@ export default function ChefOffersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[620px]">
                 <thead>
-                  <tr className="text-left font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
+                  <tr className="text-left text-xs uppercase tracking-[0.12em] text-ink-soft border-b border-[rgba(31,42,55,0.08)]">
                     <th className="pb-2 font-normal">Client</th>
                     <th className="pb-2 font-normal">Demande</th>
                     <th className="pb-2 font-normal">Net</th>
@@ -165,15 +221,15 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.cuisine}</span>
-        <span className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.mealsCount} plats</span>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.cuisine}</span>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-navy">{quote.mealsCount} plats</span>
         {quote.diet.map((d) => (
-          <span key={d} className="text-[11px] px-2.5 py-1 rounded-full bg-mint text-mint-ink">
+          <span key={d} className="text-xs px-2.5 py-1 rounded-full bg-mint text-mint-ink">
             {d}
           </span>
         ))}
         {quote.allergies.map((a) => (
-          <span key={a} className="text-[11px] px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+          <span key={a} className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700">
             ⚠ {a}
           </span>
         ))}
@@ -196,13 +252,13 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
           value={quote.desiredDate ? dayLabel(quote.desiredDate) : '—'}
         />
         <Mini
-          Icon={quote.budgetCents ? Sparkles : MapPin}
+          Icon={quote.budgetCents ? Wallet : MapPin}
           label={quote.budgetCents ? 'Budget' : 'Lieu'}
           value={quote.budgetCents ? centsToEuros(quote.budgetCents) : (quote.address.city ?? '—')}
         />
       </div>
       {quote.budgetCents != null && quote.address.city && (
-        <p className="mt-2 text-[11px] text-ink-soft inline-flex items-center gap-1">
+        <p className="mt-2 text-xs text-ink-soft inline-flex items-center gap-1">
           <MapPin className="w-3 h-3" /> {quote.address.postalCode} {quote.address.city}
         </p>
       )}
@@ -240,7 +296,7 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
               Annuler
             </button>
           </div>
-          <p className="text-[11px] text-ink-soft">
+          <p className="text-xs text-ink-soft">
             La demande quittera votre liste : l’équipe la confiera à un autre batch cooker.
           </p>
         </div>
@@ -251,7 +307,7 @@ function RequestItem({ quote, onCompose }: { quote: Quote; onCompose: () => void
           </button>
           <button
             onClick={() => setDeclining(true)}
-            className="text-xs font-semibold text-ink-soft hover:text-red-700"
+            className="hit text-xs font-semibold text-ink-soft hover:text-red-700"
           >
             Décliner
           </button>
@@ -278,9 +334,12 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
 
   const [net, setNet] = useState(quote.budgetCents ? Math.round(quote.budgetCents / 100) : 150)
   const [validityDays, setValidityDays] = useState(7)
+  /* Sur une prestation sur-mesure, le client fait les courses (décision du 15/11). */
   const [conditions, setConditions] = useState(
-    'Courses incluses. Déplacement compris dans un rayon de 30 km.',
+    'Courses à la charge du client. Déplacement compris dans un rayon de 30 km.',
   )
+  const [dishChoice, setDishChoice] = useState<OfferDishesChoice>(EMPTY_CHOICE)
+  const menus = useMenus()
   /* Sans date demandée il n'y a pas de date à garder : on en propose une. */
   const [otherDate, setOtherDate] = useState(!quote.desiredDate)
   const [date, setDate] = useState(quote.desiredDate ?? '')
@@ -304,6 +363,10 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
     if (!Number.isFinite(net) || net < 10) return 'Votre net perçu est d’au moins 10 €.'
     if (net > 20_000) return 'Votre net perçu ne peut pas dépasser 20 000 €.'
     if (conditions.length > 2000) return 'Vos conditions tiennent en 2 000 caractères.'
+    const menuDishes = new Map(
+      (menus.data ?? []).map((m) => [m.id, m.dishes.map((d) => d.id)] as const),
+    )
+    if (countDishes(dishChoice, menuDishes) > MAX_OFFER_DISHES) return MESSAGES.OFFER_TOO_MANY_DISHES
     if (otherDate) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Indiquez la date que vous proposez.'
       if (date < dayFromNow(1)) return MESSAGES.DATE_TOO_SOON
@@ -323,6 +386,9 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
         validityDays,
         conditions: conditions.trim() || undefined,
         ...(otherDate && date ? { proposedDate: date, proposedTimeSlot: slot } : {}),
+        ...(dishChoice.menuIds.length ? { menuIds: dishChoice.menuIds } : {}),
+        ...(dishChoice.dishIds.length ? { dishIds: dishChoice.dishIds } : {}),
+        ...(dishChoice.express.length ? { expressDishes: dishChoice.express } : {}),
       },
       {
         onSuccess: () => setSent(true),
@@ -332,10 +398,8 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
   }
 
   return (
-    <motion.div
+    <div
       ref={panneau}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
       className="scroll-mt-24"
     >
       <Card
@@ -360,6 +424,16 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
               Elle passera en « Vue » dès que {clientName} l&apos;aura consultée. Vous la
               retrouvez dans le suivi, plus bas.
             </p>
+            {send.data?.activeOffer && (
+              <div className="mx-auto max-w-md text-left">
+                <OfferDishes
+                  dishes={send.data.activeOffer.dishes ?? []}
+                  allergy={send.data.activeOffer.allergy}
+                  viewer="chef"
+                  talkHref={`/espace-chef/messagerie?quote=${quote.id}`}
+                />
+              </div>
+            )}
           </div>
         ) : (
           /* Deux colonnes seulement à partir de `xl` : à 1024 px la barre
@@ -386,7 +460,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft"
+                    className="tabular-nums pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft"
                   >
                     €
                   </span>
@@ -473,6 +547,8 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                 )}
               </Champ>
 
+              <OfferDishesPicker quote={quote} value={dishChoice} onChange={setDishChoice} />
+
               <Champ
                 htmlFor={`${id}-conditions`}
                 label="Conditions"
@@ -486,7 +562,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                   maxLength={2000}
                   className="input-base resize-y"
                 />
-                <p className="mt-1 text-right text-[11px] tabular-nums text-ink-soft">
+                <p className="mt-1 text-right text-xs tabular-nums text-ink-soft">
                   {conditions.length} / 2 000
                 </p>
               </Champ>
@@ -496,7 +572,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
             <aside className="h-fit rounded-2xl bg-navy p-5 text-white lg:sticky lg:top-24">
               <h3 className="font-display text-base font-bold text-white">Ce que dit cette offre</h3>
 
-              <dl className="mt-4">
+              <dl className="tabular-nums mt-4">
                 <Row label="Votre net perçu" value={centsToEuros(netCents)} strong />
                 {preview && rules.data && (
                   <Row
@@ -548,7 +624,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
                 Envoyer l&apos;offre
               </button>
 
-              <p className="mt-3 text-[11px] leading-relaxed text-white/60">
+              <p className="mt-3 text-xs leading-relaxed text-white/60">
                 La prestation est réglée après coup : {clientName} paie une fois qu’elle a
                 eu lieu, jamais à l’acceptation de l’offre.
               </p>
@@ -556,7 +632,7 @@ function OfferComposer({ quote, onClose }: { quote: Quote; onClose: () => void }
           </div>
         )}
       </Card>
-    </motion.div>
+    </div>
   )
 }
 
@@ -630,7 +706,7 @@ function ConfirmedItem({ quote }: { quote: Quote }) {
       <div className="mt-3 space-y-1.5 text-xs text-ink-mid">
         {quote.booking && (
           <p className="flex items-center gap-2">
-            <CalendarDays className="w-3.5 h-3.5 text-terra" />
+            <CalendarDays className="w-3.5 h-3.5 text-amber-ink" />
             {new Date(quote.booking.startsAt).toLocaleString('fr-FR', {
               weekday: 'long',
               day: 'numeric',
@@ -642,22 +718,25 @@ function ConfirmedItem({ quote }: { quote: Quote }) {
           </p>
         )}
         <p className="flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5 text-terra" />
+          <MapPin className="w-3.5 h-3.5 text-amber-ink" />
           {[quote.address.line, quote.address.postalCode, quote.address.city].filter(Boolean).join(', ')}
         </p>
         {quote.client?.phone && (
           <p className="flex items-center gap-2">
-            <Phone className="w-3.5 h-3.5 text-terra" /> {quote.client.phone}
+            <Phone className="w-3.5 h-3.5 text-amber-ink" /> {quote.client.phone}
           </p>
         )}
         {quote.client?.email && (
           <p className="flex items-center gap-2">
-            <Mail className="w-3.5 h-3.5 text-terra" /> {quote.client.email}
+            <Mail className="w-3.5 h-3.5 text-amber-ink" /> {quote.client.email}
           </p>
         )}
       </div>
       {accepted?.netCents != null && (
-        <p className="mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
+        <p className="tabular-nums mt-3 text-sm font-semibold text-navy">Votre net : {centsToEuros(accepted.netCents)}</p>
+      )}
+      {accepted && (
+        <OfferDishes dishes={accepted.dishes ?? []} allergy={accepted.allergy} viewer="chef" />
       )}
     </li>
   )
@@ -675,8 +754,8 @@ function OfferRow({ quote, offerId }: { quote: Quote; offerId: string }) {
     <tr>
       <td className="py-3 font-semibold text-navy">{quote.client?.name ?? 'Client'}</td>
       <td className="py-3 text-ink-mid">{quote.title}</td>
-      <td className="py-3 font-semibold text-navy">{offer.netCents != null ? centsToEuros(offer.netCents) : '—'}</td>
-      <td className="py-3 text-xs text-ink-soft">
+      <td className="tabular-nums py-3 font-semibold text-navy">{offer.netCents != null ? centsToEuros(offer.netCents) : '—'}</td>
+      <td className="tabular-nums py-3 text-xs text-ink-soft">
         {active ? `jusqu'au ${dayLabel(offer.validUntil)}` : '—'}
       </td>
       <td className="py-3">
@@ -687,7 +766,7 @@ function OfferRow({ quote, offerId }: { quote: Quote; offerId: string }) {
           <button
             disabled={withdraw.isPending}
             onClick={() => withdraw.mutate({ quoteId: quote.id, offerId: offer.id })}
-            className="text-xs font-semibold text-ink-soft hover:text-red-700 disabled:opacity-60"
+            className="hit text-xs font-semibold text-ink-soft hover:text-red-700 disabled:opacity-60"
           >
             {withdraw.isError ? 'Réessayer' : 'Retirer'}
           </button>
@@ -727,9 +806,9 @@ function Row({
 function Mini({ Icon, label, value }: { Icon: typeof Users; label: string; value: string }) {
   return (
     <div>
-      <Icon className="w-3.5 h-3.5 text-terra mx-auto mb-1" />
+      <Icon className="w-3.5 h-3.5 text-amber-ink mx-auto mb-1" />
       <p className="text-xs font-bold text-navy">{value}</p>
-      <p className="text-[10px] uppercase tracking-wide text-ink-soft">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-ink-soft">{label}</p>
     </div>
   )
 }

@@ -1,48 +1,43 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useState } from 'react'
 import Link from 'next/link'
 import { CreditCard, Home, Info, MapPin, Pencil } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import { apiMessage } from '@/lib/api/messages'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useMeProfile } from '@/lib/api/me-profile'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
+import DossierUrssaf from '@/components/client/DossierUrssaf'
 import type { ClientProfile } from '@/lib/api/types'
 import { centimes, useFiscalAttestation } from '@/lib/api/fiscal'
 
-type Tab = 'addresses' | 'payments' | 'invoices' | 'fiscal'
+type Tab = 'addresses' | 'payments' | 'advance' | 'invoices' | 'fiscal'
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>('addresses')
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: 'addresses' as Tab, label: 'Adresses' },
-            { id: 'payments' as Tab, label: 'Moyens de paiement' },
-            { id: 'invoices' as Tab, label: 'Factures' },
-            { id: 'fiscal' as Tab, label: 'Attestation fiscale' },
-          ]
-        ).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              tab === t.id
-                ? 'bg-navy text-white'
-                : 'bg-paper text-ink-mid border border-[rgba(31,42,55,0.1)]'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Onglets
+        label="Mon compte"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: 'addresses', label: 'Adresses' },
+          { id: 'payments', label: 'Moyens de paiement' },
+          { id: 'advance', label: 'Avance immédiate' },
+          { id: 'invoices', label: 'Factures' },
+          { id: 'fiscal', label: 'Attestation fiscale' },
+        ]}
+      />
 
       {tab === 'addresses' && <Adresse />}
 
       {tab === 'payments' && <MoyensDePaiement />}
+
+      {tab === 'advance' && <DossierUrssaf />}
 
       {tab === 'invoices' && <Factures />}
 
@@ -56,13 +51,13 @@ export default function AccountPage() {
 /** Une facture par paiement par carte, au nom du batch cooker. */
 function Factures() {
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
       <p className="mb-4 mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
         Une facture par paiement par carte, au nom de votre batch cooker. Elles se
-        retrouvent aussi sur chaque commande.
+        retrouvent aussi sur chaque session.
       </p>
       <PaymentInvoiceList side="client" emptyText="Aucune facture pour l’instant." />
     </section>
@@ -82,7 +77,7 @@ function Adresse() {
   const ligne = [p?.addressStreet, ville].filter(Boolean).join(', ')
 
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-lg font-bold text-navy">Mon adresse</h2>
         <Link href="/espace-client/parametres" className="btn btn-outline text-xs px-3.5 py-2">
@@ -90,13 +85,15 @@ function Adresse() {
         </Link>
       </div>
       {me.isPending ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-cream-soft" />
+        <SkeletonGroup>
+          <Skeleton className="h-20 rounded-2xl" />
+        </SkeletonGroup>
       ) : me.isError ? (
         <p className="text-sm text-ink-soft">{apiMessage(me.error)}</p>
       ) : ligne ? (
         <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4 flex items-start gap-3">
           <span className="w-10 h-10 rounded-xl bg-cream-soft flex items-center justify-center shrink-0">
-            <Home className="w-4 h-4 text-terra" />
+            <Home className="w-4 h-4 text-amber-ink" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-navy">Adresse des sessions</p>
@@ -123,7 +120,7 @@ function Adresse() {
  */
 function MoyensDePaiement() {
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <h2 className="font-display text-lg font-bold text-navy mb-4">Moyens de paiement</h2>
       <div className="rounded-2xl bg-cream-soft px-4 py-6 text-center">
         <CreditCard className="mx-auto h-5 w-5 text-ink-soft" aria-hidden />
@@ -157,7 +154,7 @@ function Attestation() {
   const vide = a.error instanceof ApiError && a.error.status === 404
 
   return (
-    <section className="card-shell rounded-3xl p-5 lg:p-6">
+    <section className="card-shell rounded-2xl p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-navy">
@@ -188,7 +185,9 @@ function Attestation() {
       </div>
 
       {a.isPending ? (
-        <div className="h-28 animate-pulse rounded-2xl bg-cream-soft" />
+        <SkeletonGroup>
+          <Skeleton className="h-28 rounded-2xl" />
+        </SkeletonGroup>
       ) : vide ? (
         <p className="rounded-2xl bg-cream-soft px-4 py-6 text-center text-sm text-ink-mid">
           Aucune prestation réglée en {annee}.
@@ -199,7 +198,7 @@ function Attestation() {
         a.data && (
           <>
             <div className="rounded-2xl bg-navy p-5 text-white">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber">
+              <p className="text-xs uppercase tracking-[0.12em] text-amber">
                 Crédit d’impôt {annee}
               </p>
               <p className="mt-2 font-display text-4xl font-bold">
@@ -214,7 +213,7 @@ function Attestation() {
 
             {a.data.platformAttestedAmountCents !== a.data.eligibleAmountCents && (
               <p className="mt-3 flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-navy">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
                 Lab’s Food atteste {centimes(a.data.platformAttestedAmountCents)}.
                 Le reste est attesté par les batch cookers qui déclarent leur
                 activité eux-mêmes : demandez-leur leur attestation.
@@ -222,7 +221,7 @@ function Attestation() {
             )}
 
             <ul className="mt-4 space-y-2">
-              {a.data.providers.map((p) => (
+              {(a.data.providers ?? []).map((p) => (
                 <li
                   key={p.chefProfileId}
                   className="rounded-2xl border border-[rgba(31,42,55,0.08)] p-4"
@@ -246,7 +245,7 @@ function Attestation() {
                     </p>
                   </div>
                   {!p.sapDeclared && (
-                    <p className="mt-2 text-xs leading-relaxed text-amber-deep">
+                    <p className="mt-2 text-xs leading-relaxed text-amber-ink">
                       Ce batch cooker n’a pas déclaré son activité de service à la
                       personne : ces montants n’ouvrent pas droit au crédit
                       d’impôt.
@@ -261,7 +260,7 @@ function Attestation() {
               ))}
             </ul>
 
-            <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
+            <p className="mt-4 text-xs leading-relaxed text-ink-soft">
               Document généré à partir de vos règlements. Conservez-le : en cas
               de contrôle, c’est lui qui justifie le montant déclaré.
             </p>

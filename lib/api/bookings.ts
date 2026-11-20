@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useApiFetch } from './client'
+import { useApiBlob, useApiFetch } from './client'
 import { useMeKey } from './keys'
 import { pushPhoto } from './photos'
 import type { Reheating } from './chef-catalog'
@@ -26,11 +26,14 @@ export { PHOTO_MIME, checkPhoto, photoMessage } from './photos'
 
    Le cycle de vie, qui tient tout le reste :
 
-     pending ──(paiement)──> confirmed ──> shopping ──> cooking ──> delivered
+     pending ──(acceptation du chef)──> confirmed ──> shopping ──> cooking ──> delivered
                                                           │            │
                                      (arrivedAt)──────────┘     completed
 
-   `pending` tient le créneau **72 h** ; passé ce délai, l'API annule. Le
+   CGV V1 (19/11) : la réservation est une **demande**. Le client choisit son
+   moyen, enregistre sa carte (rien n'est prélevé), le batch cooker accepte sous
+   48 h, et le prix est prélevé après la session. Les anciennes réservations,
+   sans `request`, gardent le modèle « le paiement confirme, créneau tenu 72 h ». Le
    passage à `cooking` est le pointage d'arrivée : il enregistre `arrivedAt`,
    et n'est possible qu'à partir de deux heures avant le début.
    ───────────────────────────────────────────────────────────────────────────── */
@@ -49,8 +52,11 @@ export interface BookingMeal {
   mealId: string
   name?: string | null
   portions: number
-  /** Version de recette épinglée au moment de la réservation. */
+  /** Version de recette épinglée quand le menu a été écrit (lot 3). */
   recipeVersion?: number | null
+  /** Lot 3 : les allergènes du plat à ce moment-là, gardés pour cette prestation. `null` : pas encore figés. */
+  allergensSnapshot?: string[] | null
+  pinnedAt?: string | null
 }
 
 export interface BookingPhoto {
@@ -96,6 +102,12 @@ export interface Booking {
    * sur sa propre ligne, jamais fondu dans le prix.
    */
   shoppingFeeCents?: number | null
+  /** Les suppléments, à part du prix de la formule : personnes et plats en plus. */
+  extraPersonsCents?: number | null
+  extraMealsCents?: number | null
+  /** Recettes lot 4 : le batch cooker a confirmé les courses, et le total du ticket s'il l'a saisi. */
+  groceriesValidatedAt?: string | null
+  groceriesAmountCents?: number | null
   /** Ce que le client paie : prestation + courses. */
   amountTtc: number
   /** Après crédit d'impôt — **calculé par l'API**, plus par nous. */
@@ -106,7 +118,11 @@ export interface Booking {
   createdAt?: string
   mealsCount?: number | null
   client?: { id: string; name: string | null; avatarUrl?: string | null } | null
-  chef?: { id: string; displayName: string | null } | null
+  chef?: {
+    id: string
+    displayName: string | null
+    legalIdentity?: import('./contract').ChefLegalIdentity | null
+  } | null
   serviceOffer?: { id: string; name: string | null } | null
   formule?: { id: string; name: string | null } | null
   /** Moyens que ce client peut utiliser avec ce batch cooker. */
@@ -129,6 +145,68 @@ export interface Booking {
   allergyCheckReasons?: AllergyReason[]
   /** Détail seulement : les plats qui contiennent un allergène du client, à remplacer. */
   allergyConflicts?: { mealId: string; allergens: string[] }[]
+  /** Lot 3 : à 72 h du début, les plats ne se modifient plus (`MENU_FROZEN`). Calculé par l'API. */
+  menuFrozen?: boolean
+  frozenSince?: string
+  /** CGV V1, détail seulement : les cases cochées et la conclusion. */
+  contract?: import('./contract').BookingContract
+  /** CGV V1, vue client : le droit de rétractation. */
+  withdrawal?: import('./contract').BookingWithdrawal | null
+  /** Liste : la date d'envoi de la rétractation. */
+  withdrawnAt?: string | null
+  /** CGV V1, vue client : les documents du contrat. */
+  documents?: { kind: import('./contract').BookingDocumentKind; filename: string }[]
+  /**
+   * CGV V1 (décision du 19/11) : la demande de réservation. Le moyen choisi à la
+   * réservation, la carte enregistrée, et la réponse du batch cooker (48 h).
+   * `null` pour une réservation de l'ancien modèle (« le paiement confirme »).
+   */
+  request?: BookingRequest | null
+}
+
+export type RequestPaymentMethod = 'cb' | 'avance_immediate' | 'cesu'
+export type RequestState = 'awaiting_card' | 'awaiting_chef' | 'accepted' | 'refused' | 'expired'
+
+export interface BookingRequest {
+  paymentMethod: RequestPaymentMethod
+  state: RequestState | null
+  card: { brand: string | null; last4: string } | null
+  requestedAt: string | null
+  /** La limite de réponse du batch cooker : 48 h après la demande, au plus tard le début. */
+  acceptBy: string | null
+  acceptedAt: string | null
+  refusedAt: string | null
+  refusalReason: string | null
+  /** Quand le prix est prélevé (CGV 7.3) : la fin de la session, ou l'acceptation si elle est proche. */
+  chargeAt: string | null
+  chargedAt: string | null
+}
+
+export const PAYMENT_METHOD_LABEL: Record<RequestPaymentMethod, string> = {
+  cb: 'Carte bancaire',
+  avance_immediate: 'Avance immédiate URSSAF',
+  cesu: 'CESU préfinancé',
+}
+
+export const REQUEST_STATE_LABEL: Record<RequestState, string> = {
+  awaiting_card: 'Carte à enregistrer',
+  awaiting_chef: 'En attente du batch cooker',
+  accepted: 'Acceptée',
+  refused: 'Refusée',
+  expired: 'Sans réponse',
+}
+
+/** L'étiquette d'une prestation : l'état de la demande tant qu'elle n'est pas acceptée. */
+export function bookingLabel(
+  b: Pick<Booking, 'status' | 'request'>,
+  side: 'client' | 'chef' = 'client',
+): string {
+  const state = b.request?.state
+  if (state && state !== 'accepted' && (b.status === 'pending' || b.status === 'cancelled')) {
+    if (side === 'chef' && state === 'awaiting_chef') return 'À accepter'
+    return REQUEST_STATE_LABEL[state]
+  }
+  return bookingStatusText(b.status)
 }
 
 export interface PageMeta {
@@ -213,13 +291,76 @@ export interface NewBooking {
   notes?: string
   shoppingByClient?: boolean
   meals?: { mealId: string; portions?: number }[]
+  /** CGV V1 : les cases cochées, exigées à partir du 21/11/2026. */
+  consents?: import('./contract').ContractConsents
+  /**
+   * CGV V1 5.1 : le moyen choisi maintenant, payé après la session. Avec lui la
+   * réservation est une **demande** : carte enregistrée ensuite, le batch cooker
+   * accepte sous 48 h, rien n'est prélevé avant la fin de la session.
+   */
+  paymentMethod?: RequestPaymentMethod
+}
+
+/** `GET /chefs/{id}/payment-methods` — les moyens que ce batch cooker accepte. */
+export function useChefPaymentMethods(chefProfileId: string | undefined) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: ['chef-payment-methods', chefProfileId],
+    queryFn: () =>
+      apiFetch<{ card: boolean; urssaf: boolean; cesu: boolean }>(
+        `/chefs/${chefProfileId}/payment-methods`,
+      ),
+    enabled: !!chefProfileId,
+  })
+}
+
+/**
+ * `POST /me/bookings/{id}/card` — la page Stripe qui enregistre la carte (rien
+ * n'est prélevé). Enregistrer la carte envoie la demande au batch cooker.
+ */
+export function useStartBookingCard() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: ({ id, successUrl, cancelUrl }: { id: string; successUrl: string; cancelUrl: string }) =>
+      apiFetch<{ sessionId: string; url: string }>(`/me/bookings/${id}/card`, {
+        method: 'POST',
+        body: { successUrl, cancelUrl },
+      }),
+  })
+}
+
+/** `POST /me/bookings/{id}/card/confirm` — au retour de Stripe. */
+export function useConfirmBookingCard() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, sessionId }: { id: string; sessionId: string }) =>
+      apiFetch<Booking>(`/me/bookings/${id}/card/confirm`, {
+        method: 'POST',
+        body: { sessionId },
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, 'booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, 'bookings'] })
+    },
+  })
+}
+
+/** Les URL de retour de la page carte : le détail de la session. */
+export function bookingCardUrls(id: string) {
+  const base = `${window.location.origin}/espace-client/commandes/${id}`
+  return {
+    successUrl: `${base}?carte=ok&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${base}?carte=annulee`,
+  }
 }
 
 /**
  * `POST /me/bookings` — réserver.
  *
- * La prestation naît `pending` : **c'est le paiement qui la confirme**, et le
- * créneau n'est tenu que 72 h. Le créneau doit être libre
+ * Avec `paymentMethod`, la prestation naît `pending` en **demande** : carte à
+ * enregistrer, puis réponse du batch cooker sous 48 h. Le créneau doit être libre
  * (`GET /chefs/{id}/availability`), et l'API le revérifie — `409` sinon.
  */
 export function useCreateBooking() {
@@ -281,6 +422,29 @@ export function useChefBooking(id: string | undefined) {
     queryFn: () => apiFetch<Booking>(`/chef/bookings/${id}`),
     enabled: !!id,
     retry: false,
+  })
+}
+
+/**
+ * `POST /chef/bookings/{id}/accept|refuse` — répondre à une demande (CGV 5.2),
+ * avant `request.acceptBy`. Accepter conclut le contrat ; refuser annule, rien
+ * n'est prélevé.
+ */
+export function useAnswerRequest() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, accept, reason }: { id: string; accept: boolean; reason?: string }) =>
+      apiFetch<Booking>(`/chef/bookings/${id}/${accept ? 'accept' : 'refuse'}`, {
+        method: 'POST',
+        ...(accept ? {} : { body: reason ? { reason } : {} }),
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, 'chef-booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, 'chef-bookings'] })
+      qc.invalidateQueries({ queryKey: [...meKey, 'agenda'] })
+    },
   })
 }
 
@@ -508,6 +672,8 @@ export interface PricingRules {
   /** Points de base : `1500` = 15 %. */
   commissionBps: number
   taxCreditBps: number
+  /** Recettes lot 6 : le plafond du Budget Courses et le forfait courses conseillé, en centimes. */
+  groceries?: { budgetMaxCents: number; recommendedShoppingFeeMinCents: number }
 }
 
 /**
@@ -545,6 +711,8 @@ export interface MissionLine {
   alreadyHave?: boolean
   /** Réponse du client : son commentaire sur la ligne. */
   comment?: string | null
+  /** Facultative dans toutes les recettes qui la demandent : affichée avec un badge. */
+  optional?: true
 }
 
 /**
@@ -578,6 +746,14 @@ export interface MissionShoppingList {
   version?: number
   sentAt?: string | null
   finalReceivedAt?: string | null
+  /** Recettes lot 4 : « Courses faites », et le total du ticket s'il a été saisi. */
+  groceries?: Groceries
+}
+
+export interface Groceries {
+  validatedAt: string | null
+  /** Centimes. À titre d'information : aucun paiement des courses pour l'instant. */
+  amountCents: number | null
 }
 
 /**
@@ -691,6 +867,48 @@ export interface MissionRecipeSheet {
    * prestation ne bouge.
    */
   version: { pinned: number; current: number; newerAvailable: boolean }
+  /**
+   * Ce que le batch cooker a écrit de CE plat dans CETTE prestation : comment
+   * le réchauffer, comment le garder. À côté des consignes de la recette, sans
+   * les remplacer. Absent d'une API d'avant le 10/11.
+   */
+  notes?: { reheating: string | null; storage: string | null }
+}
+
+/** Les statuts où le batch cooker peut écrire ses notes : il cuisine, ou c'est fait. */
+export const DISH_NOTES_OPEN: BookingStatus[] = ['cooking', 'delivered', 'completed']
+
+export interface DishNotes {
+  reheatingNote: string | null
+  storageNote: string | null
+}
+
+/**
+ * `PUT /chef-missions/{id}/dishes/{dishId}/notes` — les notes du batch cooker
+ * sur un plat de la prestation. Un champ absent reste, un champ vide s'efface.
+ * `409 PRESTATION_NOT_STARTED` avant qu'il soit en cuisine.
+ */
+export function useSaveDishNotes() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      dishId,
+      notes,
+    }: {
+      missionId: string
+      dishId: string
+      notes: Partial<DishNotes>
+    }) =>
+      apiFetch<DishNotes>(`/chef-missions/${missionId}/dishes/${dishId}/notes`, {
+        method: 'PUT',
+        body: notes,
+      }),
+    onSuccess: (_saved, { missionId }) =>
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId, 'recipe-sheet'] }),
+  })
 }
 
 export function useMissionRecipeSheet(
@@ -710,6 +928,132 @@ export function useMissionRecipeSheet(
       ),
     enabled: !!missionId && !!dishId,
     retry: false,
+  })
+}
+
+/**
+ * `POST /chef-missions/{id}/groceries/validate` — « Courses faites » (lot 4). Le
+ * montant du ticket est facultatif ; confirmer de nouveau le remplace.
+ */
+export function useValidateGroceries() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ missionId, amountCents }: { missionId: string; amountCents: number | null }) =>
+      apiFetch<{ missionId: string; groceries: Groceries }>(
+        `/chef-missions/${missionId}/groceries/validate`,
+        { method: 'POST', body: { amountCents } },
+      ),
+    onSuccess: (_saved, { missionId }) => {
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId] })
+      qc.invalidateQueries({ queryKey: [...meKey, 'bookings'] })
+    },
+  })
+}
+
+/* ── Conservation (Recettes lot 3) ──────────────────────────────────────────── */
+
+/** La date « à manger avant » d'un plat, telle que l'API la calcule. */
+export interface EatBefore {
+  /** `YYYY-MM-DD` : celle du batch cooker si posée, sinon celle proposée. */
+  date: string | null
+  /** Jour de la prestation + jours au frais de la recette figée. */
+  proposed: string | null
+  setByChef: boolean
+  setAt: string | null
+  fridgeDays: number | null
+  /** Au-delà du seuil réglé dans la console (4 jours par défaut) : une alerte, jamais un blocage. */
+  fridgeAlert: boolean
+}
+
+export interface ConservationDish {
+  mealId: string
+  name: string
+  storage: {
+    method: string | null
+    days: number | null
+    container: string | null
+    freezable: boolean | null
+    freezerMonths: number | null
+    thawing: string | null
+  } | null
+  reheating: Reheating | null
+  notes: { storage: string | null; reheating: string | null }
+  eatBefore: EatBefore
+}
+
+export interface DateChange {
+  mealId: string
+  value: string | null
+  changedAt: string
+  /** Le batch cooker ne lit que le rôle ; la console, aussi le nom. */
+  changedBy: { role: 'chef' | 'admin' | null; id?: string | null; name?: string | null }
+}
+
+export interface ConservationSheet {
+  bookingId: string
+  startsAt: string
+  status: BookingStatus
+  fridgeAlertDays: number
+  /** Du plus court au plus long délai. */
+  dishes: ConservationDish[]
+  /** Batch cooker et console seulement. */
+  history?: DateChange[]
+}
+
+/**
+ * `GET /chef-missions/{id}/conservation` — le client la lit une fois les plats
+ * livrés (`409 CONSERVATION_NOT_READY` avant) ; le batch cooker à tout moment.
+ */
+export function useConservation(missionId: string | undefined, enabled = true) {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'mission', missionId, 'conservation'],
+    queryFn: () => apiFetch<ConservationSheet>(`/chef-missions/${missionId}/conservation`),
+    enabled: !!missionId && enabled,
+    retry: false,
+  })
+}
+
+/** `PUT /chef-missions/{id}/dishes/{dishId}/eat-before` — `null` revient à la date proposée. */
+export function useSetEatBefore() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      dishId,
+      date,
+    }: {
+      missionId: string
+      dishId: string
+      date: string | null
+    }) =>
+      apiFetch<ConservationDish>(`/chef-missions/${missionId}/dishes/${dishId}/eat-before`, {
+        method: 'PUT',
+        body: { date },
+      }),
+    onSuccess: (_saved, { missionId }) =>
+      qc.invalidateQueries({ queryKey: [...meKey, 'mission', missionId, 'conservation'] }),
+  })
+}
+
+/** `GET /chef-missions/{id}/conservation.pdf` — même accès que la fiche. */
+export function useConservationPdf() {
+  const apiBlob = useApiBlob()
+  return useMutation({
+    mutationFn: async ({ missionId, day }: { missionId: string; day: string }) => {
+      const pdf = await apiBlob(`/chef-missions/${missionId}/conservation.pdf`)
+      const url = URL.createObjectURL(pdf)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `conservation-${day}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }
 
@@ -734,6 +1078,28 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 
 export const bookingStatusText = (s?: string | null) =>
   s ? (BOOKING_STATUS_LABEL[s as BookingStatus] ?? s) : 'Statut inconnu'
+
+/**
+ * La famille d'état d'une prestation, pour son étiquette (`.status` dans
+ * `globals.css`). Chaque écran avait sa table de couleurs : la même prestation
+ * était verte sur une page et grise sur l'autre.
+ *
+ * En attente : à traiter. En cours : tout va bien. Finie : neutre, c'est de
+ * l'histoire. Annulée ou en litige : rouge.
+ */
+const BOOKING_STATUS_TONE: Record<BookingStatus, string> = {
+  pending: 'status-warn',
+  confirmed: 'status-ok',
+  shopping: 'status-ok',
+  cooking: 'status-ok',
+  delivered: '',
+  completed: '',
+  cancelled: 'status-bad',
+  disputed: 'status-bad',
+}
+
+export const bookingStatusTone = (s?: string | null) =>
+  s ? (BOOKING_STATUS_TONE[s as BookingStatus] ?? '') : ''
 
 /** Ce qui n'est pas encore de l'historique. */
 export const BOOKING_OPEN: BookingStatus[] = [

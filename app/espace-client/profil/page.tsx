@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, X, Sparkles, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
+import { SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
+import { Plus, X, Utensils, Heart, NotebookPen, Flame, Save, Check, RotateCw, AlertTriangle } from 'lucide-react'
 import { DEFAULT_PREFS, type ProfilePrefs } from '@/lib/dashboard-mock'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
@@ -11,6 +11,7 @@ import { AvatarButtons, AvatarPending } from '@/components/shared/Avatar'
 import { ApiError } from '@/lib/api/client'
 import type { ClientProfile, ClientProfilePatch } from '@/lib/api/types'
 import { AllergyDeclaration } from '@/components/client/AllergyDeclaration'
+import { useToast } from '@/components/shared/Toaster'
 
 const SUGGEST = {
   diets: ['Végétarien', 'Vegan', 'Sans-porc', 'Sans-bœuf', 'Halal', 'Casher', 'Sans-gluten', 'Sans-lactose'],
@@ -27,6 +28,9 @@ const EMPTY_PREFS: ProfilePrefs = {
   household: DEFAULT_PREFS.household,
   kitchenNotes: '',
 }
+
+/** Du plus doux au plus relevé : le libellé de chaque cran. */
+const SPICE_LABELS = ['Doux', 'Léger', 'Moyen', 'Relevé', 'Fort'] as const
 
 function clampSpice(n: number): ProfilePrefs['spiceLevel'] {
   const v = Math.min(5, Math.max(1, Math.round(n || 3)))
@@ -58,14 +62,14 @@ export default function ProfilPage() {
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        <div className="h-64 rounded-3xl bg-cream-soft animate-pulse" />
+      <SkeletonGroup className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <SkeletonCard className="h-64 rounded-2xl" />
         <div className="space-y-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-3xl bg-cream-soft animate-pulse" />
+            <SkeletonCard key={i} className="h-32 rounded-2xl" />
           ))}
         </div>
-      </div>
+      </SkeletonGroup>
     )
   }
 
@@ -76,7 +80,7 @@ export default function ProfilPage() {
           <AlertTriangle className="h-6 w-6" />
         </span>
         <h2 className="font-display text-xl font-bold text-navy mb-2">
-          Impossible de charger ton profil
+          Votre profil n’a pas pu être chargé
         </h2>
         <p className="text-ink-mid text-sm mb-6">
           {error instanceof ApiError ? error.message : 'Réessaie dans un instant.'}
@@ -115,7 +119,14 @@ function ProfileForm({
   const { user } = useAuth()
   const me = useMe()
   const update = useUpdateMeProfile()
+  const toast = useToast()
   const [prefs, setPrefs] = useState<ProfilePrefs>(initial)
+  /* Politique de confidentialité V1 §5 : les régimes peuvent révéler la santé ou
+     la religion. Ils ne s'enregistrent qu'avec le consentement à la version en
+     cours, par une case séparée, jamais cochée d'avance. */
+  const dejaConsenti = !!consent && profile?.healthConsentVersion === consent.version
+  const [consentRegimes, setConsentRegimes] = useState(false)
+  const consentManquant = prefs.diets.length > 0 && !dejaConsenti && !consentRegimes
 
   const addTo = (key: 'diets' | 'dislikes' | 'favorites', value: string) => {
     if (!value.trim()) return
@@ -136,8 +147,12 @@ function ProfileForm({
       // borne les adultes à 1 au moins : le compteur fait de même.
       householdAdults: Math.min(20, Math.max(1, prefs.household.adults)),
       householdKids: Math.min(20, Math.max(0, prefs.household.kids)),
+      ...(consentRegimes && consent ? { consent: true, consentVersion: consent.version } : {}),
     }
-    update.mutate(patch)
+    update.mutate(patch, {
+      onSuccess: () => toast.success('Vos goûts sont enregistrés'),
+      onError: () => toast.error('Vos goûts n’ont pas été enregistrés', 'Réessayez dans un instant.'),
+    })
   }
 
   return (
@@ -145,7 +160,6 @@ function ProfileForm({
       {/* Avatar + identity */}
       <aside className="space-y-4">
         <div className="bg-navy text-white rounded-3xl p-5 relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-amber/25 blur-3xl pointer-events-none" />
           <div className="relative flex flex-col items-center text-center">
             <AvatarPending
               url={me.data?.avatarUrl ?? null}
@@ -162,7 +176,7 @@ function ProfileForm({
           </div>
         </div>
 
-        <div className="card-shell rounded-3xl p-5">
+        <div className="card-shell rounded-2xl p-5">
           <p className="eyebrow mb-3">Foyer</p>
           <div className="grid grid-cols-2 gap-3">
             <Counter
@@ -181,7 +195,7 @@ function ProfileForm({
 
         <button
           onClick={save}
-          disabled={update.isPending}
+          disabled={update.isPending || consentManquant}
           className="btn btn-primary w-full justify-center disabled:opacity-60"
         >
           {update.isPending ? (
@@ -206,24 +220,41 @@ function ProfileForm({
 
       {/* Cards */}
       <section className="space-y-5">
-        <Card title="Régimes alimentaires" eyebrow="Tu manges comment ?" Icon={Sparkles}>
+        <Card title="Régimes alimentaires" Icon={Utensils}>
           <Tags
             items={prefs.diets}
             onRemove={(v) => removeFrom('diets', v)}
             suggest={SUGGEST.diets}
             onAdd={(v) => addTo('diets', v)}
           />
+          {prefs.diets.length > 0 && !dejaConsenti && consent && (
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[rgba(31,42,55,0.1)] p-3 text-[13px] leading-relaxed text-ink-mid">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-navy"
+                checked={consentRegimes}
+                onChange={(e) => setConsentRegimes(e.target.checked)}
+              />
+              <span>{consent.text}</span>
+            </label>
+          )}
+          {consentManquant && consent && (
+            <p className="mt-2 text-xs text-ink-soft">
+              Sans ce consentement, retirez vos régimes pour enregistrer le reste : vous
+              pourrez les indiquer vous-même à votre batch cooker.
+            </p>
+          )}
         </Card>
 
         {/* Enregistrées à part, avec consentement : le bouton « Enregistrer » du
             profil ne les envoie pas. Ancre visée par une réservation bloquée. */}
         <div id="allergies" className="scroll-mt-24">
-          <Card title="Allergies" eyebrow="Pas touche !" Icon={Flame} accent="red">
+          <Card title="Allergies" Icon={Flame} accent="red">
             <AllergyDeclaration profile={profile} consent={consent} />
           </Card>
         </div>
 
-        <Card title="Plats préférés" eyebrow="Hall of fame" Icon={Sparkles}>
+        <Card title="Plats préférés" Icon={Heart}>
           <Tags
             items={prefs.favorites}
             onRemove={(v) => removeFrom('favorites', v)}
@@ -233,7 +264,7 @@ function ProfileForm({
           />
         </Card>
 
-        <Card title="Aliments à éviter" eyebrow="Pas mes goûts" Icon={X}>
+        <Card title="Aliments à éviter" Icon={X}>
           <Tags
             items={prefs.dislikes}
             onRemove={(v) => removeFrom('dislikes', v)}
@@ -242,23 +273,36 @@ function ProfileForm({
           />
         </Card>
 
-        <Card title="Niveau d’épice" eyebrow="Le piment" Icon={Flame}>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
-                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors ${
-                  n <= prefs.spiceLevel ? 'bg-amber text-navy' : 'bg-cream-soft text-ink-mid'
-                }`}
-              >
-                {'🌶️'.repeat(n)}
-              </button>
-            ))}
+        <Card title="Niveau d’épice" Icon={Flame}>
+          {/*
+            Un choix parmi cinq, dit en mots. Les piments en émoji ne se dessinent
+            pas pareil d'un système à l'autre, et cinq d'affilée ne tenaient pas
+            dans la case sur un téléphone.
+          */}
+          <div role="radiogroup" aria-label="Niveau d’épice" className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            {SPICE_LABELS.map((label, i) => {
+              const n = i + 1
+              const on = n === prefs.spiceLevel
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setPrefs({ ...prefs, spiceLevel: n as ProfilePrefs['spiceLevel'] })}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl px-1 py-2 text-center transition-colors ${
+                    on ? 'bg-navy text-white' : 'bg-cream-soft text-ink-mid hover:bg-cream-deep'
+                  }`}
+                >
+                  <span className="font-display text-lg font-bold leading-none tabular-nums">{n}</span>
+                  <span className="mt-1 text-xs leading-tight">{label}</span>
+                </button>
+              )
+            })}
           </div>
         </Card>
 
-        <Card title="Notes sur ta cuisine" eyebrow="Hardware" Icon={Sparkles}>
+        <Card title="Notes sur votre cuisine" Icon={NotebookPen}>
           <textarea
             rows={3}
             value={prefs.kitchenNotes}
@@ -274,40 +318,31 @@ function ProfileForm({
 
 function Card({
   title,
-  eyebrow,
   Icon,
   children,
   accent,
 }: {
   title: string
-  eyebrow: string
   Icon: any
   children: React.ReactNode
   accent?: 'red'
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-      className="card-shell rounded-3xl p-5 lg:p-6"
+    <div
+      className="card-shell rounded-2xl p-5 lg:p-6"
     >
       <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-mono text-ink-soft">{eyebrow}</p>
-          <h3 className="font-display text-lg font-bold text-navy mt-0.5">{title}</h3>
-        </div>
+        <h3 className="font-display text-lg font-bold text-navy">{title}</h3>
         <span
           className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-            accent === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-soft text-amber-deep'
+            accent === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-soft text-amber-ink'
           }`}
         >
           <Icon className="w-4 h-4" />
         </span>
       </div>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -330,7 +365,7 @@ function Tags({
       ? 'bg-red-100 text-red-700'
       : tone === 'mint'
         ? 'bg-mint text-mint-ink'
-        : 'bg-amber-soft text-amber-deep'
+        : 'bg-amber-soft text-amber-ink'
 
   return (
     <div>
@@ -382,7 +417,7 @@ function Tags({
                 key={s}
                 type="button"
                 onClick={() => onAdd(s)}
-                className="text-[11px] px-2.5 py-1 rounded-full bg-cream-soft text-ink-mid hover:bg-amber-soft hover:text-amber-deep transition-colors"
+                className="text-xs px-2.5 py-1 rounded-full bg-cream-soft text-ink-mid hover:bg-amber-soft hover:text-amber-ink transition-colors"
               >
                 + {s}
               </button>
@@ -409,12 +444,12 @@ function Counter({
   const MAX = 20
   return (
     <div>
-      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-soft mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[0.12em] text-ink-soft mb-2">{label}</p>
       <div className="flex items-center bg-cream-soft rounded-full p-1.5">
         <button
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
+          className="hit w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           –
         </button>
@@ -422,7 +457,7 @@ function Counter({
         <button
           type="button"
           onClick={() => onChange(Math.min(MAX, value + 1))}
-          className="w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
+          className="hit w-8 h-8 rounded-full bg-paper flex items-center justify-center font-bold"
         >
           +
         </button>

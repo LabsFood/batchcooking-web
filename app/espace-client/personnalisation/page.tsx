@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import CityField from '@/components/chef/application/CityField'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -20,9 +20,13 @@ import {
 } from 'lucide-react'
 import DatePicker from '@/components/shared/DatePicker'
 import { Prix } from '@/components/shared/Prix'
+import OfferDishes from '@/components/shared/OfferDishes'
 import { dayKey } from '@/lib/time'
 import { ApiError } from '@/lib/api/client'
-import { useChefPublic, useWeekMenus } from '@/lib/api/menus'
+import { useMeProfile } from '@/lib/api/me-profile'
+import { ContractBoxes, allTicked, consentsOf, type Ticks } from '@/components/client/ContractBoxes'
+import { consentGaps, neededGaps, type ContractGap } from '@/lib/api/contract'
+import { useChefPublic, useChefsCovering } from '@/lib/api/menus'
 import {
   SLOT_LABEL,
   centsToEuros,
@@ -49,8 +53,11 @@ import {
    Ce qui a été repris :
 
    - le formulaire était une colonne de onze champs d'affilée ; il est
-     désormais en trois temps (la prestation, la cuisine, le lieu), chacun
-     introduit par son titre, séparé par un filet ;
+     désormais en quatre temps (le lieu, la prestation, la cuisine, le budget),
+     chacun introduit par son titre, séparé par un filet ;
+   - le lieu vient en premier : la liste des batch cookers en dépend. Seuls
+     ceux qui couvrent la commune sont proposés (`GET /chefs`), jamais toute
+     la plateforme ;
    - le calendrier était posé dans une grille à deux colonnes face à un menu
      déroulant : il écrasait la ligne et désalignait tout ce qui suivait. Il a
      maintenant son bloc, avec les créneaux et les quantités à côté de lui ;
@@ -108,8 +115,11 @@ const HAS_LETTER = /\p{L}/u
 const CITY = /^\p{L}[\p{L} .'’-]*$/u
 const MAX_BUDGET_EUROS = 100_000
 
+/* Un code connu est dit tel quel, même en 502/504 : `GEO_UNAVAILABLE` vient
+   d'un service tiers, et « réessayez dans un instant » sans dire pourquoi ne
+   suffisait pas. */
 const errorText = (error: unknown, fallback: string) =>
-  error instanceof ApiError && error.status !== 0 && error.status < 500
+  error instanceof ApiError && error.status !== 0
     ? (MESSAGES[(error.body as { code?: string } | null)?.code ?? ''] ?? fallback)
     : fallback
 
@@ -121,12 +131,16 @@ const MESSAGES: Record<string, string> = {
   TOO_MANY_OPEN_REQUESTS:
     'Vous avez déjà 10 demandes en cours. Retirez-en une avant d’en envoyer une nouvelle.',
   CHEF_NOT_AVAILABLE: 'Ce batch cooker n’est plus disponible. Choisissez-en un autre.',
+  CHEF_OUT_OF_AREA:
+    'Ce batch cooker ne se déplace pas dans cette commune. Choisissez-en un dans la liste.',
   SAME_PERSON: 'Vous ne pouvez pas vous adresser une demande à vous-même.',
   OFFER_EXPIRED: 'Cette offre a expiré. Le batch cooker peut vous en proposer une nouvelle.',
   OFFER_NOT_ACTIVE: 'Cette offre n’est plus en attente.',
   QUOTE_ALREADY_ACCEPTED: 'Cette demande est déjà confirmée.',
   ADDRESS_CITY_MISMATCH:
     'Cette ville ne correspond pas au code postal. Choisissez la commune dans la liste.',
+  GEO_UNAVAILABLE:
+    'La vérification de l’adresse est momentanément indisponible. Réessayez dans quelques minutes.',
 }
 
 export default function PersonnalisationPage() {
@@ -151,8 +165,7 @@ function Personnalisation() {
 
 function RequestForm() {
   const preselected = useSearchParams().get('chef') ?? ''
-  const week = useWeekMenus({ limit: 50 })
-  // Le batch cooker venu d'un lien peut ne pas être dans les cartes de la semaine.
+  // Le batch cooker venu d'un lien : son nom, pour dire s'il ne couvre pas la commune.
   const linked = useChefPublic(preselected || undefined)
   const create = useCreateQuote()
   const champ = useId()
@@ -175,19 +188,12 @@ function RequestForm() {
   const [sent, setSent] = useState(false)
   const alerte = useRef<HTMLParagraphElement>(null)
 
-  const chefs = useMemo(() => {
-    const list = (week.data?.data ?? []).map((card) => ({
-      id: card.chef.id,
-      label: card.chef.city ? `${card.chef.displayName} · ${card.chef.city}` : card.chef.displayName,
-    }))
-    if (linked.data && !list.some((c) => c.id === linked.data.id)) {
-      list.unshift({
-        id: linked.data.id,
-        label: linked.data.city ? `${linked.data.displayName} · ${linked.data.city}` : linked.data.displayName,
-      })
-    }
-    return list
-  }, [week.data, linked.data])
+  const covering = useChefsCovering(postalCode.trim(), city)
+  const chefs = covering.data?.data ?? []
+  // Un choix hors de la liste (un lien, une autre commune) ne part jamais.
+  const chosen = chefs.some((c) => c.id === chefId) ? chefId : ''
+  const linkedOutOfArea =
+    covering.isSuccess && !!preselected && chefId === preselected && chosen === '' && linked.data
 
   const toggle = (d: string) =>
     setDiets((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]))
@@ -249,7 +255,7 @@ function RequestForm() {
     create.mutate(
       {
         title: title.trim(),
-        chefProfileId: chefId || undefined,
+        chefProfileId: chosen || undefined,
         desiredDate: date,
         timeSlot: slot,
         persons,
@@ -282,7 +288,7 @@ function RequestForm() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="h-fit card-shell rounded-3xl p-6 lg:p-8"
+      className="h-fit card-shell rounded-2xl p-6 lg:p-8"
     >
       <h2 className="font-display text-2xl font-bold leading-tight text-navy">
         Décrivez ce que vous avez{' '}
@@ -294,7 +300,76 @@ function RequestForm() {
       </p>
 
       <form onSubmit={submit} className="mt-7 space-y-8" noValidate>
-        {/* ── 1. La prestation ──────────────────────────────────────── */}
+        {/* ── 1. Le lieu, puis le batch cooker : la liste en dépend ─── */}
+        <Bloc titre="Où a lieu la prestation">
+          <Field
+            label="Adresse de la prestation"
+            htmlFor={`${champ}-adresse`}
+            hint="Le batch cooker ne voit que la ville tant que vous n’avez pas accepté son offre."
+          >
+            <input
+              id={`${champ}-adresse`}
+              value={addressLine}
+              onChange={(e) => setAddressLine(e.target.value)}
+              maxLength={255}
+              autoComplete="street-address"
+              placeholder="Numéro et rue"
+              className="input-base"
+            />
+            <div className="mt-3 grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
+              <input
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={5}
+                autoComplete="postal-code"
+                aria-label="Code postal"
+                placeholder="Code postal"
+                className="input-base"
+              />
+              <CityField bare id="request-city" postcode={postalCode} value={city} onChange={setCity} />
+            </div>
+          </Field>
+
+          <Field
+            label="Votre batch cooker"
+            htmlFor={`${champ}-chef`}
+            hint={
+              linkedOutOfArea
+                ? `${linked.data.displayName} ne se déplace pas à ${city}. Choisissez un batch cooker de la liste, ou laissez Lab’s Food vous en proposer un.`
+                : covering.isError
+                  ? 'La liste n’a pas pu être chargée. Envoyez la demande : Lab’s Food vous attribuera un batch cooker.'
+                  : covering.isSuccess && chefs.length === 0
+                    ? `Aucun batch cooker ne couvre encore ${city}. Envoyez la demande : Lab’s Food cherche pour vous.`
+                    : covering.isSuccess
+                      ? `Seuls les batch cookers qui se déplacent à ${city} sont proposés. Sans choix de votre part, Lab’s Food attribue la demande.`
+                      : 'Indiquez d’abord le code postal et la commune : la liste dépend du lieu.'
+            }
+          >
+            <select
+              id={`${champ}-chef`}
+              value={chosen}
+              onChange={(e) => setChefId(e.target.value)}
+              disabled={!covering.isSuccess || chefs.length === 0}
+              className="input-base disabled:opacity-60"
+            >
+              <option value="">
+                {covering.isFetching
+                  ? 'Recherche des batch cookers…'
+                  : covering.isSuccess || covering.isError
+                    ? 'Laisser Lab’s Food me proposer quelqu’un'
+                    : 'D’abord la commune de la prestation'}
+              </option>
+              {chefs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.city ? `${c.displayName} · ${c.city}` : c.displayName}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Bloc>
+
+        {/* ── 2. La prestation ──────────────────────────────────────── */}
         <Bloc titre="La prestation">
           <Field label="Titre de la demande" htmlFor={`${champ}-titre`}>
             <input
@@ -305,26 +380,6 @@ function RequestForm() {
               placeholder="Ex. Les repas de la semaine pour 4"
               className="input-base"
             />
-          </Field>
-
-          <Field
-            label="Votre batch cooker"
-            htmlFor={`${champ}-chef`}
-            hint="Sans choix de votre part, Lab’s Food attribue la demande au batch cooker le mieux placé."
-          >
-            <select
-              id={`${champ}-chef`}
-              value={chefId}
-              onChange={(e) => setChefId(e.target.value)}
-              className="input-base"
-            >
-              <option value="">Laisser Lab’s Food me proposer quelqu’un</option>
-              {chefs.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
           </Field>
 
           {/* Le calendrier a son bloc : face à un menu déroulant, il écrasait
@@ -358,11 +413,10 @@ function RequestForm() {
                         key={s}
                         onClick={() => setSlot(s)}
                         aria-pressed={on}
-                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${
-                          on
-                            ? 'border-amber bg-amber-soft font-semibold text-navy'
-                            : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
-                        }`}
+                        className={`rounded-xl border px-4 py-2.5 text-sm transition-colors ${on
+                          ? 'border-amber bg-amber-soft font-semibold text-navy'
+                          : 'border-[rgba(31,42,55,0.12)] bg-cream-soft text-ink-mid hover:border-amber/50 hover:text-navy'
+                          }`}
                       >
                         {SLOT_LABEL[s]}
                       </button>
@@ -379,14 +433,14 @@ function RequestForm() {
             {date && (
               <p className="mt-3 text-sm text-ink-mid">
                 Souhaité le{' '}
-                <span className="font-semibold capitalize text-navy">{dayLabel(date)}</span>,{' '}
+                <span className="cap-first inline-block font-semibold text-navy">{dayLabel(date)}</span>,{' '}
                 {SLOT_LABEL[slot].toLowerCase()}.
               </p>
             )}
           </fieldset>
         </Bloc>
 
-        {/* ── 2. La cuisine ─────────────────────────────────────────── */}
+        {/* ── 3. La cuisine ─────────────────────────────────────────── */}
         <Bloc titre="La cuisine">
           <Field label="Style culinaire" htmlFor={`${champ}-cuisine`}>
             <input
@@ -410,11 +464,10 @@ function RequestForm() {
                     key={d}
                     onClick={() => toggle(d)}
                     aria-pressed={on}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors ${
-                      on
-                        ? 'bg-amber font-semibold text-navy'
-                        : 'bg-cream-soft text-ink-mid hover:bg-cream-deep hover:text-navy'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors ${on
+                      ? 'bg-amber font-semibold text-navy'
+                      : 'bg-cream-soft text-ink-mid hover:bg-cream-deep hover:text-navy'
+                      }`}
                   >
                     {on ? (
                       <Check className="h-3.5 w-3.5" aria-hidden />
@@ -454,43 +507,14 @@ function RequestForm() {
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               maxLength={4000}
-              placeholder="Ex. Les repas de la semaine, plutôt méditerranéens. Deux sans gluten, une végétarienne stricte. Des portions faciles à emporter le midi."
+              placeholder="Ex: batch cooker qui respectera mes restrictions alimentaires : sans gluten, sans lactose."
               className="input-base resize-y"
             />
           </Field>
         </Bloc>
 
-        {/* ── 3. Le lieu et le budget ───────────────────────────────── */}
-        <Bloc titre="Où, et pour quel budget">
-          <Field
-            label="Adresse de la prestation"
-            htmlFor={`${champ}-adresse`}
-            hint="Le batch cooker ne voit que la ville tant que vous n’avez pas accepté son offre."
-          >
-            <input
-              id={`${champ}-adresse`}
-              value={addressLine}
-              onChange={(e) => setAddressLine(e.target.value)}
-              maxLength={255}
-              autoComplete="street-address"
-              placeholder="Numéro et rue"
-              className="input-base"
-            />
-            <div className="mt-3 grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
-              <input
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
-                inputMode="numeric"
-                maxLength={5}
-                autoComplete="postal-code"
-                aria-label="Code postal"
-                placeholder="Code postal"
-                className="input-base"
-              />
-              <CityField bare id="request-city" postcode={postalCode} value={city} onChange={setCity} />
-            </div>
-          </Field>
-
+        {/* ── 4. Le budget ──────────────────────────────────────────── */}
+        <Bloc titre="Le budget">
           <Field
             label="Budget indicatif"
             htmlFor={`${champ}-budget`}
@@ -619,6 +643,16 @@ function RequestCard({ quote }: { quote: Quote }) {
   const [error, setError] = useState<string | null>(null)
 
   const offer = quote.activeOffer
+  // CGV V1 : l'acceptation conclut le contrat, d'où les cases (pas de mandat sur un devis).
+  const terms = useMeProfile().data?.contractTerms
+  const [ticks, setTicks] = useState<Ticks>({})
+  const [manquantes, setManquantes] = useState<ContractGap[]>([])
+  const cases = Array.from(
+    new Set([
+      ...neededGaps({ chefShops: false, startsAt: quote.desiredDate, windowDays: 18 }),
+      ...manquantes,
+    ]),
+  )
   const busy = accept.isPending || decline.isPending || cancel.isPending
   const open =
     quote.status !== 'accepted' &&
@@ -710,6 +744,14 @@ function RequestCard({ quote }: { quote: Quote }) {
           </Note>
         )}
 
+        {quote.status === 'accepted' && (
+          <OfferDishes
+            dishes={quote.offers.find((o) => o.status === 'accepted')?.dishes ?? []}
+            allergy={null}
+            viewer="client"
+          />
+        )}
+
         {error && (
           <p role="alert" className="mt-3 text-sm leading-relaxed text-red-800">
             {error}
@@ -731,7 +773,7 @@ function RequestCard({ quote }: { quote: Quote }) {
           </div>
 
           {(offer.proposedDate || offer.proposedTimeSlot) && (
-            <p className="mt-3 text-sm font-semibold capitalize text-navy">
+            <p className="mt-3 text-sm font-semibold cap-first text-navy">
               {dayLabel(offer.proposedDate ?? quote.desiredDate ?? '')}
               {', '}
               <span className="font-normal lowercase text-ink-mid">
@@ -744,6 +786,12 @@ function RequestCard({ quote }: { quote: Quote }) {
               {offer.conditions}
             </p>
           )}
+          <OfferDishes
+            dishes={offer.dishes ?? []}
+            allergy={offer.allergy}
+            viewer="client"
+            talkHref={`/espace-client/messages?quote=${quote.id}`}
+          />
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-ink-soft">
             <Clock className="h-3.5 w-3.5" aria-hidden /> Valable jusqu’au{' '}
             {dayLabel(offer.validUntil)}
@@ -790,19 +838,40 @@ function RequestCard({ quote }: { quote: Quote }) {
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              {terms && (
+                <div className="w-full">
+                  <ContractBoxes
+                    terms={terms}
+                    gaps={cases}
+                    ticks={ticks}
+                    onChange={setTicks}
+                    missing={manquantes}
+                  />
+                </div>
+              )}
               <button
-                disabled={busy}
+                disabled={busy || (!!terms && !allTicked(cases, ticks))}
                 onClick={() => {
                   setError(null)
                   accept.mutate(
-                    { quoteId: quote.id, offerId: offer.id },
-                    { onError: fail('L’offre n’a pas pu être acceptée. Réessayez dans un instant.') },
+                    {
+                      quoteId: quote.id,
+                      offerId: offer.id,
+                      ...(terms ? { consents: consentsOf(terms, ticks) } : {}),
+                    },
+                    {
+                      onError: (e) => {
+                        const gaps = consentGaps(e instanceof ApiError ? e.body : null)
+                        if (gaps) setManquantes(gaps.missing)
+                        fail('L’offre n’a pas pu être acceptée. Réessayez dans un instant.')(e)
+                      },
+                    },
                   )
                 }}
                 className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep disabled:opacity-60"
               >
                 {accept.isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
-                Accepter et confirmer
+                Accepter l’offre avec obligation de paiement
               </button>
               <button
                 disabled={busy}

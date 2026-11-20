@@ -122,7 +122,7 @@ function ImageAttachment({
           alt={attachment.fileName}
           loading="lazy"
           onError={() => setBroken(true)}
-          className="h-36 w-52 max-w-full object-cover transition-transform hover:scale-[1.02]"
+          className="h-36 w-52 max-w-full object-cover"
         />
       </button>
       {open && (

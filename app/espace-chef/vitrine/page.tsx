@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import { useToast } from '@/components/shared/Toaster'
+import { SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { TextField } from '@/components/chef/application/fields'
 import PhoneField from '@/components/shared/PhoneField'
@@ -160,13 +161,13 @@ export default function ChefShowcasePage() {
   if (profil.isPending) {
     return (
       <ChefPage title="Ma vitrine">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+        <SkeletonGroup className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
           <div className="space-y-5">
-            <div className="h-64 animate-pulse rounded-3xl bg-paper" />
-            <div className="h-48 animate-pulse rounded-3xl bg-paper" />
+            <SkeletonCard className="h-64 rounded-2xl" />
+            <SkeletonCard className="h-48 rounded-2xl" />
           </div>
-          <div className="h-80 animate-pulse rounded-3xl bg-paper" />
-        </div>
+          <SkeletonCard className="h-80 rounded-2xl" />
+        </SkeletonGroup>
       </ChefPage>
     )
   }
@@ -205,7 +206,7 @@ export default function ChefShowcasePage() {
                     : 'Suivez votre dossier pour savoir ce qu’il reste à faire.'}{' '}
                   <Link
                     href="/espace-chef/dossier"
-                    className="font-semibold text-terra underline"
+                    className="font-semibold text-amber-ink underline"
                   >
                     Mon dossier
                   </Link>
@@ -313,7 +314,7 @@ export default function ChefShowcasePage() {
                     onChange={(e) => setRayon(Number(e.target.value))}
                     className="flex-1 accent-amber"
                   />
-                  <span className="w-16 shrink-0 text-right font-mono text-sm tabular-nums text-navy">
+                  <span className="w-16 shrink-0 text-right text-sm tabular-nums text-navy">
                     {rayon} km
                   </span>
                 </div>
@@ -326,8 +327,12 @@ export default function ChefShowcasePage() {
             <Langues choisies={langues} onChange={setLangues} />
 
             <Zones
-              zones={applicationAnswers(application.data).interventionZones ?? []}
-              modifiable={enInstruction}
+              zones={
+                (approuve && chef?.interventionZones?.length
+                  ? chef.interventionZones
+                  : applicationAnswers(application.data).interventionZones) ?? []
+              }
+              modifiable={enInstruction || approuve}
             />
           </Card>
 
@@ -348,7 +353,7 @@ export default function ChefShowcasePage() {
           <Card
             title="Mon compte"
             action={
-              <span className="text-[11px] uppercase tracking-wide text-ink-soft">
+              <span className="text-xs uppercase tracking-wide text-ink-soft">
                 Non public
               </span>
             }
@@ -423,7 +428,7 @@ export default function ChefShowcasePage() {
               {Object.values(PAYMENT_METHOD_LABEL).map((l) => (
                 <span
                   key={l}
-                  className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-medium text-ink-soft"
+                  className="rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-ink-soft"
                 >
                   {l}
                 </span>
@@ -443,10 +448,10 @@ export default function ChefShowcasePage() {
 
         {/* Aperçu client, nourri par ce qui est en train d'être saisi. */}
         <aside className="h-fit lg:sticky lg:top-24">
-          <div className="overflow-hidden rounded-3xl border border-[rgba(31,42,55,0.08)] bg-paper">
+          <div className="overflow-hidden rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper">
             <div className="flex items-center gap-2 border-b border-[rgba(31,42,55,0.08)] bg-cream-soft px-4 py-2.5">
               <Eye className="h-3.5 w-3.5 text-ink-soft" aria-hidden />
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                 Aperçu client
               </p>
             </div>
@@ -483,7 +488,7 @@ export default function ChefShowcasePage() {
                 </p>
               )}
 
-              <span className="inline-flex rounded-full bg-mint px-2 py-1 text-[10px] font-medium text-mint-ink">
+              <span className="inline-flex rounded-full bg-mint px-2 py-1 text-xs font-medium text-mint-ink">
                 Crédit d’impôt 50 %
               </span>
 
@@ -494,7 +499,7 @@ export default function ChefShowcasePage() {
               >
                 Réserver une session
               </button>
-              <p className="mt-2 text-center text-[11px] text-ink-soft">
+              <p className="mt-2 text-center text-xs text-ink-soft">
                 Aperçu — le bouton n’est pas actif ici.
               </p>
             </div>
@@ -517,36 +522,21 @@ interface ZoneLue {
 /**
  * Là où le batch cooker accepte de se déplacer.
  *
- * Elles ne vivent pas sur le profil mais sur la candidature, et l'API ne les
- * rouvre qu'avant la décision : « the visibility flags, the SAP route and the
- * zones are set at approval and cannot be sent here ». C'est le rayon de
- * déplacement, juste au-dessus, qui reste réglable.
- *
- * L'écran les montre quand même ici, parce que c'est l'endroit où l'on vient
- * voir ce qu'un client voit — et il dit où les modifier quand c'est encore
- * possible, à qui les demander quand ce n'est plus le cas.
+ * Avant la décision elles sont celles de la candidature ; une fois approuvé, le
+ * batch cooker les règle seul (`PATCH /me/chef-profile/zones`). Dans les deux cas
+ * l'édition se fait depuis le dossier, avec le même sélecteur.
  */
 function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean }) {
   return (
     <div className="mt-5 border-t border-[rgba(31,42,55,0.07)] pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-navy">Mes zones d’intervention</p>
-        {modifiable ? (
-          <Link
-            href="/espace-chef/dossier?section=zones"
-            className="text-xs font-semibold text-terra underline-offset-2 hover:underline"
-          >
-            Modifier mes zones
-          </Link>
-        ) : (
-          <span
-            title="Aucun endpoint ne permet encore de modifier les zones après l’approbation."
-            className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-[11px] font-semibold text-ink-soft"
-          >
-            <Lock className="h-3 w-3" aria-hidden />
-            Modification N/A
-          </span>
-        )}
+        <Link
+          href="/espace-chef/dossier?section=zones"
+          className="hit text-xs font-semibold text-amber-ink underline-offset-2 hover:underline"
+        >
+          Modifier mes zones
+        </Link>
       </div>
 
       {zones.length === 0 ? (
@@ -556,16 +546,27 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
         </p>
       ) : (
         <ul className="mt-2.5 space-y-2">
-          {zones.map((z, i) => (
+          {[...zones]
+            .sort((a, b) =>
+              (a.regionLabel ?? a.regionCode ?? '').localeCompare(
+                b.regionLabel ?? b.regionCode ?? '',
+                'fr',
+              ),
+            )
+            .map((z, i) => (
             <li key={z.regionCode ?? i} className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden />
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-navy">
                   {z.regionLabel ?? z.regionCode}
                 </span>
                 <span className="block text-[13px] leading-relaxed text-ink-mid">
                   {z.scope === 'cities' && z.cities?.length
-                    ? z.cities.map((c) => c.name).filter(Boolean).join(', ')
+                    ? z.cities
+                        .map((c) => c.name)
+                        .filter(Boolean)
+                        .sort((a, b) => (a ?? '').localeCompare(b ?? '', 'fr'))
+                        .join(', ')
                     : 'Toute la région'}
                 </span>
               </span>
@@ -576,17 +577,10 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
 
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         {modifiable ? (
-          <>Modifiables tant que votre candidature est en cours d’instruction.</>
+          <>Modifiables à tout moment : les clients de ces zones vous voient dès l’enregistrement.</>
         ) : (
           <>
-            Fixées à l’approbation.{' '}
-            <Link
-              href="/espace-chef/messagerie"
-              className="font-semibold text-terra underline"
-            >
-              Demandez-nous
-            </Link>{' '}
-            pour les changer.
+            Elles se règlent une fois votre candidature approuvée.
           </>
         )}
       </p>
@@ -598,9 +592,10 @@ function Zones({ zones, modifiable }: { zones: ZoneLue[]; modifiable: boolean })
 
 /**
  * Un critère de choix réel : on fait entrer quelqu'un dans sa cuisine pour
- * quatre heures. Le référentiel est fermé côté API — vingt-quatre codes — et
- * l'écran se contente de les cocher : un champ libre aurait donné « Anglais »,
- * « anglais » et « EN » dans la même liste.
+ * quatre heures. Le référentiel est fermé côté API — toutes les langues ISO
+ * 639-1, une liste à recherche — et l'écran se contente de les cocher : un
+ * champ libre aurait donné « Anglais », « anglais » et « EN » dans la même
+ * liste.
  */
 function Langues({
   choisies,

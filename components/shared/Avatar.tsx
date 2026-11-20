@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
 import { Camera, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/shared/Toaster'
 import { useMe } from '@/lib/api/me'
 import {
   AVATAR_MUTATION,
@@ -121,6 +122,7 @@ export function AvatarButtons({
   const me = useMe()
   const envoi = useUploadAvatar()
   const retrait = useRemoveAvatar()
+  const toast = useToast()
   const champ = useRef<HTMLInputElement>(null)
   const champId = useId()
   const [erreur, setErreur] = useState<string | null>(null)
@@ -140,6 +142,7 @@ export function AvatarButtons({
     envoi.mutate(file, {
       onSuccess: () => {
         if (champ.current) champ.current.value = ''
+        toast.success('Votre photo est enregistrée')
       },
       onError: (e) => setErreur(photoMessage(e)),
     })
@@ -160,7 +163,7 @@ export function AvatarButtons({
         <label
           htmlFor={champId}
           className={cn(
-            'inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+            'inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-colors',
             sombre
               ? 'bg-white/12 text-white hover:bg-white/20'
               : 'bg-cream-soft text-navy hover:bg-cream-deep',
@@ -176,6 +179,7 @@ export function AvatarButtons({
             type="button"
             onClick={() =>
               retrait.mutate(undefined, {
+                onSuccess: () => toast.success('Votre photo est retirée'),
                 onError: (e) => setErreur(photoMessage(e)),
               })
             }
@@ -183,7 +187,7 @@ export function AvatarButtons({
             title="Retirer la photo"
             aria-label="Retirer la photo"
             className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:opacity-40',
+              'hit flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:opacity-40',
               sombre
                 ? 'text-white/70 hover:bg-white/12 hover:text-white'
                 : 'text-ink-soft hover:bg-red-50 hover:text-red-700',
@@ -198,7 +202,7 @@ export function AvatarButtons({
         <p
           role="alert"
           className={cn(
-            'mt-1.5 text-[11px] leading-relaxed',
+            'mt-1.5 text-xs leading-relaxed',
             sombre ? 'text-amber' : 'text-red-700',
           )}
         >
@@ -207,7 +211,7 @@ export function AvatarButtons({
       ) : (
         <p
           className={cn(
-            'mt-1.5 text-[11px] leading-relaxed',
+            'mt-1.5 text-xs leading-relaxed',
             sombre ? 'text-white/70' : 'text-ink-soft',
           )}
         >

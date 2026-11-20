@@ -1,24 +1,28 @@
 'use client'
 
+import { Onglets } from '@/components/shared/Onglets'
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { fadeUp } from '@/lib/motion'
 import { AllergyBadge } from '@/components/shared/AllergyStatus'
 import { Prix } from '@/components/shared/Prix'
 import {
   AlertTriangle,
   ArrowRight,
-  CalendarRange,
   ChefHat,
   Clock,
   Info,
+  MapPin,
   RotateCw,
   UtensilsCrossed,
 } from 'lucide-react'
 import {
   bookingMealNames,
   bookingPortions,
+  bookingLabel,
   bookingStatusText,
+  bookingStatusTone,
   euros,
   isBookingOpen,
   longDate,
@@ -53,16 +57,7 @@ const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] =
   { id: 'history', label: 'Passées', match: (b) => !isBookingOpen(b) },
 ]
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: 'bg-amber-soft text-amber-deep',
-  confirmed: 'bg-mint text-mint-ink',
-  shopping: 'bg-mint text-mint-ink',
-  cooking: 'bg-amber text-navy',
-  delivered: 'bg-mint text-mint-ink',
-  completed: 'bg-cream-deep text-navy',
-  cancelled: 'bg-red-100 text-red-700',
-  disputed: 'bg-red-100 text-red-700',
-}
+
 
 export default function OrdersListPage() {
   const [filter, setFilter] = useState<Filter>('all')
@@ -70,14 +65,15 @@ export default function OrdersListPage() {
 
   const toutes = query.data?.data ?? []
   const liste = toutes.filter(FILTERS.find((f) => f.id === filter)!.match)
-  const aRegler = toutes.filter((b) => b.status === 'pending')
+  // CGV V1 : une demande (`request`) ne se règle qu'après la session.
+  const aRegler = toutes.filter((b) => b.status === 'pending' && !b.request)
 
   if (query.isError) {
     return (
-      <div className="rounded-3xl card-shell p-6">
+      <div className="rounded-2xl card-shell p-6">
         <p className="flex items-start gap-2 font-display text-lg font-bold text-navy">
           <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-red-700" aria-hidden />
-          Vos commandes n’ont pas pu être chargées
+          Vos sessions n’ont pas pu être chargées
         </p>
         <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-mid">
           Rien n’est perdu : réessayez dans un instant.
@@ -91,43 +87,28 @@ export default function OrdersListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {FILTERS.map((f) => {
-          const n = toutes.filter(f.match).length
-          const active = filter === f.id
-          return (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              aria-pressed={active}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
-                active
-                  ? 'bg-navy text-amber'
-                  : 'border border-[rgba(31,42,55,0.08)] bg-paper text-ink-mid hover:border-amber'
-              }`}
-            >
-              {f.label}
-              {!query.isPending && (
-                <span className={`ml-1.5 tabular-nums ${active ? 'text-amber' : 'text-ink-soft'}`}>
-                  {n}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
+      <Onglets
+        label="Filtrer mes sessions"
+        value={filter}
+        onChange={setFilter}
+        items={FILTERS.map((f) => ({
+          id: f.id,
+          label: f.label,
+          count: query.isPending ? undefined : toutes.filter(f.match).length,
+        }))}
+      />
 
       {query.isPending ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-52 animate-pulse rounded-3xl bg-paper" />
+            <div key={i} className="h-52 animate-pulse rounded-2xl bg-paper" />
           ))}
         </div>
       ) : toutes.length === 0 ? (
-        <div className="rounded-3xl card-shell px-6 py-14 text-center">
+        <div className="rounded-2xl card-shell px-6 py-14 text-center">
           <UtensilsCrossed className="mx-auto h-7 w-7 text-ink-soft" aria-hidden />
           <p className="mt-3 font-display text-lg font-bold text-navy">
-            Aucune commande pour l’instant
+            Aucune session pour l’instant
           </p>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-ink-mid">
             Choisissez un batch cooker et les plats que vous voulez retrouver dans
@@ -140,7 +121,7 @@ export default function OrdersListPage() {
         </div>
       ) : liste.length === 0 ? (
         <p className="py-16 text-center text-ink-soft">
-          Aucune commande dans cette catégorie.
+          Aucune session dans cette catégorie.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -154,8 +135,8 @@ export default function OrdersListPage() {
         <p className="flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           {aRegler.length === 1
-            ? 'Une commande attend son règlement : c’est le paiement qui la confirme, et le créneau n’est tenu que 72 heures.'
-            : `${aRegler.length} commandes attendent leur règlement : c’est le paiement qui les confirme, et le créneau n’est tenu que 72 heures.`}
+            ? 'Une session attend son règlement : c’est le paiement qui la confirme, et le créneau n’est tenu que 72 heures.'
+            : `${aRegler.length} sessions attendent leur règlement : c’est le paiement qui les confirme, et le créneau n’est tenu que 72 heures.`}
         </p>
       )}
     </div>
@@ -167,32 +148,25 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
   const portions = bookingPortions(b)
   const ttc = euros(b.amountTtc ?? b.priceCents)
   const reste = euros(b.amountAfterTax)
-  const aRegler = b.status === 'pending'
+  const aRegler = b.status === 'pending' && !b.request
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-3xl card-shell p-5 transition-colors hover:border-amber/50"
+      // slow-out : la carte se pose en 240 ms, décalée de 40 ms par rang
+      {...fadeUp(Math.min(index * 0.04, 0.16))}
+      className="panel flex flex-col p-5 transition-colors hover:border-[var(--line-strong)]"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           {b.reference && (
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">
-              {b.reference}
-            </p>
+            <p className="font-mono text-xs text-ink-soft">{b.reference}</p>
           )}
-          <p className="mt-1 font-display text-lg font-bold capitalize text-navy">
+          <p className="mt-0.5 font-display text-lg font-bold cap-first text-navy">
             {longDate(b.startsAt) ?? 'Date à confirmer'}
           </p>
         </div>
-        <span
-          className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-            STATUS_COLOR[b.status ?? ''] ?? 'bg-cream-deep text-navy'
-          }`}
-        >
-          {bookingStatusText(b.status)}
+        <span className={`status shrink-0 ${b.withdrawnAt ? 'status-bad' : bookingStatusTone(b.status)}`}>
+          {b.withdrawnAt ? 'Rétractée' : aRegler ? 'À régler' : bookingLabel(b)}
         </span>
       </div>
 
@@ -202,27 +176,28 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
         </div>
       )}
 
-      <ul className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-ink-mid">
+      {/* Les icônes repèrent, elles ne décorent pas : l'ambre reste au prix et au bouton. */}
+      <ul className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm tabular-nums text-ink-mid">
         {slot(b) && (
-          <li className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-amber" aria-hidden /> {slot(b)}
+          <li className="flex items-center gap-2">
+            <Clock className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden /> {slot(b)}
           </li>
         )}
         {b.chef?.displayName && (
-          <li className="flex items-center gap-1.5">
-            <ChefHat className="h-3.5 w-3.5 text-amber" aria-hidden /> {b.chef.displayName}
+          <li className="flex items-center gap-2">
+            <ChefHat className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden /> {b.chef.displayName}
           </li>
         )}
-        <li className="flex items-center gap-1.5">
-          <UtensilsCrossed className="h-3.5 w-3.5 text-amber" aria-hidden />
+        <li className="flex items-center gap-2">
+          <UtensilsCrossed className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
           {plats.length > 0
             ? `${plats.length} plat${plats.length > 1 ? 's' : ''}`
             : 'Plats à définir'}
           {portions > 0 && ` · ${portions} portions`}
         </li>
         {b.city && (
-          <li className="flex items-center gap-1.5">
-            <CalendarRange className="h-3.5 w-3.5 text-amber" aria-hidden /> {b.city}
+          <li className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden /> {b.city}
           </li>
         )}
       </ul>
@@ -230,51 +205,42 @@ function OrderCard({ booking: b, index }: { booking: Booking; index: number }) {
       {plats.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-1.5">
           {plats.slice(0, 4).map((nom) => (
-            <span key={nom} className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-navy">
+            <span key={nom} className="rounded-lg bg-cream-soft px-2.5 py-1 text-xs text-navy">
               {nom}
             </span>
           ))}
           {plats.length > 4 && (
-            <span className="rounded-full bg-cream-soft px-2.5 py-1 text-[11px] text-ink-soft">
+            <span className="rounded-lg bg-cream-soft px-2.5 py-1 text-xs tabular-nums text-ink-soft">
               +{plats.length - 4}
             </span>
           )}
         </div>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
+      <div className="mt-auto flex flex-wrap items-end justify-between gap-3 border-t border-[var(--line)] pt-4">
         {ttc || reste ? (
           <Prix apresCredit={reste} total={ttc} />
         ) : (
-          <p className="text-[13px] text-ink-soft">Montant non communiqué</p>
+          <p className="text-sm text-ink-soft">Montant non communiqué</p>
         )}
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href={`/espace-client/commandes/${b.id}`}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-              aRegler
-                ? 'border border-[rgba(31,42,55,0.14)] text-navy hover:border-navy'
-                : 'bg-navy text-amber hover:bg-navy-deep'
-            }`}
-          >
+          <Link href={`/espace-client/commandes/${b.id}`} className="btn btn-outline">
             Détail
-            {!aRegler && <ArrowRight className="h-3.5 w-3.5" aria-hidden />}
           </Link>
+          {/* Le seul bouton plein de la carte : ce qui demande un geste. */}
           {aRegler && (
-            <Link
-              href={`/espace-client/commandes/${b.id}/paiement`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-amber transition-colors hover:bg-navy-deep"
-            >
+            <Link href={`/espace-client/commandes/${b.id}/paiement`} className="btn btn-amber">
               Régler
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
             </Link>
           )}
         </div>
       </div>
 
       {aRegler && (
-        <p className="mt-3 border-t border-[rgba(31,42,55,0.06)] pt-3 text-[11px] leading-relaxed text-ink-soft">
-          Le créneau est tenu 72 h, puis la commande est annulée.
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+          Le créneau est tenu 72 h, puis la réservation est annulée.
         </p>
       )}
     </motion.div>

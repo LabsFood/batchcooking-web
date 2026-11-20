@@ -64,7 +64,7 @@ export default function DocumentPreviewDialog({
     <Dialog.Root open={Boolean(source)} onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[90] bg-navy-deep/70 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-[90] flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-8 sm:rounded-3xl lg:inset-x-[14%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]">
+        <Dialog.Content className="fixed inset-x-0 bottom-0 top-10 z-[90] flex flex-col overflow-hidden rounded-t-3xl bg-cream focus:outline-none sm:inset-8 sm:rounded-2xl lg:inset-x-[14%] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:[animation-duration:120ms]">
           <header className="flex items-center gap-4 border-b border-[rgba(31,42,55,0.08)] bg-paper px-5 py-3.5">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="truncate font-display text-base font-bold text-navy">
@@ -85,7 +85,7 @@ export default function DocumentPreviewDialog({
                   rel="noreferrer"
                   title="Ouvrir dans un nouvel onglet"
                   aria-label="Ouvrir dans un nouvel onglet"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
@@ -94,7 +94,7 @@ export default function DocumentPreviewDialog({
                   download={name}
                   title="Télécharger"
                   aria-label="Télécharger"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                  className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                 >
                   <Download className="h-4 w-4" />
                 </a>
@@ -102,7 +102,7 @@ export default function DocumentPreviewDialog({
             )}
             <Dialog.Close
               aria-label="Fermer l’aperçu"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-mid hover:bg-cream-soft hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>

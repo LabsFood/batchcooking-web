@@ -34,6 +34,9 @@ body {
     --amber: #F39C12;
     --amber-deep: #D68B0E;
     --amber-soft: #FCE3B5;
+    /* Ambre pour du TEXTE sur fond clair (≈5,4:1 sur blanc). --amber reste pour
+       les fonds, les CTA et le texte sur marine. */
+    --amber-ink: #9A5B00;
     --peach: #FAD7A0;
     --mint: #D1F2EB;
     --mint-deep: #A7E0D0;
@@ -56,7 +59,29 @@ body {
     /* Text */
     --ink: #1F2A37;
     --ink-mid: #4B5867;
-    --ink-soft: #7B8794;
+    --ink-soft: #5F6B7A;
+    /* ≥ 4,5:1 sur --cream et --shell (l'ancien #7B8794 plafonnait à 3,6:1). */
+
+    /* Filets : un seul gris, deux forces. Le fort borde ce qu'on peut saisir. */
+    --line: rgba(31, 42, 55, 0.08);
+    --line-strong: rgba(31, 42, 55, 0.16);
+
+    /* Élévations : la carte posée, puis ce qui flotte au-dessus d'elle. */
+    --shadow-card: 0 1px 2px rgba(31, 42, 55, 0.04), 0 10px 28px -18px rgba(31, 42, 55, 0.22);
+    --shadow-pop: 0 2px 6px rgba(31, 42, 55, 0.06), 0 24px 48px -20px rgba(31, 42, 55, 0.32);
+
+    /* Rayons des espaces connectés : contrôle < carte < panneau. Concentriques. */
+    --r-control: 0.75rem;
+    --r-card: 1rem;
+    --r-panel: 1.5rem;
+
+    /* États : un fond clair et une encre, par famille. */
+    --ok-soft: #E3F6F1;
+    --ok-ink: #14695F;
+    --warn-soft: #FDF0D5;
+    --warn-ink: #8A5200;
+    --bad-soft: #FDECEC;
+    --bad-ink: #B42318;
   }
 }
 
@@ -80,17 +105,46 @@ body {
     line-height: 1.65;
   }
 
+  /* Le chrome du navigateur suit la palette, sans emprunter l'accent : l'ambre
+     reste au CTA (docs/ui-ux-guidelines.md, § 4). */
+  html {
+    scrollbar-color: rgba(31, 42, 55, 0.28) transparent;
+    scrollbar-width: thin;
+  }
+
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--cream-soft);
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--amber);
-    border-radius: 4px;
+    background: rgba(31, 42, 55, 0.22);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(31, 42, 55, 0.4);
+    background-clip: padding-box;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    caret-color: var(--amber-deep);
+  }
+
+  /* Un seul anneau de focus, partout, visible sur clair comme sur marine.
+     `:where` le laisse à zéro de spécificité : un composant garde la main. */
+  :where(a, button, summary, [role='button'], [role='tab'], [tabindex]):focus-visible {
+    outline: 2px solid var(--amber-deep);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
   }
 
   ::selection {
@@ -130,38 +184,39 @@ body {
     color: var(--navy);
   }
 
+  /* Un mot de titre ne change ni de couleur ni de style : on groupe par l'espace. */
   .h-section .accent {
-    color: var(--terra);
-    font-style: italic;
-    font-weight: 600;
+    color: inherit;
+    font-style: normal;
   }
 
+  /* Sans, 12 px : un repère de section se lit, il ne se code pas. */
   .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--terra);
+    color: var(--amber-ink);
   }
 
   .label-brand {
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--terra);
+    color: var(--amber-ink);
   }
 
   .label-muted {
-    font-family: var(--font-mono), monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-soft);
   }
@@ -226,56 +281,19 @@ body {
     background: var(--paper);
     border-radius: 1rem;
     border: 1px solid rgba(31, 42, 55, 0.06);
-    transition: box-shadow 0.4s ease, transform 0.4s ease;
+    transition: box-shadow 0.2s ease;
   }
 
   .card-base:hover {
     box-shadow: 0 24px 60px -20px rgba(31, 42, 55, 0.18);
-    transform: translateY(-4px);
   }
 
   /* La carte d'un tableau de bord : posée sur `--shell`, elle se détache par
      une ombre portée — un décalage et un flou, pas un halo. */
   .card-shell {
     background: var(--paper);
-    border: 1px solid rgba(31, 42, 55, 0.07);
-    box-shadow:
-      0 1px 2px rgba(31, 42, 55, 0.04),
-      0 10px 28px -18px rgba(31, 42, 55, 0.22);
-  }
-
-  /* Decorative dots row (Delish ornamental separator) */
-  .dot-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .dot-row .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--terra);
-  }
-
-  .dot-row .dot.muted {
-    background: rgba(243, 156, 18, 0.3);
-  }
-
-  /* Section divider with center dot */
-  .section-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--terra);
-  }
-
-  .section-divider::before,
-  .section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(243, 156, 18, 0.25);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
   }
 }
 
@@ -301,43 +319,27 @@ body {
     text-transform: uppercase;
     border-radius: 999px;
     border: 1.5px solid transparent;
+    /* slow-out : les couleurs se posent en 180 ms */
     transition:
-      transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-      background-color 0.35s ease,
-      color 0.35s ease,
-      border-color 0.35s ease;
+      transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 0.18s ease,
+      color 0.18s ease,
+      border-color 0.18s ease;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     isolation: isolate;
   }
 
-  /* Subtle shine sweep — fires on hover */
-  .btn::before,
-  .btn-primary::before,
-  .btn-navy::before,
+  /* Les boutons pleins ne portent aucun reflet : l'état au survol passe par la
+     couleur. Seuls les contours se remplissent depuis la gauche. */
   .btn-outline::before,
-  .btn-outline-light::before,
-  .btn-amber::before {
+  .btn-outline-light::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: linear-gradient(120deg,
-        transparent 30%,
-        rgba(255, 255, 255, 0.22) 50%,
-        transparent 70%);
-    transform: translateX(-120%);
-    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
-  }
-
-  .btn:hover::before,
-  .btn-primary:hover::before,
-  .btn-navy:hover::before,
-  .btn-amber:hover::before {
-    transform: translateX(120%);
   }
 
   /* Outline buttons get a fill-from-left effect instead of shine */
@@ -346,7 +348,7 @@ body {
     background: var(--navy);
     transform: scaleX(0);
     transform-origin: left center;
-    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
     border-radius: 999px;
   }
 
@@ -360,15 +362,14 @@ body {
   }
 
   /* ── Variants ─────────────────────────────────────────────────────── */
+  /* Texte marine sur ambre : 5:1. Le blanc ne faisait que 2,2:1. */
   .btn-primary {
-    background: var(--terra);
-    color: #FFFFFF;
+    background: var(--amber);
+    color: var(--navy);
   }
 
   .btn-primary:hover {
-    background: var(--terra-deep);
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.6);
+    background: #F7AC2B;
   }
 
   .btn-navy {
@@ -377,9 +378,7 @@ body {
   }
 
   .btn-navy:hover {
-    background: #001A38;
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(44, 62, 80, 0.5);
+    background: var(--navy-deep);
   }
 
   .btn-outline {
@@ -390,8 +389,6 @@ body {
 
   .btn-outline:hover {
     color: #FFFFFF;
-    transform: translateY(-2px);
-    box-shadow: 0 16px 30px -12px rgba(44, 62, 80, 0.35);
   }
 
   .btn-outline-light {
@@ -403,7 +400,6 @@ body {
   .btn-outline-light:hover {
     color: var(--navy);
     border-color: #FFFFFF;
-    transform: translateY(-2px);
   }
 
   .btn-amber {
@@ -412,9 +408,7 @@ body {
   }
 
   .btn-amber:hover {
-    background: #D68B0E;
-    transform: translateY(-3px);
-    box-shadow: 0 18px 36px -12px rgba(243, 156, 18, 0.5);
+    background: #F7AC2B;
   }
 
   /* Pressed: the button gives under the finger. After the :hover rules so it
@@ -439,15 +433,15 @@ body {
     letter-spacing: 0.18em;
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--terra);
+    color: var(--amber-ink);
     background: transparent;
-    border-bottom: 1.5px solid var(--terra);
+    border-bottom: 1.5px solid var(--amber-ink);
     transition: color 0.2s ease, border-color 0.2s ease;
   }
 
   .btn-ghost:hover {
-    color: var(--terra-deep);
-    border-color: var(--terra-deep);
+    color: var(--ink);
+    border-color: var(--ink);
   }
 
   /* Arrow icon inside any button slides on hover */
@@ -457,7 +451,8 @@ body {
   .btn-outline .icon-arrow,
   .btn-outline-light .icon-arrow,
   .btn-amber .icon-arrow {
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    /* secondary action : la flèche avance de 4 px, 180 ms */
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn:hover .icon-arrow,
@@ -466,7 +461,7 @@ body {
   .btn-outline:hover .icon-arrow,
   .btn-outline-light:hover .icon-arrow,
   .btn-amber:hover .icon-arrow {
-    transform: translateX(6px);
+    transform: translateX(4px);
   }
 }
 
@@ -478,10 +473,10 @@ body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.3rem 0.7rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 999px;
     border: 1px solid currentColor;
@@ -520,10 +515,10 @@ body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.3rem 0.7rem;
-    font-family: var(--font-mono), monospace;
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-montserrat), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 999px;
     border: 1px solid transparent;
@@ -636,7 +631,7 @@ body {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
 
   to {
@@ -646,33 +641,8 @@ body {
 }
 
 .page-transition {
-  animation: page-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes float-y {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-float {
-  animation: float-y 6s ease-in-out infinite;
-}
-
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 22s linear infinite;
+  /* slow-out : la page se pose en 240 ms */
+  animation: page-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
@@ -797,6 +767,15 @@ body {
   display: none !important;
 }
 
+/* Clerk fixe sa carte a 400 px : elle debordait de la notre. Elle prend la
+   largeur qu'on lui donne. */
+.cl-rootBox,
+.cl-cardBox,
+.cl-card {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 /* Le premier écran a déjà le titre de la page. Les suivants gardent celui de
    Clerk : c'est lui qui dit « lien envoyé » ou « code envoyé ». */
 .cl-signIn-start .cl-header,
@@ -806,6 +785,7 @@ body {
 
 /* Connexions sociales desactivees : email + mot de passe uniquement.
    (A desactiver aussi cote dashboard Clerk pour couper les endpoints OAuth.) */
+.cl-socialButtonsRoot,
 .cl-socialButtons,
 .cl-socialButtonsBlockButton,
 .cl-dividerRow {
@@ -818,7 +798,16 @@ body {
   text-transform: none !important;
   letter-spacing: normal !important;
   font-weight: 600 !important;
+  /* Ambre, donc texte marine : le blanc de Clerk ne faisait que 2,2:1. */
+  color: var(--navy) !important;
+  min-height: 2.75rem !important;
+  box-shadow: none !important;
 }
+
+.cl-formButtonPrimary:hover {
+  background: #F7AC2B !important;
+}
+
 
 
 /* Les rangees de champs Clerk ne s'etirent pas toujours a la largeur du
@@ -837,7 +826,10 @@ body {
    de titre, et les pastilles qui disent l'état d'une journée avant le clic.
    ───────────────────────────────────────────────────────────────────────────── */
 
-.lf-rdp {
+/* Deux classes : la feuille de `react-day-picker` arrive après la nôtre et
+   reposait ses propres valeurs sur `.rdp-root`. Avec une seule, l'accent et le
+   jour courant restaient bleus sur tous les calendriers. */
+.rdp-root.lf-rdp {
   --rdp-accent-color: var(--terra);
   --rdp-accent-background-color: rgba(243, 156, 18, 0.14);
   --rdp-today-color: var(--terra);
@@ -944,8 +936,27 @@ body {
   background: transparent;
 }
 
-/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par défaut. */
-.lf-rdp-week .rdp-chevron {
+/* Dans la colonne des filtres de `/menu` : sept jours tiennent dans 17 rem.
+   Deux classes, pour passer devant `.rdp-root` : la feuille de
+   `react-day-picker` arrive apres la notre et reposait ses 44 px. */
+.rdp-root.lf-rdp-compact {
+  --rdp-day-height: 2.25rem;
+  --rdp-day-width: 2.25rem;
+  --rdp-day_button-height: 2rem;
+  --rdp-day_button-width: 2rem;
+  --rdp-nav_button-height: 2rem;
+  --rdp-nav_button-width: 2rem;
+}
+
+/* Etroit, le titre centre passait sous les fleches : il se cale a gauche. */
+.lf-rdp-compact .rdp-month_caption {
+  justify-content: flex-start;
+  padding-left: 0.375rem;
+}
+
+/* Les flèches de mois prennent la couleur de leur bouton, pas le bleu par
+   défaut — sur tous les calendriers, pas seulement celui de `/menu`. */
+.lf-rdp .rdp-chevron {
   fill: currentColor;
 }
 
@@ -1014,4 +1025,300 @@ body {
 
 .lf-rdp-wide {
   --rdp-day-height: 3rem;
+}
+
+/* ─── Règles transverses UI/UX (voir docs/ui-ux-guidelines.md) ───────────── */
+
+/* Titres : coupe équilibrée, plus de ligne orpheline. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* Fitts : la zone cliquable atteint 40 px sans grossir le dessin. Pour une
+   cible déjà plus grande, le décalage vaut 0. */
+.hit {
+  position: relative;
+}
+
+.hit::after {
+  content: '';
+  position: absolute;
+  inset: min(0px, calc((100% - 40px) / 2));
+}
+
+/* Texte ambre lisible sur fond clair (le `.text-amber` reste pour le marine). */
+.text-amber-ink {
+  color: var(--amber-ink);
+}
+
+/* Mouvement réduit : plus aucune animation ni transition longue. Framer Motion
+   est couvert à part par `MotionConfig reducedMotion="user"`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ─── Espaces connectés ───────────────────────────────────────────────────────
+   Le site public vend : pilules, capitales, grandes marges. Les deux espaces
+   servent un geste quotidien : ils ont leur propre échelle, plus dense et plus
+   calme, sur les mêmes couleurs.
+
+   Tout se déclenche par `.app-shell`, posé par les deux layouts.
+   `body:has(.app-shell)` atteint aussi les dialogues et tiroirs, rendus hors de
+   l'arbre par un portail. `:where()` garde la spécificité d'une seule classe :
+   une utilitaire Tailwind (`text-xs`, `w-full`, `px-3`) posée sur le bouton
+   continue de l'emporter, comme avant.
+   ───────────────────────────────────────────────────────────────────────────── */
+@layer components {
+
+  /* ── Boutons : 40 px, coins de contrôle, casse normale ──────────────────────
+     La pilule en capitales masquait son libellé dès que la colonne se serrait
+     (`nowrap` + `overflow: hidden`). Ici le libellé passe à la ligne. */
+  :where(body:has(.app-shell)) .btn,
+  :where(body:has(.app-shell)) .btn-primary,
+  :where(body:has(.app-shell)) .btn-navy,
+  :where(body:has(.app-shell)) .btn-outline,
+  :where(body:has(.app-shell)) .btn-outline-light,
+  :where(body:has(.app-shell)) .btn-amber {
+    min-height: 2.5rem;
+    padding: 0.5rem 1rem;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-transform: none;
+    text-align: center;
+    white-space: normal;
+    overflow: visible;
+    border-width: 1px;
+    border-radius: var(--r-control);
+  }
+
+  /* Pas de remplissage qui balaie : dans un outil, le survol est un état. */
+  :where(body:has(.app-shell)) .btn-outline::before,
+  :where(body:has(.app-shell)) .btn-outline-light::before {
+    display: none;
+  }
+
+  :where(body:has(.app-shell)) .btn-outline {
+    background: var(--paper);
+    border-color: var(--line-strong);
+    color: var(--navy);
+  }
+
+  :where(body:has(.app-shell)) .btn-outline:hover {
+    background: var(--cream-soft);
+    border-color: rgba(31, 42, 55, 0.3);
+    color: var(--navy);
+  }
+
+  :where(body:has(.app-shell)) .btn-outline-light {
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+
+  :where(body:has(.app-shell)) .btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+  }
+
+  :where(body:has(.app-shell)) :is(.btn, .btn-primary, .btn-navy, .btn-outline, .btn-amber):disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  :where(body:has(.app-shell)) .btn-ghost {
+    padding: 0.25rem 0;
+    font-size: 0.8125rem;
+    letter-spacing: 0;
+    text-transform: none;
+    border-bottom-width: 1px;
+  }
+
+  /* ── Champs : même hauteur que les boutons, filet d'un pixel ─────────────── */
+  :where(body:has(.app-shell)) .input-base {
+    padding: 0.625rem 0.875rem;
+    border-width: 1px;
+    border-color: var(--line-strong);
+    border-radius: var(--r-control);
+  }
+
+  :where(body:has(.app-shell)) .input-base:hover:not(:disabled):not(:focus) {
+    border-color: rgba(31, 42, 55, 0.3);
+  }
+
+  :where(body:has(.app-shell)) .input-base:focus {
+    border-color: var(--amber-deep);
+    box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.18);
+  }
+
+  :where(body:has(.app-shell)) select.input-base {
+    padding-right: 2.5rem;
+    background-position: right 0.875rem center;
+  }
+
+  /* ── Étiquettes d'état : la casse normale se lit mieux à 12 px ───────────── */
+  :where(body:has(.app-shell)) :is(.chip, .badge-terra, .badge-navy, .badge-amber, .badge-mint, .badge-cream, .badge-gold) {
+    padding: 0.2rem 0.6rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* ── Un panneau : la surface de base d'un écran ──────────────────────────── */
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  @media (min-width: 1024px) {
+    .panel-head {
+      padding: 1.5rem 1.5rem 0;
+    }
+  }
+
+  .panel-title {
+    font-family: var(--font-fraunces), serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--navy);
+  }
+
+  /* Le lien discret d'un en-tête de panneau : « Tout voir ». */
+  .panel-link {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--amber-ink);
+    text-underline-offset: 4px;
+  }
+
+  .panel-link:hover {
+    text-decoration: underline;
+  }
+
+  /* ── Une ligne cliquable dans une liste ──────────────────────────────────── */
+  .row-link {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1.25rem;
+    /* slow-out : le fond se pose en 120 ms */
+    transition: background-color 0.12s ease-out;
+  }
+
+  @media (min-width: 1024px) {
+    .row-link {
+      padding: 0.75rem 1.5rem;
+    }
+  }
+
+  .row-link:hover {
+    background: var(--cream-soft);
+  }
+
+  /* ── Étiquette d'état ────────────────────────────────────────────────────── */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: nowrap;
+    background: var(--cream-soft);
+    color: var(--ink-mid);
+  }
+
+  .status::before {
+    content: '';
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .status-ok {
+    background: var(--ok-soft);
+    color: var(--ok-ink);
+  }
+
+  .status-warn {
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+  }
+
+  .status-bad {
+    background: var(--bad-soft);
+    color: var(--bad-ink);
+  }
+
+  .status-info {
+    background: rgba(44, 62, 80, 0.08);
+    color: var(--navy);
+  }
+
+  /* Sur marine : même forme, encre claire. */
+  .status-on-dark {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  /* ── Une ligne du menu du compte ─────────────────────────────────────────── */
+  .account-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.5rem;
+    padding: 0 0.75rem;
+    border-radius: 0.625rem;
+    font-size: 0.875rem;
+    color: var(--navy);
+    text-align: left;
+    transition: background-color 0.12s ease-out;
+  }
+
+  .account-item:hover {
+    background: var(--cream-soft);
+  }
+
+  /* La navigation défile sans bande claire sur le marine. */
+  .espace-scroll {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .espace-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .espace-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    background-clip: padding-box;
+  }
+}
+
+/* « samedi 21 novembre » → « Samedi 21 novembre ». `capitalize` mettait une
+   capitale à chaque mot, ce que le français n'écrit pas. Vaut sur un bloc :
+   `::first-letter` n'existe pas sur un élément en ligne. */
+.cap-first::first-letter {
+  text-transform: uppercase;
 }

@@ -16,6 +16,7 @@ import {
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import { useToast } from '@/components/shared/Toaster'
+import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
 import { apiMessage } from '@/lib/api/messages'
 import { MICRO_ALERT_RATIO, MICRO_CEILING_EUR } from '@/lib/chef/states'
 import { useChefBookings } from '@/lib/api/bookings'
@@ -97,9 +98,13 @@ export default function ChefEarningsPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card>
             <p className="eyebrow mb-2">Net encaissé en {ANNEE}</p>
-            <p className="font-display text-4xl font-bold text-navy">
-              {bookings.isPending ? '…' : (moneyCents(netAnnee) ?? '0 €')}
-            </p>
+            {bookings.isPending ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <p className="tabular-nums font-display text-4xl font-bold text-navy">
+                {moneyCents(netAnnee) ?? '0 €'}
+              </p>
+            )}
             <p className="mt-1 text-xs text-ink-soft">
               Sur {reglees.length} prestation{reglees.length > 1 ? 's' : ''} réglée
               {reglees.length > 1 ? 's' : ''}
@@ -107,24 +112,28 @@ export default function ChefEarningsPage() {
           </Card>
 
           <Card>
-            <TrendingUp className="mb-2 h-4 w-4 text-terra" aria-hidden />
-            <p className="font-display text-2xl font-bold text-navy">
-              {bookings.isPending ? '…' : (moneyCents(netMois) ?? '0 €')}
-            </p>
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-soft">
+            <TrendingUp className="mb-2 h-4 w-4 text-amber-ink" aria-hidden />
+            {bookings.isPending ? (
+              <Skeleton className="h-8 w-28" />
+            ) : (
+              <p className="tabular-nums font-display text-2xl font-bold text-navy">
+                {moneyCents(netMois) ?? '0 €'}
+              </p>
+            )}
+            <p className="mt-1 text-xs uppercase tracking-wide text-ink-soft">
               Net ce mois-ci
             </p>
-            <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+            <p className="tabular-nums mt-2 text-xs leading-relaxed text-ink-soft">
               Commission retenue cette année : {moneyCents(commissionAnnee) ?? '0 €'}
             </p>
           </Card>
 
           <Card>
-            <Wallet className="mb-2 h-4 w-4 text-terra" aria-hidden />
+            <Wallet className="mb-2 h-4 w-4 text-amber-ink" aria-hidden />
             <p className="font-display text-2xl font-bold text-navy">
               {Math.round(ratio * 100)} %
             </p>
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-soft">
+            <p className="mt-1 text-xs uppercase tracking-wide text-ink-soft">
               du plafond micro-entreprise
             </p>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-cream-deep">
@@ -133,7 +142,7 @@ export default function ChefEarningsPage() {
                 style={{ width: `${Math.min(100, ratio * 100)}%` }}
               />
             </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-ink-soft">
+            <p className="tabular-nums mt-1 text-xs leading-relaxed text-ink-soft">
               {MICRO_CEILING_EUR.toLocaleString('fr-FR')} € — d’après vos seules
               prestations Lab’s Food.
             </p>
@@ -142,7 +151,7 @@ export default function ChefEarningsPage() {
 
         {alerte && (
           <p className="flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-navy">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
             Vous approchez du plafond de la micro-entreprise. Au-delà, le régime
             change : parlez-en à votre comptable avant d’accepter de nouvelles
             prestations.
@@ -158,7 +167,7 @@ export default function ChefEarningsPage() {
           </p>
 
           {cesu.isPending ? (
-            <div className="mt-3 h-20 animate-pulse rounded-2xl bg-cream-soft" />
+            <LignesSkeleton />
           ) : cesu.isError ? (
             <p className="mt-3 text-[13px] text-ink-soft">{apiMessage(cesu.error)}</p>
           ) : aTraiter.length === 0 ? (
@@ -173,7 +182,7 @@ export default function ChefEarningsPage() {
 
           {traites.length > 0 && (
             <div className="mt-4 border-t border-[rgba(31,42,55,0.07)] pt-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
                 Déjà traités
               </p>
               <ul className="space-y-1.5">
@@ -186,7 +195,7 @@ export default function ChefEarningsPage() {
                       {moneyCents(p.amountTtc)}
                     </span>
                     <span className="text-ink-mid">{p.clientName ?? 'Client'}</span>
-                    <span className="font-mono text-[11px] text-ink-soft">
+                    <span className="font-mono text-xs text-ink-soft">
                       {p.bookingReference ?? ''}
                     </span>
                     <span className="ml-auto text-ink-soft">
@@ -208,7 +217,7 @@ export default function ChefEarningsPage() {
           </p>
 
           {factures.isPending ? (
-            <div className="mt-3 h-20 animate-pulse rounded-2xl bg-cream-soft" />
+            <LignesSkeleton />
           ) : factures.isError ? (
             <p className="mt-3 text-[13px] text-ink-soft">{apiMessage(factures.error)}</p>
           ) : (factures.data ?? []).length === 0 ? (
@@ -228,7 +237,7 @@ export default function ChefEarningsPage() {
           de prélèvement — se règle dans{' '}
           <Link
             href="/espace-chef/remuneration"
-            className="font-semibold text-terra hover:underline"
+            className="font-semibold text-amber-ink hover:underline"
           >
             Mode de rémunération
           </Link>
@@ -240,6 +249,23 @@ export default function ChefEarningsPage() {
 }
 
 /* ── Un paiement CESU en attente ───────────────────────────────────────────── */
+
+/** Deux rangées de liste (montant + détail, p-3.5) : la hauteur de `CesuRow` et `FactureRow`. */
+function LignesSkeleton() {
+  return (
+    <SkeletonGroup className="mt-3 space-y-2">
+      {[0, 1].map((i) => (
+        <div key={i} className="flex items-start justify-between gap-3 rounded-2xl border border-transparent p-3.5">
+          <div className="space-y-1">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+          </div>
+          <Skeleton className="h-7 w-20" />
+        </div>
+      ))}
+    </SkeletonGroup>
+  )
+}
 
 function CesuRow({ paiement: p }: { paiement: CesuPayment }) {
   const toast = useToast()
@@ -259,7 +285,7 @@ function CesuRow({ paiement: p }: { paiement: CesuPayment }) {
               {p.clientName ?? 'Client'}
             </span>
           </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-ink-soft">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-ink-soft">
             <span className="font-mono">{p.bookingReference ?? ''}</span>
             <span>{p.issuer}</span>
             <span>{p.medium === 'paper' ? 'Titres papier' : 'Dématérialisé'}</span>
@@ -272,7 +298,7 @@ function CesuRow({ paiement: p }: { paiement: CesuPayment }) {
             </span>
           </p>
           {p.clientProofRef && (
-            <p className="mt-1 text-[11px] text-ink-soft">
+            <p className="mt-1 text-xs text-ink-soft">
               Référence donnée par le client : {p.clientProofRef}
             </p>
           )}
@@ -315,7 +341,7 @@ function CesuRow({ paiement: p }: { paiement: CesuPayment }) {
       {motif !== null && (
         <div className="mt-3 border-t border-[rgba(31,42,55,0.07)] pt-3">
           <label className="block">
-            <span className="mb-1 block text-[11px] text-ink-soft">
+            <span className="mb-1 block text-xs text-ink-soft">
               Ce que le client lira — dites ce qui manque, pas « non »
             </span>
             <input
@@ -376,10 +402,10 @@ function FactureRow({ facture: f }: { facture: CommissionInvoice }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-            <FileText className="h-3.5 w-3.5 text-amber-deep" aria-hidden />
+            <FileText className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
             {f.invoiceNumber}
           </p>
-          <p className="mt-0.5 text-[11px] text-ink-soft">
+          <p className="mt-0.5 text-xs text-ink-soft">
             {periode} · {f.commissionsCount} prestation
             {f.commissionsCount > 1 ? 's' : ''} · taux{' '}
             {(f.rateBps / 100).toLocaleString('fr-FR')} %
@@ -389,13 +415,13 @@ function FactureRow({ facture: f }: { facture: CommissionInvoice }) {
           <p className="font-display text-lg font-bold text-navy">
             {moneyCents(f.amountTtcCents)}
           </p>
-          <p className="text-[11px] text-ink-soft">
+          <p className="text-xs text-ink-soft">
             dont {moneyCents(f.amountVatCents)} de TVA
           </p>
         </div>
       </div>
 
-      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[rgba(31,42,55,0.07)] pt-2 text-[11px]">
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[rgba(31,42,55,0.07)] pt-2 text-xs">
         <span className={echoue ? 'font-semibold text-red-700' : 'text-ink-mid'}>
           <Receipt className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden />
           {statutLabel(f.status)}

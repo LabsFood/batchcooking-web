@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/api/me'
 import { ApiError } from '@/lib/api/client'
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar'
+import { EspaceMain } from '@/components/espace/EspaceShell'
 import DashboardTopbar from '@/components/dashboard/DashboardTopbar'
 import ClientSignals from '@/components/dashboard/ClientSignals'
 import DashboardMobileNav from '@/components/dashboard/DashboardMobileNav'
@@ -115,13 +116,12 @@ export default function EspaceClientLayout({ children }: { children: ReactNode }
   // role === 'client' (ou tout autre rôle applicatif client) → dashboard.
   return (
     <ClientSignals>
-      <div className="min-h-[calc(100vh-var(--lf-dev-banner))] bg-shell flex">
+      {/* `app-shell` : l'échelle des espaces connectés (voir globals.css). */}
+      <div className="app-shell flex min-h-[calc(100vh-var(--lf-dev-banner))] bg-shell">
         <DashboardSidebar />
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <DashboardTopbar />
-          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-12">
-            {children}
-          </main>
+          <EspaceMain>{children}</EspaceMain>
         </div>
         <DashboardMobileNav />
       </div>
@@ -141,7 +141,7 @@ function GateScreen({
   primary: { label: string; onClick: () => void }
 }) {
   return (
-    <div className="min-h-[calc(100vh-var(--lf-dev-banner))] bg-shell flex items-center justify-center px-6">
+    <div className="app-shell min-h-[calc(100vh-var(--lf-dev-banner))] bg-shell flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
         <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-navy text-amber">
           <Icon className="h-7 w-7" />

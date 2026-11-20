@@ -24,7 +24,7 @@ export function AllergyBadge({
   if (!check) return null
   if (check === 'verified') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-mint px-2 py-0.5 text-[11px] font-semibold text-mint-ink">
+      <span className="inline-flex items-center gap-1 rounded-full bg-mint px-2 py-0.5 text-xs font-semibold text-mint-ink">
         <ShieldCheck className="h-3 w-3" aria-hidden /> Allergies vérifiées
       </span>
     )
@@ -33,7 +33,7 @@ export function AllergyBadge({
   return (
     <span className="inline-flex items-center gap-1">
       <span
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
           conflict ? 'bg-red-100 text-red-800' : 'bg-amber/20 text-navy'
         }`}
       >
