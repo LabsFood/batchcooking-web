@@ -6,8 +6,10 @@ import * as Dialog from '@radix-ui/react-dialog'
 import {
   ArrowRight,
   CalendarCheck,
+  CalendarDays,
   Check,
   ChefHat,
+  ChevronDown,
   Languages,
   MapPin,
   Plus,
@@ -344,7 +346,7 @@ function SemainePicker({ filters }: { filters: MenuFilters }) {
   )
 }
 
-/* ── Filtres en colonne ────────────────────────────────────────────────────── */
+/* ── Panneau de filtres (tiroir mobile) ────────────────────────────────────────────────────── */
 
 /** Combien de filtres sont posés — la semaine n'y compte pas, comme dans `active`. */
 function nbFiltres(f: MenuFilters): number {
@@ -620,32 +622,254 @@ function FilterPanel({ filters }: { filters: MenuFilters }) {
   )
 }
 
-/** Les filtres en colonne, à gauche des cartes, à partir de `lg`. Dessous : le tiroir. */
-export function MenuFilterSidebar({
+/* ── Filtres en barre, au-dessus des cartes ────────────────────────────────── */
+
+const OUTIL =
+  'inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber'
+const OUTIL_REPOS = 'border-[var(--line)] bg-paper text-navy hover:border-[var(--line-strong)]'
+const OUTIL_ACTIF = 'border-amber bg-amber-soft/60 text-navy'
+
+/**
+ * Un bouton de la barre qui déplie un panneau dessous : le calendrier, les
+ * régimes. Il se referme au clic dehors et à Échap, et rend alors le focus au
+ * bouton. Pas une liste de menu : le panneau contient des contrôles (un
+ * calendrier, des cases), on y navigue à la tabulation.
+ */
+function Deroulant({
+  label,
+  icon,
+  actif,
+  compte,
+  titre,
+  children,
+}: {
+  label: ReactNode
+  icon: ReactNode
+  actif?: boolean
+  compte?: number
+  /** Ce que contient le panneau, pour un lecteur d'écran. */
+  titre: string
+  children: (fermer: () => void) => ReactNode
+}) {
+  const [ouvert, setOuvert] = useState(false)
+  const racine = useRef<HTMLDivElement>(null)
+  const id = useId()
+  const boutonId = `${id}-bouton`
+  // Le focus revient au bouton par son id : la fonction passe au panneau
+  // pendant le rendu, elle ne doit pas lire de ref.
+  const rendreFocus = () => document.getElementById(boutonId)?.focus()
+
+  useEffect(() => {
+    if (!ouvert) return
+    const dehors = (e: PointerEvent) => {
+      if (!racine.current?.contains(e.target as Node)) setOuvert(false)
+    }
+    const echap = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOuvert(false)
+      document.getElementById(boutonId)?.focus()
+    }
+    document.addEventListener('pointerdown', dehors)
+    document.addEventListener('keydown', echap)
+    return () => {
+      document.removeEventListener('pointerdown', dehors)
+      document.removeEventListener('keydown', echap)
+    }
+  }, [ouvert, boutonId])
+
+  const fermer = () => {
+    setOuvert(false)
+    rendreFocus()
+  }
+
+  return (
+    <div ref={racine} className="relative">
+      <button
+        id={boutonId}
+        type="button"
+        aria-expanded={ouvert}
+        aria-controls={id}
+        onClick={() => setOuvert((o) => !o)}
+        className={cn(OUTIL, actif || ouvert ? OUTIL_ACTIF : OUTIL_REPOS)}
+      >
+        {icon}
+        {label}
+        {!!compte && (
+          <span className="rounded-full bg-amber px-1.5 text-xs font-bold tabular-nums text-navy">
+            {compte}
+          </span>
+        )}
+        <ChevronDown
+          className={cn('h-4 w-4 text-ink-soft transition-transform duration-150', ouvert && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {ouvert && (
+        <div
+          id={id}
+          role="dialog"
+          aria-label={titre}
+          className="absolute left-0 top-full z-30 mt-2 rounded-2xl border border-[var(--line)] bg-paper p-5 shadow-[var(--shadow-pop)]"
+        >
+          {children(fermer)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Les filtres en une barre, au-dessus des cartes, à partir de `lg`.
+ *
+ * En colonne, ils prenaient un tiers de la largeur pour un calendrier qu'on
+ * touche une fois : les cartes, elles, se serraient à deux. En barre, la
+ * période et les régimes se déplient à la demande, la recherche et la région
+ * restent sous la main, et les cartes reprennent toute la largeur.
+ * Sous `lg`, le tiroir reste : une barre de six contrôles ne tient pas.
+ */
+export function MenuFilterToolbar({
   filters,
   className,
 }: {
   filters: MenuFilters
   className?: string
 }) {
+  const { query, setQuery, region, setRegion, diets, toggleDiet, shoppingOnly, setShoppingOnly } =
+    filters
+  const { regions } = useRegions([])
+  const dietOptions = useDiets([])
+
+  const { from, to } = bornes(filters.semaine)
+  const periode =
+    filters.mode === 'mois'
+      ? `Tout ${moisLabel(filters.mois)}`
+      : // « Du 23 au 29 novembre » : le titre des résultats dit déjà « Semaine ».
+        weekLabel({ start: from.toISOString(), end: to.toISOString() })
+
   return (
-    <aside aria-label="Filtres" className={cn('hidden lg:block', className)}>
-      <div className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-bold text-navy">Filtrer les cartes</h2>
-          {filters.active && (
-            <button
-              type="button"
-              onClick={filters.reset}
-              className="text-xs font-semibold text-amber-ink underline underline-offset-4"
-            >
-              Tout effacer
-            </button>
-          )}
-        </div>
-        <FilterPanel filters={filters} />
+    <div
+      role="search"
+      aria-label="Filtrer les cartes"
+      className={cn(
+        'flex-wrap items-center gap-2 rounded-2xl border border-[var(--line)] bg-paper p-2.5 shadow-[var(--shadow-card)]',
+        className,
+      )}
+    >
+      <Deroulant
+        titre="Choisir la période"
+        icon={<CalendarDays className="h-4 w-4 text-amber-ink" aria-hidden />}
+        label={<span className="cap-first">{periode}</span>}
+      >
+        {(fermer) => (
+          <div className="w-[19rem]">
+            {/* Choisir une semaine ou un mois referme le panneau : c'est fait. */}
+            <PeriodeCalendrier
+              filters={{
+                ...filters,
+                setSemaine: (v) => {
+                  filters.setSemaine(v)
+                  fermer()
+                },
+                setMois: (v) => {
+                  filters.setMois(v)
+                  fermer()
+                },
+              }}
+            />
+          </div>
+        )}
+      </Deroulant>
+
+      {/* Sous 1400 px, la barre ne tient pas sur une ligne : la recherche passe
+          dessous, sur toute la largeur, plutôt qu'un bouton orphelin. */}
+      <div className="relative order-last min-w-[11rem] flex-1 basis-full min-[1400px]:order-none min-[1400px]:basis-0">
+        <Search
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Un chef, une ville, un plat…"
+          aria-label="Rechercher un chef, une ville ou un plat"
+          className="h-11 w-full rounded-xl border border-[var(--line)] bg-cream-soft/50 pl-10 pr-3 text-sm text-navy placeholder:text-ink-soft focus:border-amber focus:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
+        />
       </div>
-    </aside>
+
+      <div className="relative">
+        <MapPin
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-ink"
+          aria-hidden
+        />
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          aria-label="Filtrer par région"
+          className={cn(OUTIL, 'max-w-[13rem] appearance-none truncate pl-10 pr-9', region !== 'all' ? OUTIL_ACTIF : OUTIL_REPOS)}
+        >
+          <option value="all">Toutes les régions</option>
+          {regions.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+          aria-hidden
+        />
+      </div>
+
+      {dietOptions.length > 0 && (
+        <Deroulant
+          titre="Régime alimentaire"
+          icon={<SlidersHorizontal className="h-4 w-4 text-amber-ink" aria-hidden />}
+          label="Régimes"
+          actif={diets.length > 0}
+          compte={diets.length}
+        >
+          {() => (
+            <ul className="w-56 space-y-1">
+              {dietOptions.map((d) => (
+                <li key={d.code}>
+                  <label className={LIGNE_CASE}>
+                    <input
+                      type="checkbox"
+                      checked={diets.includes(d.code)}
+                      onChange={() => toggleDiet(d.code)}
+                      className={CASE}
+                    />
+                    {d.label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Deroulant>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShoppingOnly(!shoppingOnly)}
+        aria-pressed={shoppingOnly}
+        className={cn(OUTIL, shoppingOnly ? OUTIL_ACTIF : OUTIL_REPOS)}
+      >
+        <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
+        Courses incluses
+        {shoppingOnly && <Check className="h-4 w-4" aria-hidden />}
+      </button>
+
+      {filters.active && (
+        <button
+          type="button"
+          onClick={filters.reset}
+          className="hit ml-1 shrink-0 px-2 text-sm font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+        >
+          Tout effacer
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -731,9 +955,9 @@ export function MenuFilterDrawer({
 /** Le squelette d'attente : trois cartes, à la place qu'elles occuperont. */
 export function MenusLoading() {
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-[26rem] animate-pulse rounded-2xl bg-paper" />
+        <div key={i} className="h-[30rem] animate-pulse rounded-2xl bg-paper" />
       ))}
     </div>
   )
@@ -894,49 +1118,44 @@ function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
   if (fiche.isError || (fiche.isSuccess && offres.length === 0)) return null
 
   return (
-    <div className="mt-5 px-5">
-      <h3 className="text-sm font-semibold text-navy">Ses formules</h3>
+    <div className="mt-4 px-5">
+      <h3 className="text-xs font-semibold text-ink-mid">Ses formules</h3>
       {fiche.isPending ? (
         // Deux lignes à la hauteur des formules : la carte ne saute pas à l'arrivée.
-        <div role="status" aria-busy="true" className="mt-2 space-y-2">
+        <div role="status" aria-busy="true" className="mt-2 space-y-1.5">
           <span className="sr-only">Chargement des formules</span>
           {[0, 1].map((i) => (
             <div
               key={i}
               aria-hidden
-              className="h-[3.75rem] animate-pulse rounded-xl bg-cream-deep motion-reduce:animate-none"
+              className="h-10 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
             />
           ))}
         </div>
       ) : (
         <>
+          {/* Une ligne par formule : son nom, et ce qu'elle coûte vraiment. Le
+              détail (plats, durée, total avant crédit) est dans sa carte. */}
           <ul className="mt-2 divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
-            {offres.slice(0, 3).map((o) => (
-              /*
-                Le prix sous le nom, toujours : deux cartes par ligne laissent à
-                peine 20 rem, et côte à côte le prix écrasait le nom jusqu'à un
-                mot par ligne (« Sesh / bro »).
-              */
-              <li key={o.id} className="px-3.5 py-3">
-                <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                  {offerSummary(o)}
-                </span>
-                <Prix
-                  apresCredit={
-                    regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
-                  }
-                  total={offerEuros(o.priceCents)}
-                  taille="sm"
-                  className="mt-2"
-                />
-              </li>
-            ))}
+            {offres.slice(0, 2).map((o) => {
+              const apres = regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+              return (
+                <li key={o.id} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                  <span className="min-w-0 truncate text-sm font-semibold text-navy" title={o.name}>
+                    {o.name}
+                  </span>
+                  <span className="shrink-0 text-sm font-bold tabular-nums text-navy">
+                    {apres ?? offerEuros(o.priceCents)}
+                    {apres && <span className="ml-1 text-xs font-normal text-ink-soft">après crédit</span>}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
-          {offres.length > 3 && (
-            <p className="mt-2 text-xs text-ink-soft">
-              + {offres.length - 3} autre{offres.length - 3 > 1 ? 's' : ''} formule
-              {offres.length - 3 > 1 ? 's' : ''} dans sa carte
+          {offres.length > 2 && (
+            <p className="mt-1.5 text-xs text-ink-soft">
+              + {offres.length - 2} autre{offres.length - 2 > 1 ? 's' : ''} formule
+              {offres.length - 2 > 1 ? 's' : ''} dans sa carte
             </p>
           )}
         </>
@@ -994,8 +1213,13 @@ function JoursLibres({ chefId, semaine, vu }: { chefId: string; semaine: string;
   const libres = new Set((dispos.data?.slots ?? []).map((iso) => cleJour(new Date(iso))))
 
   return (
-    <div className="mt-5 px-5">
-      <h3 className="text-sm font-semibold text-navy">Ses jours libres cette semaine-là</h3>
+    <div className="mt-4 px-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-semibold text-ink-mid">Ses jours libres</h3>
+        {dispos.isSuccess && libres.size === 0 && (
+          <p className="text-xs text-amber-ink">Complet : essayez la semaine suivante</p>
+        )}
+      </div>
       {dispos.isPending ? (
         <div role="status" aria-busy="true" className="mt-2 grid grid-cols-7 gap-1">
           <span className="sr-only">Chargement des disponibilités</span>
@@ -1003,49 +1227,40 @@ function JoursLibres({ chefId, semaine, vu }: { chefId: string; semaine: string;
             <div
               key={d.getTime()}
               aria-hidden
-              className="h-12 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
+              className="h-10 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
             />
           ))}
         </div>
       ) : (
-        <>
-          <ol className="mt-2 grid grid-cols-7 gap-1">
-            {jours.map((d) => {
-              const passe = d < aujourdhui
-              const libre = !passe && libres.has(cleJour(d))
-              return (
-                <li
-                  key={d.getTime()}
-                  className={`flex h-12 flex-col items-center justify-center rounded-lg text-xs leading-none ${
-                    libre
-                      ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]'
-                      : 'bg-cream-soft text-ink-soft'
-                  }`}
+        <ol className="mt-2 grid grid-cols-7 gap-1">
+          {jours.map((d) => {
+            const passe = d < aujourdhui
+            const libre = !passe && libres.has(cleJour(d))
+            return (
+              <li
+                key={d.getTime()}
+                className={`flex h-10 flex-col items-center justify-center rounded-lg text-[11px] leading-none ${
+                  libre ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : 'bg-cream-soft text-ink-soft'
+                }`}
+              >
+                <span aria-hidden>
+                  {d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
+                </span>
+                {/* Barré : l'absence de couleur seule ne dit pas « pas possible ». */}
+                <span
+                  aria-hidden
+                  className={`mt-0.5 text-[13px] font-semibold tabular-nums ${libre ? '' : 'line-through'}`}
                 >
-                  <span aria-hidden>
-                    {d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
-                  </span>
-                  {/* Barré : l'absence de couleur seule ne dit pas « pas possible ». */}
-                  <span
-                    aria-hidden
-                    className={`mt-1 text-sm font-semibold tabular-nums ${libre ? '' : 'line-through'}`}
-                  >
-                    {d.getDate()}
-                  </span>
-                  <span className="sr-only">
-                    {d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} :{' '}
-                    {libre ? 'un créneau reste libre' : passe ? 'jour passé' : 'indisponible'}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-            {libres.size === 0
-              ? 'Plus de créneau cette semaine-là : essayez la suivante, ou écrivez-lui.'
-              : 'En vert, les jours où il reste un créneau. Barrés, ceux où il ne peut pas venir.'}
-          </p>
-        </>
+                  {d.getDate()}
+                </span>
+                <span className="sr-only">
+                  {d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} :{' '}
+                  {libre ? 'un créneau reste libre' : passe ? 'jour passé' : 'indisponible'}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
       )}
     </div>
   )
@@ -1109,7 +1324,8 @@ export function MenuCard({
   /** Traduit un code de régime en libellé lisible. */
   dietLabel: (code: string) => string
 }) {
-  const preview = menu.dishes.slice(0, 3)
+  // Quatre cases : quatre plats, ou trois et « +N » pour les autres.
+  const preview = menu.dishes.length > 4 ? menu.dishes.slice(0, 3) : menu.dishes
   const reste = menu.dishes.length - preview.length
   const prix = euros(menu.sessionFromCents)
   const apresCredit = euros(menu.afterTaxCreditCents)
@@ -1132,15 +1348,15 @@ export function MenuCard({
         <img
           src={menu.imageUrl}
           alt=""
-          className="aspect-[21/9] w-full object-cover"
+          className="aspect-[3/1] w-full object-cover"
         />
       )}
 
       <span ref={sentinelle} aria-hidden />
 
       {/* Le chef d'abord : c'est lui qu'on choisit. */}
-      <header className="flex items-start gap-4 p-5 pb-4">
-        <Avatar card={menu} className="h-14 w-14 text-lg" />
+      <header className="flex items-start gap-3.5 p-5 pb-3">
+        <Avatar card={menu} className="h-12 w-12 text-base" />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -1184,65 +1400,63 @@ export function MenuCard({
       </header>
 
       <div className="px-5">
-        <h3 className="font-display text-xl font-bold leading-tight tracking-[-0.01em] text-navy">
+        <h3 className="font-display text-lg font-bold leading-tight tracking-[-0.01em] text-navy">
           {menu.hasMenu && menu.title ? menu.title : 'Ses plats de la semaine'}
         </h3>
-        {menu.pitch ? (
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-mid">{menu.pitch}</p>
-        ) : (
-          !menu.hasMenu && (
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-              Pas de carte composée cette semaine : choisissez parmi ses plats.
-            </p>
-          )
+        {menu.pitch && (
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-mid">{menu.pitch}</p>
         )}
       </div>
 
-      <ul className="mt-4 space-y-px px-5">
-        {preview.map((dish) => (
-          <li
-            key={dish.id}
-            className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-cream-soft"
-          >
-            <DishThumb dish={dish} className="h-12 w-12 shrink-0 rounded-lg" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-navy">{dish.name}</span>
-              <span className="block truncate text-xs text-ink-soft">
-                {[countryLabel(dish.country), `${dish.portions} portions`]
-                  .filter(Boolean)
-                  .join(' · ')}
+      {/* Les plats en vignettes : on voit la cuisine d'un coup d'œil, la liste
+          complète (pays, portions, allergènes) est dans sa carte. */}
+      {menu.dishes.length === 0 ? (
+        <p className="mt-3 px-5 text-sm text-ink-soft">Aucun plat publié pour l’instant.</p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-4 gap-2 px-5">
+          {preview.map((dish) => (
+            <li key={dish.id} className="min-w-0">
+              <DishThumb dish={dish} className="aspect-square w-full rounded-xl" />
+              <span className="mt-1.5 line-clamp-2 text-xs font-medium leading-snug text-navy" title={dish.name}>
+                {dish.name}
               </span>
-            </span>
-          </li>
-        ))}
-        {reste > 0 && (
-          <li className="px-2 pt-1 text-xs text-ink-soft">
-            + {reste} autre{reste > 1 ? 's' : ''} plat{reste > 1 ? 's' : ''} dans cette carte
-          </li>
-        )}
-        {menu.dishes.length === 0 && (
-          <li className="px-2 py-3 text-sm text-ink-soft">Aucun plat publié pour l’instant.</li>
-        )}
-      </ul>
+            </li>
+          ))}
+          {reste > 0 && (
+            <li className="min-w-0">
+              <button
+                type="button"
+                onClick={onOpen}
+                aria-label={`Voir les ${reste} autres plats`}
+                className="flex aspect-square w-full flex-col items-center justify-center rounded-xl bg-cream-soft text-navy transition-colors hover:bg-cream-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+              >
+                <span className="font-display text-lg font-bold tabular-nums">+{reste}</span>
+                <span className="text-[11px] text-ink-soft">plat{reste > 1 ? 's' : ''}</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-1.5 px-5">
-        {menu.coveredDiets.map((d) => (
-          <span
-            key={d}
-            className="rounded-full bg-mint/60 px-2.5 py-1 text-xs font-medium text-mint-ink"
-          >
-            Toute la carte {dietLabel(d).toLowerCase()}
-            {/* La promesse la plus forte de la page : la mention des traces la suit aussi. */}
-            {TRACES_DIETS.has(d) && `, ${TRACES_NOTE}`}
-          </span>
-        ))}
-        {menu.shoppingIncluded && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
-            <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
-          </span>
-        )}
-        {menu.chef.languages.length > 1 && <LanguesChip codes={menu.chef.languages} />}
-      </div>
+      {(menu.coveredDiets.length > 0 || menu.shoppingIncluded) && (
+        <div className="mt-3 flex flex-wrap gap-1.5 px-5">
+          {menu.coveredDiets.map((d) => (
+            <span
+              key={d}
+              className="rounded-full bg-mint/60 px-2.5 py-1 text-xs font-medium text-mint-ink"
+            >
+              Toute la carte {dietLabel(d).toLowerCase()}
+              {/* La promesse la plus forte de la page : la mention des traces la suit aussi. */}
+              {TRACES_DIETS.has(d) && `, ${TRACES_NOTE}`}
+            </span>
+          ))}
+          {menu.shoppingIncluded && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-cream-soft px-2.5 py-1 text-xs font-medium text-navy">
+              <ShoppingBasket className="h-3 w-3" aria-hidden /> Courses incluses
+            </span>
+          )}
+        </div>
+      )}
 
       {/*
         La liste de la semaine dit déjà si ces blocs auront quelque chose à
@@ -1259,8 +1473,8 @@ export function MenuCard({
       {customOrder ? (
         <>
           {/* Le pied se cale en bas : deux cartes côte à côte alignent leurs prix. */}
-          <div aria-hidden className="min-h-5 flex-1" />
-          <footer className="border-t border-[rgba(31,42,55,0.08)] px-5 pb-5 pt-5">
+          <div aria-hidden className="min-h-4 flex-1" />
+          <footer className="border-t border-[var(--line)] px-5 pb-4 pt-4">
             {/* Alignés en haut : « 3 créneaux libres » tombait sinon sur la
                 dernière ligne du prix et se lisait comme sa suite. */}
             <div className="flex items-start justify-between gap-4">
@@ -1272,14 +1486,14 @@ export function MenuCard({
             <button
               type="button"
               onClick={onOpen}
-              className="btn btn-primary mt-5 w-full justify-center"
+              className="btn btn-primary mt-4 w-full justify-center"
             >
               {openLabel}
             </button>
             <ReserveButton
               asChild
               href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
-              className="hit mx-auto mt-3 flex items-center gap-1.5 text-sm font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
+              className="hit mx-auto mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-ink-mid underline-offset-4 hover:text-navy hover:underline"
             >
               Lui adresser une demande sur-mesure
               <ArrowRight className="h-3.5 w-3.5" aria-hidden />

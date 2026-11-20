@@ -9,7 +9,7 @@ import {
   MenuDialog,
   MenuFilterButton,
   MenuFilterDrawer,
-  MenuFilterSidebar,
+  MenuFilterToolbar,
   MenusError,
   MenusLoading,
   NoMenus,
@@ -26,8 +26,8 @@ import { useDiets } from '@/lib/api/referentials'
    carte par chef, ses plats en aperçu — et la sélection des plats se fait à
    l'intérieur du menu retenu.
 
-   L'en-tête dit comment s'y prendre : les filtres sont dans la colonne de
-   gauche (dans un tiroir sur mobile), et la demande sur-mesure est à portée
+   L'en-tête dit comment s'y prendre : les filtres sont dans la barre
+   au-dessus des cartes (dans un tiroir sur mobile), et la demande sur-mesure est à portée
    pour celui qui cherche autre chose que ce qui est proposé.
 
    Le parcours de choix vit dans `components/menu/ChefMenuBrowser` : la
@@ -131,11 +131,11 @@ export default function MenuClient() {
       {/* ── Filtres + cartes ─────────────────────────────────────────────── */}
       <section className="py-12 lg:py-14">
         <div className="container-xl">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-12">
-            <MenuFilterSidebar filters={filters} className="lg:self-start" />
+          <MenuFilterToolbar filters={filters} className="mb-8 hidden lg:flex" />
 
+          <div>
             <div>
-              <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h2 className="font-display text-2xl font-bold leading-tight text-navy">
                     {periode}
@@ -162,7 +162,7 @@ export default function MenuClient() {
               ) : menus.length === 0 ? (
                 <NoMenus onReset={filters.reset} filtered={filters.active} filters={filters} />
               ) : (
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                   {menus.map((menu, i) => (
                     <MenuCard
                       key={menu.chef.id}

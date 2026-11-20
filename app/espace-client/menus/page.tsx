@@ -9,7 +9,7 @@ import {
   MenuDialog,
   MenuFilterButton,
   MenuFilterDrawer,
-  MenuFilterSidebar,
+  MenuFilterToolbar,
   MenusError,
   MenusLoading,
   NoMenus,
@@ -22,7 +22,11 @@ import { useDiets } from '@/lib/api/referentials'
    Menus et plats, côté client connecté.
 
    C'est la page `/menu` du site, à l'intérieur du tableau de bord : même
-   composant de parcours, même colonne de filtres, mêmes cartes. Elle en
+   composant de parcours, même barre de filtres, mêmes cartes.
+
+   Les filtres sont une barre au-dessus des résultats (un tiroir sous `lg`) :
+   en colonne, un calendrier qu'on touche une fois prenait un tiers de la
+   largeur et serrait les cartes à deux. Elle en
    différait par un bandeau et une barre de filtres horizontale — ce qui
    revenait à faire découvrir deux fois le même écran à la même personne,
    avant et après connexion.
@@ -66,11 +70,11 @@ function DashboardMenusInner() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10">
-        <MenuFilterSidebar filters={filters} className="lg:self-start" />
+      <MenuFilterToolbar filters={filters} className="hidden lg:flex" />
 
+      <div>
         <div>
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="font-display text-2xl font-bold leading-tight text-navy">
                 {periode}
@@ -102,7 +106,7 @@ function DashboardMenusInner() {
               </Link>
             </NoMenus>
           ) : (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
               {menus.map((menu, i) => (
                 <MenuCard
                   key={menu.chef.id}
