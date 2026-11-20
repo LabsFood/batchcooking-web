@@ -1,12 +1,14 @@
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 
 import LegalLayout from '@/components/shared/LegalLayout'
 import LegalPdfLink from '@/components/shared/LegalPdfLink'
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: 'Mentions légales',
-  description: "Mentions légales de la plateforme Lab's Food.",
-}
+  description: "Éditeur, hébergeur et contacts de la plateforme Lab's Food.",
+  path: '/mentions-legales',
+})
 
 /* Version 1.0, en vigueur au 21/11/2026 (Drive « 3. Mentions légales_V1_FINALE »). */
 export default function MentionsLegalesPage() {

@@ -1,16 +1,26 @@
+import { pageMetadata } from '@/lib/seo'
+import JsonLd from '@/components/seo/JsonLd'
+import { breadcrumb, faqGraph } from '@/lib/structured-data'
 import FAQ from '@/components/home/FAQ'
 import EquipmentSection from '@/components/shared/EquipmentSection'
-import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
-  title: 'FAQ — Questions fréquentes',
+export const metadata = pageMetadata({
+  title: 'FAQ, questions fréquentes',
   description:
     "Le batch cooking à domicile, en clair : comment réserver, qui fait les courses, ce que coûte une prestation, le crédit d'impôt de 50 % et l'avance immédiate.",
-}
+  path: '/faq',
+})
 
 export default function FAQPage() {
   return (
     <div className="page-transition min-h-screen bg-cream pt-24">
+      <JsonLd data={faqGraph()} />
+      <JsonLd
+        data={breadcrumb([
+          { name: 'Accueil', path: '/' },
+          { name: 'Questions fréquentes', path: '/faq' },
+        ])}
+      />
       <section className="relative overflow-hidden bg-navy py-20 text-white lg:py-24">
         <div className="container-xl relative">
           <h1

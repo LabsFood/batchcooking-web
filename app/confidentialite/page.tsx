@@ -1,12 +1,14 @@
+import { pageMetadata } from '@/lib/seo'
 import CookieSettings from '@/components/shared/CookieSettings'
 import LegalLayout from '@/components/shared/LegalLayout'
 import LegalPdfLink from '@/components/shared/LegalPdfLink'
 import LegalMarkdown from '@/components/shared/LegalMarkdown'
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: 'Politique de confidentialité',
   description: "Protection des données personnelles et cookies sur la plateforme Lab's Food.",
-}
+  path: '/confidentialite',
+})
 
 /* Version 1.0, en vigueur au 21/11/2026 (Drive « 4. Politique de confidentialité_V1_FINALE »). */
 export default function ConfidentialitePage() {
