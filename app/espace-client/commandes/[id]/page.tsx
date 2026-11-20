@@ -171,6 +171,26 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
       ? euros(b.amountTtc - b.amountAfterTax)
       : null
   const paye = euros(b.paidCents)
+  /**
+   * Quand le crédit d'impôt tombe, et donc ce que le client doit réellement
+   * sortir.
+   *
+   * `amountAfterTax` est une projection : le total moins 50 %. Elle ne vaut
+   * comme « reste à charge » qu'avec l'avance immédiate, où l'URSSAF déduit le
+   * crédit au moment du paiement. En carte comme en titres CESU, le client
+   * débourse le TTC et ne récupère les 50 % que l'année suivante, sur son
+   * attestation fiscale. L'afficher comme un reste à charge lui annonçait la
+   * moitié de ce qu'il allait payer, quel que soit le moyen choisi.
+   *
+   * La page de règlement fait déjà cette distinction, pas celle-ci : les deux
+   * écrans se contredisaient.
+   *
+   * Sans `request`, c'est une réservation de l'ancien modèle, où l'on payait
+   * pour confirmer, donc par carte : le cas se range avec elle.
+   */
+  const creditImmediat = b.request?.paymentMethod === 'avance_immediate'
+  const resteAPayer =
+    b.amountTtc != null ? euros(Math.max(0, b.amountTtc - (b.paidCents ?? 0))) : null
   const portions = bookingPortions(b)
 
   // CGV V1 : une demande ne se règle pas avant la session ; seul l'ancien modèle « paie pour confirmer ».
@@ -608,10 +628,25 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 ) : (
                   <Row label="Prestation TTC" value={ttc} />
                 )}
-                {credit && <Row label="Crédit d’impôt" value={`− ${credit}`} accent />}
-                {reste && <Row label="Reste à charge" value={reste} bold />}
+                {creditImmediat && credit && (
+                  <Row
+                    label="Crédit d’impôt immédiat"
+                    value={`− ${credit}`}
+                    accent
+                    info="Avec l’avance immédiate, l’URSSAF retire les 50 % au moment du paiement : vous ne réglez que le reste."
+                  />
+                )}
                 {paye && <Row label="Déjà réglé" value={paye} />}
+                {creditImmediat
+                  ? reste && <Row label="Reste à charge" value={reste} bold />
+                  : resteAPayer && <Row label="Reste à payer" value={resteAPayer} bold />}
               </ul>
+              {!creditImmediat && credit && (
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                  Votre attestation fiscale annuelle vous ouvrira {credit} de crédit
+                  d’impôt sur cette prestation.
+                </p>
+              )}
               {b.shoppingByClient && (
                 <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
                   Vous faites les courses vous-même : aucun forfait n’est facturé.
@@ -829,8 +864,15 @@ function Demande({ booking: b }: { booking: Booking }) {
   let texte: string
   if (r.state === 'awaiting_card') {
     titre = 'Enregistrez votre carte pour envoyer la demande'
+    /* Une carte est demandée même quand le moyen choisi n'en est pas une. Sans
+       un mot là-dessus, choisir les titres CESU puis se retrouver sur Stripe
+       donne l'impression qu'on va les prélever. */
     texte =
-      'Rien n’est prélevé : la carte sert au paiement après la session, ou de secours. Sans carte dans l’heure, la demande est abandonnée.'
+      r.paymentMethod === 'cesu'
+        ? 'Une carte est demandée même en réglant en titres CESU : rien n’est prélevé dessus, elle couvre un éventuel solde et sert de secours. Sans carte dans l’heure, la demande est abandonnée.'
+        : r.paymentMethod === 'avance_immediate'
+          ? 'Une carte est demandée même avec l’avance immédiate : rien n’est prélevé dessus, elle sert de secours si la prise en charge URSSAF n’aboutit pas. Sans carte dans l’heure, la demande est abandonnée.'
+          : 'Rien n’est prélevé maintenant : la carte sert au paiement après la session. Sans carte dans l’heure, la demande est abandonnée.'
   } else if (r.state === 'awaiting_chef') {
     titre = `En attente de la réponse de ${chef}`
     texte = `${chef} a jusqu’au ${quand(r.acceptBy)} pour accepter. Sans réponse, la demande est annulée et rien n’est prélevé.`
@@ -998,7 +1040,7 @@ function Row({
         {info && <InfoPopover label={`Qu’est-ce que « ${label} » ?`}>{info}</InfoPopover>}
       </span>
       <span
-        className={`text-right tabular-nums ${
+        className={`whitespace-nowrap text-right tabular-nums ${
           accent ? 'text-amber-deep' : bold ? 'font-bold text-navy' : 'text-navy'
         }`}
       >
