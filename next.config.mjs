@@ -11,9 +11,7 @@ const nextConfig = {
   async rewrites() {
     const rules = [
       // PostHog (UE) relaye same-origin : les bloqueurs de pub laissent passer.
-      // Les règles statiques avant la règle générale, Next les lit dans l'ordre.
-      { source: '/ingest/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
-      { source: '/ingest/array/:path*', destination: 'https://eu-assets.i.posthog.com/array/:path*' },
+      // Tout passe par eu.i.posthog.com : eu-assets est derrière Cloudflare (erreur 1000 depuis un site Cloudflare).
       { source: '/ingest/:path*', destination: 'https://eu.i.posthog.com/:path*' },
     ]
     /*
