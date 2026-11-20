@@ -10,7 +10,7 @@ import CookieSettingsLink from './CookieSettingsLink'
 const LINKS = {
   service: [
     { label: 'Notre concept', href: '/#concept' },
-    { label: 'Comment ça marche ?', href: '/#how-it-works' },
+    { label: 'Comment ça marche ?', href: '/#how-it-works' },
     { label: 'Devenir batch cooker', href: '/devenir-chef' },
     { label: 'Espace batch cooker', href: '/auth/login' },
   ],
@@ -147,7 +147,7 @@ export default function Footer() {
             </div>
 
             {/* Service */}
-            <FooterColumn title="Service">
+            <FooterColumn title="Service" span="lg:col-span-3">
               {LINKS.service.map((l) => <FooterLink key={l.href} {...l} />)}
             </FooterColumn>
 
@@ -157,7 +157,7 @@ export default function Footer() {
             </FooterColumn>
 
             {/* Legal */}
-            <FooterColumn title="Légal">
+            <FooterColumn title="Légal" span="lg:col-span-3">
               {LINKS.legal.map((l) => <FooterLink key={l.href} {...l} />)}
               <CookieSettingsLink />
             </FooterColumn>
@@ -196,9 +196,18 @@ export default function Footer() {
   )
 }
 
-function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
+function FooterColumn({
+  title,
+  children,
+  span = 'lg:col-span-2',
+}: {
+  title: string
+  children: React.ReactNode
+  /** Service et Légal portent des libellés longs : trois colonnes, pour tenir sur une ligne. */
+  span?: string
+}) {
   return (
-    <div className="lg:col-span-2 lg:col-start-auto">
+    <div className={span}>
       <p className="text-white font-display text-base font-bold mb-5">{title}</p>
       <ul className="space-y-3">{children}</ul>
     </div>
@@ -212,7 +221,7 @@ function FooterLink({ href, label }: { href: string; label: string }) {
         href={href}
         className="group inline-flex items-center gap-1.5 text-sm text-cream-soft/65 hover:text-terra transition-colors"
       >
-        <span>{label}</span>
+        <span className="xl:whitespace-nowrap">{label}</span>
         <ArrowUpRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
       </Link>
     </li>
