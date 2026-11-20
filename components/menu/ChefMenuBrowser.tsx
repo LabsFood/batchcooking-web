@@ -1707,6 +1707,8 @@ export function MenuDialog({
 function ChefPanel({ card }: { card: WeekCard }) {
   const fiche = useChefPublic(card.chef.id)
   const chef = fiche.data
+  const regles = usePricingRules().data
+  const offres = chef?.serviceOffers ?? []
 
   const zones = useMemo(() => {
     const z = chef?.zones ?? []
@@ -1766,6 +1768,80 @@ function ChefPanel({ card }: { card: WeekCard }) {
       ) : (
         <p className="mt-3 text-[13px] text-ink-soft">Pas encore d’avis.</p>
       )}
+
+      {/*
+        Les tarifs, que la carte ouverte ne portait pas.
+
+        Le pied de la vignette annonce « À partir de X » et jusqu'à deux
+        formules, puis « + N autres formules dans sa carte ». On ouvrait la
+        carte, et plus un prix nulle part : le chiffre sur lequel on avait
+        cliqué disparaissait, et la promesse des autres formules n'était tenue
+        sur aucun écran. Elles sont donc toutes ici, sans le `slice(0, 2)` de
+        la vignette : c'est la place qu'elle désigne.
+      */}
+      <div className="mt-4 border-t border-[rgba(31,42,55,0.08)] pt-4">
+        <Prix
+          lead="À partir de"
+          apresCredit={euros(card.afterTaxCreditCents)}
+          total={euros(card.sessionFromCents)}
+          taille="sm"
+        />
+
+        {fiche.isPending ? (
+          // Deux lignes à la hauteur des formules : le panneau ne saute pas à
+          // l'arrivée de la fiche.
+          <div role="status" aria-busy="true" className="mt-4 space-y-1.5">
+            <span className="sr-only">Chargement des formules</span>
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                aria-hidden
+                className="h-12 animate-pulse rounded-lg bg-cream-deep motion-reduce:animate-none"
+              />
+            ))}
+          </div>
+        ) : (
+          offres.length > 0 && (
+            <>
+              {/* « après crédit » en légende de colonne plutôt que répété à
+                  chaque ligne : la mention est la même pour toutes. */}
+              <div className="mb-2 mt-4 flex items-baseline justify-between gap-3">
+                <h3 className="text-xs font-semibold text-ink-mid">Ses formules</h3>
+                {regles && (
+                  <p className="shrink-0 whitespace-nowrap text-[11px] text-ink-soft">
+                    après crédit d’impôt
+                  </p>
+                )}
+              </div>
+              <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
+                {offres.map((o) => {
+                  const apres = regles
+                    ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
+                    : null
+                  return (
+                    <li key={o.id} className="px-3 py-2.5">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span
+                          className="min-w-0 truncate text-sm font-semibold text-navy"
+                          title={o.name}
+                        >
+                          {o.name}
+                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-sm font-bold tabular-nums text-navy">
+                          {apres ?? offerEuros(o.priceCents)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-[11px] text-ink-soft">
+                        {offerSummary(o)}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )
+        )}
+      </div>
 
       {chef?.bio && (
         <blockquote className="mt-4 whitespace-pre-line text-[13px] leading-relaxed text-ink-mid">
