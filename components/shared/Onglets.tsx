@@ -74,25 +74,31 @@ export function Onglets<T extends string>({
             >
               {on && (
                 // déplacement : le fond glisse d'un onglet à l'autre en 180 ms
+                // L'onglet choisi est ambre, texte navy : c'est l'accent de la
+                // marque, il dit « c'est ici » d'un coup d'œil (comme l'entrée
+                // active de la barre latérale).
                 <motion.span
                   layoutId={fond}
                   aria-hidden
-                  className="absolute inset-0 rounded-lg bg-paper shadow-[0_1px_2px_rgba(31,42,55,0.12)]"
+                  className="absolute inset-0 rounded-lg bg-amber shadow-[0_1px_2px_rgba(31,42,55,0.12)]"
                   transition={{ duration: DURATION.fast, ease: EASE_MOVE }}
-                >
-                  {/* Le trait ambre : il dit « c'est ici » d'un coup d'œil, et suit le fond. */}
-                  <span className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-amber" />
-                </motion.span>
+                />
               )}
               {t.Icon && <t.Icon className="relative h-4 w-4" aria-hidden />}
               <span className="relative">{t.label}</span>
               {typeof t.count === 'number' && (
-                <span className={cn('relative tabular-nums', on ? 'text-ink-mid' : 'text-ink-soft')}>
+                <span className={cn('relative tabular-nums', on ? 'text-navy/70' : 'text-ink-soft')}>
                   {t.count}
                 </span>
               )}
               {!!t.alert && t.alert > 0 && (
-                <span className="relative inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber px-1.5 text-xs font-bold tabular-nums text-navy">
+                <span
+                  className={cn(
+                    'relative inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums',
+                    // Sur l'onglet ambre, une pastille ambre disparaîtrait : elle passe en navy.
+                    on ? 'bg-navy text-white' : 'bg-amber text-navy',
+                  )}
+                >
                   {t.alert}
                 </span>
               )}
