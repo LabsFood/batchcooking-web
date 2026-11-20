@@ -57,7 +57,7 @@ export interface Conversation {
     role: SenderRole
     name: string
     avatarUrl: string | null
-    /** Renseigné seulement une fois les coordonnées libérées (J-2). */
+    /** Toujours `null` : les coordonnées ne sont jamais partagées. */
     phone: string | null
   }
   booking: {
@@ -68,6 +68,7 @@ export interface Conversation {
     endsAt: string
   } | null
   writable: boolean
+  /** Toujours `false` / `null` : aucune libération de coordonnées. */
   contactReleased: boolean
   contactReleaseAt: string | null
   lastMessage: Message | null

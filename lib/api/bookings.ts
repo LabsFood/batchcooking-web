@@ -26,11 +26,14 @@ export { PHOTO_MIME, checkPhoto, photoMessage } from './photos'
 
    Le cycle de vie, qui tient tout le reste :
 
-     pending ──(paiement)──> confirmed ──> shopping ──> cooking ──> delivered
+     pending ──(acceptation du chef)──> confirmed ──> shopping ──> cooking ──> delivered
                                                           │            │
                                      (arrivedAt)──────────┘     completed
 
-   `pending` tient le créneau **72 h** ; passé ce délai, l'API annule. Le
+   CGV V1 (19/11) : la réservation est une **demande**. Le client choisit son
+   moyen, enregistre sa carte (rien n'est prélevé), le batch cooker accepte sous
+   48 h, et le prix est prélevé après la session. Les anciennes réservations,
+   sans `request`, gardent le modèle « le paiement confirme, créneau tenu 72 h ». Le
    passage à `cooking` est le pointage d'arrivée : il enregistre `arrivedAt`,
    et n'est possible qu'à partir de deux heures avant le début.
    ───────────────────────────────────────────────────────────────────────────── */
@@ -153,6 +156,57 @@ export interface Booking {
   withdrawnAt?: string | null
   /** CGV V1, vue client : les documents du contrat. */
   documents?: { kind: import('./contract').BookingDocumentKind; filename: string }[]
+  /**
+   * CGV V1 (décision du 19/11) : la demande de réservation. Le moyen choisi à la
+   * réservation, la carte enregistrée, et la réponse du batch cooker (48 h).
+   * `null` pour une réservation de l'ancien modèle (« le paiement confirme »).
+   */
+  request?: BookingRequest | null
+}
+
+export type RequestPaymentMethod = 'cb' | 'avance_immediate' | 'cesu'
+export type RequestState = 'awaiting_card' | 'awaiting_chef' | 'accepted' | 'refused' | 'expired'
+
+export interface BookingRequest {
+  paymentMethod: RequestPaymentMethod
+  state: RequestState | null
+  card: { brand: string | null; last4: string } | null
+  requestedAt: string | null
+  /** La limite de réponse du batch cooker : 48 h après la demande, au plus tard le début. */
+  acceptBy: string | null
+  acceptedAt: string | null
+  refusedAt: string | null
+  refusalReason: string | null
+  /** Quand le prix est prélevé (CGV 7.3) : la fin de la session, ou l'acceptation si elle est proche. */
+  chargeAt: string | null
+  chargedAt: string | null
+}
+
+export const PAYMENT_METHOD_LABEL: Record<RequestPaymentMethod, string> = {
+  cb: 'Carte bancaire',
+  avance_immediate: 'Avance immédiate URSSAF',
+  cesu: 'CESU préfinancé',
+}
+
+export const REQUEST_STATE_LABEL: Record<RequestState, string> = {
+  awaiting_card: 'Carte à enregistrer',
+  awaiting_chef: 'En attente du batch cooker',
+  accepted: 'Acceptée',
+  refused: 'Refusée',
+  expired: 'Sans réponse',
+}
+
+/** L'étiquette d'une prestation : l'état de la demande tant qu'elle n'est pas acceptée. */
+export function bookingLabel(
+  b: Pick<Booking, 'status' | 'request'>,
+  side: 'client' | 'chef' = 'client',
+): string {
+  const state = b.request?.state
+  if (state && state !== 'accepted' && (b.status === 'pending' || b.status === 'cancelled')) {
+    if (side === 'chef' && state === 'awaiting_chef') return 'À accepter'
+    return REQUEST_STATE_LABEL[state]
+  }
+  return bookingStatusText(b.status)
 }
 
 export interface PageMeta {
@@ -239,13 +293,74 @@ export interface NewBooking {
   meals?: { mealId: string; portions?: number }[]
   /** CGV V1 : les cases cochées, exigées à partir du 21/11/2026. */
   consents?: import('./contract').ContractConsents
+  /**
+   * CGV V1 5.1 : le moyen choisi maintenant, payé après la session. Avec lui la
+   * réservation est une **demande** : carte enregistrée ensuite, le batch cooker
+   * accepte sous 48 h, rien n'est prélevé avant la fin de la session.
+   */
+  paymentMethod?: RequestPaymentMethod
+}
+
+/** `GET /chefs/{id}/payment-methods` — les moyens que ce batch cooker accepte. */
+export function useChefPaymentMethods(chefProfileId: string | undefined) {
+  const apiFetch = useApiFetch()
+  return useQuery({
+    queryKey: ['chef-payment-methods', chefProfileId],
+    queryFn: () =>
+      apiFetch<{ card: boolean; urssaf: boolean; cesu: boolean }>(
+        `/chefs/${chefProfileId}/payment-methods`,
+      ),
+    enabled: !!chefProfileId,
+  })
+}
+
+/**
+ * `POST /me/bookings/{id}/card` — la page Stripe qui enregistre la carte (rien
+ * n'est prélevé). Enregistrer la carte envoie la demande au batch cooker.
+ */
+export function useStartBookingCard() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: ({ id, successUrl, cancelUrl }: { id: string; successUrl: string; cancelUrl: string }) =>
+      apiFetch<{ sessionId: string; url: string }>(`/me/bookings/${id}/card`, {
+        method: 'POST',
+        body: { successUrl, cancelUrl },
+      }),
+  })
+}
+
+/** `POST /me/bookings/{id}/card/confirm` — au retour de Stripe. */
+export function useConfirmBookingCard() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, sessionId }: { id: string; sessionId: string }) =>
+      apiFetch<Booking>(`/me/bookings/${id}/card/confirm`, {
+        method: 'POST',
+        body: { sessionId },
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, 'booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, 'bookings'] })
+    },
+  })
+}
+
+/** Les URL de retour de la page carte : le détail de la session. */
+export function bookingCardUrls(id: string) {
+  const base = `${window.location.origin}/espace-client/commandes/${id}`
+  return {
+    successUrl: `${base}?carte=ok&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${base}?carte=annulee`,
+  }
 }
 
 /**
  * `POST /me/bookings` — réserver.
  *
- * La prestation naît `pending` : **c'est le paiement qui la confirme**, et le
- * créneau n'est tenu que 72 h. Le créneau doit être libre
+ * Avec `paymentMethod`, la prestation naît `pending` en **demande** : carte à
+ * enregistrer, puis réponse du batch cooker sous 48 h. Le créneau doit être libre
  * (`GET /chefs/{id}/availability`), et l'API le revérifie — `409` sinon.
  */
 export function useCreateBooking() {
@@ -307,6 +422,29 @@ export function useChefBooking(id: string | undefined) {
     queryFn: () => apiFetch<Booking>(`/chef/bookings/${id}`),
     enabled: !!id,
     retry: false,
+  })
+}
+
+/**
+ * `POST /chef/bookings/{id}/accept|refuse` — répondre à une demande (CGV 5.2),
+ * avant `request.acceptBy`. Accepter conclut le contrat ; refuser annule, rien
+ * n'est prélevé.
+ */
+export function useAnswerRequest() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: ({ id, accept, reason }: { id: string; accept: boolean; reason?: string }) =>
+      apiFetch<Booking>(`/chef/bookings/${id}/${accept ? 'accept' : 'refuse'}`, {
+        method: 'POST',
+        ...(accept ? {} : { body: reason ? { reason } : {} }),
+      }),
+    onSuccess: (b) => {
+      qc.setQueryData([...meKey, 'chef-booking', b.id], b)
+      qc.invalidateQueries({ queryKey: [...meKey, 'chef-bookings'] })
+      qc.invalidateQueries({ queryKey: [...meKey, 'agenda'] })
+    },
   })
 }
 

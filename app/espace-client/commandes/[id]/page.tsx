@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, use, useState } from 'react'
+import { Suspense, use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -25,7 +25,6 @@ import {
   RotateCw,
   ShieldCheck,
   ShoppingBasket,
-  Sparkles,
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
@@ -33,10 +32,14 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import { PaymentInvoiceList, PaymentInvoicesInfo } from '@/components/shared/PaymentInvoiceList'
 import { useToast } from '@/components/shared/Toaster'
 import {
+  bookingCardUrls,
+  bookingLabel,
   bookingPortions,
-  bookingStatusText,
   euros,
   hour,
+  PAYMENT_METHOD_LABEL,
+  useConfirmBookingCard,
+  useStartBookingCard,
   useAnswerReschedule,
   useBookingIcs,
   useMissionShoppingList,
@@ -170,7 +173,8 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
   const paye = euros(b.paidCents)
   const portions = bookingPortions(b)
 
-  const aRegler = b.status === 'pending'
+  // CGV V1 : une demande ne se règle pas avant la session ; seul l'ancien modèle « paie pour confirmer ».
+  const aRegler = b.status === 'pending' && !b.request
   const arretee = b.status === 'cancelled' || b.status === 'disputed'
   const etape = FLOW.indexOf(b.status as (typeof FLOW)[number])
 
@@ -209,7 +213,10 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
 
       <Suspense fallback={null}>
         <CheckoutOutcome />
+        <CardReturn bookingId={b.id} />
       </Suspense>
+
+      {b.request && <Demande booking={b} />}
 
       {/* ── Une demande de report attend votre réponse ──────────────────── */}
       {report && (
@@ -303,7 +310,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                   {portions} portions
                 </span>
               )}
-              <span className="status status-on-dark">{bookingStatusText(b.status)}</span>
+              <span className="status status-on-dark">{bookingLabel(b)}</span>
             </p>
 
             {/* Le fichier exige le jeton : on le télécharge, on ne le lie pas. */}
@@ -416,11 +423,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                     )}
                   </span>
                   <p
-                    className={`mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                    className={`mt-2 text-xs font-semibold ${
                       atteinte ? 'text-navy' : 'text-ink-soft'
                     }`}
                   >
-                    {STEP_LABEL[step]}
+                    {/* Une demande (CGV V1) n'est pas « à régler » : elle attend le batch cooker. */}
+                    {step === 'pending' && b.request ? 'Demandée' : STEP_LABEL[step]}
                   </p>
                 </div>
               )
@@ -513,7 +521,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 {groupes.map((g, gi) => (
                   <div key={g.aisle || gi}>
                     {g.aisle && (
-                      <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
+                      <p className="mb-2 text-sm font-semibold text-navy">
                         {aisleLabel(g.aisle, aisles)}
                       </p>
                     )}
@@ -551,9 +559,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {/* ── Vos consignes ──────────────────────────────────────────── */}
           {b.notes && (
             <div className="rounded-2xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
-              <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-amber-deep">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden /> Vos consignes
-              </p>
+              <p className="mb-1.5 font-semibold">Vos consignes</p>
               {b.notes}
             </div>
           )}
@@ -756,6 +762,121 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
         confirmLabel="Annuler la prestation"
       />
     </div>
+  )
+}
+
+/**
+ * Retour de la page carte (CGV 7.2) : on confirme la carte une fois, ce qui
+ * envoie la demande au batch cooker. Le webhook fait de même si le client ne
+ * revient pas.
+ */
+function CardReturn({ bookingId }: { bookingId: string }) {
+  const params = useSearchParams()
+  const confirmer = useConfirmBookingCard()
+  const fait = useRef(false)
+  const sessionId = params.get('carte') === 'ok' ? params.get('session_id') : null
+  useEffect(() => {
+    if (!sessionId || fait.current) return
+    fait.current = true
+    confirmer.mutate({ id: bookingId, sessionId })
+  }, [sessionId, bookingId, confirmer])
+  if (params.get('carte') === 'annulee') {
+    return (
+      <p
+        role="status"
+        className="rounded-2xl border border-amber/50 bg-[var(--warn-soft)] px-5 py-3.5 text-sm leading-relaxed text-navy"
+      >
+        <strong className="font-semibold">Carte non enregistrée.</strong> Rien n’a été
+        prélevé. Sans carte dans l’heure, la demande est abandonnée.
+      </p>
+    )
+  }
+  if (confirmer.isError) {
+    return (
+      <p
+        role="alert"
+        className="rounded-2xl border border-[var(--bad-ink)]/30 bg-[var(--bad-soft)] px-5 py-3.5 text-sm leading-relaxed text-[var(--bad-ink)]"
+      >
+        {apiMessage(confirmer.error, 'La carte n’a pas pu être confirmée.')}
+      </p>
+    )
+  }
+  return null
+}
+
+/**
+ * La demande de réservation (CGV V1, décision du 19/11) : le moyen choisi, la
+ * carte enregistrée, et la réponse du batch cooker sous 48 h. Rien n'est
+ * prélevé avant la fin de la session.
+ */
+function Demande({ booking: b }: { booking: Booking }) {
+  const r = b.request!
+  const carte = useStartBookingCard()
+  const chef = b.chef?.displayName ?? 'Votre batch cooker'
+  const quand = (iso: string | null) => (iso ? `${longDate(iso)} à ${hour(iso)}` : '')
+  const moyen = PAYMENT_METHOD_LABEL[r.paymentMethod]
+  const ligneCarte = r.card ? ` · carte ${r.card.brand ?? ''} •••• ${r.card.last4}` : ''
+
+  let titre: string
+  let texte: string
+  if (r.state === 'awaiting_card') {
+    titre = 'Enregistrez votre carte pour envoyer la demande'
+    texte =
+      'Rien n’est prélevé : la carte sert au paiement après la session, ou de secours. Sans carte dans l’heure, la demande est abandonnée.'
+  } else if (r.state === 'awaiting_chef') {
+    titre = `En attente de la réponse de ${chef}`
+    texte = `${chef} a jusqu’au ${quand(r.acceptBy)} pour accepter. Sans réponse, la demande est annulée et rien n’est prélevé.`
+  } else if (r.state === 'refused') {
+    titre = `${chef} ne peut pas assurer cette session`
+    texte = `Rien n’a été prélevé.${r.refusalReason ? ` Son message : « ${r.refusalReason} »` : ''}`
+  } else if (r.state === 'expired') {
+    titre = 'Demande restée sans réponse'
+    texte = 'Le délai de 48 heures est passé : la demande est annulée et rien n’a été prélevé.'
+  } else {
+    titre = 'Session confirmée'
+    texte = r.chargedAt
+      ? 'Le paiement a été lancé avec le moyen choisi.'
+      : `Paiement prévu ${r.chargeAt ? `le ${quand(r.chargeAt)}` : 'après la session'}, avec le moyen choisi.`
+  }
+
+  // La couleur dit l'état : à faire ou en attente (ambre), confirmée (vert), refusée ou expirée (rouge).
+  const ton =
+    r.state === 'accepted'
+      ? 'border-[var(--ok-ink)]/25 bg-[var(--ok-soft)]'
+      : r.state === 'refused' || r.state === 'expired'
+        ? 'border-[var(--bad-ink)]/25 bg-[var(--bad-soft)]'
+        : 'border-amber/50 bg-[var(--warn-soft)]'
+
+  return (
+    <section className={`rounded-2xl border p-5 lg:p-6 ${ton}`}>
+      <h2 className="font-display text-lg font-bold text-navy">{titre}</h2>
+      <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">{texte}</p>
+      <p className="mt-2 text-xs tabular-nums text-ink-soft">
+        Moyen choisi : {moyen}
+        {ligneCarte}
+      </p>
+      {r.state === 'awaiting_card' && (
+        <button
+          type="button"
+          onClick={() =>
+            carte.mutate(
+              { id: b.id, ...bookingCardUrls(b.id) },
+              { onSuccess: ({ url }) => (window.location.href = url) },
+            )
+          }
+          disabled={carte.isPending}
+          className="btn btn-amber mt-4"
+        >
+          {carte.isPending ? 'Ouverture…' : 'Enregistrer ma carte'}
+          <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+        </button>
+      )}
+      {carte.isError && (
+        <p role="alert" className="mt-2 text-sm text-[var(--bad-ink)]">
+          {apiMessage(carte.error, 'La page carte n’a pas pu s’ouvrir.')}
+        </p>
+      )}
+    </section>
   )
 }
 

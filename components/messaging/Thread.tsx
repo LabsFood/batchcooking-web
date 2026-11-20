@@ -7,7 +7,6 @@ import {
   EyeOff,
   Headset,
   Lock,
-  Phone,
   Utensils,
 } from 'lucide-react'
 import {
@@ -131,15 +130,6 @@ export default function Thread({
               {conversation.booking && ` · ${dateTimeLabel(conversation.booking.startsAt)}`}
             </p>
           </div>
-          {counterpart.phone && (
-            <a
-              href={`tel:${counterpart.phone}`}
-              aria-label={`Appeler ${counterpart.name}`}
-              className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint/40 text-mint-ink transition-colors hover:bg-mint"
-            >
-              <Phone className="h-4 w-4" />
-            </a>
-          )}
         </div>
 
         {showCard && clientCard && (
@@ -168,7 +158,7 @@ export default function Thread({
           </dl>
         )}
 
-        {!isSupport && <ContactNotice conversation={conversation} />}
+        {!isSupport && <ContactNotice />}
       </header>
 
       {/* Messages */}
@@ -265,23 +255,13 @@ export function BubblesSkeleton() {
   )
 }
 
-/** Pourquoi des `•••••` apparaissent, et quand ils disparaîtront. */
-function ContactNotice({ conversation }: { conversation: Conversation }) {
-  if (conversation.contactReleased) {
-    return (
-      <p className="mt-3 rounded-xl bg-mint/40 px-3 py-2 text-xs text-mint-ink">
-        Prestation dans moins de 48 h : les coordonnées sont visibles dans cette conversation.
-      </p>
-    )
-  }
+/** Pourquoi des `•••••` apparaissent : les coordonnées ne sont jamais partagées. */
+function ContactNotice() {
   return (
     <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-soft px-3 py-2 text-xs text-ink-mid">
       <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-soft" aria-hidden />
       <span>
-        Tout se passe ici : les numéros de téléphone et les adresses email sont masqués
-        {conversation.contactReleaseAt
-          ? ` jusqu'au ${dateTimeLabel(conversation.contactReleaseAt)}, 48 h avant la prestation.`
-          : " jusqu'à 48 h avant une prestation confirmée."}
+        Tous les échanges se passent ici.
       </span>
     </p>
   )

@@ -55,7 +55,10 @@ import {
 import { countryLabel } from '@/lib/chef/countries'
 import {
   bookingPortions,
+  bookingLabel,
   bookingStatusText,
+  PAYMENT_METHOD_LABEL,
+  useAnswerRequest,
   bookingStatusTone,
   checkPhoto,
   euros,
@@ -261,7 +264,7 @@ function MissionCard({ mission: m, onOpen }: { mission: Booking; onOpen: () => v
               {m.client?.name ?? 'Client'}
             </p>
             <span className={`status ${bookingStatusTone(m.status)}`}>
-              {bookingStatusText(m.status)}
+              {bookingLabel(m, 'chef')}
             </span>
           </div>
           <p className="text-sm cap-first text-ink-mid">
@@ -401,6 +404,8 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Toutes les prestations
         </button>
 
+        {m.request?.state === 'awaiting_chef' && <RequestAnswer booking={m} />}
+
         {/* ── Un report attend une réponse ──────────────────────────────── */}
         {report && (
           <Card className="!border-amber/40 !bg-amber-soft/50">
@@ -458,7 +463,7 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <span className={`status ${bookingStatusTone(m.status)}`}>
-                    {bookingStatusText(m.status)}
+                    {bookingLabel(m, 'chef')}
                   </span>
                   <p className="mt-2 font-display text-xl font-bold cap-first text-navy">
                     {longDate(m.startsAt) ?? 'Date à confirmer'}
@@ -810,6 +815,96 @@ function MissionDetail({ id, onBack }: { id: string; onBack: () => void }) {
  * L'API garde le dernier mot : le délai de 48 h et la disponibilité sont
  * revérifiés à l'envoi, et son message est montré tel quel.
  */
+/**
+ * Une demande de réservation à accepter ou refuser (CGV 5.2), avant
+ * `request.acceptBy`. Accepter conclut le contrat ; refuser annule sans frais.
+ * Le client a déjà choisi son moyen et enregistré sa carte.
+ */
+function RequestAnswer({ booking: m }: { booking: Booking }) {
+  const toast = useToast()
+  const repondre = useAnswerRequest()
+  const [refus, setRefus] = useState(false)
+  const [motif, setMotif] = useState('')
+  const r = m.request!
+  const limite = r.acceptBy ? `${longDate(r.acceptBy)} à ${hour(r.acceptBy)}` : null
+  const envoyer = (accept: boolean) =>
+    repondre.mutate(
+      { id: m.id, accept, reason: motif.trim() || undefined },
+      {
+        onSuccess: () =>
+          accept
+            ? toast.success('Demande acceptée', 'La session est confirmée et le client prévenu.')
+            : toast.info('Demande refusée', 'Le client est prévenu, rien ne lui est prélevé.'),
+        onError: (e) => toast.error('La réponse n’a pas été enregistrée', apiMessage(e)),
+      },
+    )
+  return (
+    // Ce qui attend un geste : le même encadré que les bandeaux « à traiter » des espaces.
+    <section className="rounded-2xl border border-amber/50 bg-[var(--warn-soft)] p-5 lg:p-6">
+      <h2 className="font-display text-lg font-bold text-navy">Nouvelle demande de réservation</h2>
+      <p className="mt-1 text-sm leading-relaxed text-ink-mid">
+        {limite ? `Répondez avant le ${limite}` : 'Répondez dans les 48 heures'} : sans réponse,
+        la demande est annulée et le créneau libéré. Le client paie après la session (
+        {PAYMENT_METHOD_LABEL[r.paymentMethod]}) ; sa carte est enregistrée.
+      </p>
+      {refus && (
+        <label className="mt-4 block text-sm font-semibold text-navy">
+          Un mot pour le client <span className="font-normal text-ink-soft">(facultatif)</span>
+          {/* `input` n'existait pas : le champ s'affichait sans style. */}
+          <textarea
+            value={motif}
+            onChange={(e) => setMotif(e.target.value)}
+            maxLength={500}
+            rows={2}
+            className="input-base mt-1.5"
+          />
+        </label>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {!refus ? (
+          <>
+            <button
+              type="button"
+              onClick={() => envoyer(true)}
+              disabled={repondre.isPending}
+              className="btn btn-amber"
+            >
+              Accepter la demande
+            </button>
+            <button
+              type="button"
+              onClick={() => setRefus(true)}
+              disabled={repondre.isPending}
+              className="btn btn-outline"
+            >
+              Refuser
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => envoyer(false)}
+              disabled={repondre.isPending}
+              className="btn btn-navy"
+            >
+              Confirmer le refus
+            </button>
+            <button
+              type="button"
+              onClick={() => setRefus(false)}
+              disabled={repondre.isPending}
+              className="btn btn-outline"
+            >
+              Annuler
+            </button>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function RescheduleCard({
   booking: m,
   enAttente,
@@ -994,8 +1089,8 @@ function RescheduleCard({
 /**
  * Plats dressés, contenants étiquetés, cuisine rendue.
  *
- * Même trio que partout ailleurs, et 5 Mo au plus — moitié moins que les
- * pièces jointes de messagerie. Elles accompagnent le compte rendu du client.
+ * Même trio que partout ailleurs, et la même compression avant l'envoi
+ * (`optimize-photo.ts`). Elles accompagnent le compte rendu du client.
  */
 function PhotosCard({ booking: m }: { booking: Booking }) {
   const toast = useToast()
@@ -1055,7 +1150,7 @@ function PhotosCard({ booking: m }: { booking: Booking }) {
       />
       <p className="mb-3 text-[13px] leading-relaxed text-ink-mid">
         Plats dressés, contenants étiquetés, cuisine rendue : elles accompagnent
-        le compte rendu du client. JPG, PNG ou WebP, 5 Mo au plus.
+        le compte rendu du client. JPG, PNG ou WebP, 20 Mo au plus.
       </p>
 
       {erreur && (
