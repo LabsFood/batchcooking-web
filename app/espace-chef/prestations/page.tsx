@@ -844,22 +844,24 @@ function RequestAnswer({ booking: m }: { booking: Booking }) {
       },
     )
   return (
-    <Card className="border border-amber/40 bg-amber-soft/40">
-      <p className="font-display text-lg font-bold text-navy">Nouvelle demande de réservation</p>
+    // Ce qui attend un geste : le même encadré que les bandeaux « à traiter » des espaces.
+    <section className="rounded-2xl border border-amber/50 bg-[var(--warn-soft)] p-5 lg:p-6">
+      <h2 className="font-display text-lg font-bold text-navy">Nouvelle demande de réservation</h2>
       <p className="mt-1 text-sm leading-relaxed text-ink-mid">
         {limite ? `Répondez avant le ${limite}` : 'Répondez dans les 48 heures'} : sans réponse,
         la demande est annulée et le créneau libéré. Le client paie après la session (
         {PAYMENT_METHOD_LABEL[r.paymentMethod]}) ; sa carte est enregistrée.
       </p>
       {refus && (
-        <label className="mt-3 block text-xs font-semibold text-navy">
-          Un mot pour le client (facultatif)
+        <label className="mt-4 block text-sm font-semibold text-navy">
+          Un mot pour le client <span className="font-normal text-ink-soft">(facultatif)</span>
+          {/* `input` n'existait pas : le champ s'affichait sans style. */}
           <textarea
             value={motif}
             onChange={(e) => setMotif(e.target.value)}
             maxLength={500}
             rows={2}
-            className="input mt-1 w-full"
+            className="input-base mt-1.5"
           />
         </label>
       )}
@@ -867,16 +869,18 @@ function RequestAnswer({ booking: m }: { booking: Booking }) {
         {!refus ? (
           <>
             <button
+              type="button"
               onClick={() => envoyer(true)}
               disabled={repondre.isPending}
-              className="btn btn-primary text-xs"
+              className="btn btn-amber"
             >
               Accepter la demande
             </button>
             <button
+              type="button"
               onClick={() => setRefus(true)}
               disabled={repondre.isPending}
-              className="btn btn-outline text-xs"
+              className="btn btn-outline"
             >
               Refuser
             </button>
@@ -884,23 +888,25 @@ function RequestAnswer({ booking: m }: { booking: Booking }) {
         ) : (
           <>
             <button
+              type="button"
               onClick={() => envoyer(false)}
               disabled={repondre.isPending}
-              className="btn btn-primary text-xs"
+              className="btn btn-navy"
             >
               Confirmer le refus
             </button>
             <button
+              type="button"
               onClick={() => setRefus(false)}
               disabled={repondre.isPending}
-              className="btn btn-outline text-xs"
+              className="btn btn-outline"
             >
               Annuler
             </button>
           </>
         )}
       </div>
-    </Card>
+    </section>
   )
 }
 

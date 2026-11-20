@@ -25,7 +25,6 @@ import {
   RotateCw,
   ShieldCheck,
   ShoppingBasket,
-  Sparkles,
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
@@ -424,11 +423,12 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                     )}
                   </span>
                   <p
-                    className={`mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                    className={`mt-2 text-xs font-semibold ${
                       atteinte ? 'text-navy' : 'text-ink-soft'
                     }`}
                   >
-                    {STEP_LABEL[step]}
+                    {/* Une demande (CGV V1) n'est pas « à régler » : elle attend le batch cooker. */}
+                    {step === 'pending' && b.request ? 'Demandée' : STEP_LABEL[step]}
                   </p>
                 </div>
               )
@@ -521,7 +521,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
                 {groupes.map((g, gi) => (
                   <div key={g.aisle || gi}>
                     {g.aisle && (
-                      <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
+                      <p className="mb-2 text-sm font-semibold text-navy">
                         {aisleLabel(g.aisle, aisles)}
                       </p>
                     )}
@@ -559,9 +559,7 @@ function OrderDetail({ booking: b }: { booking: Booking }) {
           {/* ── Vos consignes ──────────────────────────────────────────── */}
           {b.notes && (
             <div className="rounded-2xl border border-amber/30 bg-amber-soft/50 p-5 text-sm text-navy">
-              <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-amber-deep">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden /> Vos consignes
-              </p>
+              <p className="mb-1.5 font-semibold">Vos consignes</p>
               {b.notes}
             </div>
           )}
@@ -784,7 +782,10 @@ function CardReturn({ bookingId }: { bookingId: string }) {
   }, [sessionId, bookingId, confirmer])
   if (params.get('carte') === 'annulee') {
     return (
-      <p role="status" className="rounded-2xl bg-amber-soft/70 p-4 text-sm text-navy">
+      <p
+        role="status"
+        className="rounded-2xl border border-amber/50 bg-[var(--warn-soft)] px-5 py-3.5 text-sm leading-relaxed text-navy"
+      >
         <strong className="font-semibold">Carte non enregistrée.</strong> Rien n’a été
         prélevé. Sans carte dans l’heure, la demande est abandonnée.
       </p>
@@ -792,7 +793,10 @@ function CardReturn({ bookingId }: { bookingId: string }) {
   }
   if (confirmer.isError) {
     return (
-      <p role="alert" className="rounded-2xl bg-amber-soft/70 p-4 text-sm text-navy">
+      <p
+        role="alert"
+        className="rounded-2xl border border-[var(--bad-ink)]/30 bg-[var(--bad-soft)] px-5 py-3.5 text-sm leading-relaxed text-[var(--bad-ink)]"
+      >
         {apiMessage(confirmer.error, 'La carte n’a pas pu être confirmée.')}
       </p>
     )
@@ -835,11 +839,19 @@ function Demande({ booking: b }: { booking: Booking }) {
       : `Paiement prévu ${r.chargeAt ? `le ${quand(r.chargeAt)}` : 'après la session'}, avec le moyen choisi.`
   }
 
+  // La couleur dit l'état : à faire ou en attente (ambre), confirmée (vert), refusée ou expirée (rouge).
+  const ton =
+    r.state === 'accepted'
+      ? 'border-[var(--ok-ink)]/25 bg-[var(--ok-soft)]'
+      : r.state === 'refused' || r.state === 'expired'
+        ? 'border-[var(--bad-ink)]/25 bg-[var(--bad-soft)]'
+        : 'border-amber/50 bg-[var(--warn-soft)]'
+
   return (
-    <section className="rounded-2xl border border-amber/40 bg-amber-soft/40 p-5">
-      <p className="font-display text-base font-bold text-navy">{titre}</p>
-      <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-mid">{texte}</p>
-      <p className="mt-2 text-[12px] text-ink-soft">
+    <section className={`rounded-2xl border p-5 lg:p-6 ${ton}`}>
+      <h2 className="font-display text-lg font-bold text-navy">{titre}</h2>
+      <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">{texte}</p>
+      <p className="mt-2 text-xs tabular-nums text-ink-soft">
         Moyen choisi : {moyen}
         {ligneCarte}
       </p>
@@ -853,14 +865,14 @@ function Demande({ booking: b }: { booking: Booking }) {
             )
           }
           disabled={carte.isPending}
-          className="btn btn-primary mt-3 text-xs"
+          className="btn btn-amber mt-4"
         >
           {carte.isPending ? 'Ouverture…' : 'Enregistrer ma carte'}
-          <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
         </button>
       )}
       {carte.isError && (
-        <p role="alert" className="mt-2 text-[13px] text-navy">
+        <p role="alert" className="mt-2 text-sm text-[var(--bad-ink)]">
           {apiMessage(carte.error, 'La page carte n’a pas pu s’ouvrir.')}
         </p>
       )}
