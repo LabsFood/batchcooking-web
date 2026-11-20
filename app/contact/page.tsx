@@ -1,11 +1,12 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import ContactForm from '@/components/contact/ContactForm'
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Contact',
   description:
     "Une question sur le batch cooking à domicile, une réservation, une candidature de batch cooker ? Écrivez à l'équipe Lab's Food.",
-}
+  path: '/contact',
+})
 
 export default function ContactPage() {
   return (

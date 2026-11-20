@@ -1,3 +1,5 @@
+import JsonLd from '@/components/seo/JsonLd'
+import { homeGraph } from '@/lib/structured-data'
 import Hero from '@/components/home/Hero'
 import Concept from '@/components/home/Concept'
 import FoodCarousel from '@/components/home/FoodCarousel'
@@ -12,6 +14,7 @@ import JoinUs from '@/components/home/JoinUs'
 export default function HomePage() {
   return (
     <div className="page-transition">
+      <JsonLd data={homeGraph()} />
       <Hero />
       <HowItWorks />
       <Concept />

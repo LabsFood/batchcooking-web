@@ -4,6 +4,7 @@ import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
 import { frFR } from '@clerk/localizations'
 import './globals.css'
+import { OG_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/lib/seo'
 import Providers from '@/components/layout/Providers'
 import PublicChrome from '@/components/layout/PublicChrome'
 import PWARegister from '@/components/shared/PWARegister'
@@ -45,17 +46,32 @@ const clerkLocalization = {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.labsfood.fr'),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Lab's Food — Batch Cooking à domicile",
-    template: "%s | Lab's Food",
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "Une semaine de repas faits maison, cuisinés chez vous par un cuisinier, partout en France. À partir de 50 € par session après crédit d'impôt (avance immédiate Urssaf). Réservez votre batch cooker avec Lab's Food.",
-  applicationName: "Lab's Food",
-  keywords: ['batch cooking', 'chef à domicile', 'service à la personne', 'meal prep'],
-  authors: [{ name: "Lab's Food" }],
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'batch cooking',
+    'batch cooking à domicile',
+    'batch cooker',
+    'chef à domicile',
+    'cuisinier à domicile',
+    'service à la personne',
+    'crédit d’impôt service à la personne',
+    'meal prep',
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'food',
   manifest: '/site.webmanifest',
+  // Chaque page publique surcharge ce canonical avec son propre chemin.
+  alternates: {
+    canonical: '/',
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
@@ -70,15 +86,34 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Lab's Food",
+    title: SITE_NAME,
     statusBarStyle: 'black-translucent',
   },
   openGraph: {
-    title: "LAB'S FOOD - Batch cooking à domicile",
-    description: "Une semaine de repas faits maison, cuisinés chez vous par un cuisinier. À partir de 50 € par session après crédit d'impôt.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
     type: 'website',
     locale: 'fr_FR',
-    siteName: "Lab's Food",
+    siteName: SITE_NAME,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE.url],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
   },
   formatDetection: {
     telephone: false,
