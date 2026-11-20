@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/nextjs'
 /**
  * Exécuté une fois au démarrage du serveur Next. Les racines eMudhra (emSign) ne sont
  * plus de confiance (compromission de l'AC eMudhra, 31/10/2026) : toutes les
- * connexions TLS du serveur (relais /lf-api, Clerk, optimiseur d'images, Sentry) les
+ * connexions TLS du serveur (Clerk, optimiseur d'images, Sentry) les
  * refusent. Aucun hôte appelé par l'app n'en dépendait à cette date.
  *
  * Sentry démarre ensuite, côté Node et côté Edge (middleware.ts). Sans

@@ -1,5 +1,15 @@
 import { withSentryConfig } from '@sentry/nextjs/config'
 
+// L'API est appelée en direct : une URL relative (l'ancien « /lf-api ») ne mène
+// plus nulle part, et chaque écran connecté tomberait en erreur. On arrête le
+// build plutôt que de livrer un site muet.
+if (process.env.NEXT_PUBLIC_API_URL?.startsWith('/')) {
+  throw new Error(
+    `NEXT_PUBLIC_API_URL vaut « ${process.env.NEXT_PUBLIC_API_URL} » : le relais /lf-api a été retiré, ` +
+      "mettez l'URL complète de l'API (ex. https://lf-api-develop.up.railway.app).",
+  )
+}
+
 const nextConfig = {
   // 'standalone' sert a construire l'image Docker (Coolify).
   // Sur Vercel il casse le file tracing : onBuildComplete cherche
@@ -16,15 +26,9 @@ const nextConfig = {
       { source: '/ingest/array/:path*', destination: 'https://eu-assets.i.posthog.com/array/:path*' },
       { source: '/ingest/:path*', destination: 'https://eu.i.posthog.com/:path*' },
     ]
-    /*
-     * Relais same-origin vers l'API. Le navigateur appelle /lf-api/*, Next relaie
-     * cote serveur : il n'y a donc pas de prevol CORS, et les PATCH et DELETE
-     * passent malgre un backend qui n'annonce que GET, HEAD et POST.
-     * A retirer le jour ou le CORS est corrige : il suffira de remettre
-     * NEXT_PUBLIC_API_URL sur l'URL publique de l'API.
-     */
-    const target = process.env.API_PROXY_TARGET
-    if (target) rules.push({ source: '/lf-api/:path*', destination: `${target}/:path*` })
+    // Plus de relais /lf-api : le navigateur appelle l'API en direct
+    // (NEXT_PUBLIC_API_URL). Le CORS du backend annonce GET, HEAD, POST, PUT,
+    // PATCH et DELETE depuis le 03/10, et le relais bloquait en prod.
     return rules
   },
   images: {
