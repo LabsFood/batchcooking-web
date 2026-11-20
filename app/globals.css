@@ -826,7 +826,10 @@ body {
    de titre, et les pastilles qui disent l'état d'une journée avant le clic.
    ───────────────────────────────────────────────────────────────────────────── */
 
-.lf-rdp {
+/* Deux classes : la feuille de `react-day-picker` arrive après la nôtre et
+   reposait ses propres valeurs sur `.rdp-root`. Avec une seule, l'accent et le
+   jour courant restaient bleus sur tous les calendriers. */
+.rdp-root.lf-rdp {
   --rdp-accent-color: var(--terra);
   --rdp-accent-background-color: rgba(243, 156, 18, 0.14);
   --rdp-today-color: var(--terra);

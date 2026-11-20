@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowRight, ChefHat, Info } from 'lucide-react'
+import { ArrowRight, Info } from 'lucide-react'
 import {
   MenuCard,
   MenuDialog,
@@ -119,20 +119,22 @@ function DashboardMenusInner() {
           )}
 
           {/* Demande sur-mesure : la même porte de sortie que sur le site. */}
-          <div className="mt-12 rounded-2xl border-2 border-dashed border-[rgba(217,105,65,0.3)] bg-paper p-8 text-center">
-            <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(217,105,65,0.1)]">
-              <ChefHat className="h-6 w-6 text-amber-ink" aria-hidden />
-            </span>
-            <h2 className="mb-2 font-display text-xl font-bold text-navy">
-              Aucune carte ne vous ressemble ?
-            </h2>
-            <p className="mx-auto mb-5 max-w-md text-sm leading-relaxed text-ink-mid">
-              Décrivez vos envies, vos allergies et votre budget : les batch cookers
-              disponibles vous répondent avec une proposition chiffrée.
-            </p>
-            <Link href="/espace-client/personnalisation" className="btn btn-primary text-xs whitespace-normal text-balance">
-              Faire une demande sur mesure
-              <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+          <div className="mt-12 flex flex-col gap-5 rounded-3xl bg-navy p-6 text-white sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+            <div className="max-w-xl">
+              <h2 className="font-display text-xl font-bold leading-tight sm:text-2xl">
+                Aucune carte ne vous ressemble ?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">
+                Décrivez vos envies, vos allergies et votre budget : les batch cookers
+                disponibles vous répondent avec une proposition chiffrée.
+              </p>
+            </div>
+            <Link
+              href="/espace-client/personnalisation"
+              className="btn btn-amber shrink-0 self-start lg:self-auto"
+            >
+              Faire une demande sur-mesure
+              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>

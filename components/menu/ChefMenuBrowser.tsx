@@ -912,10 +912,15 @@ function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
         <>
           <ul className="mt-2 divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
             {offres.slice(0, 3).map((o) => (
-              <li key={o.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
-                  <span className="mt-0.5 block text-xs text-ink-soft">{offerSummary(o)}</span>
+              /*
+                Le prix sous le nom, toujours : deux cartes par ligne laissent à
+                peine 20 rem, et côte à côte le prix écrasait le nom jusqu'à un
+                mot par ligne (« Sesh / bro »).
+              */
+              <li key={o.id} className="px-3.5 py-3">
+                <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                  {offerSummary(o)}
                 </span>
                 <Prix
                   apresCredit={
@@ -923,8 +928,7 @@ function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
                   }
                   total={offerEuros(o.priceCents)}
                   taille="sm"
-                  align="right"
-                  className="shrink-0"
+                  className="mt-2"
                 />
               </li>
             ))}
@@ -1240,9 +1244,17 @@ export function MenuCard({
         {menu.chef.languages.length > 1 && <LanguesChip codes={menu.chef.languages} />}
       </div>
 
-      {semaine && <JoursLibres chefId={menu.chef.id} semaine={semaine} vu={vu} />}
+      {/*
+        La liste de la semaine dit déjà si ces blocs auront quelque chose à
+        montrer : sans créneau configuré (`slotsLeft` nul), pas de jours libres ;
+        sans formule (`sessionFromCents` nul), pas de formules. On ne pose donc
+        pas un squelette qui disparaîtrait ensuite en faisant sauter la carte.
+      */}
+      {semaine && menu.slotsLeft != null && (
+        <JoursLibres chefId={menu.chef.id} semaine={semaine} vu={vu} />
+      )}
 
-      <Formules chefId={menu.chef.id} vu={vu} />
+      {menu.sessionFromCents != null && <Formules chefId={menu.chef.id} vu={vu} />}
 
       {customOrder ? (
         <>
