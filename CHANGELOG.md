@@ -1,3 +1,15 @@
+## [1.6.0](https://github.com/LabsFood/batchcooking-web/compare/v1.5.0...v1.6.0) (2026-11-21)
+
+### Features
+
+* **menu:** afficher les tarifs du batch cooker dans sa carte ouverte ([#104](https://github.com/LabsFood/batchcooking-web/issues/104)) ([0e33952](https://github.com/LabsFood/batchcooking-web/commit/0e3395230b10f398abd3c6e23a706752cb2fdbfa))
+* **seo:** Open Graph, canonicals, sitemap et données structurées ([74321c1](https://github.com/LabsFood/batchcooking-web/commit/74321c1518d7018a3976dd2f42f83d8d597f9f48))
+* **seo:** Open Graph, canonicals, sitemap et données structurées ([b45e2c4](https://github.com/LabsFood/batchcooking-web/commit/b45e2c4486caa25afb9d4950c692a4c0e3b63eb2))
+
+### Bug Fixes
+
+* **espace-client:** récapitulatif faux selon le moyen de paiement, et en-tête cassé sur mobile ([#103](https://github.com/LabsFood/batchcooking-web/issues/103)) ([a156570](https://github.com/LabsFood/batchcooking-web/commit/a1565708470536559b4f35b68ec290465f1eaaeb))
+
 ## [1.5.0](https://github.com/LabsFood/batchcooking-web/compare/v1.4.0...v1.5.0) (2026-11-20)
 
 ### Features
