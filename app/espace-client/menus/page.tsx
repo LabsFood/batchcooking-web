@@ -150,20 +150,29 @@ function DashboardMenusInner() {
         menu={open}
         onClose={() => setOpen(null)}
         dietLabel={dietLabel}
-        renderAction={({ menu, selected }) => (
-          <Link
-            href={`/espace-client/reservation?chef=${menu.chef.id}${
-              selected.length > 0 ? `&meals=${selected.join(',')}` : ''
-            }`}
-            className={`btn btn-primary text-xs ${
-              selected.length === 0 ? 'pointer-events-none opacity-55' : ''
-            }`}
-            aria-disabled={selected.length === 0}
-          >
-            Réserver avec {menu.chef.displayName.split(' ')[0]}
-            <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
-          </Link>
-        )}
+        renderAction={({ menu, selected, offer }) => {
+          // La formule d'abord : sans elle, ni créneau ni prix. Puis aucun plat
+          // (à choisir avec le batch cooker), ou exactement ceux qu'elle prévoit.
+          const fixe = offer?.mealsIncluded ?? null
+          const incomplet = fixe != null && selected.length > 0 && selected.length !== fixe
+          const off = !offer || incomplet
+          return (
+            <Link
+              href={`/espace-client/reservation?chef=${menu.chef.id}${
+                offer ? `&offer=${offer.id}` : ''
+              }${selected.length > 0 ? `&meals=${selected.join(',')}` : ''}`}
+              className={`btn btn-primary text-xs ${off ? 'pointer-events-none opacity-55' : ''}`}
+              aria-disabled={off}
+            >
+              {!offer
+                ? 'Choisissez une formule'
+                : incomplet
+                  ? `${selected.length}/${fixe} plats`
+                  : `Réserver avec ${menu.chef.displayName.split(' ')[0]}`}
+              <ArrowRight className="icon-arrow h-3.5 w-3.5" aria-hidden />
+            </Link>
+          )
+        }}
       />
     </div>
   )

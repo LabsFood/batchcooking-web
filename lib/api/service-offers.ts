@@ -205,6 +205,37 @@ export const offerSummary = (o: {
     .filter(Boolean)
     .join(' · ')
 
+/**
+ * Ce que le client paie pour la formule seule : son prix, plus le forfait
+ * courses quand le batch cooker fait les courses. C'est le total que l'API
+ * facture à la réservation (`bookingAmounts`) quand le client ne fait pas ses
+ * courses lui-même ; le crédit d'impôt porte sur ce total, forfait compris.
+ */
+export const offerClientCents = (o: {
+  priceCents: number
+  shoppingIncluded: boolean
+  shoppingFeeCents: number
+  clientPriceCents?: number
+}) => o.clientPriceCents ?? o.priceCents + (o.shoppingIncluded ? o.shoppingFeeCents : 0)
+
+/**
+ * Le crédit d'impôt « services à la personne » : 50 %, fixé par la loi. Ne sert
+ * que tant que l'API ne rend pas elle-même le reste à charge d'une offre
+ * (`afterTaxCreditCents`, depuis le 21/11) : `GET /pricing-rules` demande d'être
+ * connecté, et le prix après crédit doit se lire connecté ou pas.
+ */
+const TAX_CREDIT_BPS = 5000
+
+/** Le reste à charge d'une formule après crédit d'impôt, forfait courses compris. */
+export const offerAfterTaxCents = (o: {
+  priceCents: number
+  shoppingIncluded: boolean
+  shoppingFeeCents: number
+  clientPriceCents?: number
+  afterTaxCreditCents?: number
+}) =>
+  o.afterTaxCreditCents ?? Math.round((offerClientCents(o) * (10000 - TAX_CREDIT_BPS)) / 10000)
+
 /* ── Le prix exact, avant de réserver ──────────────────────────────────────── */
 
 /**

@@ -253,10 +253,12 @@ export interface ChefMenuCard {
   dishes?: WeekDish[]
 }
 
-/** Une offre, telle que le public la voit : sans sa description ni son état. */
+/** Une offre, telle que le public la voit : sans son état. */
 export interface PublicServiceOffer {
   id: string
   name: string
+  /** Ce que comprend la formule, dit par le batch cooker. Arrivée le 21/11. */
+  description?: string | null
   /** C'est elle qui découpe les créneaux proposés au client. */
   durationMinutes: number
   /** Prix client, en centimes, hors courses. */
@@ -265,6 +267,10 @@ export interface PublicServiceOffer {
   shoppingFeeCents: number
   /** Plats de la formule, nombre fixe. `null` : au choix (offres d'avant le 19/11). */
   mealsIncluded?: number | null
+  /** Prix + forfait courses quand il les fait. Calculé par l'API depuis le 21/11. */
+  clientPriceCents?: number
+  /** Ce total après crédit d'impôt, connecté ou pas. Depuis le 21/11. */
+  afterTaxCreditCents?: number
 }
 
 export interface ChefPublic extends WeekChef {

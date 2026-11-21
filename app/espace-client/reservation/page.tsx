@@ -32,10 +32,8 @@ import {
 import { useChefPublic, weekLabel, type WeekCard } from '@/lib/api/menus'
 import { useDiets } from '@/lib/api/referentials'
 import {
-  afterTaxFromClientPrice,
   bookingCardUrls,
   PAYMENT_METHOD_LABEL,
-  usePricingRules,
   useChefSlots,
   useChefPaymentMethods,
   useCreateBooking,
@@ -44,6 +42,7 @@ import {
 } from '@/lib/api/bookings'
 import { useApiFetch } from '@/lib/api/client'
 import { Prix } from '@/components/shared/Prix'
+import { FormulePicker } from '@/components/menu/FormulePicker'
 import { useMeProfile } from '@/lib/api/me-profile'
 import type { ClientProfile } from '@/lib/api/types'
 import CityField from '@/components/chef/application/CityField'
@@ -100,15 +99,12 @@ function ReservationFlow() {
   // fait : on reprend au bon endroit plutot que de le redemander.
   const initialMeals = (params.get('meals') || '').split(',').filter(Boolean)
   const chefParam = params.get('chef')
+  const offerParam = params.get('offer')
 
   const [chef, setChef] = useState<WeekCard | null>(null)
   const [step, setStep] = useState<StepId>('chef')
 
   const filters = useMenuFilters()
-  // Le reste à charge de chaque formule, avant même que l'API ne chiffre la
-  // session : la liste des formules annonce le prix dans le même ordre que
-  // partout ailleurs.
-  const regles = usePricingRules().data
   const [openMenu, setOpenMenu] = useState<WeekCard | null>(null)
   const diets = useDiets([])
   const dietLabel = (code: string) => diets.find((d) => d.code === code)?.label ?? code
@@ -118,14 +114,24 @@ function ReservationFlow() {
    * vient de l'API : on la retrouve dès que la semaine est chargée, une seule
    * fois, plutôt que de la reconstruire de mémoire.
    */
+  /** L'offre retenue : sa durée fait le créneau, son prix fait le montant. */
+  const [offerId, setOfferId] = useState<string>('')
+  /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
+  const [coursesParMoi, setCoursesParMoi] = useState(false)
   const [reprise, setReprise] = useState(false)
   if (!reprise && chefParam && filters.menus.length > 0) {
     setReprise(true)
     const trouve = filters.menus.find((m) => m.chef.id === chefParam)
     if (trouve) {
       setChef(trouve)
-      // Les plats arrivent cochés, la formule reste à choisir : la carte s'ouvre dessus.
-      if (initialMeals.length > 0) setOpenMenu(trouve)
+      if (offerParam) {
+        // Formule (et plats) choisis dans la carte : on passe aux détails.
+        setOfferId(offerParam)
+        setStep('infos')
+      } else if (initialMeals.length > 0) {
+        // Les plats arrivent cochés, la formule reste à choisir : la carte s'ouvre dessus.
+        setOpenMenu(trouve)
+      }
     }
   }
 
@@ -140,10 +146,6 @@ function ReservationFlow() {
   const [extraMeals, setExtraMeals] = useState(0)
   /** Portions de chaque plat, choisies par le client. `null` : le foyer de sa fiche. */
   const [portionsChoisies, setPortionsChoisies] = useState<number | null>(null)
-  /** L'offre retenue : sa durée fait le créneau, son prix fait le montant. */
-  const [offerId, setOfferId] = useState<string>('')
-  /** Le client fait ses courses lui-même — c'est le `shoppingByClient` de l'API. */
-  const [coursesParMoi, setCoursesParMoi] = useState(false)
   // Préremplie depuis le profil tant que le client n'y touche pas.
   const profil = useMeProfile()
 
@@ -172,10 +174,18 @@ function ReservationFlow() {
 
   const stepIndex = STEPS.findIndex((s) => s.id === step)
 
-  const meals = useMemo(
-    () => (chef ? chef.dishes.filter((d) => selectedMeals.includes(d.id)) : []),
-    [chef, selectedMeals],
-  )
+  /* Les plats peuvent venir de n'importe quel menu publié du batch cooker,
+     pas seulement de celui de la semaine : on les retrouve dans sa fiche. */
+  const ficheChef = useChefPublic(chef?.chef.id)
+  const meals = useMemo(() => {
+    if (!chef) return []
+    const tous = [
+      ...chef.dishes,
+      ...(ficheChef.data?.dishes ?? []),
+      ...(ficheChef.data?.menus ?? []).flatMap((m) => m.dishes ?? []),
+    ]
+    return selectedMeals.flatMap((id) => tous.find((d) => d.id === id) ?? [])
+  }, [chef, ficheChef.data, selectedMeals])
 
   /*
    * Les offres du batch cooker. `GET /chefs/{id}` ne rend que les actives,
@@ -185,6 +195,13 @@ function ReservationFlow() {
   const fiche = useChefPublic(chef?.chef.id)
   const offres = fiche.data?.serviceOffers ?? []
   const offre = offres.find((o) => o.id === offerId) ?? null
+  /* La formule arrive de la carte par l'URL : ses courses suivent, comme
+     quand on la choisit ici (`pickOffer`), dès que la fiche répond. */
+  const [coursesReprises, setCoursesReprises] = useState(false)
+  if (!coursesReprises && offerParam && offre?.id === offerParam) {
+    setCoursesReprises(true)
+    setCoursesParMoi(!offre.shoppingIncluded)
+  }
   const portions = portionsChoisies ?? foyer ?? persons
   /* Une formule à nombre de plats fixe : exactement autant de plats, ou aucun
      pour les choisir avec le batch cooker. L'API refuse le reste. */
@@ -983,7 +1000,6 @@ function ReservationFlow() {
             offres={offresCarte}
             chosenId={offreCarte?.id ?? null}
             onPick={pickOffer}
-            regles={regles}
           />
         )}
         renderAction={({ menu, selected }) => {
@@ -1009,105 +1025,6 @@ function ReservationFlow() {
           )
         }}
       />
-    </div>
-  )
-}
-
-/** Les formules d'un chef, en tête de sa carte : elles fixent combien de plats cocher. */
-function FormulePicker({
-  chefName,
-  loading,
-  offres,
-  chosenId,
-  onPick,
-  regles,
-}: {
-  chefName: string
-  loading: boolean
-  offres: PublicServiceOffer[]
-  chosenId: string | null
-  onPick: (o: PublicServiceOffer) => void
-  regles: ReturnType<typeof usePricingRules>['data']
-}) {
-  return (
-    <div className="mb-6">
-      <p className="mb-3 text-sm font-semibold text-navy">1. Choisissez votre formule</p>
-      {loading ? (
-        <div className="h-16 animate-pulse rounded-2xl bg-cream-soft" />
-      ) : offres.length === 0 ? (
-        <div className="rounded-2xl border border-amber/40 bg-amber-soft/50 p-4">
-          <p className="text-[13px] leading-relaxed text-navy">
-            {chefName} n’a pas encore publié ses formules : il n’est pas réservable en ligne.
-          </p>
-          <Link href="/espace-client/personnalisation" className="btn btn-outline mt-3 text-xs">
-            Faire une demande sur mesure
-            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-          </Link>
-        </div>
-      ) : (
-        /*
-          Une formule par ligne, comme une liste de choix : côte à côte dans la
-          colonne de la carte, le prix prenait toute la place et le nom se
-          cassait mot par mot. Le nom et ce qu'elle comprend à gauche, le prix
-          aligné à droite, et la formule retenue se reconnaît à son cadre marine
-          et à sa coche, pas à un aplat de couleur.
-        */
-        <div role="radiogroup" aria-label="Formules" className="space-y-2">
-          {offres.map((o) => {
-            const choisie = o.id === chosenId
-            return (
-              <button
-                key={o.id}
-                type="button"
-                role="radio"
-                aria-checked={choisie}
-                onClick={() => onPick(o)}
-                className={`flex w-full items-center gap-3 rounded-xl border bg-paper px-4 py-3 text-left transition-colors sm:gap-4 ${
-                  choisie
-                    ? 'border-navy shadow-[inset_0_0_0_1px_var(--navy)]'
-                    : 'border-[var(--line-strong)] hover:border-[rgba(31,42,55,0.32)]'
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                    choisie ? 'border-navy bg-navy text-white' : 'border-[var(--line-strong)] bg-paper'
-                  }`}
-                >
-                  {choisie && <Check className="h-3 w-3" strokeWidth={3} />}
-                </span>
-                {/* Étroit, le prix passe sous le nom : côte à côte, il l'écrasait. */}
-                <span className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold leading-snug text-navy">{o.name}</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                      {offerSummary(o)}
-                    </span>
-                  </span>
-                  <Prix
-                    apresCredit={
-                      regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
-                    }
-                    total={offerEuros(o.priceCents)}
-                    taille="sm"
-                    className="shrink-0 sm:text-right sm:[&>p]:justify-end"
-                  />
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
-      <p className="mt-3 text-xs text-ink-soft">
-        Plus de plats que la formule ? C’est une{' '}
-        <Link
-          href="/espace-client/personnalisation"
-          className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
-        >
-          demande sur-mesure
-        </Link>
-        .
-      </p>
     </div>
   )
 }
