@@ -212,18 +212,30 @@ export default function MenuClient() {
         menu={open}
         onClose={() => setOpen(null)}
         dietLabel={dietLabel}
-        renderAction={({ menu, selected, close }) => (
-          // La carte se referme : sinon le dialog Radix bloque la modale de connexion.
-          <ReserveButton
-            meals={selected.join(',')}
-            chef={menu.chef.id}
-            className="text-xs"
-            onClick={close}
-          >
-            Réserver cette session
-            <ArrowRight className="icon-arrow h-3.5 w-3.5" />
-          </ReserveButton>
-        )}
+        renderAction={({ menu, selected, close, offer }) => {
+          // La formule d'abord : sans elle, ni créneau ni prix. Puis aucun plat
+          // (à choisir avec le batch cooker), ou exactement ceux qu'elle prévoit.
+          const fixe = offer?.mealsIncluded ?? null
+          const incomplet = fixe != null && selected.length > 0 && selected.length !== fixe
+          return (
+            // La carte se referme : sinon le dialog Radix bloque la modale de connexion.
+            <ReserveButton
+              meals={selected.join(',')}
+              chef={menu.chef.id}
+              offer={offer?.id}
+              disabled={!offer || incomplet}
+              className="text-xs"
+              onClick={close}
+            >
+              {!offer
+                ? 'Choisissez une formule'
+                : incomplet
+                  ? `${selected.length}/${fixe} plats`
+                  : 'Réserver cette session'}
+              <ArrowRight className="icon-arrow h-3.5 w-3.5" />
+            </ReserveButton>
+          )
+        }}
       />
     </div>
   )

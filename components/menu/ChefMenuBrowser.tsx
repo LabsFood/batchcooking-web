@@ -36,6 +36,7 @@ import {
   useChefPublic,
   useWeeksMenus,
   weekLabel,
+  type PublicServiceOffer,
   type WeekCard,
   type WeekDish,
 } from '@/lib/api/menus'
@@ -49,8 +50,8 @@ import {
 } from '@/lib/api/referentials'
 import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
-import { afterTaxFromClientPrice, useChefSlots, usePricingRules } from '@/lib/api/bookings'
-import { offerEuros, offerSummary } from '@/lib/api/service-offers'
+import { useChefSlots } from '@/lib/api/bookings'
+import { offerAfterTaxCents, offerEuros, offerSummary, platsLabel } from '@/lib/api/service-offers'
 import { fadeUp } from '@/lib/motion'
 
 /**
@@ -75,6 +76,7 @@ import { countryLabel } from '@/lib/chef/countries'
 import { cn } from '@/lib/utils'
 import DatePicker, { DAY_MODIFIERS } from '@/components/shared/DatePicker'
 import ReserveButton from '@/components/shared/ReserveButton'
+import { FormulePicker } from '@/components/menu/FormulePicker'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Choix d'un batch cooker et de sa carte de la semaine.
@@ -1111,7 +1113,6 @@ function useVu<T extends Element>() {
  */
 function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
   const fiche = useChefPublic(vu ? chefId : undefined)
-  const regles = usePricingRules().data
   const offres = fiche.data?.serviceOffers ?? []
 
   // Sans formule, ou si la fiche ne répond pas : le pied de carte dit déjà le tarif.
@@ -1138,15 +1139,16 @@ function Formules({ chefId, vu }: { chefId: string; vu: boolean }) {
               détail (plats, durée, total avant crédit) est dans sa carte. */}
           <ul className="mt-2 divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
             {offres.slice(0, 2).map((o) => {
-              const apres = regles ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles)) : null
+              // Forfait courses compris, après crédit d'impôt, connecté ou pas.
+              const apres = offerEuros(offerAfterTaxCents(o))
               return (
                 <li key={o.id} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
                   <span className="min-w-0 truncate text-sm font-semibold text-navy" title={o.name}>
                     {o.name}
                   </span>
                   <span className="shrink-0 text-sm font-bold tabular-nums text-navy">
-                    {apres ?? offerEuros(o.priceCents)}
-                    {apres && <span className="ml-1 text-xs font-normal text-ink-soft">après crédit</span>}
+                    {apres}
+                    <span className="ml-1 text-xs font-normal text-ink-soft">après crédit</span>
                   </span>
                 </li>
               )
@@ -1547,7 +1549,16 @@ export function MenuDialog({
   menu: WeekCard | null
   onClose: () => void
   /** Ce que fait le bouton final : se connecter, ou continuer la réservation. */
-  renderAction: (ctx: { menu: WeekCard; selected: string[]; close: () => void }) => ReactNode
+  renderAction: (ctx: {
+    menu: WeekCard
+    selected: string[]
+    close: () => void
+    /**
+     * La formule retenue dans la carte, quand c'est la carte qui la fait
+     * choisir (pas de `renderBeforeDishes`). `null` tant qu'aucune ne l'est.
+     */
+    offer: PublicServiceOffer | null
+  }) => ReactNode
   /**
    * Sélection portée par le parent. La réservation en a besoin : rouvrir la
    * carte pour « modifier les plats » doit retrouver ceux déjà cochés.
@@ -1556,7 +1567,11 @@ export function MenuDialog({
   selected?: string[]
   onSelectedChange?: (ids: string[]) => void
   dietLabel: (code: string) => string
-  /** Au-dessus des plats : la réservation y fait choisir la formule d'abord. */
+  /**
+   * Au-dessus des plats : la réservation y pose son propre choix de formule.
+   * Omis, la carte fait choisir la formule elle-même (vitrine publique, espace
+   * client) : le client choisit sa formule, puis ses plats.
+   */
   renderBeforeDishes?: (menu: WeekCard) => ReactNode
   /** Plats cochables. La formule retenue le fixe ; `0` tant qu'aucune ne l'est. */
   maxDishes?: number
@@ -1571,14 +1586,83 @@ export function MenuDialog({
   const selected = controlled ?? own
   const setSelected = (ids: string[]) => (onSelectedChange ?? setOwn)(ids)
 
-  const dishes = menu?.dishes ?? []
-  const full = selected.length >= maxDishes
+  /*
+   * Sans `renderBeforeDishes`, la formule se choisit ici, avant les plats :
+   * c'est elle qui dit combien de plats cocher, et sans elle rien ne se
+   * réserve. La fiche (`GET /chefs/{id}`) est celle que le panneau du batch
+   * cooker lit déjà : même clé, une seule requête.
+   */
+  const formuleIci = renderBeforeDishes === undefined
+  const ficheFormules = useChefPublic(menu?.chef.id)
+  const offresIci = ficheFormules.data?.serviceOffers ?? []
+  const [offerId, setOfferId] = useState<string | null>(null)
+  const offre = formuleIci ? (offresIci.find((o) => o.id === offerId) ?? null) : null
+  const effMax = formuleIci ? (offre ? (offre.mealsIncluded ?? MAX_DISHES) : 0) : maxDishes
+  const effFixed = formuleIci ? offre?.mealsIncluded != null : maxDishesFixed
+  const avecFormule = formuleIci || renderBeforeDishes !== undefined
+
+  const pickOffer = (o: PublicServiceOffer) => {
+    setOfferId(o.id)
+    // Une formule à moins de plats que ceux déjà cochés : on garde les premiers.
+    const max = o.mealsIncluded ?? MAX_DISHES
+    if (selected.length > max) setSelected(selected.slice(0, max))
+  }
+
+  /*
+   * Les plats rangés dans leurs menus. La fiche porte tous les menus publiés
+   * du batch cooker et tous ses plats ; le menu de la semaine passe en tête,
+   * les plats hors menu ferment la liste. Le client prend un menu entier, des
+   * plats de plusieurs menus, ou les deux, dans la limite de sa formule.
+   * Tant que la fiche n'est pas là, les plats de la vignette, à plat.
+   */
+  const groupes = useMemo(() => {
+    const parCarte = menu?.dishes ?? []
+    const data = ficheFormules.data
+    if (!data) return { menus: [] as { id: string; title: string; pitch: string | null; dishes: WeekDish[] }[], autres: parCarte }
+    const menus = (data.menus ?? [])
+      .filter((m) => (m.dishes?.length ?? 0) > 0)
+      .map((m) => ({ id: m.id, title: m.title, pitch: m.pitch, dishes: m.dishes ?? [] }))
+      .sort((a, b) => Number(b.id === menu?.menuId) - Number(a.id === menu?.menuId))
+    const dansUnMenu = new Set(menus.flatMap((m) => m.dishes.map((d) => d.id)))
+    const vus = new Set<string>()
+    const autres = [...(data.dishes ?? []), ...parCarte].filter((d) => {
+      if (dansUnMenu.has(d.id) || vus.has(d.id)) return false
+      vus.add(d.id)
+      return true
+    })
+    return { menus, autres }
+  }, [ficheFormules.data, menu?.dishes, menu?.menuId])
+  const aucunPlat = groupes.menus.length === 0 && groupes.autres.length === 0
+  const full = selected.length >= effMax
+
+  /** Tout un menu d'un coup : ses plats manquants s'ajoutent s'ils tiennent dans la formule. */
+  const toggleMenu = (ids: string[]) => {
+    const tous = ids.every((id) => selected.includes(id))
+    if (tous) return setSelected(selected.filter((id) => !ids.includes(id)))
+    const manquants = ids.filter((id) => !selected.includes(id))
+    if (selected.length + manquants.length <= effMax) setSelected([...selected, ...manquants])
+  }
+
+  const rangee = (list: WeekDish[]) => (
+    <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      {list.map((dish) => (
+        <DishRow
+          key={dish.id}
+          dish={dish}
+          selected={selected.includes(dish.id)}
+          disabled={full && !selected.includes(dish.id)}
+          onToggle={() => toggle(dish.id)}
+          dietLabel={dietLabel}
+        />
+      ))}
+    </ul>
+  )
 
   const toggle = (id: string) =>
     setSelected(
       selected.includes(id)
         ? selected.filter((x) => x !== id)
-        : selected.length < maxDishes
+        : selected.length < effMax
           ? [...selected, id]
           : selected,
     )
@@ -1592,6 +1676,7 @@ export function MenuDialog({
           // Une sélection portée par le parent lui appartient : on ne l'efface
           // pas derrière lui.
           if (controlled === undefined) setOwn([])
+          setOfferId(null)
         }
       }}
     >
@@ -1638,36 +1723,90 @@ export function MenuDialog({
                       </p>
                     )}
 
-                    {renderBeforeDishes?.(menu)}
+                    {formuleIci ? (
+                      <FormulePicker
+                        chefName={menu.chef.displayName}
+                        loading={ficheFormules.isPending}
+                        offres={offresIci}
+                        chosenId={offre?.id ?? null}
+                        onPick={pickOffer}
+                      />
+                    ) : (
+                      renderBeforeDishes(menu)
+                    )}
 
                     <p className="mb-3 text-sm font-semibold text-navy">
-                      Choisissez vos plats
+                      {avecFormule ? '2. Choisissez vos plats' : 'Choisissez vos plats'}
                       <span className="ml-2 font-normal text-ink-soft">
-                        {maxDishes === 0
+                        {effMax === 0
                           ? 'choisissez d’abord votre formule'
-                          : maxDishesFixed
-                            ? `${selected.length} sur ${maxDishes} prévus par la formule`
+                          : effFixed
+                            ? `${selected.length} sur ${effMax} prévus par la formule`
                             : `${selected.length} plat${selected.length > 1 ? 's' : ''} choisi${selected.length > 1 ? 's' : ''}`}
                       </span>
                     </p>
 
-                    {dishes.length === 0 ? (
+                    {aucunPlat ? (
                       <p className="rounded-2xl bg-paper px-4 py-6 text-center text-sm text-ink-soft">
                         Ce batch cooker n’a pas encore publié de plat.
                       </p>
                     ) : (
-                      <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                        {dishes.map((dish) => (
-                          <DishRow
-                            key={dish.id}
-                            dish={dish}
-                            selected={selected.includes(dish.id)}
-                            disabled={full && !selected.includes(dish.id)}
-                            onToggle={() => toggle(dish.id)}
-                            dietLabel={dietLabel}
-                          />
-                        ))}
-                      </ul>
+                      <div className="space-y-6">
+                        {groupes.menus.map((m) => {
+                          const ids = m.dishes.map((d) => d.id)
+                          const tous = ids.every((id) => selected.includes(id))
+                          const manquants = ids.filter((id) => !selected.includes(id)).length
+                          const tientPas = !tous && selected.length + manquants > effMax
+                          return (
+                            <section key={m.id} aria-label={m.title}>
+                              <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                                <div className="min-w-0">
+                                  <h3 className="font-display text-base font-bold leading-tight text-navy">
+                                    {m.title}
+                                  </h3>
+                                  {m.pitch && (
+                                    <p className="mt-0.5 max-w-[62ch] text-xs leading-relaxed text-ink-soft">
+                                      {m.pitch}
+                                    </p>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleMenu(ids)}
+                                  disabled={tientPas}
+                                  aria-pressed={tous}
+                                  title={
+                                    effMax === 0
+                                      ? 'Choisissez d’abord votre formule'
+                                      : tientPas
+                                        ? `Ce menu compte ${platsLabel(ids.length)} : il ne tient pas dans votre formule`
+                                        : undefined
+                                  }
+                                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    tous
+                                      ? 'border-navy bg-navy text-white'
+                                      : 'border-[var(--line-strong)] bg-paper text-navy hover:border-navy'
+                                  }`}
+                                >
+                                  {tous && <Check className="h-3 w-3" strokeWidth={3} aria-hidden />}
+                                  {tous ? 'Menu entier choisi' : `Tout le menu · ${platsLabel(ids.length)}`}
+                                </button>
+                              </div>
+                              {rangee(m.dishes)}
+                            </section>
+                          )
+                        })}
+                        {groupes.autres.length > 0 && (
+                          <section aria-label="Autres plats">
+                            {groupes.menus.length > 0 && (
+                              <h3 className="mb-3 font-display text-base font-bold leading-tight text-navy">
+                                Autres plats
+                              </h3>
+                            )}
+                            {rangee(groupes.autres)}
+                          </section>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1675,8 +1814,12 @@ export function MenuDialog({
 
               <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(31,42,55,0.08)] bg-paper px-5 py-4 sm:px-7">
                 <p className="text-sm text-ink-mid">
-                  {selected.length === 0 ? (
-                    'Sélectionnez au moins un plat pour réserver.'
+                  {effMax === 0 ? (
+                    'Choisissez d’abord votre formule.'
+                  ) : selected.length === 0 ? (
+                    // Les plats sont facultatifs : l'API accepte une demande
+                    // sans plat, à composer ensuite avec le batch cooker.
+                    `Pas encore de plat : vous pourrez les choisir avec ${menu.chef.displayName.split(' ')[0]}.`
                   ) : (
                     <>
                       <span className="font-semibold text-navy">
@@ -1686,7 +1829,19 @@ export function MenuDialog({
                     </>
                   )}
                 </p>
-                {renderAction({ menu, selected, close: onClose })}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Aucune formule ne convient : la demande sur-mesure, à côté
+                      du bouton de réservation, au même format mais en clair. */}
+                  <ReserveButton
+                    href={`/espace-client/personnalisation?chef=${encodeURIComponent(menu.chef.id)}`}
+                    variant="outline"
+                    className="text-xs"
+                    onClick={onClose}
+                  >
+                    Demande sur-mesure
+                  </ReserveButton>
+                  {renderAction({ menu, selected, close: onClose, offer: offre })}
+                </div>
               </footer>
             </>
           )}
@@ -1707,7 +1862,6 @@ export function MenuDialog({
 function ChefPanel({ card }: { card: WeekCard }) {
   const fiche = useChefPublic(card.chef.id)
   const chef = fiche.data
-  const regles = usePricingRules().data
   const offres = chef?.serviceOffers ?? []
 
   const zones = useMemo(() => {
@@ -1807,17 +1961,14 @@ function ChefPanel({ card }: { card: WeekCard }) {
                   chaque ligne : la mention est la même pour toutes. */}
               <div className="mb-2 mt-4 flex items-baseline justify-between gap-3">
                 <h3 className="text-xs font-semibold text-ink-mid">Ses formules</h3>
-                {regles && (
-                  <p className="shrink-0 whitespace-nowrap text-[11px] text-ink-soft">
-                    après crédit d’impôt
-                  </p>
-                )}
+                <p className="shrink-0 whitespace-nowrap text-[11px] text-ink-soft">
+                  après crédit d’impôt
+                </p>
               </div>
               <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
                 {offres.map((o) => {
-                  const apres = regles
-                    ? offerEuros(afterTaxFromClientPrice(o.priceCents, regles))
-                    : null
+                  // Forfait courses compris, connecté ou pas.
+                  const apres = offerEuros(offerAfterTaxCents(o))
                   return (
                     <li key={o.id} className="px-3 py-2.5">
                       <div className="flex items-baseline justify-between gap-3">
@@ -1828,7 +1979,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
                           {o.name}
                         </span>
                         <span className="shrink-0 whitespace-nowrap text-sm font-bold tabular-nums text-navy">
-                          {apres ?? offerEuros(o.priceCents)}
+                          {apres}
                         </span>
                       </div>
                       <p className="mt-0.5 truncate text-[11px] text-ink-soft">
