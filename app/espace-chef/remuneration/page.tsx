@@ -98,6 +98,29 @@ function PayoutMode() {
   const router = useRouter()
   const traite = useRef(false)
 
+  /* Retour de l'inscription Stripe (`return_url`/`refresh_url` du backend).
+     `expire` : le lien a servi ou expiré, Stripe demande d'en refaire un.
+     `retour` : terminé ou « plus tard » ; l'état vient du webhook. */
+  useEffect(() => {
+    const etape = retour.get('stripe')
+    if (!etape || traite.current) return
+    traite.current = true
+    router.replace('/espace-chef/remuneration', { scroll: false })
+    if (etape === 'expire') ouvrirStripe()
+    else stripe.refetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retour, router])
+
+  function ouvrirStripe() {
+    lien.mutate(undefined, {
+      onSuccess: (r) => {
+        if (r?.url) window.location.href = r.url
+        else toast.error('Stripe n’a pas renvoyé de lien')
+      },
+      onError: (e) => toast.error('Le lien n’a pas pu être créé', apiMessage(e)),
+    })
+  }
+
   /* De retour de la page Stripe. Le webhook active aussi le mandat : confirmer
      ici évite seulement d'attendre qu'il arrive. On nettoie l'adresse pour
      qu'un rechargement ne rejoue rien. */
@@ -388,16 +411,7 @@ function PayoutMode() {
                     espacées se tronquent sans rien dire. */}
                 <div className="mt-3 space-y-2">
                   <button
-                    onClick={() =>
-                      lien.mutate(undefined, {
-                        onSuccess: (r) => {
-                          if (r?.url) window.location.href = r.url
-                          else toast.error('Stripe n’a pas renvoyé de lien')
-                        },
-                        onError: (e) =>
-                          toast.error('Le lien n’a pas pu être créé', apiMessage(e)),
-                      })
-                    }
+                    onClick={ouvrirStripe}
                     disabled={lien.isPending}
                     className="btn btn-outline w-full justify-center text-xs"
                   >

@@ -665,8 +665,8 @@ export const toStepRow = (s: Step | string): StepRow =>
         minutes: s.durationMinutes?.toString() ?? '',
       }
 
-/** Une étape vierge, avec sa propre clé. */
-export const newStepRow = (): StepRow => ({ key: rowKey(), text: '', type: '', minutes: '' })
+/** Une étape vierge, avec sa propre clé ; « Préparation » par défaut, le type le plus courant. */
+export const newStepRow = (): StepRow => ({ key: rowKey(), text: '', type: 'preparation', minutes: '' })
 
 /** Une étape écrite, au format d'écriture de l'API. */
 const cleanStep = (s: StepRow): Step => ({

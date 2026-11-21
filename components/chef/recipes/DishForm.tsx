@@ -402,8 +402,9 @@ function toDraft(dish: Dish | null): Draft {
     reheatMinutes: reheating?.minutes?.toString() ?? '',
     reheatNote: reheating?.note ?? '',
     reheatContainer: reheating?.container ?? '',
-    storageMethod: dish?.recipe?.storage?.method ?? '',
-    storageDays: dish?.recipe?.storage?.days?.toString() ?? '',
+    // Un plat neuf part de « Réfrigérateur, 3 jours » : le cas courant, que le chef corrige au besoin.
+    storageMethod: dish ? (dish.recipe?.storage?.method ?? '') : 'fridge',
+    storageDays: dish ? (dish.recipe?.storage?.days?.toString() ?? '') : '3',
     storageContainer: dish?.recipe?.storage?.container ?? '',
     storageFreezable:
       dish?.recipe?.storage?.freezable === undefined
@@ -677,9 +678,6 @@ export default function DishForm({
   const retryDraftRef = useRef<Draft | null>(null)
   /** Les échecs passagers (réseau, 5xx) d'affilée : ils espacent les essais suivants. */
   const [retries, setRetries] = useState(0)
-  /** Une tentative d'enregistrement a eu lieu : les champs obligatoires vides se signalent alors. */
-  const [attempted, setAttempted] = useState(false)
-  const [thawingTouched, setThawingTouched] = useState(false)
   /** Le dernier envoi automatique refusé champ par champ (400, 422), pour en placer les messages. */
   const [refusal, setRefusal] = useState<Refusal | null>(null)
   /** Le dernier envoi voulu : son refus arrive par `saveError`, et se place de même. */
@@ -1052,7 +1050,6 @@ export default function DishForm({
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        setAttempted(true)
         if (firstProblem) focusField(firstProblem)
         if (!saveable || saving || autosaving || restoring || conflict || blocked) return
         const sentDraft = d
@@ -1152,6 +1149,12 @@ export default function DishForm({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Le plat ──────────────────────────────────────────────────────── */}
         <div className="space-y-6 lg:col-span-2">
+          <p className="text-xs text-ink-soft">
+            <span className="text-red-600" aria-hidden>
+              *
+            </span>{' '}
+            Champ nécessaire pour que la fiche soit Prête.
+          </p>
           <Group title="Le plat">
             <Field label="Nom" required>
               <input
@@ -1206,7 +1209,7 @@ export default function DishForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Place dans le repas">
+              <Field label="Place dans le repas" required>
                 <select
                   id="dish-category"
                   value={d.category ?? ''}
@@ -1227,7 +1230,7 @@ export default function DishForm({
               ils restent dans votre espace.
             </Hint>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Field label="Portions">
+              <Field label="Portions" required>
                 <input
                   id="dish-portions"
                   type="number"
@@ -1255,7 +1258,7 @@ export default function DishForm({
                 />
                 <ProblemText id="dish-prep" msgs={fieldMsgs} />
               </Field>
-              <Field label="Cuisson (min)" hint="0 si le plat ne cuit pas.">
+              <Field label="Cuisson (min)" required hint="0 si le plat ne cuit pas.">
                 <input
                   id="dish-cook"
                   type="number"
@@ -1649,7 +1652,7 @@ export default function DishForm({
           >
             <div id="reheat-modes">
               <p className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
-                Se réchauffe au
+                Se réchauffe au <RequiredMark />
                 <InfoPopover label="Changer le réchauffage crée-t-il une version ?">
                   Non. Les modes et les consignes de réchauffage s’appliquent dès
                   l’enregistrement, même sur un plat publié : ni nouvelle version, ni
@@ -1741,7 +1744,7 @@ export default function DishForm({
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Conserver au">
+              <Field label="Conserver au" required>
                 <select
                   id="storage-method"
                   value={d.storageMethod}
@@ -1756,7 +1759,7 @@ export default function DishForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Jours de conservation" required={Boolean(d.storageMethod)}>
+              <Field label="Jours de conservation" required>
                 <input
                   id="storage-days"
                   type="number"
@@ -1792,10 +1795,11 @@ export default function DishForm({
               aria-describedby="storage-freezable-hint"
             >
               <legend className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
-                Congelable <span className="text-amber-ink">*</span>
+                Congelable <RequiredMark />
                 <InfoPopover label="Pourquoi dire si le plat se congèle ?">
                   Le client lit la réponse dans sa fiche. Si le plat se congèle, dites pour
-                  combien de mois et comment le décongeler. Une fiche écrite avant cette
+                  combien de mois (3 par défaut) et, si vous le souhaitez, comment le
+                  décongeler. Une fiche écrite avant cette
                   question n’a pas de réponse : elle reste « à préciser » jusqu’à ce que vous
                   choisissiez, et ce n’est pas un « non ».
                 </InfoPopover>
@@ -1813,7 +1817,15 @@ export default function DishForm({
                       name="storage-freezable"
                       value={value}
                       checked={d.storageFreezable === value}
-                      onChange={() => set('storageFreezable', value)}
+                      onChange={() =>
+                        setD((p) => ({
+                          ...p,
+                          storageFreezable: value,
+                          // « Oui » propose 3 mois, sans écraser une durée déjà saisie.
+                          storageMonths:
+                            value === 'yes' && !p.storageMonths.trim() ? '3' : p.storageMonths,
+                        }))
+                      }
                       className="h-4 w-4 accent-navy"
                     />
                     {label}
@@ -1850,9 +1862,8 @@ export default function DishForm({
                 </Field>
                 <Field
                   label="Comment le décongeler"
-                  required
                   className="sm:col-span-2"
-                  hint={`${d.storageThawing.length} / ${THAWING_MAX} caractères.`}
+                  hint={`Facultatif. ${d.storageThawing.length} / ${THAWING_MAX} caractères.`}
                 >
                   <input
                     id="storage-thawing"
@@ -1860,21 +1871,17 @@ export default function DishForm({
                     maxLength={THAWING_MAX}
                     onChange={(e) => set('storageThawing', e.target.value)}
                     placeholder="Une nuit au réfrigérateur, puis au four."
-                    onBlur={() => setThawingTouched(true)}
-                    {...invalid(
-                      'storage-thawing',
-                      (attempted || thawingTouched) && d.storageThawing.trim() === '',
-                    )}
+                    {...invalid('storage-thawing')}
                     className="input-base"
                   />
                   <ProblemText id="storage-thawing" msgs={fieldMsgs} />
                 </Field>
               </div>
             )}
-            {freezeYes && (!d.storageMonths.trim() || !d.storageThawing.trim()) && (
+            {freezeYes && !d.storageMonths.trim() && (
               <Note>
-                Un plat congelable demande les mois de conservation et la façon de le
-                décongeler pour que la fiche soit Prête.
+                Un plat congelable demande le nombre de mois de conservation pour que la
+                fiche soit Prête.
               </Note>
             )}
 
@@ -2391,6 +2398,7 @@ function AllergenCheck({
           {dish.allergensVerifiedAt
             ? `Allergènes confirmés le ${new Date(dish.allergensVerifiedAt).toLocaleDateString('fr-FR')}`
             : 'Allergènes à confirmer'}
+          {!dish.allergensVerifiedAt && <RequiredMark />}
         </span>
         <InfoPopover label="Pourquoi confirmer les allergènes ?">
           Vous confirmez que les allergènes ci-dessus, calculés et ajoutés, correspondent
@@ -2709,7 +2717,7 @@ function IngredientRows({
   return (
     <div id="ingredients">
       <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
-        Ingrédients
+        Ingrédients <RequiredMark />
         <InfoPopover label="Liste commune, quantité fixe, caché au client, à vérifier : de quoi s’agit-il ?">
           Tapez un nom et choisissez l’ingrédient dans la liste commune : c’est
           d’elle que se calculent les régimes, les allergènes et les saisons. S’il n’y
@@ -3259,7 +3267,7 @@ function StepRows({
   return (
     <div id="steps" className="mt-5">
       <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
-        Étapes
+        Étapes <RequiredMark />
         <InfoPopover label="Pourquoi un type par étape ?">
           Le type (préparation, cuisson, refroidissement, mise en boîte) range la
           session et la fiche. Une étape sans type empêche la fiche d’être Prête. La
@@ -3440,7 +3448,7 @@ function Field({
     <label className={`block ${className}`}>
       <span className="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-navy">
         {label}
-        {required && <span className="text-amber-ink"> *</span>}
+        {required && <RequiredMark />}
         {popover}
       </span>
       {children}
@@ -3448,6 +3456,15 @@ function Field({
         <span className="mt-1 block text-xs leading-relaxed text-ink-soft">{hint}</span>
       )}
     </label>
+  )
+}
+
+/** L'astérisque d'un champ demandé pour que la fiche soit Prête (ou pour l'enregistrer). */
+function RequiredMark() {
+  return (
+    <span className="text-red-600" aria-hidden>
+      {' '}*
+    </span>
   )
 }
 

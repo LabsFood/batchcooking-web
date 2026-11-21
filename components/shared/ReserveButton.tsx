@@ -21,6 +21,9 @@ type ReserveButtonProps = {
   meals?: string
   /** Chosen batch cooker: the reservation opens on his carte, not a blank list. */
   chef?: string
+  /** Formule chosen in the carte: the reservation skips straight to the details. */
+  offer?: string
+  disabled?: boolean
   className?: string
   variant?: 'primary' | 'navy' | 'amber' | 'outline' | 'outline-light' | 'ghost'
   /** Render with no .btn class so a custom wrapper can style it. */
@@ -42,6 +45,8 @@ export default function ReserveButton({
   href,
   meals,
   chef,
+  offer,
+  disabled = false,
   className,
   variant = 'primary',
   asChild = false,
@@ -53,9 +58,11 @@ export default function ReserveButton({
 
   const resolveTarget = () => {
     if (href) return href
-    if (meals && meals.length > 0) {
-      const q = new URLSearchParams({ meals })
+    if ((meals && meals.length > 0) || (chef && offer)) {
+      const q = new URLSearchParams()
+      if (meals) q.set('meals', meals)
       if (chef) q.set('chef', chef)
+      if (chef && offer) q.set('offer', offer)
       return `/espace-client/reservation?${q.toString()}`
     }
     // A chef but no dish yet: his carte opens in the reservation flow.
@@ -66,6 +73,7 @@ export default function ReserveButton({
 
   const handle = (e: React.MouseEvent) => {
     e.preventDefault()
+    if (disabled) return
     onClick?.()
     if (!isReady) return
     const target = resolveTarget()
@@ -80,7 +88,12 @@ export default function ReserveButton({
     <button
       type="button"
       onClick={handle}
-      className={cn(asChild ? '' : VARIANT_CLASS[variant], className)}
+      disabled={disabled}
+      className={cn(
+        asChild ? '' : VARIANT_CLASS[variant],
+        disabled && 'cursor-not-allowed opacity-55',
+        className,
+      )}
     >
       {children}
     </button>
