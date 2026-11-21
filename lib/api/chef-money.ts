@@ -230,13 +230,45 @@ export function useStripeStatus() {
   })
 }
 
-/** `POST …/stripe-connect/link` — un lien d'inscription à usage unique. */
+/**
+ * Jeton de compte Stripe v2, fait dans le navigateur avec la clé publique : une
+ * plateforme établie en France ne peut pas envoyer l'e-mail du batch cooker en clair
+ * à la création du compte (`account_token_required`).
+ */
+async function createAccountToken(email: string): Promise<string> {
+  const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  if (!key) throw new Error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY n’est pas configurée')
+  const res = await fetch('https://api.stripe.com/v2/core/account_tokens', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      // Même version que les appels Accounts v2 du backend (stripe-accounts-v2.ts).
+      'Stripe-Version': '2026-09-30.endive',
+    },
+    body: JSON.stringify({ contact_email: email }),
+  })
+  const body = (await res.json().catch(() => null)) as {
+    id?: string
+    error?: { message?: string }
+  } | null
+  if (!res.ok || !body?.id) {
+    throw new Error(body?.error?.message ?? 'Stripe n’a pas créé le jeton de compte')
+  }
+  return body.id
+}
+
+/**
+ * `POST …/stripe-connect/link` — un lien d'inscription à usage unique. `email` à la
+ * première fois seulement : le backend crée alors le compte à partir du jeton.
+ */
 export function useStripeLink() {
   const apiFetch = useApiFetch()
   return useMutation({
-    mutationFn: () =>
+    mutationFn: async (email?: string) =>
       apiFetch<{ url?: string | null }>('/me/chef-profile/stripe-connect/link', {
         method: 'POST',
+        body: email ? { accountToken: await createAccountToken(email) } : {},
       }),
   })
 }
