@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/LabsFood/batchcooking-web/compare/v1.6.0...v1.7.0) (2026-11-21)
+
+### Features
+
+* **stripe:** créer le compte Stripe du batch cooker à partir d'un jeton de compte ([405f655](https://github.com/LabsFood/batchcooking-web/commit/405f655c94e90b22254b5a6c267c40afda4b6c72))
+
 ## [1.6.0](https://github.com/LabsFood/batchcooking-web/compare/v1.5.0...v1.6.0) (2026-11-21)
 
 ### Features
