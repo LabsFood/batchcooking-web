@@ -21,6 +21,7 @@ import ApprovalGate from '@/components/chef/ApprovalGate'
 import ChefLegalForm from '@/components/chef/ChefLegalForm'
 import { useToast } from '@/components/shared/Toaster'
 import { apiMessage } from '@/lib/api/messages'
+import { useAuth } from '@/lib/auth-context'
 import {
   SAP_LABEL,
   statutLabel,
@@ -86,6 +87,7 @@ export default function ChefPayoutModePage() {
 
 function PayoutMode() {
   const toast = useToast()
+  const { user } = useAuth()
   const sap = useSapProfile()
   const save = useSaveSapProfile()
   const stripe = useStripeStatus()
@@ -112,7 +114,8 @@ function PayoutMode() {
   }, [retour, router])
 
   function ouvrirStripe() {
-    lien.mutate(undefined, {
+    // L'e-mail sert seulement à créer le compte, la première fois.
+    lien.mutate(stripe.data?.stripeAccountId ? undefined : user?.email, {
       onSuccess: (r) => {
         if (r?.url) window.location.href = r.url
         else toast.error('Stripe n’a pas renvoyé de lien')
