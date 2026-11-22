@@ -1,20 +1,27 @@
 'use client'
 
-import { use } from 'react'
+import { use, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { RotateCw } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
+import ImportReviewBanner from '@/components/chef/recipes/ImportReviewBanner'
 import { useToast } from '@/components/shared/Toaster'
 import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import { useDishes, useUpdateDish, type DishInput } from '@/lib/api/chef-catalog'
 import { apiMessage } from '@/lib/api/messages'
+import { useRecipeImport } from '@/lib/api/recipe-imports'
+import { track } from '@/lib/analytics'
 
 /**
  * Modifier un plat. La liste est déjà en cache après un passage par
  * `/espace-chef/recettes` : on y lit le plat plutôt que de redemander à l'API
  * ce qu'elle vient de donner.
+ *
+ * Arrivé d'un import (`?import=`) : le bandeau « Importé, à relire » au-dessus du
+ * formulaire, et au premier enregistrement l'événement `recipe_form_saved` avec
+ * `mode: 'import'`, la durée comptée depuis l'envoi : la mesure « après » de J1.
  */
 export default function ModifierPlatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -27,6 +34,9 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
   const autosave = useUpdateDish()
 
   const dish = dishes.data?.find((d) => d.id === id)
+  const importId = useSearchParams().get('import')
+  const imported = useRecipeImport(importId)
+  const tracked = useRef(false)
 
   /**
    * La fiche enregistrée revient au formulaire : il en reprend la version avant
@@ -36,6 +46,16 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
   function save(input: DishInput) {
     return update.mutateAsync({ id, patch: input }).then(
       (saved) => {
+        if (imported.data && !tracked.current) {
+          tracked.current = true
+          track('recipe_form_saved', {
+            mode: 'import',
+            source: imported.data.sourceType,
+            durationSeconds: Math.round((Date.now() - Date.parse(imported.data.createdAt)) / 1000),
+            ingredients: input.recipe?.ingredients?.length ?? 0,
+            steps: input.recipe?.steps?.length ?? 0,
+          })
+        }
         toast.success(`« ${saved.name} » enregistré`)
         router.push('/espace-chef/recettes')
         return saved
@@ -92,6 +112,7 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
           : 'Le brouillon s’enregistre tout seul.'
       }
     >
+      {imported.data?.meals.some((m) => m.id === id) && <ImportReviewBanner data={imported.data} />}
       <DishForm
         dish={dish}
         variantOfName={dishes.data?.find((x) => x.id === dish.variantOfId)?.name ?? null}

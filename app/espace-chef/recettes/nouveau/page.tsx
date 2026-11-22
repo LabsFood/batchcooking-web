@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import ChefPage from '@/components/chef/ChefPage'
 import DishForm from '@/components/chef/recipes/DishForm'
+import ImportButton from '@/components/chef/recipes/ImportButton'
 import { useToast } from '@/components/shared/Toaster'
 import { useCreateDish, type DishInput } from '@/lib/api/chef-catalog'
 import { apiMessage } from '@/lib/api/messages'
@@ -48,6 +49,9 @@ export default function NouveauPlatPage() {
 
   return (
     <ChefPage title="Nouveau plat" subtitle="Le nom et le temps de préparation suffisent pour commencer.">
+      <div className="mx-auto mb-4 flex max-w-2xl justify-end">
+        <ImportButton />
+      </div>
       <DishForm
         dish={null}
         onSave={save}

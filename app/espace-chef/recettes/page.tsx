@@ -25,6 +25,7 @@ import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skele
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import ExpressDishesToDecide from '@/components/chef/recipes/ExpressDishesToDecide'
+import ImportButton from '@/components/chef/recipes/ImportButton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
@@ -134,9 +135,12 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
             ? 'Aucun plat pour l’instant.'
             : `${dishes.length} plat${dishes.length > 1 ? 's' : ''}, dont ${published} publié${published > 1 ? 's' : ''}`}
         </p>
-        <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
-          <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <ImportButton />
+          <Link href="/espace-chef/recettes/nouveau" className="btn btn-primary text-xs">
+            <Plus className="h-3.5 w-3.5" aria-hidden /> Nouveau plat
+          </Link>
+        </div>
       </div>
 
       {dishes.length === 0 ? (
