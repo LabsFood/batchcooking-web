@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { AlertTriangle, Sparkles } from 'lucide-react'
 import { refLabel, useAllergens } from '@/lib/api/referentials'
 import { ESTIMATED_LABEL, type RecipeImport } from '@/lib/api/recipe-imports'
@@ -9,9 +10,13 @@ import { ESTIMATED_LABEL, type RecipeImport } from '@/lib/api/recipe-imports'
  * Champs estimés, ingrédients à vérifier, avertissements de lecture, et en rouge
  * les allergènes que l'IA soupçonne sans que la liste commune les calcule : à
  * regarder avant « Confirmer les allergènes ». Aucun champ du formulaire ne change.
+ * Un import qui a donné plusieurs brouillons : le détail de ce plat-ci, et un
+ * lien vers les autres.
  */
-export default function ImportReviewBanner({ data }: { data: RecipeImport }) {
+export default function ImportReviewBanner({ data: all, mealId }: { data: RecipeImport; mealId: string }) {
   const allergens = useAllergens()
+  const data = { ...all, ...(all.perMeal?.[mealId] ?? {}) }
+  const others = all.meals.filter((m) => m.id !== mealId)
   const estimated = data.estimatedFields.map((f) => ESTIMATED_LABEL[f]).filter(Boolean)
   return (
     <section aria-label="Recette importée" className="mx-auto mb-5 max-w-2xl rounded-3xl bg-cream-soft p-5">
@@ -38,6 +43,20 @@ export default function ImportReviewBanner({ data }: { data: RecipeImport }) {
             <strong>{data.allergenGaps.map((code) => refLabel(allergens, code)).join(', ')}</strong>. Ils ne sont pas
             ajoutés d’office : ajoutez-les si la recette les contient.
           </span>
+        </p>
+      )}
+      {others.length > 0 && (
+        <p className="mt-3 text-[13px] leading-relaxed text-ink-mid">
+          Du même import, aussi en brouillon :{' '}
+          {others.map((m, i) => (
+            <span key={m.id}>
+              {i > 0 && ', '}
+              <Link href={`/espace-chef/recettes/${m.id}?import=${all.id}`} className="font-semibold text-navy underline underline-offset-2">
+                {m.name}
+              </Link>
+            </span>
+          ))}
+          .
         </p>
       )}
     </section>

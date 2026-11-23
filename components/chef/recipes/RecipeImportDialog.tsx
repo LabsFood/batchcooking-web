@@ -111,8 +111,11 @@ export default function RecipeImportDialog({ open, onClose }: { open: boolean; o
     start.reset()
   }
 
+  // On sort à tout moment (Échap, clic à côté, Annuler). Pendant l'envoi ou la
+  // lecture, l'import continue : rouvrir la fenêtre montre où il en est.
   function close() {
-    if (start.isPending) return
+    const running = start.isPending || data?.status === 'pending' || data?.status === 'processing'
+    if (running) return onClose()
     reset()
     setFiles([])
     onClose()
@@ -165,7 +168,7 @@ export default function RecipeImportDialog({ open, onClose }: { open: boolean; o
               Importer une recette
             </Dialog.Title>
             <Dialog.Close asChild>
-              <button type="button" className="hit -m-2 rounded-full p-2 text-ink-soft hover:text-navy" aria-label="Fermer" disabled={start.isPending}>
+              <button type="button" className="hit -m-2 rounded-full p-2 text-ink-soft hover:text-navy" aria-label="Fermer">
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </Dialog.Close>
@@ -190,7 +193,13 @@ export default function RecipeImportDialog({ open, onClose }: { open: boolean; o
                   data={data}
                   pending={choose.isPending}
                   error={choose.error ? apiMessage(choose.error) : null}
-                  onChoose={(index) => choose.mutate({ id: data.id, index })}
+                  onChoose={(indexes) =>
+                    choose.mutate(
+                      { id: data.id, indexes },
+                      // Les brouillons sont créés : le premier s'ouvre tout de suite.
+                      { onSuccess: (res) => res.meals[0] && router.push(`/espace-chef/recettes/${res.meals[0].id}?import=${res.id}`) },
+                    )
+                  }
                   onCancel={close}
                 />
               ) : data?.status === 'done' ? (
@@ -205,10 +214,15 @@ export default function RecipeImportDialog({ open, onClose }: { open: boolean; o
               ) : data?.status === 'failed' || uploadFailed ? (
                 <Failed message={data?.error?.message ?? uploadFailed ?? 'L’import a échoué.'} onRetry={reset} />
               ) : (
-                <p className="text-[13px] text-ink-soft">
-                  Comptez de quelques secondes à une minute pour une photo. Vous pouvez fermer : l’import continue, le brouillon
-                  apparaîtra dans vos plats.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-[13px] text-ink-soft">
+                    Comptez de quelques secondes à une minute pour une photo. Vous pouvez fermer : l’import continue, le
+                    brouillon apparaîtra dans vos plats.
+                  </p>
+                  <button type="button" onClick={close} className="btn btn-outline text-xs">
+                    Continuer en arrière-plan
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -306,26 +320,36 @@ function Review({
   data: RecipeImport
   pending: boolean
   error: string | null
-  onChoose: (index: number) => void
+  onChoose: (indexes: number[]) => void
   onCancel: () => void
 }) {
-  const [index, setIndex] = useState(0)
+  // Toutes cochées par défaut : on décoche ce qu'on ne veut pas garder.
+  const [picked, setPicked] = useState<number[]>(() => data.candidates.map((c) => c.index))
   const several = data.candidates.length > 1
+  const n = picked.length
   return (
     <div>
       {several ? (
-        <fieldset>
-          <legend className="text-sm font-semibold text-navy">Plusieurs recettes trouvées : laquelle importer ?</legend>
+        <fieldset disabled={pending}>
+          <legend className="text-sm font-semibold text-navy">Plusieurs recettes trouvées : lesquelles garder ?</legend>
+          <p className="mt-1 text-[13px] text-ink-soft">
+            Chacune devient un brouillon, rien n’est publié. La première s’ouvre pour que vous la relisiez.
+          </p>
           <div className="mt-3 space-y-2">
             {data.candidates.map((c) => (
               <label key={c.index} className="flex cursor-pointer items-center gap-3 rounded-2xl bg-cream-soft px-3 py-2.5 text-sm text-ink">
-                <input type="radio" name="candidate" checked={index === c.index} onChange={() => setIndex(c.index)} />
+                <input
+                  type="checkbox"
+                  checked={picked.includes(c.index)}
+                  onChange={(e) =>
+                    setPicked((p) => (e.target.checked ? [...p, c.index].sort((x, y) => x - y) : p.filter((i) => i !== c.index)))
+                  }
+                />
                 <span className="flex-1">{c.name}</span>
-                <span className="text-[12px] text-ink-soft">{c.ingredients} ingrédients</span>
+                <span className="text-[12px] tabular-nums text-ink-soft">{c.ingredients} ingrédients</span>
               </label>
             ))}
           </div>
-          <p className="mt-2 text-[13px] text-ink-soft">Une recette à la fois : relancez l’import pour les autres.</p>
         </fieldset>
       ) : (
         <p className="text-sm leading-relaxed text-ink">
@@ -337,9 +361,15 @@ function Review({
       )}
       {error && <ErrorLine message={error} />}
       <div className="mt-5 flex flex-wrap gap-2">
-        <button type="button" disabled={pending} onClick={() => onChoose(several ? index : 0)} className="btn btn-primary text-xs disabled:opacity-55">
+        <button
+          type="button"
+          autoFocus
+          disabled={pending || (several && n === 0)}
+          onClick={() => onChoose(several ? picked : [0])}
+          className="btn btn-primary text-xs disabled:opacity-55"
+        >
           {pending && <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />}
-          {several ? 'Importer cette recette' : 'Créer une variante'}
+          {several ? `Créer ${n} brouillon${n > 1 ? 's' : ''}` : 'Créer une variante'}
         </button>
         <button type="button" disabled={pending} onClick={onCancel} className="btn btn-outline text-xs">
           Annuler
@@ -531,7 +561,7 @@ function buildSteps({
       : data?.status === 'review'
         ? {
             id: 'ready',
-            label: data.candidates.length > 1 ? `${data.candidates.length} recettes trouvées : choisissez-en une` : 'Un plat du même nom existe déjà',
+            label: data.candidates.length > 1 ? `${data.candidates.length} recettes trouvées : choisissez lesquelles garder` : 'Un plat du même nom existe déjà',
             status: 'warning',
           }
         : { id: 'ready', label: 'Brouillon', status: 'pending' },
