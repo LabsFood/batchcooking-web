@@ -49,9 +49,7 @@ export default function NouveauPlatPage() {
 
   return (
     <ChefPage title="Nouveau plat" subtitle="Le nom et le temps de préparation suffisent pour commencer.">
-      <div className="mx-auto mb-4 flex max-w-2xl justify-end">
-        <ImportButton />
-      </div>
+      <ImportButton card />
       <DishForm
         dish={null}
         onSave={save}

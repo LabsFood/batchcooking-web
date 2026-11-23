@@ -34,6 +34,14 @@ export interface RecipeImport {
   toVerify: number | null
   duplicateOf: { id: string; name: string } | null
   candidates: { index: number; name: string; ingredients: number }[]
+  /** Ce qui s'est réellement passé pendant la lecture (absent sur une API plus ancienne). */
+  trace?: {
+    provider: string | null
+    model: string | null
+    startedAt: string | null
+    belowThreshold: boolean
+    unlinkedNames: string[]
+  }
   createdAt: string
   finishedAt: string | null
 }
@@ -101,18 +109,28 @@ export type StartImport =
   | { sourceType: 'url'; url: string }
   | { sourceType: 'title'; title: string }
 
-export function useStartImport() {
+/** Les étapes réelles de l'envoi, pour le fil d'activité. */
+export type UploadEvent =
+  | { kind: 'upload'; index: number; total: number; name: string }
+  | { kind: 'uploaded'; index: number; total: number }
+  | { kind: 'created' }
+
+export function useStartImport(onEvent?: (e: UploadEvent) => void) {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: StartImport) => {
       if (input.sourceType !== 'file') {
-        return apiFetch<RecipeImport>('/me/recipe-imports', { method: 'POST', body: input })
+        const created = await apiFetch<RecipeImport>('/me/recipe-imports', { method: 'POST', body: input })
+        onEvent?.({ kind: 'created' })
+        return created
       }
       const problem = checkImportFiles(input.files)
       if (problem) throw new Error(problem)
       const uploadIds: string[] = []
-      for (const chosen of input.files) {
+      const total = input.files.length
+      for (const [index, chosen] of input.files.entries()) {
+        onEvent?.({ kind: 'upload', index, total, name: chosen.name })
         const file = chosen.type.startsWith('image/') ? await optimizePhoto(chosen, READABLE_MAX_SIDE) : chosen
         if (file.size > IMPORT_MAX_MB * 1024 * 1024) {
           throw new Error(`Fichier trop lourd : ${IMPORT_MAX_MB} Mo au plus.`)
@@ -133,11 +151,14 @@ export function useStartImport() {
         }
         if (!res.ok) throw new Error(`Le transfert du fichier a échoué (${res.status}).`)
         uploadIds.push(ticket.uploadId)
+        onEvent?.({ kind: 'uploaded', index, total })
       }
-      return apiFetch<RecipeImport>('/me/recipe-imports', {
+      const created = await apiFetch<RecipeImport>('/me/recipe-imports', {
         method: 'POST',
         body: { sourceType: 'file', uploadIds },
       })
+      onEvent?.({ kind: 'created' })
+      return created
     },
     onSuccess: (data) => qc.setQueryData(key(data.id), data),
   })
