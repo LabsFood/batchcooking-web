@@ -34,6 +34,8 @@ export interface RecipeImport {
   toVerify: number | null
   duplicateOf: { id: string; name: string } | null
   candidates: { index: number; name: string; ingredients: number }[]
+  /** Plusieurs brouillons d'un même import : ce qu'il faut relire, plat par plat (id du plat). */
+  perMeal?: Record<string, MealReport>
   /** Ce qui s'est réellement passé pendant la lecture (absent sur une API plus ancienne). */
   trace?: {
     provider: string | null
@@ -44,6 +46,15 @@ export interface RecipeImport {
   }
   createdAt: string
   finishedAt: string | null
+}
+
+export interface MealReport {
+  estimatedFields: string[]
+  warnings: string[]
+  allergenGaps: string[]
+  linked: number
+  toVerify: number
+  unlinkedNames: string[]
 }
 
 export const IMPORT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
@@ -168,8 +179,9 @@ export function useChooseImport() {
   const apiFetch = useApiFetch()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, index }: { id: string; index: number }) =>
-      apiFetch<RecipeImport>(`/me/recipe-imports/${id}/choose`, { method: 'POST', body: { index } }),
+    /** Une ou plusieurs recettes deviennent des brouillons ; `meals[0]` est celui à ouvrir. */
+    mutationFn: ({ id, indexes }: { id: string; indexes: number[] }) =>
+      apiFetch<RecipeImport>(`/me/recipe-imports/${id}/choose`, { method: 'POST', body: { indexes } }),
     onSuccess: (data) => {
       qc.setQueryData(key(data.id), data)
       qc.invalidateQueries({ queryKey: ['me', 'dishes'] })

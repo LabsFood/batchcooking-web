@@ -112,7 +112,7 @@ export default function ModifierPlatPage({ params }: { params: Promise<{ id: str
           : 'Le brouillon s’enregistre tout seul.'
       }
     >
-      {imported.data?.meals.some((m) => m.id === id) && <ImportReviewBanner data={imported.data} />}
+      {imported.data?.meals.some((m) => m.id === id) && <ImportReviewBanner data={imported.data} mealId={id} />}
       <DishForm
         dish={dish}
         variantOfName={dishes.data?.find((x) => x.id === dish.variantOfId)?.name ?? null}
