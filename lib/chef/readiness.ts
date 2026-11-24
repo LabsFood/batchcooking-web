@@ -208,6 +208,9 @@ const CONTROL = 'input, select, textarea, button'
  * un champ voisin : pour « Confirmer les allergènes », ce serait une case
  * d'allergène, qu'une frappe d'espace cocherait.
  */
+/** L'événement qui ouvre la carte repliée (accordéon) d'un champ, avant son focus. */
+export const REVEAL_SECTION = 'lf:reveal-section'
+
 export function focusField(id: string): void {
   if (typeof document === 'undefined') return
   let el = document.getElementById(id)
@@ -218,6 +221,8 @@ export function focusField(id: string): void {
     if (step) el = document.getElementById(`step-${step[1]}-text`)
   }
   if (!el) return
+  // Un champ d'une carte repliée n'est pas focusable : la carte s'ouvre d'abord (synchrone).
+  el.closest('[data-section-body][hidden]')?.dispatchEvent(new Event(REVEAL_SECTION))
 
   let target: HTMLElement
   if ((el as HTMLButtonElement).disabled) {

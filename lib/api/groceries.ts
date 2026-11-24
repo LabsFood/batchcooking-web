@@ -82,6 +82,11 @@ export interface Groceries {
   instantPayout?: { chosen: boolean; feeCents: number | null; status: string | null } | null
   instantPayoutFee?: { bps: number; minCents: number }
   settledAt: string | null
+  /**
+   * L'empreinte attend le compte de paiement (Stripe) du batch cooker, pas la carte du
+   * client : elle est posée dès qu'il est prêt.
+   */
+  waitingChefAccount?: boolean
 }
 
 /** Qui regarde : le chemin de l'API change, la réponse a la même forme. */

@@ -1,10 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CheckCircle2, ChevronDown, Circle } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { InfoPopover } from '@/components/shared/InfoPopover'
+import {
+  ETAT_LU,
+  LigneReduite,
+  Pastille,
+  Segments,
+  type EtatEtape,
+} from '@/components/shared/onboarding/Steppers'
 import { useMyOnboarding, type OnboardingStep } from '@/lib/api/me-profile'
+import { useReduit } from '@/lib/onboarding/reduit'
 import { cn } from '@/lib/utils'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -16,43 +24,51 @@ import { cn } from '@/lib/utils'
    Le dossier URSSAF n'apparaît que si l'avance immédiate est proposée : sans
    lui, elle ne peut pas être ouverte.
 
-   La liste disparaît une fois tout fait.
+   Stepper horizontal (24/11) : une barre en segments (un par étape) et une
+   rangée de puces. Chaque puce ouvre son étape dans la carte du dessous, une à
+   la fois et dans l'ordre qu'on veut ; à l'arrivée, c'est la prochaine à faire.
 
-   Elle ne tient plus tout le haut de l'accueil. Repliée, elle montre où l'on
-   en est et la prochaine étape, avec son bouton : c'est ce qu'il reste à faire
-   qui compte, pas la liste de ce qui l'est déjà. Un nouveau compte la trouve
-   dépliée ; dès que la moitié est faite, elle se replie d'elle-même.
+   « Masquer » apparaît à 60 %, et seulement une fois les allergies déclarées
+   (sans elles, aucun menu n'est validé). Masquer ne cache pas : la carte se
+   réduit en une ligne, retenue d'une session à l'autre, jusqu'à 100 %.
+   La liste disparaît une fois tout fait.
    ───────────────────────────────────────────────────────────────────────────── */
 
+/** Libellé court de la puce (2 à 4 mots) ; `titre` reste celui de la carte. */
 const ETAPES: Record<
   OnboardingStep['code'],
-  { titre: string; texte: string; href: string; action: string }
+  { puce: string; titre: string; texte: string; href: string; action: string }
 > = {
   contact_details: {
+    puce: 'Coordonnées',
     titre: 'Vos coordonnées',
     texte: 'Votre nom et votre téléphone, pour que votre batch cooker puisse vous joindre le jour J.',
     href: '/espace-client/parametres',
     action: 'Compléter',
   },
   address: {
+    puce: 'Adresse',
     titre: 'Votre adresse',
     texte: 'Là où le batch cooker vient cuisiner : rue, code postal et ville.',
     href: '/espace-client/compte',
     action: 'Renseigner',
   },
   allergies: {
+    puce: 'Allergies',
     titre: 'Vos allergies',
     texte: 'Indiquez vos allergies, ou dites que vous n’en avez aucune.',
     href: '/espace-client/profil#allergies',
     action: 'Déclarer',
   },
   tastes: {
+    puce: 'Vos goûts',
     titre: 'Vos goûts',
     texte: 'Ce que vous aimez, ce que vous évitez, votre goût pour le piquant : vos menus vous ressembleront.',
     href: '/espace-client/profil',
     action: 'Personnaliser',
   },
   urssaf_dossier: {
+    puce: 'Dossier URSSAF',
     titre: 'Votre dossier URSSAF',
     texte:
       'Pour régler en avance immédiate : votre état civil et le compte que l’URSSAF prélèvera. À remplir une fois.',
@@ -60,6 +76,7 @@ const ETAPES: Record<
     action: 'Remplir',
   },
   first_booking: {
+    puce: 'Première session',
     titre: 'Votre première session',
     texte: 'Choisissez un batch cooker et une date.',
     href: '/espace-client/menus?reserve=1',
@@ -67,133 +84,161 @@ const ETAPES: Record<
   },
 }
 
+/** Seuil d'apparition de « Masquer ». */
+const SEUIL_MASQUER = 0.6
+
 export default function BienDemarrer() {
   const { data } = useMyOnboarding()
-  // `null` : l'utilisateur n'a pas encore choisi, l'avancement décide.
-  const [choix, setChoix] = useState<boolean | null>(null)
+  const [reduit, setReduit] = useReduit('client')
+  // `null` : rien de choisi, la carte montre la prochaine étape à faire.
+  const [choisie, setChoisie] = useState<OnboardingStep['code'] | null>(null)
+  const rangee = useRef<HTMLOListElement>(null)
+
+  // Mobile : la rangée de puces s'ouvre centrée sur l'étape ouverte.
+  useEffect(() => {
+    const ol = rangee.current
+    const puce = ol?.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (!ol || !puce || ol.scrollWidth <= ol.clientWidth) return
+    ol.scrollLeft = puce.offsetLeft - (ol.clientWidth - puce.offsetWidth) / 2
+  }, [data, choisie])
+
   if (!data || data.allDone) return null
 
   const prochaine = data.steps.find((s) => !s.done)
-  const ouvert = choix ?? data.completed * 2 < data.total
-  const suite = prochaine ? ETAPES[prochaine.code] : null
+  const ouverte = data.steps.find((s) => s.code === choisie) ?? prochaine ?? data.steps[0]
+  const etat = (s: OnboardingStep): EtatEtape =>
+    s.done ? 'fait' : s.code === prochaine?.code ? 'en-cours' : 'a-venir'
+  const etats = data.steps.map(etat)
+  const pourcent = Math.round((data.completed / data.total) * 100)
+  const allergiesFaites = data.steps.find((s) => s.code === 'allergies')?.done !== false
+  const peutMasquer = data.completed / data.total >= SEUIL_MASQUER && allergiesFaites
+
+  if (reduit && peutMasquer) {
+    const suite = prochaine ? ETAPES[prochaine.code] : undefined
+    return (
+      <LigneReduite
+        titre="Bien démarrer"
+        etats={etats}
+        fait={data.completed}
+        total={data.total}
+        prochaine={suite?.puce}
+        href={suite?.href}
+        onReprendre={() => setReduit(false)}
+      />
+    )
+  }
+
+  const e = ETAPES[ouverte.code]
 
   return (
-    <section className="panel">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-5 lg:px-6">
-        <div className="min-w-0 flex-1 basis-64">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
-              Bien démarrer
-              <InfoPopover label="À quoi sert cette liste ?">
-                Quelques étapes pour que votre première session se passe bien. Vous pouvez
-                les faire dans l’ordre que vous voulez, et réserver sans les avoir toutes
-                faites — sauf les allergies, sans lesquelles aucun menu ne peut être validé.
-                La liste disparaît une fois tout fait.
-              </InfoPopover>
-            </h2>
-            <p className="shrink-0 text-sm tabular-nums text-ink-mid">
-              <strong className="font-semibold text-navy">{data.completed}</strong> sur {data.total}
+    <section className="panel overflow-hidden">
+      <div className="px-4 pt-4 sm:px-6 sm:pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-1 font-display text-lg font-bold text-navy">
+            Bien démarrer
+            <InfoPopover label="À quoi sert cette liste ?">
+              Quelques étapes pour que votre première session se passe bien. Vous pouvez
+              les faire dans l’ordre que vous voulez, et réserver sans les avoir toutes
+              faites — sauf les allergies, sans lesquelles aucun menu ne peut être validé.
+              La liste disparaît une fois tout fait.
+            </InfoPopover>
+          </h2>
+          <div className="flex shrink-0 items-center gap-4">
+            <p className="text-sm tabular-nums text-ink-mid">
+              <strong className="font-semibold text-navy">{data.completed}</strong> sur{' '}
+              {data.total}
+              <span className="hidden sm:inline"> · {pourcent} %</span>
             </p>
-          </div>
-          <div
-            className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-cream-deep"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={data.total}
-            aria-valuenow={data.completed}
-            aria-label="Étapes faites"
-          >
-            <div
-              // slow-out : la barre avance en 200 ms
-              className="h-full rounded-full bg-amber transition-[width] duration-200"
-              style={{ width: `${(data.completed / data.total) * 100}%` }}
-            />
+            {peutMasquer && (
+              <button
+                type="button"
+                onClick={() => setReduit(true)}
+                className="hit text-sm font-semibold text-ink-mid hover:text-navy"
+              >
+                Masquer
+              </button>
+            )}
           </div>
         </div>
-
-        {/* Repliée : la prochaine étape, et de quoi la faire. */}
-        {!ouvert && suite && (
-          <div className="flex min-w-0 flex-1 basis-80 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <p className="min-w-0 text-sm text-ink-mid">
-              Prochaine étape : <span className="font-semibold text-navy">{suite.titre}</span>
-            </p>
-            <Link href={suite.href} className="btn btn-outline">
-              {suite.action}
-              <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
-            </Link>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setChoix(!ouvert)}
-          aria-expanded={ouvert}
-          aria-controls="bien-demarrer-etapes"
-          className="hit inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-ink-mid hover:text-navy"
+        <div
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={data.total}
+          aria-valuenow={data.completed}
+          aria-label="Étapes faites"
+          className="mt-3"
         >
-          {ouvert ? 'Replier' : 'Toutes les étapes'}
-          <ChevronDown
-            className={cn('h-4 w-4 transition-transform duration-200', ouvert && 'rotate-180')}
-            aria-hidden
-          />
-        </button>
-      </div>
+          <Segments etats={etats} />
+        </div>
 
-      {ouvert && (
-        <ol id="bien-demarrer-etapes" className="space-y-3 border-t border-[var(--line)] p-5 lg:px-6">
-          {data.steps.map((step) => {
-            const e = ETAPES[step.code]
+        {/* Les puces : défilent à l'horizontale sur mobile. */}
+        <ol
+          ref={rangee}
+          className="relative -mx-4 mt-4 flex snap-x gap-1.5 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:flex-wrap lg:overflow-visible">
+          {data.steps.map((step, i) => {
+            const st = etats[i]
+            const active = step.code === ouverte.code
             return (
-              <li key={step.code} className="flex items-start gap-3">
-                {step.done ? (
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-mint-ink" aria-hidden />
-                ) : (
-                  <Circle className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" aria-hidden />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      'flex items-center gap-1 text-sm font-semibold',
-                      step.done ? 'text-ink-soft' : 'text-navy',
-                    )}
-                  >
-                    {e.titre}
-                    <span className="sr-only">{step.done ? ' : fait' : ' : à faire'}</span>
-                    {!step.done && step.requiredFor === 'immediate_advance' && (
-                      <InfoPopover label="Pourquoi ce dossier ?">
-                        Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de
-                        suite et l’URSSAF prélève le reste sur votre compte. Pour vous inscrire
-                        auprès d’elle, Lab’s Food a besoin de votre état civil et de ce compte.
-                        Vous pouvez réserver et payer autrement sans ce dossier.
-                      </InfoPopover>
-                    )}
-                    {!step.done && step.requiredFor === 'menu_validation' && (
-                      <InfoPopover label="Pourquoi cette étape compte-t-elle ?">
-                        Vos allergies sont vérifiées contre chaque plat. Tant que vous
-                        n’avez pas répondu (une liste, ou « aucune »), votre batch cooker
-                        ne peut pas valider de menu pour vous.
-                      </InfoPopover>
-                    )}
-                  </p>
-                  {!step.done && <p className="mt-0.5 text-sm text-ink-mid">{e.texte}</p>}
-                </div>
-                {!step.done && (
-                  <Link
-                    href={e.href}
-                    className={cn(
-                      'hit inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline',
-                      step.code === prochaine?.code ? 'text-amber-ink' : 'text-navy',
-                    )}
-                  >
-                    {e.action}
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </Link>
-                )}
+              <li key={step.code} className="shrink-0 snap-start">
+                <button
+                  type="button"
+                  onClick={() => setChoisie(step.code)}
+                  aria-pressed={active}
+                  aria-controls="bien-demarrer-etape"
+                  className={cn(
+                    'inline-flex items-center gap-2 whitespace-nowrap rounded-full border py-1 pl-1 pr-3 text-[13px] font-semibold transition-colors duration-150',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:ring-offset-2',
+                    st === 'fait' && 'border-[var(--line)] bg-cream-soft text-ink-soft hover:text-navy',
+                    st !== 'fait' && 'border-[var(--line-strong)] bg-paper text-navy hover:border-navy/40',
+                    active && 'border-amber bg-[#FFF8EC] text-navy hover:border-amber',
+                  )}
+                >
+                  <Pastille etat={st} numero={i + 1} petite />
+                  {ETAPES[step.code].puce}
+                  <span className="sr-only"> : {ETAT_LU[st]}</span>
+                </button>
               </li>
             )
           })}
         </ol>
-      )}
+      </div>
+
+      {/* L'étape ouverte : un seul bouton d'action. */}
+      <div
+        id="bien-demarrer-etape"
+        aria-live="polite"
+        className="mt-4 flex flex-col gap-3 border-t border-[var(--line)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
+      >
+        <div className="min-w-0">
+          <p className="flex items-center gap-1 text-sm font-semibold text-navy">
+            {e.titre}
+            {ouverte.done && <span className="font-normal text-mint-ink">· fait</span>}
+            {!ouverte.done && ouverte.requiredFor === 'immediate_advance' && (
+              <InfoPopover label="Pourquoi ce dossier ?">
+                Avec l’avance immédiate, le crédit d’impôt de 50 % est déduit tout de
+                suite et l’URSSAF prélève le reste sur votre compte. Pour vous inscrire
+                auprès d’elle, Lab’s Food a besoin de votre état civil et de ce compte.
+                Vous pouvez réserver et payer autrement sans ce dossier.
+              </InfoPopover>
+            )}
+            {!ouverte.done && ouverte.requiredFor === 'menu_validation' && (
+              <InfoPopover label="Pourquoi cette étape compte-t-elle ?">
+                Vos allergies sont vérifiées contre chaque plat. Tant que vous
+                n’avez pas répondu (une liste, ou « aucune »), votre batch cooker
+                ne peut pas valider de menu pour vous.
+              </InfoPopover>
+            )}
+          </p>
+          <p className="mt-0.5 text-sm leading-relaxed text-ink-mid">{e.texte}</p>
+        </div>
+        <Link
+          href={e.href}
+          className={cn('btn shrink-0 justify-center', ouverte.done ? 'btn-outline' : 'btn-amber')}
+        >
+          {ouverte.done ? 'Modifier' : e.action}
+          <ArrowRight className="icon-arrow h-4 w-4" aria-hidden />
+        </Link>
+      </div>
     </section>
   )
 }

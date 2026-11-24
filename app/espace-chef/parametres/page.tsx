@@ -8,22 +8,24 @@ import DeleteMyAccount from '@/components/client/DeleteMyAccount'
 import ChangePassword from '@/components/shared/ChangePassword'
 import { useAuth } from '@/lib/auth-context'
 
+/**
+ * Ce que le batch cooker reçoit, sans interrupteur : rien n'est encore réglable
+ * côté API. Les e-mails partent pour tout le monde ; les notifications push
+ * n'existent pas encore (pas de push dans `public/sw.js`), d'où « Bientôt ».
+ * Des interrupteurs gardés en `useState` laissaient croire le contraire.
+ */
 const NOTIFICATIONS = [
-  { id: 'requests', label: 'Nouvelles demandes', hint: 'Push + e-mail' },
-  { id: 'offers', label: 'Réponses à mes offres', hint: 'Push + e-mail' },
-  { id: 'documents', label: 'Documents et expirations', hint: 'E-mail' },
-  { id: 'payouts', label: 'Versements', hint: 'E-mail' },
-  { id: 'disputes', label: 'Litiges', hint: 'Push + e-mail' },
+  { id: 'requests', label: 'Nouvelles demandes', push: true },
+  { id: 'offers', label: 'Réponses à mes offres', push: true },
+  { id: 'documents', label: 'Documents et expirations', push: false },
+  { id: 'payouts', label: 'Versements', push: false },
+  { id: 'disputes', label: 'Litiges', push: true },
 ]
 
 export default function ChefSettingsPage() {
   const { user, signOut } = useAuth()
   const router = useRouter()
-  const [enabled, setEnabled] = useState<string[]>(NOTIFICATIONS.map((n) => n.id))
   const [changingPassword, setChangingPassword] = useState(false)
-
-  const toggle = (id: string) =>
-    setEnabled((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
   return (
     <ChefPage title="Paramètres" subtitle="Compte, notifications, langue et données.">
@@ -39,36 +41,30 @@ export default function ChefSettingsPage() {
 
         <Card title="Notifications">
           <ul className="space-y-2">
-            {NOTIFICATIONS.map((n) => {
-              const on = enabled.includes(n.id)
-              return (
-                <li
-                  key={n.id}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-[rgba(31,42,55,0.08)] px-4 py-3"
-                >
-                  <div className="min-w-0 flex items-start gap-3">
-                    <Bell className="w-4 h-4 text-amber-ink mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-navy">{n.label}</p>
-                      <p className="text-xs text-ink-soft">{n.hint}</p>
-                    </div>
+            {NOTIFICATIONS.map((n) => (
+              <li
+                key={n.id}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-[rgba(31,42,55,0.08)] px-4 py-3"
+              >
+                <div className="min-w-0 flex items-start gap-3">
+                  <Bell className="w-4 h-4 text-amber-ink mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-navy">{n.label}</p>
+                    <p className="text-xs text-ink-soft">{n.push ? 'E-mail, puis push' : 'E-mail'}</p>
                   </div>
-                  <button
-                    onClick={() => toggle(n.id)}
-                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
-                      on ? 'bg-amber' : 'bg-cream-deep'
-                    }`}
-                    aria-label={n.label}
-                  >
-                    <span
-                      className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-[left] duration-150 ${
-                        on ? 'left-[22px]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </li>
-              )
-            })}
+                </div>
+                <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                  <span className="rounded-full bg-mint px-2.5 py-1 text-xs font-semibold text-mint-ink">
+                    E-mail activé
+                  </span>
+                  {n.push && (
+                    <span className="rounded-full bg-cream-deep px-2.5 py-1 text-xs font-semibold text-ink-mid">
+                      Push bientôt
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
           </ul>
         </Card>
 

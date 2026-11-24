@@ -54,6 +54,9 @@ const TITRES: Record<string, string> = {
   'groceries.reminder':
     'La liste est figée : faites les courses et validez-les avant la prestation.',
   // Recettes lot 6 : les courses payées à part.
+  'groceries.card_needed': 'Votre batch cooker fera vos courses : enregistrez la carte qui les paiera.',
+  'groceries.chef_account_needed':
+    'Un client attend son Budget Courses : finalisez votre compte de paiement Stripe.',
   'groceries.hold_placed': 'Votre Budget Courses est réservé sur votre carte (empreinte).',
   'groceries.budget_guaranteed': 'Budget garanti : le client a réservé son Budget Courses.',
   'groceries.hold_failed': 'Votre carte a refusé l’empreinte : authentifiez-vous ou changez de carte.',
@@ -90,6 +93,8 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'shopping_list.reminder_answer': () => '/espace-client/courses',
   'shopping_list.frozen': () => '/espace-client/courses',
   'groceries.reminder': () => '/espace-chef/prestations',
+  'groceries.card_needed': (id) => `/espace-client/commandes/${id}`,
+  'groceries.chef_account_needed': () => '/espace-chef/remuneration',
   'groceries.hold_placed': (id) => `/espace-client/commandes/${id}`,
   'groceries.hold_failed': (id) => `/espace-client/commandes/${id}`,
   'groceries.notice': (id) => `/espace-client/commandes/${id}`,

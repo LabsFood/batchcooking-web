@@ -2,13 +2,14 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
+import { captureAnalyticsException } from '@/lib/analytics'
 
 import './globals.css'
 
 /**
  * Dernier filet : un rendu qui casse remplace toute la page, layout racine
- * compris (d'où <html> et <body>). L'erreur part à Sentry, le visiteur garde
- * un moyen de repartir.
+ * compris (d'où <html> et <body>). L'erreur part à Sentry et à PostHog,
+ * le visiteur garde un moyen de repartir.
  */
 export default function GlobalError({
   error,
@@ -19,6 +20,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     Sentry.captureException(error)
+    captureAnalyticsException(error)
   }, [error])
 
   return (

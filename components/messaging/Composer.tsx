@@ -14,6 +14,7 @@ import {
   type Conversation,
 } from '@/lib/api/messaging'
 import { fileSize } from './format'
+import { track } from '@/lib/analytics'
 
 interface PendingFile {
   /** Identifiant local, le temps du dépôt. */
@@ -91,6 +92,12 @@ export default function Composer({
         clientMessageId: crypto.randomUUID(),
       },
       {
+        onSuccess: () => {
+          track('message_sent', {
+            attachment_count: sent.length,
+            has_text: Boolean(body),
+          })
+        },
         // Le message a été retiré du fil : on rend ce qui avait été écrit.
         onError: (cause) => {
           setDraft((current) => current || body)

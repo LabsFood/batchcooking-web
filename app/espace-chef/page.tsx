@@ -12,9 +12,10 @@ import {
   type ChefDocument,
   type DossierStatus,
 } from '@/lib/api/chef-documents'
-import { useMeProfile } from '@/lib/api/me-profile'
+import { useChefOnboarding, useMeProfile } from '@/lib/api/me-profile'
 import type { ChefProfile } from '@/lib/api/types'
 import PresenceCarte from '@/components/chef/PresenceCarte'
+import MiseEnRoute from '@/components/chef/MiseEnRoute'
 import {
   bookingStatusText,
   hour,
@@ -95,6 +96,10 @@ export default function ChefHomePage() {
     (moi?.isVerified === true || application.data?.status === 'approved') &&
     moi?.isActive !== true
 
+  // La mise en route dit déjà « approuvé, pas encore en ligne », étapes à l'appui.
+  const miseEnRoute = useChefOnboarding()
+  const miseEnRouteVisible = miseEnRoute.data?.verified === true && !miseEnRoute.data.online
+
   const bookings = useChefBookings()
   const quotes = useChefQuotes()
 
@@ -135,12 +140,17 @@ export default function ChefHomePage() {
         <PresenceCarte />
 
         {/* État du dossier — la seule chose qui puisse bloquer une prestation */}
-        <DossierCard
-          status={dossier.data?.dossierStatus}
-          documents={dossier.data?.documents ?? []}
-          loading={dossier.isPending}
-          attendMiseEnLigne={attendMiseEnLigne}
-        />
+        {!(attendMiseEnLigne && miseEnRouteVisible) && (
+          <DossierCard
+            status={dossier.data?.dossierStatus}
+            documents={dossier.data?.documents ?? []}
+            loading={dossier.isPending}
+            attendMiseEnLigne={attendMiseEnLigne}
+          />
+        )}
+
+        {/* Approuvé, pas encore en ligne : ce qu'il reste pour être réservable. */}
+        <MiseEnRoute />
 
         {/* ── Ce qui arrive ───────────────────────────────────────────── */}
         <section className="overflow-hidden rounded-3xl bg-navy text-white">

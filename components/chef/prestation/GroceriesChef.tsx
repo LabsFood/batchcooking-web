@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Clock, Plus, Receipt, Send, ShieldCheck, Trash2, Wallet } from 'lucide-react'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { apiMessage } from '@/lib/api/messages'
@@ -71,6 +72,18 @@ function Step({ g, missionId }: { g: Groceries; missionId: string }) {
   switch (g.status) {
     case 'awaiting_card':
     case 'card_saved':
+      if (g.waitingChefAccount) {
+        return (
+          <p className="mt-1 text-[13px] text-amber-deep">
+            Votre compte de paiement Stripe n’est pas prêt : le Budget du client ne peut pas être
+            réservé. Finalisez-le dans{' '}
+            <Link href="/espace-chef/remuneration" className="font-semibold underline underline-offset-2">
+              Rémunération
+            </Link>{' '}
+            ; sans quoi le client fera ses courses lui-même.
+          </p>
+        )
+      }
       return (
         <p className="mt-1 text-[13px] text-ink-mid">
           Le Budget sera réservé sur la carte du client le {when(g.opensAt)} (Verrouillage). Les courses

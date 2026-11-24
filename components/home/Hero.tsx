@@ -21,15 +21,12 @@ import ReserveButton from '@/components/shared/ReserveButton'
    `Providers`).
    ───────────────────────────────────────────────────────────────────────────── */
 
-const FADE = {
-  hidden: { opacity: 0, y: 40, filter: 'blur(8px)' },
-  show: (d = 0) => ({
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 1, ease: [0.16, 1, 0.3, 1] as const, delay: d },
-  }),
-}
+/* L'entrée du texte et de l'image est en CSS (`.hero-in`, dans globals.css),
+   pas en Framer Motion : avec Framer, le HTML du serveur sort en `opacity: 0`
+   et le titre (l'élément LCP) reste invisible jusqu'à l'hydratation du JS,
+   soit ~9 s sur un mobile lent (PageSpeed du 24/11). En CSS, l'animation part
+   dès le premier rendu, sans attendre le JS. */
+const heroDelay = (s: number) => ({ '--hero-delay': `${s}s` }) as React.CSSProperties
 
 export default function Hero() {
   return (
@@ -53,43 +50,27 @@ export default function Hero() {
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
           {/* ── Le texte ──────────────────────────────────────────────── */}
           <div className="lg:col-span-7">
-            <motion.p variants={FADE} custom={0} initial="hidden" animate="show" className="eyebrow mb-6">
+            <p className="hero-in eyebrow mb-6" style={heroDelay(0)}>
               Service à la personne
-            </motion.p>
+            </p>
 
-            <motion.h1
-              variants={FADE}
-              custom={0.08}
-              initial="hidden"
-              animate="show"
-              className="h-display font-fraunces text-navy"
-              style={{ fontSize: 'clamp(2.6rem, 6.5vw, 5rem)' }}
+            <h1
+              className="hero-in h-display font-fraunces text-navy"
+              style={{ ...heroDelay(0.08), fontSize: 'clamp(2.6rem, 6.5vw, 5rem)' }}
             >
               Une semaine entière
               <br />
               de repas faits maison
               <br />
               <span className="font-medium italic text-terra">en 2 heures.</span>
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              variants={FADE}
-              custom={0.18}
-              initial="hidden"
-              animate="show"
-              className="mt-7 max-w-xl text-lg leading-relaxed text-ink-mid"
-            >
+            <p className="hero-in mt-7 max-w-xl text-lg leading-relaxed text-ink-mid" style={heroDelay(0.18)}>
               Un cuisinier se déplace chez vous et prépare l&apos;ensemble de vos repas de la
               semaine en une seule session.
-            </motion.p>
+            </p>
 
-            <motion.div
-              variants={FADE}
-              custom={0.28}
-              initial="hidden"
-              animate="show"
-              className="mt-10 flex flex-wrap items-center gap-4"
-            >
+            <div className="hero-in mt-10 flex flex-wrap items-center gap-4" style={heroDelay(0.28)}>
               <ReserveButton>
                 Réserver ma session
                 <ArrowRight className="icon-arrow h-4 w-4" />
@@ -97,29 +78,21 @@ export default function Hero() {
               <Link href="/#how-it-works" className="btn btn-outline">
                 Comment ça marche ?
               </Link>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={FADE}
-              custom={0.38}
-              initial="hidden"
-              animate="show"
-              className="mt-12 flex flex-wrap items-center gap-8 border-t border-[rgba(31,26,20,0.08)] pt-8"
+            <div
+              className="hero-in mt-12 flex flex-wrap items-center gap-8 border-t border-[rgba(31,26,20,0.08)] pt-8"
+              style={heroDelay(0.38)}
             >
               <p className="text-sm text-ink-mid">
                 <span className="font-semibold text-terra">Avance immédiate</span> acceptée
               </p>
-            </motion.div>
+            </div>
           </div>
 
           {/* ── L'image ───────────────────────────────────────────────── */}
           <div className="relative lg:col-span-5">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-              className="relative"
-            >
+            <div className="hero-in hero-in--scale relative" style={heroDelay(0.15)}>
               <Image
                 src="/shapeIvy_transparent.png"
                 alt="Chef cuisinier à domicile"
@@ -161,7 +134,7 @@ export default function Hero() {
                   <p className="mt-0.5 text-xs text-ink-soft">certifié &amp; assuré chez vous</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
