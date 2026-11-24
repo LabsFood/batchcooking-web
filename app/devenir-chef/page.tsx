@@ -1003,8 +1003,13 @@ function Header() {
           </Link>
           {/* Un batch cooker arrive ici par « Nous rejoindre » : sans ce lien,
               rien ne lui dit où se connecter une fois sa candidature déposée. */}
-          <Link href="/auth/login" className="btn btn-outline max-w-[15rem] px-4 py-2 text-center text-xs leading-tight sm:max-w-none">
-            Déjà Batch Cooker ou Candidat ? Se connecter
+          {/* Sur mobile, la phrase entière débordait de l'en-tête : le verbe suffit. */}
+          <Link
+            href="/auth/login"
+            className="btn btn-outline shrink-0 px-4 py-2 text-center text-xs leading-tight"
+          >
+            <span className="sm:hidden">Se connecter</span>
+            <span className="hidden sm:inline">Déjà Batch Cooker ou Candidat ? Se connecter</span>
           </Link>
         </div>
       </div>
