@@ -413,20 +413,22 @@ function PayoutMode() {
                     Dans une carte de demi-largeur, deux pilules en capitales
                     espacées se tronquent sans rien dire. */}
                 <div className="mt-3 space-y-2">
-                  <button
-                    onClick={ouvrirStripe}
-                    disabled={lien.isPending}
-                    className="btn btn-outline w-full justify-center text-xs"
-                  >
-                    {lien.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    {stripe.data?.stripeAccountId
-                      ? 'Mon compte Stripe'
-                      : 'Créer mon compte Stripe'}
-                  </button>
+                  {/* Dossier complet : plus d'inscription, l'API la refuse
+                      (STRIPE_ONBOARDING_COMPLETE). Le tableau de bord prend le relais. */}
+                  {!stripe.data?.detailsSubmitted && (
+                    <button
+                      onClick={ouvrirStripe}
+                      disabled={lien.isPending}
+                      className="btn btn-outline w-full justify-center text-xs"
+                    >
+                      {lien.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      Lier / créer mon compte Stripe
+                    </button>
+                  )}
                   {stripe.data?.detailsSubmitted && (
                     <button
                       onClick={() =>
