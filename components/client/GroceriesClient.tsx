@@ -139,7 +139,9 @@ export default function GroceriesClient({ bookingId }: { bookingId: string }) {
                 ? `Budget réservé le ${when(g.hold.placedAt)}.`
                 : status === 'hold_failed'
                   ? ''
-                  : `Le Budget sera réservé le ${when(g.opensAt)}.`}
+                  : g.waitingChefAccount
+                    ? 'Le compte de paiement de votre batch cooker n’est pas encore prêt : votre Budget sera réservé dès qu’il le sera. Rien à faire de votre côté.'
+                    : `Le Budget sera réservé le ${when(g.opensAt)}.`}
             </p>
             {(status === 'awaiting_card' || status === 'card_saved' || status === 'hold_failed') && (
               <button type="button" onClick={toCard} disabled={busy} className="btn btn-outline mt-2 text-xs disabled:opacity-50">
