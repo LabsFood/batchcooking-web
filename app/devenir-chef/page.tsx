@@ -8,7 +8,6 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Check,
   CheckCircle2,
   Clock,
   FileText,
@@ -18,6 +17,7 @@ import {
   MapPin,
 } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
+import { NoeudsRelies } from '@/components/shared/onboarding/Steppers'
 import ZonePicker from '@/components/chef/application/ZonePicker'
 import CityField from '@/components/chef/application/CityField'
 import { useCommunes } from '@/lib/api/referentials'
@@ -66,13 +66,13 @@ import { track } from '@/lib/analytics'
    (cf. lib/chef/application.ts) ; l'appel réseau est simulé pour l'instant.
    ───────────────────────────────────────────────────────────────────────────── */
 
-const STEPS: { id: StepId; label: string; detail: string }[] = [
-  { id: 'identity', label: 'Vos coordonnées', detail: 'Identité et adresse' },
-  { id: 'zones', label: 'Zones d’intervention', detail: 'Régions et villes' },
-  { id: 'status', label: 'Votre situation', detail: 'Autorisation de travail' },
-  { id: 'company', label: 'Votre activité', detail: 'Statut et services à la personne' },
-  { id: 'documents', label: 'Justificatifs', detail: 'À déposer maintenant ou plus tard' },
-  { id: 'review', label: 'Relecture et envoi', detail: 'Vérifier puis envoyer' },
+const STEPS: { id: StepId; label: string; court: string; detail: string }[] = [
+  { id: 'identity', label: 'Vos coordonnées', court: 'Coordonnées', detail: 'Identité, adresse' },
+  { id: 'zones', label: 'Zones d’intervention', court: 'Zones', detail: 'Régions, villes' },
+  { id: 'status', label: 'Votre situation', court: 'Situation', detail: 'Droit de travailler' },
+  { id: 'company', label: 'Votre activité', court: 'Activité', detail: 'Statut, SAP' },
+  { id: 'documents', label: 'Justificatifs', court: 'Justificatifs', detail: 'Maintenant ou plus tard' },
+  { id: 'review', label: 'Relecture et envoi', court: 'Envoi', detail: 'Relire, envoyer' },
 ]
 
 const SHOW_PAYLOAD = process.env.NODE_ENV !== 'production'
@@ -287,13 +287,13 @@ function ApplicationForm({
     <div className="min-h-screen bg-cream">
       <Header />
 
-      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)] lg:gap-14 lg:py-14">
-        {/* ── Étapes ─────────────────────────────────────────────────────── */}
-        <aside className="lg:sticky lg:top-10 lg:self-start">
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-12">
+        {/* ── En-tête ────────────────────────────────────────────────────── */}
+        <header className="mb-6 lg:mb-8">
           <h1 className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:text-[32px]">
             {redepot ? 'Corriger ma candidature' : 'Rejoindre Lab’s Food'}
           </h1>
-          <p className="mt-2 hidden text-sm leading-relaxed text-ink-mid lg:block">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-mid">
             {redepot
               ? 'Vos réponses sont déjà là : corrigez ce qui doit l’être. Les pièces que vous aviez déposées restent en place.'
               : 'Une dizaine de minutes pour candidater. Notre équipe étudie chaque dossier sous 48 h ouvrées.'}
@@ -310,76 +310,32 @@ function ApplicationForm({
             </div>
           )}
 
-          {/* Mobile : progression compacte */}
-          <div className="mt-4 lg:hidden">
+        </header>
+
+        {/* ── Formulaire, étapes en tête (stepper horizontal, 24/11) ─────── */}
+        <section className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-6 sm:px-8 sm:py-8 lg:px-11 lg:py-10">
+          {/* Ordre imposé, mais une étape déjà atteinte se rouvre d'un clic. */}
+          <div className="sm:hidden">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="font-semibold text-navy">{STEPS[index].label}</span>
               <span className="tabular-nums text-ink-soft">
                 {index + 1} / {STEPS.length}
               </span>
             </div>
-            <div className="mt-2 grid grid-cols-6 gap-1" aria-hidden>
-              {STEPS.map((s, i) => (
-                <span
-                  key={s.id}
-                  className={`h-1 rounded-full transition-colors duration-200 ${i < index ? 'bg-navy' : i === index ? 'bg-amber' : 'bg-cream-deep'
-                    }`}
-                />
-              ))}
-            </div>
           </div>
-
-          {/* Desktop : fil vertical */}
-          <nav aria-label="Étapes de la candidature" className="mt-10 hidden lg:block">
-            <ol>
-              {STEPS.map((s, i) => {
-                const current = i === index
-                const isDone = (i < furthest || i < index) && !current
-                const reachable = i <= furthest
-                return (
-                  <li key={s.id} className="relative pb-6 pl-11 last:pb-0">
-                    {i < STEPS.length - 1 && (
-                      <span
-                        aria-hidden
-                        className={`absolute bottom-1 left-[13px] top-8 w-px transition-colors duration-200 ${i < index ? 'bg-navy' : 'bg-[rgba(31,42,55,0.14)]'
-                          }`}
-                      />
-                    )}
-                    <span
-                      aria-hidden
-                      className={`absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 ${current
-                        ? 'bg-amber text-navy shadow-[0_4px_12px_-4px_rgba(214,139,14,0.6)]'
-                        : isDone
-                          ? 'bg-navy text-white'
-                          : 'border-[1.5px] border-[rgba(31,42,55,0.18)] bg-paper text-ink-soft'
-                        }`}
-                    >
-                      {isDone && !current ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => reachable && goTo(i)}
-                      disabled={!reachable || current}
-                      aria-current={current ? 'step' : undefined}
-                      className="block rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:ring-offset-4 disabled:cursor-default"
-                    >
-                      <span
-                        className={`block text-sm font-semibold leading-7 transition-colors ${current ? 'text-navy' : reachable ? 'text-navy/80 hover:text-navy' : 'text-ink-soft'
-                          }`}
-                      >
-                        {s.label}
-                      </span>
-                      <span className="block text-xs leading-snug text-ink-soft">{s.detail}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-          </nav>
-        </aside>
-
-        {/* ── Formulaire ─────────────────────────────────────────────────── */}
-        <section className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11">
+          <NoeudsRelies
+            label="Étapes de la candidature"
+            className="mt-3 sm:mt-0"
+            noeuds={STEPS.map((s, i) => ({
+              id: s.id,
+              label: s.court,
+              detail: s.detail,
+              etat: i === index ? 'en-cours' : i < furthest || i < index ? 'fait' : 'a-venir',
+              onSelect: i <= furthest && i !== index ? () => goTo(i) : undefined,
+            }))}
+            compact="mobile"
+          />
+          <div className="my-6 border-t border-[var(--line)] sm:my-8" />
           <motion.div
             key={step}
             // fondu : l'étape arrive en 180 ms
@@ -915,12 +871,10 @@ function Shell() {
   return (
     <div className="min-h-screen bg-cream">
       <Header />
-      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)] lg:gap-14 lg:py-14">
-        <aside>
-          <h1 className="font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:text-[32px]">
-            Rejoindre Lab’s Food
-          </h1>
-        </aside>
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-12">
+        <h1 className="mb-6 font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-navy lg:mb-8 lg:text-[32px]">
+          Rejoindre Lab’s Food
+        </h1>
         <section
           aria-busy
           className="min-h-[520px] rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper px-5 py-7 sm:px-8 sm:py-9 lg:px-11 lg:py-11"

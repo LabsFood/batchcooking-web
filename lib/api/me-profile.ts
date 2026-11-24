@@ -55,6 +55,40 @@ export function useMyOnboarding() {
   })
 }
 
+/** Une étape de la « Mise en route » du batch cooker, dans l'ordre de l'API. */
+export interface ChefOnboardingStep {
+  code: 'showcase' | 'payouts' | 'service_offer' | 'availability' | 'first_menu'
+  done: boolean
+}
+
+export interface ChefOnboarding {
+  steps: ChefOnboardingStep[]
+  completed: number
+  total: number
+  allDone: boolean
+  /** `isVerified` : dossier approuvé par l'équipe. */
+  verified: boolean
+  /** Vérifié et mis en ligne par l'équipe : visible des clients. */
+  online: boolean
+}
+
+/**
+ * `GET /me/chef-onboarding` — ce que le batch cooker est invité à faire une fois
+ * approuvé pour être réservable. Rien n'y bloque ni ne publie : la mise en
+ * ligne reste une décision de l'équipe (`online`).
+ */
+export function useChefOnboarding() {
+  const apiFetch = useApiFetch()
+  const { isLoaded, isSignedIn } = useAuth()
+  const meKey = useMeKey()
+
+  return useQuery({
+    queryKey: [...meKey, 'chef-onboarding'],
+    queryFn: () => apiFetch<ChefOnboarding>('/me/chef-onboarding'),
+    enabled: isLoaded && !!isSignedIn,
+  })
+}
+
 /** Corps de `PUT /me/profile/allergies` : une liste avec consentement, ou « aucune ». */
 export interface AllergyDeclaration {
   none?: boolean
