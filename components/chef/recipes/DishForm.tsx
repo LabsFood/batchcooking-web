@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -9,6 +10,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
+  ChevronRight,
   Download,
   Image as ImageIcon,
   Info,
@@ -25,7 +27,7 @@ import { Hint } from '@/components/shared/Hint'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { COUNTRIES_ALPHA } from '@/lib/chef/countries'
-import { fieldTarget, focusField, problemText } from '@/lib/chef/readiness'
+import { REVEAL_SECTION, fieldTarget, focusField, problemText } from '@/lib/chef/readiness'
 import {
   DECLARED_DIETS,
   refLabel,
@@ -597,6 +599,21 @@ function mergeSaved(current: Draft, sent: Draft, res: Dish, hadSent: StoredRecip
 /** Le plat neuf tel qu'il s'ouvre : ce qui en diffère est une saisie à ne pas perdre. */
 const EMPTY_DISH_JSON = JSON.stringify(toPayload(toDraft(null)))
 
+/** Les cartes repliables du formulaire, pour ranger chaque alerte dans la sienne. */
+type GroupKey = 'plat' | 'classement' | 'allergenes' | 'recette' | 'conservation'
+
+/** La carte d'un champ, d'après son id à l'écran (celui de `fieldTarget`). */
+function groupOfField(id: string | null): GroupKey | null {
+  if (!id) return null
+  if (/^(ingredients?|steps?)(-|$)/.test(id)) return 'recette'
+  if (/^(reheat|storage)-/.test(id)) return 'conservation'
+  if (id === 'confirm-allergens' || id === 'dish-allergens' || id === 'dish-custom-allergens')
+    return 'allergenes'
+  if (/^dish-(custom-diets|declared-diets|profiles|seasons|tags)$/.test(id)) return 'classement'
+  if (id.startsWith('dish-')) return 'plat'
+  return null
+}
+
 /** « a, b et c ». */
 const enumeration = (items: string[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`
@@ -936,6 +953,133 @@ export default function DishForm({
   const fieldMsgs: Record<string, string> = { ...refused, ...problems }
   const invalid = (id: string, also = false) => invalidProps(fieldMsgs, id, also)
 
+  /* ── Les cartes repliées : une ligne qui décrit, puis les alertes ─────────── */
+
+  /** Les alertes d'une carte : champs refusés, puis ce que « Prête » demande, chacun menant à son champ. */
+  const notesOf = (section: GroupKey, extra: GroupNote[] = []): GroupNote[] => {
+    const fromReadiness = (items: Problem[], tone: GroupNote['tone'], lead: string) =>
+      items.flatMap((p) => {
+        const target = fieldTarget(p.field, { rows: sentRows, stepRows, code: p.code })
+        return groupOfField(target) === section
+          ? [{ tone, text: `${lead} : ${problemText(p)}`, target }]
+          : []
+      })
+    return [
+      ...Object.entries(fieldMsgs)
+        .filter(([id]) => groupOfField(id) === section)
+        .map(([id, text]) => ({ tone: 'danger' as const, text, target: id })),
+      ...extra,
+      ...fromReadiness(readiness?.problems ?? [], 'warning', 'Pour être Prête'),
+      ...fromReadiness(readiness?.toPublish ?? [], 'warning', 'Pour publier'),
+      ...fromReadiness(readiness?.warnings ?? [], 'info', 'À surveiller'),
+    ]
+  }
+  const lignesRemplies = d.ingredients.filter(ingredientStarted).length
+  const etapesRemplies = d.steps.filter((st) => st.text.trim()).length
+  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
+  const allergenLabels = (allergenDish?.allergens ?? []).map(
+    (c) => allergens.find((o) => o.code === c)?.label ?? c,
+  )
+  const summaries: Record<GroupKey, string> = {
+    plat: [
+      d.name.trim() || 'Sans nom',
+      COUNTRIES_ALPHA.find((c) => c.code === d.country)?.label,
+      d.category ? refLabel(categories, d.category) : 'place dans le repas à préciser',
+      plural(d.portions ?? 4, 'portion'),
+      `${d.prepMinutes} min de prépa`,
+      d.cookMinutes != null ? `${d.cookMinutes} min de cuisson` : 'cuisson à préciser',
+      dish?.imageUrl ? 'avec photo' : 'sans photo',
+      d.description?.trim() ? null : 'sans description',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    classement:
+      [
+        dish?.computedDiets?.length
+          ? dish.computedDiets.map((c) => refLabel(computedDiets, c)).join(', ')
+          : null,
+        d.declaredDiets.length
+          ? d.declaredDiets.map((c) => DECLARED_DIETS.find((o) => o.code === c)?.label ?? c).join(', ')
+          : null,
+        (d.diets ?? []).length + (d.customDiets ?? []).length > 0
+          ? [...(d.diets ?? []).map((c) => refLabel(diets, c)), ...(d.customDiets ?? [])].join(', ')
+          : null,
+        d.profiles.length ? d.profiles.map((c) => refLabel(profiles, c)).join(', ') : null,
+        d.seasonsOverride.length
+          ? `vos mois : ${seasonsLine(d.seasonsOverride)}`
+          : dish?.classification.computedSeasonMonths
+            ? `saisons : ${seasonsLine(dish.classification.computedSeasonMonths)}`
+            : null,
+        d.personalTags.length ? plural(d.personalTags.length, 'étiquette') : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Rien d’indiqué pour l’instant',
+    allergenes: !allergenDish
+      ? 'Calculés après le premier enregistrement, d’après les ingrédients'
+      : [
+          allergenDish.allergensNone
+            ? 'Aucun des 14 allergènes'
+            : allergenLabels.length + (d.customAllergens ?? []).length > 0
+              ? [...allergenLabels, ...(d.customAllergens ?? [])].join(', ')
+              : 'Aucun allergène calculé pour l’instant',
+          allergenDish.allergensVerifiedAt
+            ? `confirmés le ${new Date(allergenDish.allergensVerifiedAt).toLocaleDateString('fr-FR')}`
+            : 'à confirmer',
+        ].join(' · '),
+    recette: [
+      plural(lignesRemplies, 'ingrédient'),
+      plural(etapesRemplies, 'étape'),
+      d.equipment.length ? `matériel : ${d.equipment.join(', ')}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    conservation: [
+      d.reheatModes.length
+        ? d.reheatModes.map((c) => refLabel(reheatModes, c)).join(', ')
+        : 'Aucun mode de réchauffage',
+      [d.reheatTemperature.trim() && `${d.reheatTemperature.trim()} °C`, d.reheatMinutes.trim() && `${d.reheatMinutes.trim()} min`]
+        .filter(Boolean)
+        .join(', ') || null,
+      d.storageMethod
+        ? `${STORAGE_METHODS.find((m) => m.code === d.storageMethod)?.label ?? d.storageMethod}${d.storageDays.trim() ? `, ${d.storageDays.trim()} j` : ''}`
+        : 'conservation à préciser',
+      d.storageFreezable === 'yes'
+        ? `se congèle${d.storageMonths.trim() ? ` ${d.storageMonths.trim()} mois` : ''}`
+        : d.storageFreezable === 'no'
+          ? 'ne se congèle pas'
+          : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  }
+  const recetteNotes: GroupNote[] = [
+    ...(notLinkedRows.length > 0
+      ? [{ tone: 'danger' as const, text: `${plural(notLinkedRows.length, 'ligne')} à relier à la liste commune.` }]
+      : []),
+    ...(dupRows.length > 0
+      ? [{ tone: 'danger' as const, text: 'Le même ingrédient est sur plusieurs lignes : à fusionner.' }]
+      : []),
+    ...(lignesIncompletes > 0
+      ? [{ tone: 'warning' as const, text: `${plural(lignesIncompletes, 'ligne')} incomplète${lignesIncompletes > 1 ? 's' : ''}, non enregistrée${lignesIncompletes > 1 ? 's' : ''}.` }]
+      : []),
+    ...(liensInvalides > 0
+      ? [{ tone: 'danger' as const, text: `${plural(liensInvalides, 'lien')} à corriger ou à vider.` }]
+      : []),
+  ]
+  const conservationNotes: GroupNote[] = [
+    ...(reheatNoteMissing
+      ? [{ tone: 'warning' as const, text: 'Les consignes de réchauffage manquent.', target: 'reheat-note' }]
+      : []),
+    ...(reheatNoteLost
+      ? [{ tone: 'warning' as const, text: `Sans mode coché, ${enumeration(reheatLost)} ne s’enregistre${reheatLost.length > 1 || reheatLost[0] === 'les consignes' ? 'nt' : ''} pas.`, target: 'reheat-modes' }]
+      : []),
+    ...(storageIncomplet
+      ? [{ tone: 'warning' as const, text: 'La conservation demande un lieu et un nombre de jours.', target: 'storage-method' }]
+      : []),
+  ]
+  // Un plat neuf n'a rien à résumer : sa première carte s'ouvre.
+  const blank = !dish && !d.name.trim()
+
   /**
    * Une modification des lignes d'ingrédients, toujours appliquée à la liste du
    * moment : le dialogue de création répond après coup, et sa ligne a pu bouger
@@ -1155,7 +1299,12 @@ export default function DishForm({
             </span>{' '}
             Champ nécessaire pour que la fiche soit Prête.
           </p>
-          <Group title="Le plat">
+          <Group
+            title="Le plat"
+            summary={summaries.plat}
+            notes={notesOf('plat')}
+            defaultOpen={blank}
+          >
             <Field label="Nom" required>
               <input
                 id="dish-name"
@@ -1329,6 +1478,8 @@ export default function DishForm({
           {/* ── Classement (§4.8) ────────────────────────────────────────── */}
           <Group
             title="Classement"
+            summary={summaries.classement}
+            notes={notesOf('classement')}
             hint="Ce qui aide le client à trouver le plat. Rien ici n’empêche de publier."
           >
             <div>
@@ -1514,6 +1665,8 @@ export default function DishForm({
           {/* ── Allergènes ───────────────────────────────────────────────── */}
           <Group
             title="Allergènes"
+            summary={summaries.allergenes}
+            notes={notesOf('allergenes')}
             hint="Les quatorze allergènes réglementaires. C’est ce que lit un client allergique."
           >
             <div id="dish-allergens" className="space-y-4">
@@ -1596,6 +1749,8 @@ export default function DishForm({
           {/* ── Recette ──────────────────────────────────────────────────── */}
           <Group
             title="Recette"
+            summary={summaries.recette}
+            notes={notesOf('recette', recetteNotes)}
             hint="Elle sert à la liste de courses, groupée par rayon, et à la fiche que vous suivez chez le client."
           >
             <IngredientRows
@@ -1648,6 +1803,8 @@ export default function DishForm({
           {/* ── Après la session ─────────────────────────────────────────── */}
           <Group
             title="Réchauffage et conservation"
+            summary={summaries.conservation}
+            notes={notesOf('conservation', conservationNotes)}
             hint="Ce que le client lit dans son espace, plusieurs jours après votre passage."
           >
             <div id="reheat-modes">
@@ -3404,26 +3561,137 @@ function ProblemText({ id, msgs }: { id: string; msgs: Record<string, string> })
   )
 }
 
+/** Une alerte de carte, lue quand la carte est repliée. */
+type GroupNote = { tone: 'danger' | 'warning' | 'info'; text: string; target?: string | null }
+
+/** Repliée, une carte montre au plus ce nombre d'alertes, puis « et N autres ». */
+const MAX_GROUP_NOTES = 3
+
+const NOTE_TONE: Record<GroupNote['tone'], string> = {
+  danger: 'text-red-700',
+  warning: 'text-[#8B6200]',
+  info: 'text-ink-mid',
+}
+
+/**
+ * Une carte du formulaire, en accordéon : un clic sur le titre l'ouvre ou la
+ * replie. Repliée, elle dit ce qu'elle contient (`summary`) et liste ses
+ * alertes (`notes`), chacune menant à son champ. Le contenu reste monté
+ * (`hidden`) : les ids, l'état et la validation ne dépendent pas de l'ouverture.
+ * Un focus vers un champ replié (`focusField`) ou un champ invalide ouvre la carte.
+ * Mouvement : le chevron tourne en 150 ms, coupé en reduced-motion.
+ */
 function Group({
   title,
   hint,
+  summary,
+  notes = [],
+  defaultOpen = false,
   children,
 }: {
   title: string
   hint?: string
+  summary?: string
+  notes?: GroupNote[]
+  defaultOpen?: boolean
   children: React.ReactNode
 }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const bodyId = useId()
+  const body = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = body.current
+    if (!el) return
+    // Synchrone : `focusField` donne le focus juste après.
+    const reveal = () => flushSync(() => setOpen(true))
+    el.addEventListener(REVEAL_SECTION, reveal)
+    // Capture : `invalid` ne remonte pas, et le navigateur montre le champ juste après.
+    el.addEventListener('invalid', reveal, true)
+    return () => {
+      el.removeEventListener(REVEAL_SECTION, reveal)
+      el.removeEventListener('invalid', reveal, true)
+    }
+  }, [])
+
+  const toReview = notes.filter((n) => n.tone !== 'info').length
+  const worst = notes.some((n) => n.tone === 'danger') ? 'danger' : toReview > 0 ? 'warning' : null
+
   return (
     <section className="card-shell rounded-2xl p-5 lg:p-6">
-      <div>
-        <h3 className="font-display text-base font-bold text-navy">{title}</h3>
+      <h3>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          className="group -m-2 flex w-[calc(100%+1rem)] items-start gap-2 rounded-xl p-2 text-left"
+        >
+          <ChevronRight
+            aria-hidden
+            className={`mt-1 h-4 w-4 shrink-0 text-ink-soft transition-transform duration-150 group-hover:text-navy motion-reduce:transition-none ${
+              open ? 'rotate-90' : ''
+            }`}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-navy">
+              {title}
+              {!open && worst && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 font-sans text-[11px] font-semibold ${
+                    worst === 'danger' ? 'bg-red-50 text-red-700' : 'bg-amber-soft text-[#8B6200]'
+                  }`}
+                >
+                  {toReview} à revoir
+                </span>
+              )}
+            </span>
+            {!open && summary && (
+              <span className="mt-1 block text-[13px] leading-relaxed text-ink-mid">{summary}</span>
+            )}
+          </span>
+        </button>
+      </h3>
+
+      {!open && notes.length > 0 && (
+        <ul className="mt-3 space-y-1 pl-6">
+          {notes.slice(0, MAX_GROUP_NOTES).map((n) => (
+            <li
+              key={n.text}
+              className={`flex items-start gap-2 text-xs leading-relaxed ${NOTE_TONE[n.tone]}`}
+            >
+              {n.tone === 'info' ? (
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              ) : (
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              )}
+              {n.target ? (
+                <button
+                  type="button"
+                  onClick={() => focusField(n.target!)}
+                  className="text-left underline decoration-current/30 underline-offset-2 hover:decoration-current"
+                >
+                  {n.text}
+                </button>
+              ) : (
+                n.text
+              )}
+            </li>
+          ))}
+          {notes.length > MAX_GROUP_NOTES && (
+            <li className="pl-5.5 text-xs text-ink-soft">
+              et {notes.length - MAX_GROUP_NOTES} autre{notes.length - MAX_GROUP_NOTES > 1 ? 's' : ''}
+            </li>
+          )}
+        </ul>
+      )}
+
+      <div id={bodyId} ref={body} hidden={!open} data-section-body>
         {hint && (
-          <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-soft">
-            {hint}
-          </p>
+          <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-soft">{hint}</p>
         )}
+        <div className="mt-4 space-y-4">{children}</div>
       </div>
-      <div className="mt-4 space-y-4">{children}</div>
     </section>
   )
 }
