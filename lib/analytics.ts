@@ -46,6 +46,8 @@ export function startAnalytics(): void {
     api_host: '/ingest',
     ui_host: 'https://eu.posthog.com',
     defaults: '2026-08-30',
+    // Remonte les exceptions et rejets non gérés vers Error Tracking.
+    capture_exceptions: true,
     person_profiles: 'identified_only',
     // Les espaces client et chef affichent adresses, allergies et pièces d'identité.
     disable_session_recording: true,
@@ -87,6 +89,8 @@ export function setAnalyticsUser(userId: string | null): void {
   const previous = currentUser
   currentUser = userId
   if (!posthog.__loaded || posthog.has_opted_out_capturing()) return
+  // Un autre compte sur le même navigateur : on ne mélange pas les deux personnes.
+  if (userId && previous && previous !== userId) posthog.reset()
   if (userId) posthog.identify(userId)
   else if (previous) posthog.reset()
 }
@@ -98,4 +102,9 @@ export function setAnalyticsUser(userId: string | null): void {
  */
 export function track(event: string, properties?: Record<string, string | number | boolean>): void {
   if (posthog.__loaded) posthog.capture(event, properties)
+}
+
+/** Erreur de rendu vers Error Tracking, si PostHog tourne (consentement donné). */
+export function captureAnalyticsException(error: Error): void {
+  if (posthog.__loaded) posthog.captureException(error)
 }
