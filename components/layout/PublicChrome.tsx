@@ -1,10 +1,11 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { type ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/shared/CookieBanner'
+import PromoBlackFriday from '@/components/shared/PromoBlackFriday'
 
 /* Espaces connectés et parcours d'inscription : ils portent leur propre
    chrome (sidebar / topbar), la navbar et le footer publics n'y ont pas leur
@@ -22,6 +23,10 @@ export default function PublicChrome({ children }: { children: ReactNode }) {
       <main className="min-h-screen">{children}</main>
       {!hideChrome && <Footer />}
       <CookieBanner />
+      {/* Elle lit `?promo=1` : une page statique veut une limite de Suspense. */}
+      <Suspense fallback={null}>
+        <PromoBlackFriday />
+      </Suspense>
     </>
   )
 }
