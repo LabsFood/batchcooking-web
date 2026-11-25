@@ -162,9 +162,6 @@ export interface SapProfile {
   cooperativeMembershipProof: string | null
   /** Accepter les titres CESU préfinancés. */
   acceptsCesu: boolean
-  /** Le numéro d'affiliation CRCESU, et où en est l'affiliation. */
-  crcesuNan: string | null
-  crcesuAffiliationStatus: string
   /** L'avance immédiate URSSAF, instruite par l'équipe. */
   urssafTiersPrestationStatus: string
 }
@@ -175,7 +172,6 @@ export interface SapInput {
   cooperativeName?: string | null
   cooperativeMembershipProof?: string | null
   acceptsCesu?: boolean
-  crcesuNan?: string | null
 }
 
 export function useSapProfile() {
@@ -184,6 +180,22 @@ export function useSapProfile() {
   return useQuery({
     queryKey: [...meKey, 'sap'],
     queryFn: () => apiFetch<SapProfile>('/me/chef-profile/sap'),
+    retry: false,
+  })
+}
+
+/**
+ * `GET /me/chef-profile/cesu-fee` : le taux des frais de traitement et
+ * d'encaissement des CESU appliqué à ce batch cooker (en points de base,
+ * 1000 = 10 %). Il se calcule sur sa part après commission ; le client ne
+ * paie jamais plus cher.
+ */
+export function useCesuFee() {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'cesu-fee'],
+    queryFn: () => apiFetch<{ feeBps: number }>('/me/chef-profile/cesu-fee'),
     retry: false,
   })
 }
@@ -370,8 +382,7 @@ const STATUT: Record<string, string> = {
   none: 'Aucun',
   approved: 'Approuvé',
   refused: 'Refusé',
-  /* Les trois valeurs réellement envoyées par l'API pour l'affiliation CRCESU
-     et l'habilitation URSSAF. `not_started` manquait : un batch cooker sans
+  /* Les trois valeurs réellement envoyées par l'API pour l'habilitation URSSAF. `not_started` manquait : un batch cooker sans
      démarche lisait « not_started » à l'écran. Les deux clefs suivantes ne
      viennent d'aucune réponse de l'API — elles datent d'un vocabulaire inventé
      côté console — mais rien ne coûte à les garder le temps qu'un relevé
