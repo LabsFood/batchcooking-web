@@ -27,7 +27,13 @@ import { Hint } from '@/components/shared/Hint'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { COUNTRIES_ALPHA } from '@/lib/chef/countries'
-import { REVEAL_SECTION, fieldTarget, focusField, problemText } from '@/lib/chef/readiness'
+import {
+  REVEAL_SECTION,
+  fieldTarget,
+  focusField,
+  liveReadiness,
+  problemText,
+} from '@/lib/chef/readiness'
 import {
   DECLARED_DIETS,
   refLabel,
@@ -414,7 +420,10 @@ function toDraft(dish: Dish | null): Draft {
         : dish.recipe.storage.freezable
           ? 'yes'
           : 'no',
-    storageMonths: dish?.recipe?.storage?.freezerMonths?.toString() ?? '',
+    // Congelable sans durée (fiche ancienne ou import) : 3 mois proposés, comme au choix de « Oui ».
+    storageMonths:
+      dish?.recipe?.storage?.freezerMonths?.toString() ??
+      (dish?.recipe?.storage?.freezable === true ? '3' : ''),
     storageThawing: dish?.recipe?.storage?.thawing ?? '',
   }
 }
@@ -898,7 +907,6 @@ export default function DishForm({
   /* Le bloc des allergènes et le panneau « Prête ? » lisent la fiche la plus récente. */
   const allergenDish = liveDish
 
-  const readiness = liveDish?.readiness
 
   /* Les lignes et les couples que l'API refuserait. */
   const lignesIncompletes = d.ingredients.filter(
@@ -922,6 +930,10 @@ export default function DishForm({
   /* Le rang d'une ligne de l'API → la ligne affichée, pour les liens du panneau. */
   const sentRows = useMemo(() => sentIndexes(d.ingredients), [d.ingredients])
   const stepRows = useMemo(() => sentStepIndexes(d.steps), [d.steps])
+  /* « Prête » recalculé sur le brouillon à chaque frappe ; le reste vient de la fiche enregistrée. */
+  const readiness = liveDish
+    ? liveReadiness({ ...d, imageUrl: liveDish.imageUrl }, liveDish.readiness)
+    : undefined
   const liensInvalides = d.ingredients.filter((i) => !linkValid(i.link)).length
   const storageIncomplet = Boolean(
     (d.storageMethod ||

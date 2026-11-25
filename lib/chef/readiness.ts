@@ -1,3 +1,5 @@
+import type { Problem, Readiness } from '@/lib/api/chef-catalog'
+import { sentIndexes, sentStepIndexes, type IngredientRow, type StepRow } from '@/lib/recipe-fields'
 /* ─────────────────────────────────────────────────────────────────────────────
    « Prête » (module Recettes §4.11), en mots.
 
@@ -241,4 +243,86 @@ export function focusField(id: string): void {
   }
   target.scrollIntoView({ behavior: 'smooth', block: 'center' })
   target.focus({ preventScroll: true })
+}
+
+/* ── « Prête » pendant la saisie ──────────────────────────────────────────────
+   Les règles de `readiness()` de l'API (dishes.rules.ts), appliquées au
+   brouillon : la liste se met à jour à chaque frappe, sans enregistrer (et donc
+   sans créer de version sur une fiche Prête). Ce que seule l'API sait juger
+   (allergènes confirmés, fiche commune incomplète, régimes déclarés, saisons,
+   réfrigérateur trop long) reste celui de la fiche enregistrée. Les rangs des
+   lignes et des étapes sont ceux des lignes envoyées, comme ceux de l'API. */
+
+const SERVER_ONLY = new Set([
+  'ALLERGENS_UNVERIFIED',
+  'ALLERGENS_REQUIRED',
+  'INGREDIENT_INCOMPLETE',
+  'DECLARED_DIET_NOT_ALLOWED',
+  'NO_COMMON_SEASON',
+  'FRIDGE_LONG',
+])
+
+export interface LiveDraft {
+  name: string
+  description?: string | null
+  category?: string | null
+  portions?: number | null
+  cookMinutes?: number | null
+  imageUrl?: string | null
+  ingredients: IngredientRow[]
+  steps: StepRow[]
+  storageMethod: string
+  storageDays: string
+  storageFreezable: '' | 'yes' | 'no'
+  storageMonths: string
+  reheatModes: string[]
+  reheatNote: string
+}
+
+export function liveReadiness(d: LiveDraft, saved?: Readiness | null): Readiness {
+  const problems: Problem[] = []
+  const add = (code: string, field: string) => problems.push({ code, field, message: '' })
+  const missing = (field: string) => add('VALIDATION_FAILED', field)
+
+  if (!d.name.trim()) missing('name')
+  if (!d.category) missing('category')
+  if (!((d.portions ?? 0) >= 1)) missing('portions')
+  if (d.cookMinutes === null || d.cookMinutes === undefined) missing('cookMinutes')
+
+  const lines = sentIndexes(d.ingredients).map((k) => d.ingredients[k])
+  if (lines.length === 0) missing('recipe.ingredients')
+  lines.forEach((l, i) => {
+    const field = `recipe.ingredients[${i}]`
+    if (l.toVerify) add('INGREDIENT_TO_VERIFY', field)
+    if (!l.catalogIngredientId) add('INGREDIENT_NOT_LINKED', field)
+  })
+
+  const steps = sentStepIndexes(d.steps).map((k) => d.steps[k])
+  if (steps.length === 0) missing('recipe.steps')
+  steps.forEach((st, i) => {
+    if (!st.type) add('STEP_TYPE_MISSING', `recipe.steps[${i}]`)
+  })
+
+  if (!d.storageMethod || !d.storageDays.trim()) missing('recipe.storage')
+  if (!d.storageFreezable) missing('recipe.storage.freezable')
+  else if (d.storageFreezable === 'yes' && !d.storageMonths.trim())
+    missing('recipe.storage.freezerMonths')
+
+  if (d.reheatModes.length === 0) missing('recipe.reheating')
+  if (!d.reheatNote.trim()) missing('recipe.reheating.note')
+
+  for (const p of saved?.problems ?? []) if (SERVER_ONLY.has(p.code)) problems.push(p)
+
+  const toPublish: Problem[] = []
+  if (!d.description?.trim()) toPublish.push({ code: 'VALIDATION_FAILED', field: 'description', message: '' })
+  if (lines.length > 0 && lines.every((l) => l.hiddenFromClient))
+    toPublish.push({ code: 'VALIDATION_FAILED', field: 'recipe.ingredients', message: '' })
+  if (!d.imageUrl) toPublish.push({ code: 'PHOTO_MISSING', field: 'imageUrl', message: '' })
+
+  return {
+    ready: problems.length === 0,
+    problems,
+    toPublish,
+    warnings: (saved?.warnings ?? []).filter((w) => SERVER_ONLY.has(w.code)),
+  }
 }

@@ -1,9 +1,9 @@
 'use client'
 
 import { Onglets } from '@/components/shared/Onglets'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
   Check,
@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import ChefPage from '@/components/chef/ChefPage'
+import ChefPageSkeleton from '@/components/chef/ChefPageSkeleton'
 import { Skeleton, SkeletonCard, SkeletonGroup } from '@/components/shared/Skeleton'
 import ApprovalGate from '@/components/chef/ApprovalGate'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
@@ -36,6 +37,7 @@ import {
   checkPhoto,
   publishBlockers,
   useAdoptSuggestion,
+  useAnswerOffer,
   useCreateMenu,
   useDeleteDish,
   useDeleteMenu,
@@ -46,6 +48,7 @@ import {
   useDishes,
   useMenuPhoto,
   useMenus,
+  useOffers,
   usePublishDish,
   usePublishMenu,
   useSuggestions,
@@ -87,14 +90,31 @@ const STATUS_STYLE: Record<DishStatus, { dot: string; text: string }> = {
 }
 
 export default function RecettesPage() {
-  const [tab, setTab] = useState<Tab>('dishes')
+  return (
+    <Suspense fallback={<ChefPageSkeleton />}>
+      <Recettes />
+    </Suspense>
+  )
+}
+
+function Recettes() {
+  // L'alerte « proposition qui vous attend » arrive ici avec `?onglet=propositions`.
+  const demande = useSearchParams().get('onglet') === 'propositions' ? 'suggestions' : 'dishes'
+  const [choisi, setTab] = useState<Tab | null>(null)
+  const tab = choisi ?? demande
   const dishes = useDishes()
   const menus = useMenus()
+  const offers = useOffers()
+  const nOffres = (offers.data?.dishes?.length ?? 0) + (offers.data?.menus?.length ?? 0)
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'dishes', label: 'Mes plats', count: dishes.data?.length },
     { id: 'menus', label: 'Mes menus', count: menus.data?.length },
-    { id: 'suggestions', label: 'Propositions Lab’s Food' },
+    {
+      id: 'suggestions',
+      label: 'Propositions Lab’s Food',
+      count: nOffres > 0 ? nOffres : undefined,
+    },
   ]
 
   return (
@@ -112,7 +132,12 @@ export default function RecettesPage() {
 
         {tab === 'dishes' && <DishesTab query={dishes} />}
         {tab === 'menus' && <MenusTab query={menus} dishes={dishes.data ?? []} />}
-        {tab === 'suggestions' && <SuggestionsTab />}
+        {tab === 'suggestions' && (
+          <div className="space-y-10">
+            <OffersSection />
+            <SuggestionsTab />
+          </div>
+        )}
       </div>
     </ChefPage>
   )
@@ -1295,6 +1320,175 @@ function MenuDishRow({ dish }: { dish: MenuDish }) {
   )
 }
 
+// ── Offres : préparées pour ce batch cooker seul ────────────────────────────
+
+/** L'offre qu'on s'apprête à accepter ou refuser, le temps de le confirmer. */
+interface AnswerOffer {
+  id: string
+  nom: string
+  genre: 'plat' | 'carte'
+  accept: boolean
+}
+
+/**
+ * Ce que Lab's Food a réservé à ce batch cooker depuis la console
+ * (`GET /me/offers`). Personne d'autre ne le voit. Accepter le lui transfère
+ * tel quel, en brouillon (pas une copie) ; refuser le rend à Lab's Food.
+ * Rien ne s'affiche quand il n'y a pas d'offre.
+ */
+function OffersSection() {
+  const toast = useToast()
+  const query = useOffers()
+  const answer = useAnswerOffer()
+  const diets = useDiets()
+  const allergens = useAllergens()
+  const categories = useDishCategories()
+  const [aRepondre, setARepondre] = useState<AnswerOffer | null>(null)
+  const [detail, setDetail] = useState<SuggestionDish | null>(null)
+
+  const { dishes = [], menus = [] } = query.data ?? {}
+  if (dishes.length === 0 && menus.length === 0) return null
+
+  function confirmer() {
+    const quoi = aRepondre
+    if (!quoi) return
+    answer.mutate(
+      { id: quoi.id, accept: quoi.accept },
+      {
+        onSuccess: () => {
+          setARepondre(null)
+          setDetail(null)
+          if (quoi.accept) {
+            toast.success(
+              `« ${quoi.nom} » ${quoi.genre === 'plat' ? 'est dans vos plats' : 'est dans vos cartes'}`,
+              'En brouillon : relisez-le, puis publiez-le quand il vous convient.',
+            )
+          } else {
+            toast.success(`« ${quoi.nom} » refusé`, 'Il retourne à Lab’s Food.')
+          }
+        },
+        onError: (e) =>
+          toast.error(
+            quoi.accept ? 'L’acceptation a échoué' : 'Le refus a échoué',
+            apiMessage(e),
+          ),
+      },
+    )
+  }
+
+  const n = dishes.length + menus.length
+
+  return (
+    <section
+      aria-labelledby="offres-titre"
+      className="space-y-5 rounded-3xl border border-amber/40 bg-amber-soft/40 p-5 lg:p-6"
+    >
+      <div>
+        <h2 id="offres-titre" className="font-display text-lg font-bold text-navy">
+          Préparé pour vous seul
+          <span className="ml-2 text-sm font-normal text-ink-soft">{n}</span>
+        </h2>
+        <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
+          Lab’s Food vous réserve {n > 1 ? 'ces recettes' : 'cette recette'} : aucun
+          autre batch cooker ne {n > 1 ? 'les' : 'la'} voit. En acceptant,{' '}
+          <strong className="font-semibold text-navy">
+            {n > 1 ? 'elles deviennent les vôtres' : 'elle devient la vôtre'}
+          </strong>
+          , en brouillon. En refusant, {n > 1 ? 'elles retournent' : 'elle retourne'} à
+          Lab’s Food.
+        </p>
+      </div>
+
+      {dishes.length > 0 && (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {dishes.map((d) => (
+            <SuggestionCard
+              key={d.id}
+              dish={d}
+              dietList={diets}
+              allergenList={allergens}
+              categoryList={categories}
+              onOpen={() => setDetail(d)}
+              onAdopt={() => setARepondre({ id: d.id, nom: d.name, genre: 'plat', accept: true })}
+              onDecline={() =>
+                setARepondre({ id: d.id, nom: d.name, genre: 'plat', accept: false })
+              }
+              adopting={answer.isPending}
+              adoptLabel="Accepter"
+            />
+          ))}
+        </ul>
+      )}
+
+      {menus.length > 0 && (
+        <ul className="space-y-4">
+          {menus.map((m) => (
+            <SuggestionMenuCard
+              key={m.id}
+              menu={m}
+              onAdopt={() => setARepondre({ id: m.id, nom: m.title, genre: 'carte', accept: true })}
+              onDecline={() =>
+                setARepondre({ id: m.id, nom: m.title, genre: 'carte', accept: false })
+              }
+              adopting={answer.isPending}
+              adoptLabel="Accepter cette carte"
+            />
+          ))}
+        </ul>
+      )}
+
+      <SuggestionDialog
+        dish={detail}
+        onClose={() => setDetail(null)}
+        dietList={diets}
+        allergenList={allergens}
+        categoryList={categories}
+        onAdopt={() =>
+          detail &&
+          setARepondre({ id: detail.id, nom: detail.name, genre: 'plat', accept: true })
+        }
+        adopting={answer.isPending}
+        adoptLabel="Accepter ce plat"
+        offer
+      />
+
+      <ConfirmDialog
+        open={aRepondre !== null}
+        onClose={() => setARepondre(null)}
+        onConfirm={confirmer}
+        pending={answer.isPending}
+        tone={aRepondre?.accept === false ? 'danger' : 'primary'}
+        title={
+          aRepondre
+            ? aRepondre.accept
+              ? `Accepter « ${aRepondre.nom} » ?`
+              : `Refuser « ${aRepondre.nom} » ?`
+            : ''
+        }
+        lead={
+          aRepondre?.accept
+            ? aRepondre.genre === 'plat'
+              ? 'Le plat entre dans vos plats, en brouillon : il est à vous, vous le modifiez, le publiez ou le supprimez librement.'
+              : 'La carte entre dans vos cartes, en brouillon, et ses plats sont copiés dans vos plats : tout est à vous.'
+            : 'Elle retourne à Lab’s Food, qui pourra la proposer à quelqu’un d’autre. Vous ne la verrez plus ici.'
+        }
+        detail={
+          aRepondre?.accept
+            ? 'Votre accord est enregistré, comme pour une adoption.'
+            : undefined
+        }
+        confirmLabel={
+          answer.isPending
+            ? 'Un instant…'
+            : aRepondre?.accept
+              ? 'Oui, accepter'
+              : 'Oui, refuser'
+        }
+      />
+    </section>
+  )
+}
+
 // ── Propositions Lab's Food ─────────────────────────────────────────────────
 
 type SuggestionDish = Suggestions['dishes'][number]
@@ -1445,6 +1639,8 @@ function SuggestionCard({
   onOpen,
   onAdopt,
   adopting,
+  adoptLabel = 'Adopter',
+  onDecline,
 }: {
   dish: SuggestionDish
   dietList: { code: string; label: string }[]
@@ -1453,6 +1649,9 @@ function SuggestionCard({
   onOpen: () => void
   onAdopt: () => void
   adopting: boolean
+  adoptLabel?: string
+  /** Une offre se refuse ; une suggestion commune s'ignore. */
+  onDecline?: () => void
 }) {
   return (
     <li className="flex flex-col overflow-hidden rounded-2xl bg-paper">
@@ -1545,11 +1744,20 @@ function SuggestionCard({
           ) : (
             <div className="flex flex-wrap gap-2">
               <button onClick={onAdopt} disabled={adopting} className="btn btn-primary text-xs">
-                Adopter
+                {adoptLabel}
               </button>
               <button onClick={onOpen} className="btn btn-outline text-xs">
                 Voir le détail
               </button>
+              {onDecline && (
+                <button
+                  onClick={onDecline}
+                  disabled={adopting}
+                  className="px-2 text-xs font-semibold text-ink-mid underline-offset-2 hover:text-navy hover:underline disabled:opacity-50"
+                >
+                  Refuser
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1562,10 +1770,14 @@ function SuggestionMenuCard({
   menu,
   onAdopt,
   adopting,
+  adoptLabel = 'Adopter cette carte',
+  onDecline,
 }: {
   menu: SuggestionMenu
   onAdopt: () => void
   adopting: boolean
+  adoptLabel?: string
+  onDecline?: () => void
 }) {
   return (
     <li className="rounded-2xl bg-paper p-5">
@@ -1586,9 +1798,20 @@ function SuggestionMenuCard({
             <Check className="h-3.5 w-3.5" aria-hidden /> Déjà dans vos cartes
           </span>
         ) : (
-          <button onClick={onAdopt} disabled={adopting} className="btn btn-primary text-xs">
-            Adopter cette carte
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onAdopt} disabled={adopting} className="btn btn-primary text-xs">
+              {adoptLabel}
+            </button>
+            {onDecline && (
+              <button
+                onClick={onDecline}
+                disabled={adopting}
+                className="px-2 text-xs font-semibold text-ink-mid underline-offset-2 hover:text-navy hover:underline disabled:opacity-50"
+              >
+                Refuser
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -1616,6 +1839,8 @@ function SuggestionDialog({
   categoryList,
   onAdopt,
   adopting,
+  adoptLabel = 'Adopter ce plat',
+  offer = false,
 }: {
   dish: SuggestionDish | null
   onClose: () => void
@@ -1624,6 +1849,9 @@ function SuggestionDialog({
   categoryList: { code: string; label: string }[]
   onAdopt: () => void
   adopting: boolean
+  adoptLabel?: string
+  /** Une offre devient la vôtre (pas une copie) : le texte le dit. */
+  offer?: boolean
 }) {
   if (!dish) return null
 
@@ -1748,8 +1976,9 @@ function SuggestionDialog({
 
           <p className="mt-4 rounded-xl bg-cream-soft px-3.5 py-3 text-[12px] leading-relaxed text-ink-mid">
             La recette — ingrédients, étapes, réchauffage — n’est pas montrée
-            ici. Elle arrive avec votre copie, et vous pourrez la modifier
-            comme la vôtre.
+            ici. {offer
+              ? 'Elle arrive avec le plat quand vous l’acceptez, et vous pourrez la modifier comme la vôtre.'
+              : 'Elle arrive avec votre copie, et vous pourrez la modifier comme la vôtre.'}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -1767,7 +1996,7 @@ function SuggestionDialog({
               </>
             ) : (
               <button onClick={onAdopt} disabled={adopting} className="btn btn-primary text-xs">
-                Adopter ce plat
+                {adoptLabel}
               </button>
             )}
             <button onClick={onClose} className="btn btn-outline text-xs">

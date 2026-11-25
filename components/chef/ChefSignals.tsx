@@ -245,7 +245,7 @@ export function useChefAlerts(): { alerts: Alert[]; loading: boolean } {
         tone: 'todo',
         title: `${nOffres} proposition${nOffres > 1 ? 's' : ''} vous attend${nOffres > 1 ? 'ent' : ''}`,
         detail: 'Lab’s Food a préparé cela pour vous seul. À accepter ou à refuser.',
-        href: '/espace-chef/recettes',
+        href: '/espace-chef/recettes?onglet=propositions',
         cta: 'Les voir',
       })
     }
