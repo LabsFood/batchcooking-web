@@ -53,9 +53,12 @@ export interface WeekChef {
   id: string
   displayName: string
   city: string | null
+  /** Le rayon d'intervention de « Ma vitrine » ; absent d'une API antérieure au 26/11. */
+  serviceRadiusKm?: number | null
   regionCode: string | null
   badges: string[]
   sessionsDone: number
+  /** Plus affiché depuis le 26/11 (retour de recette). */
   newcomer: boolean
   avatarUrl: string | null
   /** `null` tant qu'il n'y a pas d'avis : le module est hors MVP. */

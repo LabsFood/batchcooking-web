@@ -49,6 +49,7 @@ import {
   useRegions,
 } from '@/lib/api/referentials'
 import { REGULATED_ALLERGENS } from '@/lib/recipe-fields'
+import { lieuDuChef } from '@/lib/menu/lieu'
 import { Prix } from '@/components/shared/Prix'
 import { useChefSlots } from '@/lib/api/bookings'
 import { offerAfterTaxCents, offerEuros, offerSummary, platsLabel } from '@/lib/api/service-offers'
@@ -1365,11 +1366,8 @@ export function MenuCard({
             <h2 className="font-display text-lg font-bold leading-tight text-navy">
               {menu.chef.displayName}
             </h2>
-            {menu.chef.newcomer && (
-              <span className="rounded-full bg-mint px-2 py-0.5 text-xs font-semibold text-mint-ink">
-                Nouveau
-              </span>
-            )}
+            {/* Pas de badge « Nouveau » (retour du 26/11) : arriver sur Lab's Food
+                ne dit rien de l'expérience d'un batch cooker. */}
             {/* Le CESU préfinancé change ce que le client paiera réellement :
                 il se voit dès la carte, pas au moment de payer. */}
             {menu.chef.acceptsCesu && (
@@ -1379,9 +1377,9 @@ export function MenuCard({
             )}
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-soft">
-            {menu.chef.city && (
+            {lieuDuChef(menu.chef) && (
               <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3 w-3" aria-hidden /> {menu.chef.city}
+                <MapPin className="h-3 w-3" aria-hidden /> {lieuDuChef(menu.chef)}
               </span>
             )}
             {/* La note n'existe que s'il y a des avis. On ne met pas 0/5. */}
@@ -1694,7 +1692,7 @@ export function MenuDialog({
                   <Dialog.Description className="text-xs text-ink-soft">
                     {[
                       menu.chef.displayName,
-                      menu.chef.city,
+                      lieuDuChef(menu.chef),
                       menu.chef.rating != null ? `${menu.chef.rating}/5` : null,
                     ]
                       .filter(Boolean)
@@ -1880,12 +1878,12 @@ function ChefPanel({ card }: { card: WeekCard }) {
     .map((c) => referentiel.find((l) => l.code === c)?.label ?? c)
     .join(' · ')
 
+  // La ville et le rayon d'abord (« Nice · 30 km »), puis les zones : les deux
+  // disent jusqu'où il va (retour du 26/11).
+  const lieu = lieuDuChef(card.chef)
   const faits: { icon: typeof MapPin; label: string; value: string }[] = [
-    ...(zones.length > 0
-      ? [{ icon: MapPin, label: 'Se déplace', value: zones.join(' · ') }]
-      : card.chef.city
-        ? [{ icon: MapPin, label: 'Basé à', value: card.chef.city }]
-        : []),
+    ...(lieu ? [{ icon: MapPin, label: 'Basé à', value: lieu }] : []),
+    ...(zones.length > 0 ? [{ icon: MapPin, label: 'Se déplace', value: zones.join(' · ') }] : []),
     {
       icon: ShoppingBasket,
       label: 'Courses',
@@ -1904,12 +1902,14 @@ function ChefPanel({ card }: { card: WeekCard }) {
       <p className="font-display text-xl font-bold leading-tight text-navy">
         {card.chef.displayName}
       </p>
-      <p className="mt-1 text-[13px] text-ink-mid">
-        {card.chef.sessionsDone > 0
-          ? `${card.chef.sessionsDone} session${card.chef.sessionsDone > 1 ? 's' : ''} réalisée${card.chef.sessionsDone > 1 ? 's' : ''}`
-          : 'Aucune session pour l’instant'}
-        {card.chef.newcomer && <span className="text-amber-ink"> · nouveau sur Lab’s Food</span>}
-      </p>
+      {/* Sans « nouveau » ni « aucune session » (retour du 26/11) : un batch
+          cooker qui arrive peut avoir des années de métier. Le nombre se dit
+          quand il y en a un. */}
+      {card.chef.sessionsDone > 0 && (
+        <p className="mt-1 text-[13px] text-ink-mid">
+          {`${card.chef.sessionsDone} session${card.chef.sessionsDone > 1 ? 's' : ''} réalisée${card.chef.sessionsDone > 1 ? 's' : ''}`}
+        </p>
+      )}
 
       {card.chef.rating != null ? (
         <p className="mt-3 flex items-center gap-1.5 text-sm">
