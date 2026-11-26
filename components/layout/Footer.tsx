@@ -53,14 +53,14 @@ export default function Footer() {
       <section className="relative px-4 -mb-24 z-10">
         <div className="container-xl">
           {/*
-            Marine sur ambre : le blanc n'y fait que 2,2:1. Ni surtitre, ni mot en
-            italique, ni filigrane, ni grille de points : le titre et le bouton
-            suffisent (docs/ui-ux-guidelines.md, § 4).
+            Blanc sur ambre (décision du 26/11 — préférence de marque, 2,2:1
+            assumé). Ni surtitre, ni mot en italique, ni filigrane : le titre
+            et le bouton suffisent (docs/ui-ux-guidelines.md, § 4).
           */}
-          <div className="rounded-3xl bg-terra p-8 text-navy shadow-[0_24px_48px_-28px_rgba(31,42,55,0.55)] sm:p-10 lg:p-14">
+          <div className="rounded-3xl bg-terra p-8 text-white shadow-[0_24px_48px_-28px_rgba(31,42,55,0.55)] sm:p-10 lg:p-14">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <h2
-                className="max-w-xl font-display font-bold leading-[1.02] text-navy"
+                className="max-w-xl font-display font-bold leading-[1.02] text-white"
                 style={{ fontSize: 'clamp(2.2rem, 5vw, 4rem)', letterSpacing: '-0.02em' }}
               >
                 Cuisinons ensemble cette semaine.
