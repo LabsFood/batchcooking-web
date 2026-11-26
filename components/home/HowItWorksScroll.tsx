@@ -32,8 +32,8 @@ const ETAPES = [
     titre: 'Choisissez vos plats',
     texte:
       'Chaque batch cooker tient sa propre carte. Parcourez les menus de la semaine et cochez ce qui vous fait envie.',
-    src: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=900&auto=format&fit=crop',
-    alt: 'Grande planche de plats variés : brochettes, grillades et sauces à choisir',
+    src: '/images/gamelles/gamelle-a06.jpg',
+    alt: 'Gamelle de poulet au curcuma, riz et brocoli — un plat de la carte',
     position: 'object-center',
   },
   {

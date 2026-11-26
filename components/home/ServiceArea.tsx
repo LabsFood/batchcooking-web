@@ -40,11 +40,12 @@ export default function ServiceArea() {
           {/* slow-out : la carte se pose en 240 ms */}
           <motion.div
             {...fadeUpInView()}
-            className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-[var(--line)] shadow-[0_30px_70px_-30px_rgba(31,42,55,0.35)] lg:aspect-auto lg:min-h-[440px]"
+            className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-[var(--line)] shadow-[0_30px_70px_-30px_rgba(31,42,55,0.35)] lg:aspect-auto lg:h-[460px]"
           >
+            {/* En absolu : h-full seul ne vaut rien dans un cadre sans hauteur fixe. */}
             <iframe
               src="https://www.google.com/maps?q=France&z=5&output=embed&hl=fr"
-              className="h-full w-full"
+              className="absolute inset-0 h-full w-full"
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
