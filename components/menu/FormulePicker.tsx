@@ -104,7 +104,7 @@ export function FormulePicker({
         Envie d’autres plats, ou de plus de plats ? Proposez vos repas dans une{' '}
         <Link
           href="/espace-client/personnalisation"
-          className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
+          className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep"
         >
           demande sur-mesure
         </Link>

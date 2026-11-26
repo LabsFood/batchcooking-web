@@ -200,7 +200,9 @@ body {
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--amber-ink);
+    /* L'orange de marque, un cran profond pour rester net sur fond clair
+       (décision du 26/11 : plus de brun amber-ink sur les pages publiques). */
+    color: var(--amber-deep);
   }
 
   .label-brand {
@@ -362,14 +364,16 @@ body {
   }
 
   /* ── Variants ─────────────────────────────────────────────────────── */
-  /* Texte marine sur ambre : 5:1. Le blanc ne faisait que 2,2:1. */
+  /* Texte blanc sur ambre (décision du 26/11 — préférence de marque, le
+     contraste mesuré est de 2,2:1). Le survol FONCE au lieu d'éclaircir :
+     le blanc y gagne ce qu'il peut. */
   .btn-primary {
     background: var(--amber);
-    color: var(--navy);
+    color: #FFFFFF;
   }
 
   .btn-primary:hover {
-    background: #F7AC2B;
+    background: var(--amber-deep);
   }
 
   .btn-navy {
@@ -404,11 +408,11 @@ body {
 
   .btn-amber {
     background: var(--amber);
-    color: var(--navy);
+    color: #FFFFFF;
   }
 
   .btn-amber:hover {
-    background: #F7AC2B;
+    background: var(--amber-deep);
   }
 
   /* Pressed: the button gives under the finger. After the :hover rules so it
@@ -1361,4 +1365,35 @@ h1, h2, h3 {
    `::first-letter` n'existe pas sur un élément en ligne. */
 .cap-first::first-letter {
   text-transform: uppercase;
+}
+
+/* ─── Rangées qui défilent (« Cuisines du monde ») ──────────────────────────
+   Deux sens, un par rangée. Boucle assumée (décision du 26/11) : une vitrine
+   de photos, en pause au survol. En mouvement réduit, le composant rend des
+   rangées à faire défiler soi-même : ces classes ne sont alors pas posées. */
+@keyframes lf-defile {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.lf-defile,
+.lf-defile-inverse {
+  animation: lf-defile 48s linear infinite;
+}
+
+.lf-defile-inverse {
+  animation-direction: reverse;
+}
+
+.lf-defile:hover,
+.lf-defile-inverse:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .lf-defile,
+  .lf-defile-inverse {
+    animation: none;
+  }
 }

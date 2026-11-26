@@ -724,7 +724,7 @@ function ApplicationForm({
                           key={z.regionCode}
                           className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft px-2.5 py-1 text-xs text-navy"
                         >
-                          <MapPin className="h-3 w-3 text-amber-ink" aria-hidden />
+                          <MapPin className="h-3 w-3 text-amber-deep" aria-hidden />
                           <span className="font-semibold">{regionLabel(z.regionCode)}</span>
                           <span className="text-ink-mid">
                             {z.wholeRegion ? 'toute la région' : z.cities.map((c) => c.name).join(', ')}
@@ -783,11 +783,11 @@ function ApplicationForm({
                     />
                     <span className="text-[13px] leading-relaxed text-ink-mid">
                       J’accepte que Lab’s Food traite mes données pour étudier ma candidature, et j’ai lu la{' '}
-                      <Link href="/confidentialite" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink">
+                      <Link href="/confidentialite" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
                         politique de confidentialité
                       </Link>{' '}
                       et les{' '}
-                      <Link href="/cgv" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink">
+                      <Link href="/cgv" target="_blank" className="font-semibold text-navy underline underline-offset-2 hover:text-amber-deep">
                         conditions générales
                       </Link>
                       .
@@ -945,7 +945,7 @@ function Confirmation({
                   <li key={d.type} className="flex items-baseline gap-2 text-[13px] text-navy">
                     <span className="min-w-0 flex-1">{d.label}</span>
                     {d.required && (
-                      <span className="shrink-0 text-xs font-semibold text-amber-ink">
+                      <span className="shrink-0 text-xs font-semibold text-amber-deep">
                         obligatoire
                       </span>
                     )}
@@ -1074,7 +1074,7 @@ function Review({ title, onEdit, children }: { title: string; onEdit: () => void
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-full px-2.5 py-1 text-xs font-semibold text-amber-ink hover:bg-amber-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+          className="rounded-full px-2.5 py-1 text-xs font-semibold text-amber-deep hover:bg-amber-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
         >
           Modifier
         </button>
