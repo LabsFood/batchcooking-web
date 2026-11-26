@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import {
   motion,
@@ -113,35 +113,138 @@ export default function HowItWorksScroll() {
         </div>
       </div>
 
-      {/* ── La version posée (mobile, et mouvement réduit) ───────────────── */}
-      <div className={`container-xl mt-10 pb-20 ${calme ? 'lg:pb-28' : 'lg:hidden'}`}>
-        <ol className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {ETAPES.map((etape) => (
-            <li
-              key={etape.nombre}
-              className="overflow-hidden rounded-2xl border border-[var(--line)] bg-paper shadow-[var(--shadow-card)]"
-            >
-              <div className="relative aspect-[5/3]">
-                <Image
-                  src={etape.src}
-                  alt={etape.alt}
-                  fill
-                  sizes="(min-width: 640px) 50vw, 100vw"
-                  className={`object-cover ${etape.position}`}
-                />
-              </div>
-              <div className="p-5">
-                <p className="text-sm font-semibold tabular-nums text-amber-deep">{etape.nombre}</p>
-                <h3 className="mt-1 font-display text-lg font-bold text-navy">{etape.titre}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-mid">{etape.texte}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+      {/* ── La version mobile : un coverflow au pouce ────────────────────── */}
+      <div className={`mt-10 pb-20 ${calme ? 'lg:pb-28' : 'lg:hidden'}`}>
+        <Coverflow calme={!!calme} />
       </div>
       {/* L'épinglage s'arrête net : un palier d'air avant la suite. */}
       <div className={`hidden h-20 ${calme ? '' : 'lg:block'}`} aria-hidden />
     </section>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Le coverflow mobile : un rail à balayer, aimanté carte par carte. La carte
+   au centre est de face ; ses voisines s'inclinent et reculent d'autant
+   qu'elles s'éloignent. Tout est recalculé au fil du défilement (une passe
+   par image, via rAF), sans bibliothèque. Au doigt et à la molette, le rail
+   défile nativement ; à la souris, on l'attrape : pendant la prise l'aimant
+   est coupé (il se battrait avec le geste), et à la relâche le rail revient
+   s'aimanter sur la carte la plus proche. En mouvement réduit, il reste un
+   carrousel aimanté, posé à plat.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function Coverflow({ calme }: { calme: boolean }) {
+  const rail = useRef<HTMLOListElement>(null)
+  const cartes = useRef<(HTMLLIElement | null)[]>([])
+  const demande = useRef(0)
+  /** La prise à la souris : où l'on a saisi, et où en était le rail. */
+  const prise = useRef<{ x: number; depart: number } | null>(null)
+
+  const poser = useCallback(() => {
+    const r = rail.current
+    if (!r || calme) return
+    const centre = r.scrollLeft + r.clientWidth / 2
+    for (const carte of cartes.current) {
+      if (!carte) continue
+      // -1 (à gauche) … 0 (au centre) … 1 (à droite), borné.
+      const d = Math.max(-1, Math.min(1, (carte.offsetLeft + carte.offsetWidth / 2 - centre) / carte.offsetWidth))
+      carte.style.transform = `rotateY(${(-d * 16).toFixed(2)}deg) scale(${(1 - Math.abs(d) * 0.12).toFixed(3)})`
+      carte.style.opacity = String(1 - Math.abs(d) * 0.35)
+      carte.style.zIndex = String(10 - Math.round(Math.abs(d) * 5))
+    }
+  }, [calme])
+
+  useEffect(() => {
+    poser()
+    const r = rail.current
+    if (!r || calme) return
+    const auFil = () => {
+      cancelAnimationFrame(demande.current)
+      demande.current = requestAnimationFrame(poser)
+    }
+    r.addEventListener('scroll', auFil, { passive: true })
+    window.addEventListener('resize', auFil)
+    return () => {
+      r.removeEventListener('scroll', auFil)
+      window.removeEventListener('resize', auFil)
+      cancelAnimationFrame(demande.current)
+    }
+  }, [poser, calme])
+
+  /* La prise à la souris. Le toucher n'entre pas ici : il défile nativement. */
+  const saisir = (e: React.PointerEvent<HTMLOListElement>) => {
+    const r = rail.current
+    if (!r || e.pointerType !== 'mouse') return
+    prise.current = { x: e.clientX, depart: r.scrollLeft }
+    r.setPointerCapture(e.pointerId)
+    r.classList.remove('snap-x')
+    r.style.cursor = 'grabbing'
+  }
+  const suivre = (e: React.PointerEvent<HTMLOListElement>) => {
+    const r = rail.current
+    if (!r || !prise.current) return
+    r.scrollLeft = prise.current.depart - (e.clientX - prise.current.x)
+  }
+  const lacher = (e: React.PointerEvent<HTMLOListElement>) => {
+    const r = rail.current
+    if (!r || !prise.current) return
+    prise.current = null
+    r.releasePointerCapture(e.pointerId)
+    r.style.cursor = ''
+    // Revenir s'aimanter sur la carte la plus proche, puis rendre l'aimant.
+    const centre = r.scrollLeft + r.clientWidth / 2
+    let cible: HTMLLIElement | null = null
+    let ecart = Infinity
+    for (const carte of cartes.current) {
+      if (!carte) continue
+      const d = Math.abs(carte.offsetLeft + carte.offsetWidth / 2 - centre)
+      if (d < ecart) {
+        ecart = d
+        cible = carte
+      }
+    }
+    if (cible) r.scrollTo({ left: cible.offsetLeft + cible.offsetWidth / 2 - r.clientWidth / 2, behavior: 'smooth' })
+    setTimeout(() => r.classList.add('snap-x'), 350)
+  }
+
+  return (
+    <ol
+      ref={rail}
+      onPointerDown={saisir}
+      onPointerMove={suivre}
+      onPointerUp={lacher}
+      onPointerCancel={lacher}
+      className="flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto px-[11vw] pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-[24vw] select-none"
+      style={{ perspective: '1000px' }}
+      aria-label="Les quatre étapes"
+    >
+      {ETAPES.map((etape, i) => (
+        <li
+          key={etape.nombre}
+          ref={(el) => {
+            cartes.current[i] = el
+          }}
+          className="w-[78vw] max-w-sm shrink-0 snap-center overflow-hidden rounded-2xl border border-[var(--line)] bg-paper shadow-[var(--shadow-card)] will-change-transform sm:w-[52vw]"
+        >
+          <div className="relative aspect-[5/3]">
+            <Image
+              src={etape.src}
+              alt={etape.alt}
+              fill
+              sizes="(min-width: 640px) 52vw, 78vw"
+              draggable={false}
+              className={`object-cover ${etape.position}`}
+            />
+          </div>
+          <div className="p-5">
+            <p className="text-sm font-semibold tabular-nums text-amber-deep">{etape.nombre}</p>
+            <h3 className="mt-1 font-display text-lg font-bold text-navy">{etape.titre}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-mid">{etape.texte}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
   )
 }
 
