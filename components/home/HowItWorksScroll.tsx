@@ -23,7 +23,7 @@ import {
    la gêne), les mêmes étapes s'empilent simplement.
 
    Chaque photo illustre SON étape : les plats qu'on choisit, le calendrier
-   qu'on réserve, l'étal des courses, le chef en cuisine.
+   qu'on réserve, l'étal des courses, le chef en tenue qui cuisine.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const ETAPES = [
@@ -59,9 +59,9 @@ const ETAPES = [
     titre: 'Le chef cuisine chez vous',
     texte:
       'Deux à trois heures de cuisine, une semaine de repas au frigo, la cuisine rendue propre. Il ne reste qu’à réchauffer.',
-    src: '/images/ivyCuisine.png',
-    alt: 'Batch cooker en train de cuisiner à domicile',
-    position: 'object-center',
+    src: 'https://images.unsplash.com/photo-1581299894007-aaa50297cf16?w=900&auto=format&fit=crop',
+    alt: 'Chef en tenue de cuisine, en plein dressage',
+    position: 'object-top',
   },
 ]
 

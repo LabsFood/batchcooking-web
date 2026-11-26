@@ -67,7 +67,7 @@ export default function FoodCarousel() {
           >
             Composez votre menu, avec votre batch cooker.
           </h2>
-          <p className="mx-auto mt-5 max-w-xl leading-relaxed text-white/80">
+          <p className="mx-auto mt-5 max-w-xl leading-relaxed text-white">
             Chaque batch cooker propose sa propre carte. Filtrez par dates, région ou régime
             alimentaire, choisissez celui qui vous plaît, puis les plats que vous voulez
             retrouver dans votre frigo.
