@@ -44,7 +44,7 @@ const ITEMS: Item[] = [
 const TIER_META: Record<Tier, { label: string; chip: string; dot: string; ring: string }> = {
   indispensable: {
     label: 'Indispensable',
-    chip: 'bg-amber/15 text-amber-ink',
+    chip: 'bg-amber/15 text-amber-deep',
     dot: 'bg-amber',
     ring: 'ring-1 ring-amber/30 group-hover:ring-amber/60',
   },
