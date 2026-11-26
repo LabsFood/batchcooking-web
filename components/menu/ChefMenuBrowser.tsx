@@ -1411,7 +1411,7 @@ export function MenuCard({
       </div>
 
       {/* Les plats en vignettes : on voit la cuisine d'un coup d'œil, la liste
-          complète (pays, portions, allergènes) est dans sa carte. */}
+          complète (pays, allergènes) est dans sa carte. */}
       {menu.dishes.length === 0 ? (
         <p className="mt-3 px-5 text-sm text-ink-soft">Aucun plat publié pour l’instant.</p>
       ) : (
@@ -2098,11 +2098,13 @@ function DishRow({
               )}
             </span>
           </span>
-          <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
-            {[countryLabel(dish.country), `${dish.portions} portions`]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
+          {/* Retour de recette du 26/11 : le client ne voit pas les portions de la
+              recette ; il choisit les siennes à la réservation. */}
+          {countryLabel(dish.country) && (
+            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+              {countryLabel(dish.country)}
+            </span>
+          )}
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {/* Recettes §4.8 : les régimes calculés d'après les ingrédients quand
                 le calcul se fait, sinon ceux indiqués par le batch cooker ; puis
