@@ -59,7 +59,7 @@ import {
 
    L'avance immédiate URSSAF est en lecture seule parce que c'est l'équipe
    qui l'instruit. Les titres CESU sont encaissés sur le NAN de Lab's Food
-   (Labs Food Batchcooking SAS), qui reverse sa part au batch cooker : il n'a
+   (Lab’s Food), qui reverse sa part au batch cooker : il n'a
    plus de NAN à renseigner, seulement à choisir s'il accepte le CESU, en
    connaissant les frais de traitement et d'encaissement appliqués.
    ───────────────────────────────────────────────────────────────────────────── */

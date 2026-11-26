@@ -16,15 +16,15 @@ export function PaymentInvoicesInfo({ side }: { side: Side }) {
     <InfoPopover label="Qu’est-ce que cette facture ?">
       {side === 'client' ? (
         <>
-          Labs Food Batchcooking SAS est votre prestataire : la facture est à son nom,
+          Lab’s Food est votre prestataire : la facture est à son nom,
           TVA comprise, une par paiement (carte, CESU ou avance immédiate). Les factures
           plus anciennes sont au nom de votre batch cooker.
         </>
       ) : (
         <>
-          Les factures de vos clients pour vos prestations. Labs Food les émet désormais
+          Les factures de vos clients pour vos prestations. Lab’s Food les émet désormais
           en son nom ; les plus anciennes sont à votre nom, conservez-les dix ans. Ce que
-          Labs Food vous verse, et vos autofactures, sont dans Revenus &amp; paiements.
+          Lab’s Food vous verse, et vos autofactures, sont dans Revenus &amp; paiements.
         </>
       )}{' '}
       Un paiement fait avant l’ouverture des factures en reçoit une après coup : elle porte

@@ -1,4 +1,4 @@
-/* Types reflétant les payloads de l'API Labs Food (Swagger v1.2.0). */
+/* Types reflétant les payloads de l'API Lab’s Food (Swagger v1.2.0). */
 
 export type Role = 'client' | 'chef' | 'admin'
 

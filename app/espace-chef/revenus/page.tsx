@@ -34,13 +34,13 @@ import {
 /* ─────────────────────────────────────────────────────────────────────────────
    Revenus & paiements, flux « prix net » (26/11/2026).
 
-   Le client paie Labs Food Batchcooking SAS, TVA comprise. La SAS achète la
+   Le client paie Lab’s Food, TVA comprise. La SAS achète la
    prestation au batch cooker au prix net et le lui vire, avec une autofacture
    (art. 289 I-2 CGI) : il n'a rien à émettre ni à confirmer. Cet écran montre :
 
    - **ce qui a été versé** cette année et **ce qui est à recevoir** (argent
-     déjà reçu par Labs Food, virement sous 2 jours ouvrés) ;
-   - **le détail de chaque montant** : TTC, TVA (10 %), HT, part Labs Food,
+     déjà reçu par Lab’s Food, virement sous 2 jours ouvrés) ;
+   - **le détail de chaque montant** : TTC, TVA (10 %), HT, part Lab’s Food,
      frais CESU, net ;
    - **les autofactures** à télécharger ;
    - **les paiements CESU** des clients, en lecture seule : le rapprochement
@@ -87,7 +87,7 @@ export default function ChefEarningsPage() {
   return (
     <ChefPage
       title="Revenus & paiements"
-      subtitle="Ce que Labs Food vous verse, et le détail de chaque montant."
+      subtitle="Ce que Lab’s Food vous verse, et le détail de chaque montant."
     >
       <div className="space-y-5">
         <ApprovalGate quoi="Vos revenus s’affichent" />
@@ -119,7 +119,7 @@ export default function ChefEarningsPage() {
               </p>
             )}
             <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-              Argent reçu par Labs Food, virement sous 2 jours ouvrés
+              Argent reçu par Lab’s Food, virement sous 2 jours ouvrés
             </p>
           </Card>
 
@@ -156,7 +156,7 @@ export default function ChefEarningsPage() {
         {/* ── Mes versements ───────────────────────────────────────────── */}
         <Card title="Mes versements">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Le client paie Labs Food. Labs Food vous achète la prestation au prix
+            Le client paie Lab’s Food. Lab’s Food vous achète la prestation au prix
             net et vous le vire : sur votre compte Stripe pour la carte, par
             virement bancaire pour le CESU et l’avance immédiate. La TVA payée par
             le client va à l’État.
@@ -175,7 +175,7 @@ export default function ChefEarningsPage() {
         {/* ── Mes autofactures ─────────────────────────────────────────── */}
         <Card title="Mes autofactures">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Labs Food les établit à votre nom à chaque virement
+            Lab’s Food les établit à votre nom à chaque virement
             (autofacturation). Elles valent facture pour votre comptabilité :
             vous n’avez rien à émettre.
           </p>
@@ -197,7 +197,7 @@ export default function ChefEarningsPage() {
         {/* ── Le CESU des clients, en lecture seule ────────────────────── */}
         <Card title="Paiements CESU de vos clients">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Vos clients paient en CESU à Labs Food, plus à vous. Vous n’avez plus
+            Vos clients paient en CESU à Lab’s Food, plus à vous. Vous n’avez plus
             rien à confirmer : on rapproche le virement du CRCESU automatiquement.
           </p>
           {cesu.isPending ? (
@@ -299,7 +299,7 @@ function TableVersements({ lignes }: { lignes: (ChefPayoutLine & { verse: boolea
             <th className={`${th} text-right`}>Prix TTC</th>
             <th className={`${th} text-right`}>TVA</th>
             <th className={`${th} text-right`}>Prix HT</th>
-            <th className={`${th} text-right`}>Part Labs Food</th>
+            <th className={`${th} text-right`}>Part Lab’s Food</th>
             <th className={`${th} text-right`}>Frais CESU</th>
             <th className={`${th} text-right`}>Net</th>
             <th className={th}>Statut</th>

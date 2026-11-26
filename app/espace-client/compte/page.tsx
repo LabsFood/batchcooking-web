@@ -48,7 +48,7 @@ export default function AccountPage() {
 
 /* ── Factures ──────────────────────────────────────────────────────────────── */
 
-/** Une facture par paiement, au nom de Labs Food Batchcooking SAS (prix net). */
+/** Une facture par paiement, au nom de Lab’s Food (prix net). */
 function Factures() {
   return (
     <section className="card-shell rounded-2xl p-5 lg:p-6">

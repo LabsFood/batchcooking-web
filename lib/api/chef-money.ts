@@ -16,7 +16,7 @@ import { useMeKey } from './keys'
      Food en CESU préfinancé ; le rapprochement bancaire solde la déclaration.
      Le batch cooker suit le statut, il n'a plus rien à confirmer ;
    - **les versements** (`/me/chef/payouts`) et **les autofactures**
-     (`/me/chef/payout-statements`) : ce que Labs Food lui achète au prix net
+     (`/me/chef/payout-statements`) : ce que Lab’s Food lui achète au prix net
      et lui vire (flux « prix net ») ;
    - **les factures de commission** (`/me/chef/commission-invoices`) : ce que
      Lab's Food lui facture, et les prélèvements qui vont avec ;
@@ -105,7 +105,7 @@ export interface ChefPayouts {
   lines: ChefPayoutLine[]
 }
 
-/** `GET /me/chef/payouts` — ce que Labs Food me doit (`payable`) ou m'a viré (`paid`). */
+/** `GET /me/chef/payouts` — ce que Lab’s Food me doit (`payable`) ou m'a viré (`paid`). */
 export function useMyPayouts(view: PayoutView, from?: string) {
   const apiFetch = useApiFetch()
   const meKey = useMeKey()
