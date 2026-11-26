@@ -8,8 +8,9 @@ import { fadeUpInView } from '@/lib/motion'
 /* ─────────────────────────────────────────────────────────────────────────────
    « Le batch cooking, réinventé chez vous » — remis au propre le 26/11.
 
-   Une seule photo, la nôtre (notre batch cooker en tenue Lab's Food), à la
-   place du collage de banque d'images : on montre le vrai service. En face,
+   Une seule photo — une gamelle de la semaine, le produit lui-même — à la
+   place du collage de banque d'images (le batch cooker en tenue illustre
+   l'étape 4 de « Comment ça marche »). En face,
    deux paragraphes courts alignés à gauche, puis les quatre piliers en
    grille. Rien d'autre.
    ───────────────────────────────────────────────────────────────────────────── */
@@ -47,8 +48,8 @@ export default function Concept() {
           <motion.div {...fadeUpInView()} className="lg:col-span-5">
             <div className="relative mx-auto aspect-[3/4] max-w-md overflow-hidden rounded-3xl shadow-[0_40px_80px_-40px_rgba(31,42,55,0.45)]">
               <Image
-                src="/images/ivyNewPic.jpeg"
-                alt="Batch cooker Lab's Food, en tenue de chef"
+                src="/images/gamelles/gamelle-a02.jpg"
+                alt="Gamelle de la semaine : riz, haricots, poulet et brocoli"
                 fill
                 sizes="(min-width: 1024px) 40vw, (min-width: 640px) 28rem, 100vw"
                 className="object-cover"

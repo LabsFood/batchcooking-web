@@ -32,8 +32,8 @@ const ETAPES = [
     titre: 'Choisissez vos plats',
     texte:
       'Chaque batch cooker tient sa propre carte. Parcourez les menus de la semaine et cochez ce qui vous fait envie.',
-    src: '/images/gamelles/gamelle-a01.jpg',
-    alt: 'Gamelles de falafels, pois chiches et riz — des plats à choisir',
+    src: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=900&auto=format&fit=crop',
+    alt: 'Grande planche de plats variés : brochettes, grillades et sauces à choisir',
     position: 'object-center',
   },
   {
@@ -59,8 +59,8 @@ const ETAPES = [
     titre: 'Le chef cuisine chez vous',
     texte:
       'Deux à trois heures de cuisine, une semaine de repas au frigo, la cuisine rendue propre. Il ne reste qu’à réchauffer.',
-    src: 'https://images.unsplash.com/photo-1581299894007-aaa50297cf16?w=900&auto=format&fit=crop',
-    alt: 'Chef en tenue de cuisine, en plein dressage',
+    src: '/images/ivyNewPic.jpeg',
+    alt: 'Batch cooker Lab’s Food en tenue, prête à cuisiner chez vous',
     position: 'object-top',
   },
 ]
