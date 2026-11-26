@@ -1364,3 +1364,34 @@ h1, h2, h3 {
 .cap-first::first-letter {
   text-transform: uppercase;
 }
+
+/* ─── Rangées qui défilent (« Cuisines du monde ») ──────────────────────────
+   Deux sens, un par rangée. Boucle assumée (décision du 26/11) : une vitrine
+   de photos, en pause au survol. En mouvement réduit, le composant rend des
+   rangées à faire défiler soi-même : ces classes ne sont alors pas posées. */
+@keyframes lf-defile {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.lf-defile,
+.lf-defile-inverse {
+  animation: lf-defile 48s linear infinite;
+}
+
+.lf-defile-inverse {
+  animation-direction: reverse;
+}
+
+.lf-defile:hover,
+.lf-defile-inverse:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .lf-defile,
+  .lf-defile-inverse {
+    animation: none;
+  }
+}

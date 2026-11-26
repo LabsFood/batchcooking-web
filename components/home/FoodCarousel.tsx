@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { fadeUpInView } from '@/lib/motion'
 
 type Photo = {
@@ -32,7 +32,19 @@ const ROW_B: Photo[] = [
   { src: '/images/gamelles/gamelle-b06.jpg', alt: 'Gamelles hermétiques de soupes maison' },
 ]
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   La vitrine défile toute seule (décision du 26/11) : une rangée vers la
+   gauche, l'autre vers la droite, en pause au survol (`.lf-defile`,
+   globals.css). Le contenu est doublé pour boucler sans couture ; la copie
+   est cachée aux lecteurs d'écran.
+
+   En `prefers-reduced-motion`, retour aux rangées qu'on fait défiler
+   soi-même, au doigt ou à la molette.
+   ───────────────────────────────────────────────────────────────────────────── */
+
 export default function FoodCarousel() {
+  const calme = useReducedMotion()
+
   return (
     <section className="relative overflow-hidden section-cream-soft py-20 lg:py-28">
       {/* Header */}
@@ -45,14 +57,52 @@ export default function FoodCarousel() {
         </motion.div>
       </div>
 
-      {/* Deux rangées que l'on fait défiler au doigt ou à la molette : rien ne bouge seul. */}
-      <Row photos={ROW_A} />
-      <Row photos={ROW_B} className="mt-5 lg:mt-7" />
+      {calme ? (
+        <>
+          <RangeeManuelle photos={ROW_A} />
+          <RangeeManuelle photos={ROW_B} className="mt-5 lg:mt-7" />
+        </>
+      ) : (
+        <>
+          <RangeeDefilante photos={ROW_A} />
+          <RangeeDefilante photos={ROW_B} inverse className="mt-5 lg:mt-7" />
+        </>
+      )}
     </section>
   )
 }
 
-function Row({ photos, className = '' }: { photos: Photo[]; className?: string }) {
+function RangeeDefilante({
+  photos,
+  inverse,
+  className = '',
+}: {
+  photos: Photo[]
+  inverse?: boolean
+  className?: string
+}) {
+  return (
+    <div className={`overflow-hidden ${className}`}>
+      <div className={`flex w-max ${inverse ? 'lf-defile-inverse' : 'lf-defile'}`}>
+        <Serie photos={photos} />
+        <Serie photos={photos} cache />
+      </div>
+    </div>
+  )
+}
+
+/** Une passe complète de la rangée ; la seconde, cachée aux lecteurs d'écran, boucle. */
+function Serie({ photos, cache }: { photos: Photo[]; cache?: boolean }) {
+  return (
+    <div aria-hidden={cache || undefined} className="flex shrink-0 gap-4 px-2 lg:gap-6 lg:px-3">
+      {photos.map((p) => (
+        <PhotoCard key={p.src} photo={p} />
+      ))}
+    </div>
+  )
+}
+
+function RangeeManuelle({ photos, className = '' }: { photos: Photo[]; className?: string }) {
   return (
     <div className={`overflow-x-auto snap-x snap-mandatory ${className}`}>
       <div className="flex gap-4 lg:gap-6 w-max px-6 lg:px-10">
