@@ -15,6 +15,7 @@ import {
   Pencil,
   Plus,
   RotateCw,
+  Search,
   Trash2,
   Users,
   UtensilsCrossed,
@@ -30,6 +31,12 @@ import ImportButton from '@/components/chef/recipes/ImportButton'
 import { InfoPopover } from '@/components/shared/InfoPopover'
 import { useToast } from '@/components/shared/Toaster'
 import { countryLabel } from '@/lib/chef/countries'
+import {
+  FILTRES,
+  compterParFiltre,
+  filtrerPlats,
+  type FiltreStatut,
+} from '@/lib/chef/plats-filtre'
 import { refLabel, useAllergens, useDiets, useDishCategories } from '@/lib/api/referentials'
 import {
   DISH_STATUS_LABEL,
@@ -146,11 +153,22 @@ function Recettes() {
 // ── Plats ───────────────────────────────────────────────────────────────────
 
 function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
+  // Retour de recette du 26/11 : retrouver un plat parmi beaucoup.
+  const [recherche, setRecherche] = useState('')
+  const [statut, setStatut] = useState<FiltreStatut>('tous')
+
   if (query.isPending) return <TabSkeleton layout="plats" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
 
   const dishes = query.data ?? []
   const published = dishes.filter((d) => d.status === 'published').length
+  const visibles = filtrerPlats(dishes, recherche, statut, countryLabel)
+  const filtre = recherche.trim() !== '' || statut !== 'tous'
+  const comptes = compterParFiltre(dishes)
+  const toutAfficher = () => {
+    setRecherche('')
+    setStatut('tous')
+  }
 
   return (
     <section>
@@ -159,6 +177,13 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
           {dishes.length === 0
             ? 'Aucun plat pour l’instant.'
             : `${dishes.length} plat${dishes.length > 1 ? 's' : ''}, dont ${published} publié${published > 1 ? 's' : ''}`}
+          {dishes.length > 0 && filtre && (
+            <span className="tabular-nums">
+              {' '}
+              · {visibles.length} plat{visibles.length > 1 ? 's' : ''} trouvé
+              {visibles.length > 1 ? 's' : ''}
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
           <ImportButton />
@@ -167,6 +192,32 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
           </Link>
         </div>
       </div>
+
+      {dishes.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-64">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Rechercher un plat…"
+              aria-label="Rechercher dans vos plats"
+              maxLength={80}
+              className="input-base w-full pl-9"
+            />
+          </div>
+          <Onglets
+            label="Filtrer vos plats"
+            value={statut}
+            onChange={setStatut}
+            items={FILTRES.map((f) => ({ ...f, count: comptes[f.id] }))}
+          />
+        </div>
+      )}
 
       {dishes.length === 0 ? (
         <Empty
@@ -179,9 +230,20 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
             </Link>
           }
         />
+      ) : visibles.length === 0 ? (
+        <Empty
+          icon={Search}
+          title="Aucun plat ne correspond"
+          text="Vérifiez l’orthographe ou choisissez un autre filtre."
+          action={
+            <button type="button" onClick={toutAfficher} className="btn btn-outline text-xs">
+              Tout afficher
+            </button>
+          }
+        />
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {dishes.map((dish) => (
+          {visibles.map((dish) => (
             <DishCard
               key={dish.id}
               dish={dish}
