@@ -1397,3 +1397,20 @@ h1, h2, h3 {
     animation: none;
   }
 }
+
+/* ─── Texte justifié sur l'accueil (décision du 27/11) ──────────────────────
+   Les paragraphes et les avis de la page d'accueil sont justifiés. La coupure
+   des mots (`hyphens`, la page est en `lang="fr"`) évite les rivières de
+   blanc. Dans un bloc centré, la dernière ligne reste au centre : une phrase
+   courte ne part pas à gauche. */
+.accueil-justifie p,
+.accueil-justifie blockquote {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.accueil-justifie .text-center p,
+.accueil-justifie p.text-center {
+  text-align-last: center;
+}
