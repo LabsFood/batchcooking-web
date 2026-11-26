@@ -48,7 +48,7 @@ export default function AccountPage() {
 
 /* ── Factures ──────────────────────────────────────────────────────────────── */
 
-/** Une facture par paiement par carte, au nom du batch cooker. */
+/** Une facture par paiement, au nom de Labs Food Batchcooking SAS (prix net). */
 function Factures() {
   return (
     <section className="card-shell rounded-2xl p-5 lg:p-6">
@@ -56,8 +56,8 @@ function Factures() {
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
       <p className="mb-4 mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
-        Une facture par paiement par carte, au nom de votre batch cooker. Elles se
-        retrouvent aussi sur chaque session.
+        Une facture par paiement, TVA comprise. Elles se retrouvent aussi sur
+        chaque session.
       </p>
       <PaymentInvoiceList side="client" emptyText="Aucune facture pour l’instant." />
     </section>
