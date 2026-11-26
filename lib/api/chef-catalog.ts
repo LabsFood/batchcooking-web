@@ -682,6 +682,11 @@ export interface Suggestions {
     "recipe" | "recipeComplete" | "status" | "publishedAt"
   > & {
     adoptedCopyId: string | null;
+    /**
+     * « Mettre en vedette » dans la console (retour du 26/11) : l'API les
+     * envoie en tête. Optionnel tant qu'une API plus ancienne peut répondre.
+     */
+    isFeatured?: boolean;
   })[];
   menus: {
     id: string;

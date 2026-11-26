@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Clock,
   Copy,
+  Flame,
   Image as ImageIcon,
   LayoutGrid,
   List,
@@ -1918,6 +1919,12 @@ function SuggestionCard({
           >
             {dish.name}
           </button>
+          {/* Mis en vedette par l'équipe dans la console : l'API l'envoie en tête. */}
+          {dish.isFeatured && (
+            <span className="status status-warn">
+              <Flame className="h-4 w-4" aria-hidden /> Vedette
+            </span>
+          )}
           {dish.category && (
             <span className="rounded-lg bg-cream-soft px-2 py-0.5 text-xs font-semibold text-ink-mid">
               {refLabel(categoryList, dish.category)}
