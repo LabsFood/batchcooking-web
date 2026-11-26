@@ -48,7 +48,7 @@ import {
   useRecipeProfiles,
   useRegions,
 } from '@/lib/api/referentials'
-import { REGULATED_ALLERGENS, seasonsLine } from '@/lib/recipe-fields'
+import { REGULATED_ALLERGENS } from '@/lib/recipe-fields'
 import { Prix } from '@/components/shared/Prix'
 import { useChefSlots } from '@/lib/api/bookings'
 import { offerAfterTaxCents, offerEuros, offerSummary, platsLabel } from '@/lib/api/service-offers'
@@ -2120,11 +2120,7 @@ function DishRow({
                   {TRACES_DIETS.has(tag) && `, ${TRACES_NOTE}`}
                 </span>
               ))}
-            {seasonsLine(dish.seasonMonths ?? null) && dish.seasonMonths?.length !== 12 && (
-              <span className="rounded-full bg-mint/40 px-2 py-0.5 text-xs text-mint-ink">
-                {seasonsLine(dish.seasonMonths ?? null)}
-              </span>
-            )}
+            {/* Retour de recette du 26/11 : le client ne voit pas la saisonnalité d'un plat. */}
             {(dish.profiles ?? []).slice(0, 2).map((p) => (
               <span
                 key={p}

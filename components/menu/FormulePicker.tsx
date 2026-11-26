@@ -101,7 +101,7 @@ export function FormulePicker({
         </div>
       )}
       <p className="mt-3 text-xs text-ink-soft">
-        Plus de plats que la formule ? C’est une{' '}
+        Envie d’autres plats, ou de plus de plats ? Proposez vos repas dans une{' '}
         <Link
           href="/espace-client/personnalisation"
           className="font-semibold text-navy underline underline-offset-2 hover:text-amber-ink"
