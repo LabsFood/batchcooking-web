@@ -1,3 +1,37 @@
+## [1.8.0](https://github.com/LabsFood/batchcooking-web/compare/v1.7.0...v1.8.0) (2026-11-26)
+
+### Features
+
+* **accueil:** clin d'œil Black Friday, « −50 % tous les jours » ([effb387](https://github.com/LabsFood/batchcooking-web/commit/effb3877897fb15efb356bb502c8cdd266c6755c))
+* **accueil:** refonte de l'accueil, agrément SAP et charte blanc/orange ([#126](https://github.com/LabsFood/batchcooking-web/issues/126)) ([0c6dd92](https://github.com/LabsFood/batchcooking-web/commit/0c6dd920f97ae5ed9bc7b6589b9eb430bc97f3aa)), closes [#how-it-works](https://github.com/LabsFood/batchcooking-web/issues/how-it-works) [#tax-credit](https://github.com/LabsFood/batchcooking-web/issues/tax-credit)
+* **analytics:** événements clés et erreurs vers PostHog (repris de [#72](https://github.com/LabsFood/batchcooking-web/issues/72)) ([#116](https://github.com/LabsFood/batchcooking-web/issues/116)) ([4d6aaa0](https://github.com/LabsFood/batchcooking-web/commit/4d6aaa0a6afe17cacba42c1649024dfc71be3ac8))
+* **analytics:** Google Tag Manager, chargé seulement après consentement ([0bbd0d5](https://github.com/LabsFood/batchcooking-web/commit/0bbd0d508c80e32ef0032c0728c29f8b1c51c7ce))
+* **chef:** fil d'activité de l'IA dans la fenêtre d'import ([#111](https://github.com/LabsFood/batchcooking-web/issues/111)) ([99824c6](https://github.com/LabsFood/batchcooking-web/commit/99824c6e4cb971fb2a5f12853a99d20692c010b9))
+* **chef:** garder plusieurs recettes d'un même import ([#112](https://github.com/LabsFood/batchcooking-web/issues/112)) ([ddfdf39](https://github.com/LabsFood/batchcooking-web/commit/ddfdf398902da2c7b20fffb2afbf143a2cbf2de1))
+* **chef:** import de recettes IA et mesure du temps de saisie ([#110](https://github.com/LabsFood/batchcooking-web/issues/110)) ([1dbd776](https://github.com/LabsFood/batchcooking-web/commit/1dbd7769a9ae2fceb98aaa2817eb27ce27c16ca8))
+* **chef:** revenus au prix net, versements et autofactures ([#123](https://github.com/LabsFood/batchcooking-web/issues/123)) ([bca5ac0](https://github.com/LabsFood/batchcooking-web/commit/bca5ac01df0116f16a59d7d30bae1e20449bbe32))
+* **chef:** sections de la fiche plat en accordéon, avec résumé et alertes une fois repliées ([5ede361](https://github.com/LabsFood/batchcooking-web/commit/5ede361e991c7e33c6597cac8e7813d11f7d7f15))
+* **espace-chef:** « Prête » mis à jour pendant la saisie de la fiche ([89ad56a](https://github.com/LabsFood/batchcooking-web/commit/89ad56aa698cce27e9eeea7dc6150f938476b9e7))
+* **espace-chef:** afficher les recettes proposées par Lab's Food, à accepter ou refuser ([188c565](https://github.com/LabsFood/batchcooking-web/commit/188c56543ebfd5a49f66e24875dff28b453caf08))
+* **onboarding:** steppers horizontaux client et chef ([#117](https://github.com/LabsFood/batchcooking-web/issues/117)) ([34ca09c](https://github.com/LabsFood/batchcooking-web/commit/34ca09c7dcd287053b78265c9c7acad23fc1eedb))
+* **recettes:** « Mes plats » s'affiche aussi en liste, et le choix est retenu ([9be2a9c](https://github.com/LabsFood/batchcooking-web/commit/9be2a9c3f5324821f37cdd4076708432f704ed1d))
+* **recettes:** « Mes plats » se cherche et se filtre par statut ([be00cc9](https://github.com/LabsFood/batchcooking-web/commit/be00cc9ba870bb0e08e7ba068462c37faeab1e6f))
+* **recettes:** la recherche et le filtre de « Mes plats », sans accents ni majuscules ([1326973](https://github.com/LabsFood/batchcooking-web/commit/1326973b84e14b94d27371118da50cbcc41ef3e9))
+* release develop → main (revenus au prix net, « Mes plats ») ([#125](https://github.com/LabsFood/batchcooking-web/issues/125)) ([e7b3ec3](https://github.com/LabsFood/batchcooking-web/commit/e7b3ec3b45a8cd498d1018bdf0c34c37709d2654)), closes [#123](https://github.com/LabsFood/batchcooking-web/issues/123) [#126](https://github.com/LabsFood/batchcooking-web/issues/126) [#how-it-works](https://github.com/LabsFood/batchcooking-web/issues/how-it-works) [#tax-credit](https://github.com/LabsFood/batchcooking-web/issues/tax-credit)
+
+### Bug Fixes
+
+* **courses:** carte de la réservation, attente du compte Stripe du chef ([e183d7d](https://github.com/LabsFood/batchcooking-web/commit/e183d7d30e7175a2eaa2c5a7784574e44d70d6e7))
+* **espace-chef:** marquer le push « Bientôt » dans les réglages de notifications ([5672235](https://github.com/LabsFood/batchcooking-web/commit/5672235326dd11a80acb0aca922d79075b5855d4))
+* **recettes:** « boeuf » trouve « Bœuf bourguignon » dans « Mes plats » ([2e47994](https://github.com/LabsFood/batchcooking-web/commit/2e479949fe1f63d7f5d86ad3cc0b7cb0c94c83a4))
+* **recettes:** « Mes plats » dit ce qui manque à tout plat à compléter, annonce les résultats et montre la copie en cours ([03b21b8](https://github.com/LabsFood/batchcooking-web/commit/03b21b8511670f1af87523ae402ab4677f681b62))
+* **reservation:** le client ne voit plus les mois de saison, et peut proposer ses repas ([a427dfe](https://github.com/LabsFood/batchcooking-web/commit/a427dfe0a8ba61b9ba85441cb621e0ff4c726797))
+* **stripe:** masquer l'inscription Stripe une fois le dossier complet ([#113](https://github.com/LabsFood/batchcooking-web/issues/113)) ([ba2689b](https://github.com/LabsFood/batchcooking-web/commit/ba2689b926732e4229adf9d54ea48b1c76f108e3))
+
+### Performance Improvements
+
+* **home:** afficher le titre du hero sans attendre l'hydratation ([f2f7dd1](https://github.com/LabsFood/batchcooking-web/commit/f2f7dd1e21adde17da42ca39dd95d0b9f6ab0247))
+
 ## [1.7.0](https://github.com/LabsFood/batchcooking-web/compare/v1.6.0...v1.7.0) (2026-11-21)
 
 ### Features
