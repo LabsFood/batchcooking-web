@@ -3,7 +3,7 @@ import { homeGraph } from '@/lib/structured-data'
 import Hero from '@/components/home/Hero'
 import Concept from '@/components/home/Concept'
 import FoodCarousel from '@/components/home/FoodCarousel'
-import HowItWorks from '@/components/home/HowItWorks'
+import HowItWorksScroll from '@/components/home/HowItWorksScroll'
 import FeaturedMenu from '@/components/home/FeaturedMenu'
 import TaxCreditBanner from '@/components/home/TaxCreditBanner'
 import ServiceArea from '@/components/home/ServiceArea'
@@ -16,7 +16,7 @@ export default function HomePage() {
     <div className="page-transition">
       <JsonLd data={homeGraph()} />
       <Hero />
-      <HowItWorks />
+      <HowItWorksScroll />
       <Concept />
       <FoodCarousel />
       <FeaturedMenu />
