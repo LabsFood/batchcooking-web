@@ -34,7 +34,7 @@
 
 ---
 
-### Tâche 1 : recherche et filtre, logique pure (site)
+### Task 1: recherche et filtre, logique pure (site)
 
 **Files :**
 - Create : `lib/chef/plats-filtre.ts`
@@ -97,7 +97,7 @@ git add lib/chef/plats-filtre.ts
 git commit -m "feat(recettes): la recherche et le filtre de « Mes plats », sans accents ni majuscules"
 ```
 
-### Tâche 2 : barre de recherche et filtre dans « Mes plats » (site)
+### Task 2: barre de recherche et filtre dans « Mes plats » (site)
 
 **Files :**
 - Modify : `app/espace-chef/recettes/page.tsx` (`DishesTab`, vers les lignes 148-195)
@@ -128,7 +128,7 @@ git add app/espace-chef/recettes/page.tsx
 git commit -m "feat(recettes): « Mes plats » se cherche et se filtre par statut"
 ```
 
-### Tâche 3 : vue en liste (site)
+### Task 3: vue en liste (site)
 
 **Files :**
 - Create : `lib/chef/vue-plats.ts`
@@ -175,7 +175,7 @@ git add lib/chef/vue-plats.ts app/espace-chef/recettes/page.tsx
 git commit -m "feat(recettes): « Mes plats » s'affiche aussi en liste, et le choix est retenu"
 ```
 
-### Tâche 4 : côté client, plus de mois de saison, nouvelle phrase (site)
+### Task 4: côté client, plus de mois de saison, nouvelle phrase (site)
 
 **Files :**
 - Modify : `components/menu/ChefMenuBrowser.tsx` (lignes 2123-2127 et import ligne 51)
@@ -202,7 +202,7 @@ git add components/menu/ChefMenuBrowser.tsx components/menu/FormulePicker.tsx
 git commit -m "fix(reservation): le client ne voit plus les mois de saison, et peut proposer ses repas"
 ```
 
-### Tâche 5 : vérification du site
+### Task 5: vérification du site
 
 - [ ] **Étape 1 : préparer et construire.** Copiez `../batchcooking-web/.env.local` s'il existe ; sinon, demandez les deux variables `NEXT_PUBLIC_API_URL` (API DEV `https://lf-api-develop.up.railway.app`) et `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Puis lancez `npm run typecheck`, `npm run lint` et `npm run build`. Expected : les trois réussissent.
 - [ ] **Étape 2 : à l'écran.** `npm run dev` (port 3005), connexion avec un compte batch cooker de DEV (à demander à l'utilisateur). Dans « Mes plats », à 1280 px puis à 375 px, et au clavier :
@@ -213,7 +213,7 @@ git commit -m "fix(reservation): le client ne voit plus les mois de saison, et p
 - [ ] **Étape 3 : côté client.** Dans la réservation d'un batch cooker qui a un plat saisonnier : la carte du plat n'a plus de mois, et la nouvelle phrase apparaît sous les formules.
 - [ ] **Étape 4 :** noter les écarts. Les corriger dans la tâche concernée, avec un commit de correction.
 
-### Tâche 6 : ingrédients du PDF en blocs titrés et à puces (API)
+### Task 6: ingrédients du PDF en blocs titrés et à puces (API)
 
 **Files :**
 - Modify : `apps/src/modules/dishes/recipe-document.ts` (lignes 79-97 et 142)
@@ -288,7 +288,7 @@ git add apps/src/modules/dishes/recipe-document.ts apps/src/modules/dishes/recip
 git commit -m "fix(recettes): la fiche PDF titre chaque groupe d'ingrédients et met une puce à chaque ligne"
 ```
 
-### Tâche 7 : vérification de l'API et PDF regardé
+### Task 7: vérification de l'API et PDF regardé
 
 - [ ] **Étape 1 :** depuis `apps/`, lancez `npx eslint src/modules/dishes/recipe-document.ts src/modules/dishes/recipe-document.spec.ts` et `npx tsc --noEmit -p tsconfig.json`. Expected : 0 erreur.
 - [ ] **Étape 2 : PDF d'essai.** Créez un spec jetable, `src/modules/dishes/zz-essai.spec.ts`, **jamais commité et supprimé après usage**. Il écrit deux PDF dans `$SCRATCH` avec `renderRecipePdf` :
