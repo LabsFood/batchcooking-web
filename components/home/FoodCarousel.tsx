@@ -1,7 +1,9 @@
 'use client'
 
 import Image from 'next/image'
-import { motion, useReducedMotion } from 'framer-motion'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { ArrowRight } from 'lucide-react'
 import { fadeUpInView } from '@/lib/motion'
 
 type Photo = {
@@ -33,46 +35,54 @@ const ROW_B: Photo[] = [
 ]
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   La vitrine défile toute seule (décision du 26/11) : une rangée vers la
-   gauche, l'autre vers la droite, en pause au survol (`.lf-defile`,
-   globals.css). Le contenu est doublé pour boucler sans couture ; la copie
-   est cachée aux lecteurs d'écran.
+   « Cuisines du monde » et « Composez votre menu » ne font plus qu'une scène
+   (décision du 26/11) : les gamelles défilent en fond — une rangée vers la
+   gauche, l'autre vers la droite (`.lf-defile`, globals.css) — sous un voile
+   sombre à peine flouté, et l'invitation se lit par-dessus, au centre.
 
-   En `prefers-reduced-motion`, retour aux rangées qu'on fait défiler
-   soi-même, au doigt ou à la molette.
+   Les rangées deviennent décoratives (aria-hidden, aucun pointeur) : le
+   contenu, c'est le texte et son bouton vers /menu. En
+   `prefers-reduced-motion`, le CSS fige le défilement, la scène reste posée.
    ───────────────────────────────────────────────────────────────────────────── */
 
 export default function FoodCarousel() {
-  const calme = useReducedMotion()
-
   return (
-    <section className="relative overflow-hidden section-cream-soft py-20 lg:py-28">
-      {/* Header */}
-      <div className="container-xl relative">
-        {/* slow-out : l'en-tête se pose en 240 ms */}
-        <motion.div {...fadeUpInView()} className="max-w-2xl mx-auto text-center mb-12 lg:mb-14">
-          <h2 className="h-section">
-            Cuisines du monde
-          </h2>
-        </motion.div>
+    <section className="relative overflow-hidden bg-navy-deep">
+      {/* Le fond : les deux rangées, en sens inverses. */}
+      <div aria-hidden className="pointer-events-none select-none py-10 lg:py-14">
+        <Rangee photos={ROW_A} />
+        <Rangee photos={ROW_B} inverse className="mt-5 lg:mt-7" />
       </div>
 
-      {calme ? (
-        <>
-          <RangeeManuelle photos={ROW_A} />
-          <RangeeManuelle photos={ROW_B} className="mt-5 lg:mt-7" />
-        </>
-      ) : (
-        <>
-          <RangeeDefilante photos={ROW_A} />
-          <RangeeDefilante photos={ROW_B} inverse className="mt-5 lg:mt-7" />
-        </>
-      )}
+      {/* Le voile, léger : les plats restent devinables, le texte lisible. */}
+      <div className="absolute inset-0 flex items-center justify-center bg-navy-deep/65 backdrop-blur-[2px]">
+        {/* slow-out : l'invitation se pose en 240 ms */}
+        <motion.div {...fadeUpInView()} className="max-w-2xl px-6 text-center">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-amber">
+            Cuisines du monde
+          </p>
+          <h2
+            className="font-display font-bold leading-[1.08] text-white [text-wrap:balance]"
+            style={{ fontSize: 'clamp(1.9rem, 4.2vw, 3.25rem)', letterSpacing: '-0.02em' }}
+          >
+            Composez votre menu, avec votre batch cooker.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl leading-relaxed text-white/80">
+            Chaque batch cooker propose sa propre carte. Filtrez par dates, région ou régime
+            alimentaire, choisissez celui qui vous plaît, puis les plats que vous voulez
+            retrouver dans votre frigo.
+          </p>
+          <Link href="/menu" className="btn btn-primary mt-9">
+            Découvrir les menus
+            <ArrowRight className="icon-arrow h-4 w-4" />
+          </Link>
+        </motion.div>
+      </div>
     </section>
   )
 }
 
-function RangeeDefilante({
+function Rangee({
   photos,
   inverse,
   className = '',
@@ -85,45 +95,31 @@ function RangeeDefilante({
     <div className={`overflow-hidden ${className}`}>
       <div className={`flex w-max ${inverse ? 'lf-defile-inverse' : 'lf-defile'}`}>
         <Serie photos={photos} />
-        <Serie photos={photos} cache />
+        <Serie photos={photos} />
       </div>
     </div>
   )
 }
 
-/** Une passe complète de la rangée ; la seconde, cachée aux lecteurs d'écran, boucle. */
-function Serie({ photos, cache }: { photos: Photo[]; cache?: boolean }) {
+/** Une passe complète de la rangée ; la seconde boucle sans couture. */
+function Serie({ photos }: { photos: Photo[] }) {
   return (
-    <div aria-hidden={cache || undefined} className="flex shrink-0 gap-4 px-2 lg:gap-6 lg:px-3">
+    <div className="flex shrink-0 gap-4 px-2 lg:gap-6 lg:px-3">
       {photos.map((p) => (
-        <PhotoCard key={p.src} photo={p} />
+        <figure
+          key={p.src}
+          className="relative aspect-square w-[220px] flex-shrink-0 overflow-hidden rounded-3xl bg-navy lg:w-[300px]"
+        >
+          {/* Décor (la section est aria-hidden) : pas de texte de remplacement. */}
+          <Image
+            src={p.src}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 300px, 220px"
+            className="object-cover"
+          />
+        </figure>
       ))}
     </div>
-  )
-}
-
-function RangeeManuelle({ photos, className = '' }: { photos: Photo[]; className?: string }) {
-  return (
-    <div className={`overflow-x-auto snap-x snap-mandatory ${className}`}>
-      <div className="flex gap-4 lg:gap-6 w-max px-6 lg:px-10">
-        {photos.map((p) => (
-          <PhotoCard key={p.src} photo={p} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PhotoCard({ photo }: { photo: Photo }) {
-  return (
-    <figure className="relative flex-shrink-0 snap-start w-[260px] lg:w-[340px] aspect-square rounded-3xl overflow-hidden bg-paper shadow-[0_18px_36px_-18px_rgba(31,42,55,0.25)]">
-      <Image
-        src={photo.src}
-        alt={photo.alt}
-        fill
-        sizes="(min-width: 1024px) 340px, 260px"
-        className="object-cover"
-      />
-    </figure>
   )
 }
