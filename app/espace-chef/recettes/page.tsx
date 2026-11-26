@@ -1,7 +1,7 @@
 'use client'
 
 import { Onglets, type Onglet } from '@/components/shared/Onglets'
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -38,6 +38,7 @@ import {
   FILTRES,
   compterParFiltre,
   filtrerPlats,
+  phraseManque,
   type FiltreStatut,
 } from '@/lib/chef/plats-filtre'
 import { useVuePlats, type VuePlats } from '@/lib/chef/vue-plats'
@@ -167,6 +168,7 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   const [recherche, setRecherche] = useState('')
   const [statut, setStatut] = useState<FiltreStatut>('tous')
   const [vue, setVue] = useVuePlats()
+  const champRecherche = useRef<HTMLInputElement>(null)
 
   if (query.isPending) return <TabSkeleton layout="plats" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
@@ -176,9 +178,11 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   const visibles = filtrerPlats(dishes, recherche, statut, countryLabel)
   const filtre = recherche.trim() !== '' || statut !== 'tous'
   const comptes = compterParFiltre(dishes)
+  // « Tout afficher » disparaît avec l'état vide : le curseur revient dans la recherche.
   const toutAfficher = () => {
     setRecherche('')
     setStatut('tous')
+    champRecherche.current?.focus()
   }
 
   return (
@@ -188,13 +192,13 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
           {dishes.length === 0
             ? 'Aucun plat pour l’instant.'
             : `${dishes.length} plat${dishes.length > 1 ? 's' : ''}, dont ${published} publié${published > 1 ? 's' : ''}`}
-          {dishes.length > 0 && filtre && (
-            <span className="tabular-nums">
-              {' '}
-              · {visibles.length} plat{visibles.length > 1 ? 's' : ''} trouvé
-              {visibles.length > 1 ? 's' : ''}
-            </span>
-          )}
+          {/* Toujours présente, remplie seulement sous un filtre : un lecteur d'écran
+              annonce le nombre trouvé à chaque changement (WCAG 4.1.3). */}
+          <span role="status" className="tabular-nums">
+            {dishes.length > 0 && filtre
+              ? ` · ${visibles.length} plat${visibles.length > 1 ? 's' : ''} trouvé${visibles.length > 1 ? 's' : ''}`
+              : ''}
+          </span>
         </p>
         <div className="flex flex-wrap gap-2">
           <ImportButton />
@@ -212,6 +216,7 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
               aria-hidden
             />
             <input
+              ref={champRecherche}
               type="search"
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
@@ -390,6 +395,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
   const [photoError, setPhotoError] = useState<string | null>(null)
 
   const blockers = gestes.blockers
+  const manque = phraseManque(dish, blockers)
   const style = STATUS_STYLE[dish.status]
   const busy = gestes.busy || photo.isPending
 
@@ -516,11 +522,12 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
         </p>
       )}
 
-      {/* Ce qui manque pour publier, dit avant d'être refusé (§4.11). */}
-      {dish.status !== 'published' && blockers.length > 0 && (
+      {/* Ce qui manque pour publier, dit avant d'être refusé (§4.11), et pour un
+          plat publié « À compléter », ce qu'il faut reprendre. */}
+      {manque && (
         <p className="flex items-start gap-2 bg-cream-soft px-4 py-2.5 text-[13px] leading-relaxed text-ink-mid">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-ink" aria-hidden />
-          Pour publier, il manque {blockers.join(', ')}.
+          {manque}
         </p>
       )}
 
@@ -586,6 +593,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
    le plat et agir dessus. La photo se change en vue Cartes ou dans la fiche. */
 function DishRow({ dish }: { dish: Dish }) {
   const gestes = useDishGestures(dish)
+  const manque = phraseManque(dish, gestes.blockers)
   const style = STATUS_STYLE[dish.status]
 
   return (
@@ -615,10 +623,11 @@ function DishRow({ dish }: { dish: Dish }) {
         <p className="mt-1 flex flex-wrap items-center gap-1.5">
           <ReadinessPills dish={dish} />
         </p>
-        {dish.status !== 'published' && gestes.blockers.length > 0 && (
-          <p className="mt-1 flex items-start gap-1.5 text-xs text-ink-soft">
+        {/* En entier, jamais coupée : c'est ce que le batch cooker doit reprendre. */}
+        {manque && (
+          <p className="mt-1 flex items-start gap-1.5 text-xs leading-relaxed text-ink-soft">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
-            <span className="line-clamp-1">Pour publier, il manque {gestes.blockers.join(', ')}.</span>
+            <span>{manque}</span>
           </p>
         )}
       </div>
@@ -630,7 +639,7 @@ function DishRow({ dish }: { dish: Dish }) {
         {/* Un seul bouton plein par vue (« Nouveau plat ») : ici, Publier a un contour. */}
         {dish.status === 'published' ? (
           <button onClick={gestes.unpublish} disabled={gestes.busy} className="btn btn-outline text-xs">
-            {gestes.publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {gestes.publishing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
             Dépublier
           </button>
         ) : (
@@ -640,23 +649,33 @@ function DishRow({ dish }: { dish: Dish }) {
             className="btn btn-outline text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
             {gestes.publishing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : (
-              <Check className="h-3.5 w-3.5" aria-hidden />
+              <Check className="h-4 w-4" aria-hidden />
             )}
             Publier
           </button>
         )}
         {/* Non modal : la confirmation de suppression (un Dialog Radix) s'ouvre
-            depuis ce menu sans laisser la page bloquée derrière. */}
+            depuis ce menu sans laisser la page bloquée derrière. Pendant une copie,
+            le menu fermé montre qu'elle est en cours. */}
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              aria-label={`Plus d’actions pour ${dish.name}`}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] text-ink-mid hover:bg-cream-soft hover:text-navy"
+              aria-label={
+                gestes.duplicating
+                  ? `Copie de ${dish.name} en cours`
+                  : `Plus d’actions pour ${dish.name}`
+              }
+              aria-busy={gestes.duplicating}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] text-ink-mid hover:bg-cream-deep hover:text-navy"
             >
-              <MoreHorizontal className="h-4 w-4" aria-hidden />
+              {gestes.duplicating ? (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              )}
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>

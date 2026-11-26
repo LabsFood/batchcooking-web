@@ -47,6 +47,22 @@ export function aCompleter(dish: Pick<Dish, 'status' | 'readiness'>): boolean {
   return dish.readiness.problems.length + dish.readiness.toPublish.length > 0
 }
 
+/**
+ * Ce qui manque, en une phrase, pour tout plat « À compléter » : un brouillon
+ * pour être publié, un plat publié pour être complet (sans quoi le filtre le
+ * montrerait sans dire pourquoi). `null` quand il n'y a rien à dire.
+ */
+export function phraseManque(
+  dish: Pick<Dish, 'status' | 'readiness'>,
+  blockers: readonly string[],
+): string | null {
+  if (!aCompleter(dish) || blockers.length === 0) return null
+  const liste = blockers.join(', ')
+  return dish.status === 'published'
+    ? `À compléter : il manque ${liste}.`
+    : `Pour publier, il manque ${liste}.`
+}
+
 function dansFiltre(dish: Dish, statut: FiltreStatut): boolean {
   switch (statut) {
     case 'brouillons':

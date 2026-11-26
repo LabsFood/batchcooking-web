@@ -2106,7 +2106,7 @@ function DishRow({
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {/* Recettes §4.8 : les régimes calculés d'après les ingrédients quand
                 le calcul se fait, sinon ceux indiqués par le batch cooker ; puis
-                ceux qu'il déclare (halal, casher), les saisons et les profils. */}
+                ceux qu'il déclare (halal, casher), puis les profils. */}
             {/* « Sans gluten » et « sans lactose » d'abord : coupés par le plafond, leur mention de traces disparaîtrait avec eux. */}
             {[...(dish.computedDiets ?? dish.diets), ...(dish.declaredDiets ?? [])]
               .sort((a, b) => Number(TRACES_DIETS.has(b)) - Number(TRACES_DIETS.has(a)))
