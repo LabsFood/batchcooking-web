@@ -362,14 +362,16 @@ body {
   }
 
   /* ── Variants ─────────────────────────────────────────────────────── */
-  /* Texte marine sur ambre : 5:1. Le blanc ne faisait que 2,2:1. */
+  /* Texte blanc sur ambre (décision du 26/11 — préférence de marque, le
+     contraste mesuré est de 2,2:1). Le survol FONCE au lieu d'éclaircir :
+     le blanc y gagne ce qu'il peut. */
   .btn-primary {
     background: var(--amber);
-    color: var(--navy);
+    color: #FFFFFF;
   }
 
   .btn-primary:hover {
-    background: #F7AC2B;
+    background: var(--amber-deep);
   }
 
   .btn-navy {
@@ -404,11 +406,11 @@ body {
 
   .btn-amber {
     background: var(--amber);
-    color: var(--navy);
+    color: #FFFFFF;
   }
 
   .btn-amber:hover {
-    background: #F7AC2B;
+    background: var(--amber-deep);
   }
 
   /* Pressed: the button gives under the finger. After the :hover rules so it
