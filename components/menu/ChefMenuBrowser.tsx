@@ -759,7 +759,7 @@ export function MenuFilterToolbar({
     >
       <Deroulant
         titre="Choisir la période"
-        icon={<CalendarDays className="h-4 w-4 text-amber-ink" aria-hidden />}
+        icon={<CalendarDays className="h-4 w-4 text-amber-deep" aria-hidden />}
         label={<span className="cap-first">{periode}</span>}
       >
         {(fermer) => (
@@ -801,7 +801,7 @@ export function MenuFilterToolbar({
 
       <div className="relative">
         <MapPin
-          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-ink"
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-deep"
           aria-hidden
         />
         <select
@@ -826,7 +826,7 @@ export function MenuFilterToolbar({
       {dietOptions.length > 0 && (
         <Deroulant
           titre="Régime alimentaire"
-          icon={<SlidersHorizontal className="h-4 w-4 text-amber-ink" aria-hidden />}
+          icon={<SlidersHorizontal className="h-4 w-4 text-amber-deep" aria-hidden />}
           label="Régimes"
           actif={diets.length > 0}
           compte={diets.length}
@@ -857,7 +857,7 @@ export function MenuFilterToolbar({
         aria-pressed={shoppingOnly}
         className={cn(OUTIL, shoppingOnly ? OUTIL_ACTIF : OUTIL_REPOS)}
       >
-        <ShoppingBasket className="h-4 w-4 text-amber-ink" aria-hidden />
+        <ShoppingBasket className="h-4 w-4 text-amber-deep" aria-hidden />
         Courses incluses
         {shoppingOnly && <Check className="h-4 w-4" aria-hidden />}
       </button>
@@ -1219,7 +1219,7 @@ function JoursLibres({ chefId, semaine, vu }: { chefId: string; semaine: string;
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-xs font-semibold text-ink-mid">Ses jours libres</h3>
         {dispos.isSuccess && libres.size === 0 && (
-          <p className="text-xs text-amber-ink">Complet : essayez la semaine suivante</p>
+          <p className="text-xs text-amber-deep">Complet : essayez la semaine suivante</p>
         )}
       </div>
       {dispos.isPending ? (
@@ -1525,7 +1525,7 @@ function Places({ slotsLeft }: { slotsLeft: number | null }) {
   return (
     <p
       className={`shrink-0 whitespace-nowrap text-xs leading-none ${
-        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-amber-ink' : 'text-ink-soft'
+        slotsLeft != null && slotsLeft <= 2 ? 'font-semibold text-amber-deep' : 'text-ink-soft'
       }`}
     >
       {placesLabel(slotsLeft)}
@@ -1908,7 +1908,7 @@ function ChefPanel({ card }: { card: WeekCard }) {
         {card.chef.sessionsDone > 0
           ? `${card.chef.sessionsDone} session${card.chef.sessionsDone > 1 ? 's' : ''} réalisée${card.chef.sessionsDone > 1 ? 's' : ''}`
           : 'Aucune session pour l’instant'}
-        {card.chef.newcomer && <span className="text-amber-ink"> · nouveau sur Lab’s Food</span>}
+        {card.chef.newcomer && <span className="text-amber-deep"> · nouveau sur Lab’s Food</span>}
       </p>
 
       {card.chef.rating != null ? (

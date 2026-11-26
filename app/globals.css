@@ -200,7 +200,9 @@ body {
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--amber-ink);
+    /* L'orange de marque, un cran profond pour rester net sur fond clair
+       (décision du 26/11 : plus de brun amber-ink sur les pages publiques). */
+    color: var(--amber-deep);
   }
 
   .label-brand {

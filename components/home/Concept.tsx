@@ -85,7 +85,7 @@ export default function Concept() {
                     className="flex gap-4"
                   >
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-amber-soft">
-                      <Icon className="h-5 w-5 text-amber-ink" aria-hidden />
+                      <Icon className="h-5 w-5 text-amber-deep" aria-hidden />
                     </div>
                     <div>
                       <p className="mb-1 font-semibold text-navy">{pillar.title}</p>

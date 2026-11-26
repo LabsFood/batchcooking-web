@@ -77,14 +77,14 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
                   href="mailto:contact@labsfood.fr"
                   className="flex items-center gap-2.5 text-sm text-ink-mid transition-colors hover:text-navy"
                 >
-                  <Mail className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
+                  <Mail className="h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
                   contact@labsfood.fr
                 </a>
                 <a
                   href="tel:+33749755684"
                   className="flex items-center gap-2.5 text-sm tabular-nums text-ink-mid transition-colors hover:text-navy"
                 >
-                  <Phone className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
+                  <Phone className="h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
                   07 49 75 56 84
                 </a>
               </div>
@@ -97,7 +97,7 @@ export default function FAQ({ variant = 'accueil' }: { variant?: 'accueil' | 'co
                 {FAQ_SECTIONS.map((s, i) => (
                   <section key={s.id} id={s.id} className="scroll-mt-28">
                     <h2 className="mb-5 flex items-baseline gap-3 font-display text-2xl font-bold text-navy">
-                      <span className="text-base tabular-nums text-amber-ink">{i + 1}</span>
+                      <span className="text-base tabular-nums text-amber-deep">{i + 1}</span>
                       {s.titre}
                     </h2>
                     <div className="space-y-3">
@@ -163,7 +163,7 @@ function Item({
         >
           <span
             className={`text-[15px] font-semibold leading-snug transition-colors duration-200 sm:text-base ${
-              ouverte ? 'text-amber-ink' : 'text-navy'
+              ouverte ? 'text-amber-deep' : 'text-navy'
             }`}
           >
             {question.question}

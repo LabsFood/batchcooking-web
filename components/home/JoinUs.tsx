@@ -68,7 +68,7 @@ export default function JoinUs() {
             {...fadeUpInView()}
             className="flex flex-col rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-7 lg:p-9"
           >
-            <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(243,156,18,0.12)] text-amber-ink">
+            <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(243,156,18,0.12)] text-amber-deep">
               <ShoppingBasket className="h-5 w-5" aria-hidden />
             </span>
             <h3 className="font-display text-2xl font-bold leading-tight text-navy">Je veux être servi</h3>
@@ -79,7 +79,7 @@ export default function JoinUs() {
             <ul className="mt-6 space-y-3">
               {CLIENT_POINTS.map(({ Icon, text }) => (
                 <li key={text} className="flex items-start gap-3 text-sm text-ink">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-deep" aria-hidden />
                   {text}
                 </li>
               ))}

@@ -70,7 +70,7 @@ export default function Testimonials() {
                     className="w-14 h-14 rounded-full object-cover border-2 border-cream"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-cream-deep flex items-center justify-center font-display text-xl font-bold text-amber-ink">
+                  <div className="w-14 h-14 rounded-full bg-cream-deep flex items-center justify-center font-display text-xl font-bold text-amber-deep">
                     {t.clientName.charAt(0)}
                   </div>
                 )}
@@ -87,7 +87,7 @@ export default function Testimonials() {
           <div className="flex items-center justify-center gap-3 mt-10">
             <button
               onClick={prev}
-              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-ink transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-deep transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
               aria-label="Précédent"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -111,7 +111,7 @@ export default function Testimonials() {
 
             <button
               onClick={next}
-              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-ink transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 border-[rgba(31,26,20,0.1)] text-ink-mid hover:border-terra hover:text-amber-deep transition-colors duration-150 active:scale-[0.97] flex items-center justify-center"
               aria-label="Suivant"
             >
               <ChevronRight className="w-5 h-5" />
@@ -132,7 +132,7 @@ export default function Testimonials() {
             { value: '90%', label: 'Renouvellement' },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <p className="font-display text-4xl lg:text-5xl font-bold text-amber-ink leading-none">
+              <p className="font-display text-4xl lg:text-5xl font-bold text-amber-deep leading-none">
                 {s.value}
               </p>
               <p className="text-ink-mid text-sm mt-2">{s.label}</p>

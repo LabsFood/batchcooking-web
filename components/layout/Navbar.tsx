@@ -89,10 +89,10 @@ export default function Navbar() {
                     link.kind === 'recruit'
                       ? cn(
                         'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
-                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-amber-ink' : 'text-navy hover:text-amber-deep',
+                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-amber-deep' : 'text-navy hover:text-amber-deep',
                       )
                       : pathname === link.href
-                        ? 'text-amber-ink'
+                        ? 'text-amber-deep'
                         : 'text-ink-mid hover:text-amber-deep',
                   )}
                 >
@@ -134,7 +134,7 @@ export default function Navbar() {
                     {firstName}
                   </span>
                   {roleLabel && (
-                    <span className="text-xs uppercase tracking-[0.12em] text-amber-ink font-semibold mt-0.5">
+                    <span className="text-xs uppercase tracking-[0.12em] text-amber-deep font-semibold mt-0.5">
                       {roleLabel}
                     </span>
                   )}
@@ -220,7 +220,7 @@ export default function Navbar() {
                   <span className="block font-display text-xl font-semibold">Nous rejoindre</span>
                   <span className="mt-1 block text-sm text-white/75">Vous aimez cuisiner ?</span>
                 </span>
-                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber-ink" />
+                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber-deep" />
               </Link>
             </nav>
 
