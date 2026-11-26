@@ -20,12 +20,19 @@ export const FILTRES: readonly { id: FiltreStatut; label: string }[] = [
   { id: 'a-completer', label: 'À compléter' },
 ]
 
-/** « Couscous VÉGÉTARIEN » → « couscous vegetarien ». */
+/**
+ * « Couscous VÉGÉTARIEN » → « couscous vegetarien ». Les ligatures et
+ * l'apostrophe typographique se tapent autrement au clavier : « boeuf » trouve
+ * « Bœuf bourguignon », « pain d'epices » trouve « Pain d’épices ».
+ */
 export function plie(texte: string): string {
   return texte
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
+    .replace(/[’‘ʼ]/g, "'")
     .replace(/\s+/g, ' ')
     .trim()
 }
