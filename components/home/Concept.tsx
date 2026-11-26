@@ -5,16 +5,25 @@ import { Leaf, Clock, Smile, TrendingDown } from 'lucide-react'
 import Image from 'next/image'
 import { fadeUpInView } from '@/lib/motion'
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   « Le batch cooking, réinventé chez vous » — remis au propre le 26/11.
+
+   Une seule photo, la nôtre (notre batch cooker en tenue Lab's Food), à la
+   place du collage de banque d'images : on montre le vrai service. En face,
+   deux paragraphes courts alignés à gauche, puis les quatre piliers en
+   grille. Rien d'autre.
+   ───────────────────────────────────────────────────────────────────────────── */
+
 const PILLARS = [
   {
     icon: Clock,
     title: 'Gain de temps',
-    description: "Une séance de 2h en moyenne chez vous, et vous n'avez plus à cuisiner de la semaine.",
+    description: "Une session de 2 h en moyenne chez vous, et vous n'avez plus à cuisiner de la semaine.",
   },
   {
     icon: Leaf,
     title: 'Alimentation saine',
-    description: 'Des repas adaptés à vos goûts et à vos besoins.',
+    description: 'Des repas faits maison, adaptés à vos goûts et à vos besoins.',
   },
   {
     icon: Smile,
@@ -32,85 +41,55 @@ export default function Concept() {
   return (
     <section id="concept" className="section-padding section-paper relative overflow-hidden">
       <div className="container-xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 items-center">
-
-          {/* ── Image collage ──────────────────────────────────────── */}
-          <motion.div
-            // slow-out : se pose en 240 ms
-            {...fadeUpInView()}
-            className="relative"
-          >
-            <div className="grid grid-cols-5 grid-rows-5 gap-3 h-[520px]">
-              <div className="relative col-span-3 row-span-3 rounded-2xl overflow-hidden">
-                <Image
-                  src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900&auto=format&fit=crop"
-                  alt="Batch cooking — préparation des repas"
-                  fill
-                  sizes="(min-width: 1024px) 360px, 60vw"
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative col-span-2 row-span-3 rounded-2xl overflow-hidden">
-                <Image
-                  src="https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=600&auto=format&fit=crop"
-                  alt="Ingrédients frais"
-                  fill
-                  sizes="(min-width: 1024px) 240px, 40vw"
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative col-span-5 row-span-2 rounded-2xl overflow-hidden">
-                <Image
-                  src="https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=900&auto=format&fit=crop"
-                  alt="Cuisinier à domicile"
-                  fill
-                  sizes="(min-width: 1024px) 600px, 100vw"
-                  className="object-cover"
-                />
-              </div>
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
+          {/* ── Notre batch cooker, en tenue ───────────────────────── */}
+          {/* slow-out : la photo se pose en 240 ms */}
+          <motion.div {...fadeUpInView()} className="lg:col-span-5">
+            <div className="relative mx-auto aspect-[3/4] max-w-md overflow-hidden rounded-3xl shadow-[0_40px_80px_-40px_rgba(31,42,55,0.45)]">
+              <Image
+                src="/images/ivyNewPic.jpeg"
+                alt="Batch cooker Lab's Food, en tenue de chef"
+                fill
+                sizes="(min-width: 1024px) 40vw, (min-width: 640px) 28rem, 100vw"
+                className="object-cover"
+              />
             </div>
           </motion.div>
 
-          {/* ── Text content ───────────────────────────────────────── */}
+          {/* ── Le concept, puis les quatre piliers ────────────────── */}
           <motion.div
             // slow-out : se pose en 240 ms
             {...fadeUpInView(0.08)}
+            className="lg:col-span-7"
           >
-            <h2 className="h-section mb-6">
-              Le batch cooking réinventé chez vous.
-            </h2>
-            <p className="text-ink-mid leading-relaxed mb-5 text-justify">
-              Imaginez ouvrir votre frigo et trouver tous vos repas de la semaine, faits maison et
-              prêts à réchauffer. C&apos;est ce que fait Lab&apos;s Food : un(e) cuisinier(e) vient
-              chez vous, cuisine pour toute la semaine en une seule séance, range tout et vous
-              laisse une cuisine propre.
+            <h2 className="h-section mb-6">Le batch cooking, réinventé chez vous.</h2>
+            <p className="mb-4 max-w-xl leading-relaxed text-ink-mid">
+              Un batch cooker vient chez vous, cuisine tous vos repas de la semaine en une seule
+              session, range tout et vous laisse une cuisine propre. Il ne reste qu&apos;à ouvrir
+              le frigo.
             </p>
-            <p className="text-ink-mid leading-relaxed mb-5 text-justify">
-              Séniors, végétarien, allergie ou régime spécifique : nos
-              cuisiniers adaptent chaque menu à votre profil et à vos goûts.
-            </p>
-            <p className="text-ink-mid leading-relaxed mb-10 text-justify">
-              Cuisine européenne, africaine, américaine... Vous découvrez de nouvelles saveurs
-              chaque semaine, sans jamais vous lasser.
+            <p className="mb-10 max-w-xl leading-relaxed text-ink-mid">
+              Séniors, végétarien, allergie ou régime spécifique : chaque menu s&apos;adapte à
+              votre profil. Et chaque semaine fait voyager — cuisines européennes, africaines,
+              américaines…
             </p>
 
-            {/* Pillars */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-7">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2">
               {PILLARS.map((pillar, i) => {
                 const Icon = pillar.icon
                 return (
                   <motion.div
                     key={pillar.title}
-                    // slow-out : se pose en 240 ms
+                    // slow-out : chaque pilier se pose en 240 ms, décalé de 80 ms
                     {...fadeUpInView(i * 0.08)}
                     className="flex gap-4"
                   >
-                    <div className="w-11 h-11 rounded-full bg-[rgba(217,105,65,0.1)] flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 text-amber-ink" />
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-amber-soft">
+                      <Icon className="h-5 w-5 text-amber-ink" aria-hidden />
                     </div>
                     <div>
-                      <p className="text-navy font-semibold mb-1">{pillar.title}</p>
-                      <p className="text-ink-mid text-sm leading-relaxed">{pillar.description}</p>
+                      <p className="mb-1 font-semibold text-navy">{pillar.title}</p>
+                      <p className="text-sm leading-relaxed text-ink-mid">{pillar.description}</p>
                     </div>
                   </motion.div>
                 )
