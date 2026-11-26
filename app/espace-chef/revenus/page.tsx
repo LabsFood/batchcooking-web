@@ -45,8 +45,9 @@ import {
    - **les autofactures** à télécharger ;
    - **les paiements CESU** des clients, en lecture seule : le rapprochement
      bancaire les solde ;
-   - **les factures de commission**, qui ne concernent plus que la carte
-     (encore versée par Stripe) et les prestations d'avant ce changement.
+   - **les factures de commission**, qui ne concernent plus que les
+     prestations d'avant ce changement (la carte est au prix net depuis le
+     26/11/2026, son net est transféré sur le compte Stripe).
 
    Le plafond de la micro-entreprise reste affiché, avec sa réserve : l'API ne
    connaît que ce qui passe par Lab's Food.
@@ -156,8 +157,9 @@ export default function ChefEarningsPage() {
         <Card title="Mes versements">
           <p className="text-[13px] leading-relaxed text-ink-mid">
             Le client paie Labs Food. Labs Food vous achète la prestation au prix
-            net et vous le vire. La TVA payée par le client va à l’État. La part
-            payée par carte reste versée par Stripe, comme aujourd’hui.
+            net et vous le vire : sur votre compte Stripe pour la carte, par
+            virement bancaire pour le CESU et l’avance immédiate. La TVA payée par
+            le client va à l’État.
           </p>
           {lignesPending ? (
             <LignesSkeleton />
@@ -230,8 +232,7 @@ export default function ChefEarningsPage() {
         {/* ── Les factures de commission (carte) ───────────────────────── */}
         <Card title="Factures de commission">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Seulement pour les paiements par carte (et les prestations d’avant ce
-            changement).
+            Seulement pour les prestations réglées avant le passage au prix net.
           </p>
 
           {factures.isPending ? (

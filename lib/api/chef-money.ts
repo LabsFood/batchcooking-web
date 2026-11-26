@@ -82,7 +82,7 @@ export type PayoutView = 'payable' | 'awaiting' | 'paid'
 export interface ChefPayoutLine {
   id: string | null
   paymentId: string
-  /** `cesu`, `avance_immediate` (la carte reste versée par Stripe). */
+  /** `cb` (net transféré sur le compte Stripe), `cesu`, `avance_immediate`. */
   method: string
   bookingReference: string | null
   amountTtcCents: number
