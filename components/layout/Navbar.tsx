@@ -89,11 +89,11 @@ export default function Navbar() {
                     link.kind === 'recruit'
                       ? cn(
                         'ml-1 border border-[rgba(31,42,55,0.16)] hover:border-terra hover:bg-[rgba(243,156,18,0.08)]',
-                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-amber-ink' : 'text-navy hover:text-amber-ink',
+                        pathname === link.href ? 'border-terra bg-[rgba(243,156,18,0.1)] text-amber-deep' : 'text-navy hover:text-amber-deep',
                       )
                       : pathname === link.href
-                        ? 'text-amber-ink'
-                        : 'text-ink-mid hover:text-amber-ink',
+                        ? 'text-amber-deep'
+                        : 'text-ink-mid hover:text-amber-deep',
                   )}
                 >
                   {link.label}
@@ -134,7 +134,7 @@ export default function Navbar() {
                     {firstName}
                   </span>
                   {roleLabel && (
-                    <span className="text-xs uppercase tracking-[0.12em] text-amber-ink font-semibold mt-0.5">
+                    <span className="text-xs uppercase tracking-[0.12em] text-amber-deep font-semibold mt-0.5">
                       {roleLabel}
                     </span>
                   )}
@@ -143,7 +143,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth/login"
-                className="hit whitespace-nowrap px-3 text-sm font-semibold text-navy underline-offset-4 transition-colors hover:text-amber-ink hover:underline"
+                className="hit whitespace-nowrap px-3 text-sm font-semibold text-navy underline-offset-4 transition-colors hover:text-amber-deep hover:underline"
               >
                 Connexion
               </Link>
@@ -173,7 +173,7 @@ export default function Navbar() {
           {/* ── Mobile burger ────────────────────────────────────────────── */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-amber-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra xl:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-navy/15 text-navy transition-colors hover:border-terra hover:text-amber-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra xl:hidden"
             aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
@@ -220,7 +220,7 @@ export default function Navbar() {
                   <span className="block font-display text-xl font-semibold">Nous rejoindre</span>
                   <span className="mt-1 block text-sm text-white/75">Vous aimez cuisiner ?</span>
                 </span>
-                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber-ink" />
+                <ArrowRight aria-hidden className="h-5 w-5 shrink-0 text-amber-deep" />
               </Link>
             </nav>
 
