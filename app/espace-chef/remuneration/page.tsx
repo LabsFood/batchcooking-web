@@ -26,6 +26,7 @@ import {
   SAP_LABEL,
   statutLabel,
   useSapProfile,
+  useCesuFee,
   useSaveSapProfile,
   useConfirmSepaMandate,
   useSepaMandate,
@@ -56,9 +57,11 @@ import {
      CESU ni l'avance immédiate ne sont proposés aux clients : leur commission
      ne peut être que prélevée.
 
-   Deux statuts sont en lecture seule parce que c'est l'équipe qui les
-   instruit : l'affiliation CRCESU et l'avance immédiate URSSAF. L'écran le
-   dit plutôt que d'offrir un bouton qui ne ferait rien.
+   L'avance immédiate URSSAF est en lecture seule parce que c'est l'équipe
+   qui l'instruit. Les titres CESU sont encaissés sur le NAN de Lab's Food
+   (Lab’s Food), qui reverse sa part au batch cooker : il n'a
+   plus de NAN à renseigner, seulement à choisir s'il accepte le CESU, en
+   connaissant les frais de traitement et d'encaissement appliqués.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const VOIES: { id: SapDeclarationType; titre: string; quoi: string; pour: string }[] = [
@@ -89,6 +92,13 @@ function PayoutMode() {
   const toast = useToast()
   const { user } = useAuth()
   const sap = useSapProfile()
+  const cesuFee = useCesuFee()
+  // « 10 % de frais » quand le taux est connu, sinon « des frais » : la phrase
+  // reste juste même si l'appel échoue.
+  const fraisCesu =
+    cesuFee.data != null
+      ? `${(cesuFee.data.feeBps / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % de frais`
+      : 'des frais'
   const save = useSaveSapProfile()
   const stripe = useStripeStatus()
   const lien = useStripeLink()
@@ -170,7 +180,6 @@ function PayoutMode() {
       novaCode: d.novaCode ?? '',
       cooperativeName: d.cooperativeName ?? '',
       acceptsCesu: d.acceptsCesu,
-      crcesuNan: d.crcesuNan ?? '',
     })
   }
 
@@ -182,7 +191,6 @@ function PayoutMode() {
       ...(v.declarationType === 'type_a_nova'
         ? { novaCode: v.novaCode?.trim() || null }
         : { cooperativeName: v.cooperativeName?.trim() || null }),
-      ...(v.acceptsCesu ? { crcesuNan: v.crcesuNan?.trim() || null } : {}),
     }
     save.mutate(corps, {
       onSuccess: () => {
@@ -292,25 +300,22 @@ function PayoutMode() {
                     J’accepte les titres CESU préfinancés
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                    Le badge « CESU accepté » apparaît alors sur votre vitrine —
-                    une fois votre numéro d’affiliation renseigné et votre mandat
-                    de prélèvement signé.
+                    Le badge « CESU accepté » apparaît alors sur votre vitrine,
+                    une fois votre mandat de prélèvement signé. Vos clients
+                    paient Lab’s Food, qui vous reverse votre part.
                   </span>
                 </span>
               </label>
 
               {v.acceptsCesu && (
-                <label className="mt-3 block pl-7">
-                  <span className="mb-1 block text-[11px] text-ink-soft">
-                    Numéro d’affiliation CRCESU (NAN)
+                <p className="mt-3 ml-7 flex items-start gap-2 rounded-xl border border-[rgba(154,91,0,0.25)] bg-[rgba(243,156,18,0.08)] px-3 py-2 text-xs leading-relaxed text-[#9A5B00]">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    En activant les CESU, vous acceptez {fraisCesu} de
+                    traitement et d’encaissement des CESU, calculés sur votre
+                    part après commission. Votre client ne paie jamais plus cher.
                   </span>
-                  <input
-                    value={v.crcesuNan ?? ''}
-                    onChange={(e) => setBrouillon({ ...v, crcesuNan: e.target.value })}
-                    placeholder="123456789"
-                    className="input-base py-2"
-                  />
-                </label>
+                </p>
               )}
 
               <div className="mt-4 flex gap-2">
@@ -354,12 +359,6 @@ function PayoutMode() {
                   label="Titres CESU préfinancés"
                   value={d?.acceptsCesu ? 'Acceptés' : 'Non acceptés'}
                 />
-                {d?.acceptsCesu && (
-                  <Ligne
-                    label="Affiliation CRCESU"
-                    value={`${statutLabel(d.crcesuAffiliationStatus)}${d.crcesuNan ? ` · NAN ${d.crcesuNan}` : ''}`}
-                  />
-                )}
                 <Ligne
                   label="Avance immédiate URSSAF"
                   value={statutLabel(d?.urssafTiersPrestationStatus)}
@@ -368,8 +367,9 @@ function PayoutMode() {
 
               <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                L’affiliation CRCESU et l’avance immédiate sont instruites par
-                l’équipe Lab’s Food : elles ne se changent pas depuis cet écran.
+                Les titres CESU sont encaissés par Lab’s Food, qui vous reverse
+                votre part : vous n’avez pas de démarche CRCESU à faire.
+                L’avance immédiate est instruite par l’équipe.
               </p>
             </>
           )}
@@ -535,8 +535,8 @@ function PayoutMode() {
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           Ces informations ne sortent jamais vers un client. Seul le badge
           <Wallet className="mx-1 inline h-3 w-3 align-[-1px]" aria-hidden />
-          « CESU accepté » apparaît sur votre vitrine, et seulement si votre
-          affiliation est complète et votre mandat signé.
+          « CESU accepté » apparaît sur votre vitrine, et seulement si vous
+          acceptez le CESU et que votre mandat est signé.
         </p>
       </div>
     </ChefPage>

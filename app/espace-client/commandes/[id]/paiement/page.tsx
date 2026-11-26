@@ -18,6 +18,8 @@ import {
   Paperclip,
   ShieldCheck,
   Ticket,
+  Check,
+  Copy,
 } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import {
@@ -387,16 +389,21 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                   >
                     {option.id === 'cesu' && method === 'cesu' && (
                       <div className="mt-3 space-y-3 rounded-2xl bg-cream-soft p-4">
-                        {option.crcesuNan && (
-                          <p className="text-[13px] leading-relaxed text-ink-mid">
-                            Pour payer {firstName} avec vos titres, ajoutez ce numéro d’affiliation chez votre
-                            émetteur :{' '}
-                            <span className="font-mono font-semibold text-navy">{option.crcesuNan}</span>
-                          </p>
+                        {option.payeeNan && (
+                          <div>
+                            <p className="text-[13px] leading-relaxed text-ink-mid">
+                              Depuis l’espace de votre émetteur (Edenred, Pluxee, Up, Bimpli…), renseignez ces
+                              informations :
+                            </p>
+                            <CopyField label="Numéro d’affiliation (NAN)" value={option.payeeNan} />
+                            {option.paymentReference && (
+                              <CopyField label="Référence à indiquer" value={option.paymentReference} />
+                            )}
+                          </div>
                         )}
                         <div>
                           <label htmlFor="cesu" className="block text-[13px] font-semibold text-navy">
-                            Montant de titres CESU remis à {firstName}
+                            Montant réglé en titres CESU
                           </label>
                           <div className="mt-2 flex items-center gap-2">
                             <input
@@ -419,7 +426,7 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
                           >
                             {cesuTooHigh
                               ? `Vos titres dépassent ce qui reste à régler. Le maximum utilisable ici est ${euros(cesuMax)}.`
-                              : `${firstName} confirmera avoir reçu vos titres. Le solde éventuel se règle ensuite par carte.`}
+                              : 'Nous confirmerons la réception de vos titres. Le solde éventuel se règle ensuite par carte.'}
                           </p>
                         </div>
                         <label className="block text-[13px] font-semibold text-navy">
@@ -483,14 +490,14 @@ function Form({ data, cancelled }: { data: PaymentOptions; cancelled: boolean })
           {method === 'cesu' && titresCents > 0 && !cesuTooHigh && remaining - titresCents > 0 && (
             <p className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-[13px] leading-relaxed">
               Solde de <strong>{euros(remaining - titresCents)}</strong> à régler par carte
-              une fois vos titres confirmés par {firstName}.
+              une fois vos titres confirmés.
             </p>
           )}
           <p className="mt-2 text-[12px] leading-relaxed text-white/60">
             {method === 'urssaf' && chosen
               ? `L’URSSAF prélèvera ensuite ${euros(chosen.debitedLaterCents ?? 0)} sur le compte de votre rattachement et réglera ${firstName} directement.`
               : method === 'cesu'
-                ? `Vos titres vont directement à ${firstName}. S’il reste un solde, vous le réglerez par carte une fois les titres confirmés.`
+                ? 'S’il reste un solde, vous le réglerez par carte une fois les titres confirmés.'
                 : `Votre attestation fiscale annuelle vous ouvrira ${euros(data.amounts.taxCreditCents)} de crédit d’impôt sur cette prestation.`}
           </p>
 
@@ -853,6 +860,37 @@ function PreuveECesu({
           className="input-base mt-1.5"
         />
       </label>
+    </div>
+  )
+}
+
+/** Une information à recopier chez l’émetteur CESU, avec son bouton « Copier ». */
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-[rgba(31,42,55,0.08)] bg-paper px-3 py-2.5">
+      <span className="min-w-0">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-soft">{label}</span>
+        <span className="block truncate font-mono text-[15px] font-bold text-navy">{value}</span>
+      </span>
+      <button
+        type="button"
+        onClick={copy}
+        className="btn btn-outline shrink-0 px-3 py-1.5 text-xs"
+        aria-label={`Copier : ${label}`}
+      >
+        {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+        {copied ? 'Copié' : 'Copier'}
+      </button>
     </div>
   )
 }

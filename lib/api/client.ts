@@ -1,7 +1,7 @@
 'use client'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Client bas niveau vers l'API Labs Food (NestJS).
+   Client bas niveau vers l'API Lab’s Food (NestJS).
 
    Les routes protégées attendent `Authorization: Bearer <token Clerk>`. Le
    backend valide le token de session Clerk via JWKS et détermine le rôle
