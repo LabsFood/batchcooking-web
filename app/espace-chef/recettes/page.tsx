@@ -1,6 +1,6 @@
 'use client'
 
-import { Onglets } from '@/components/shared/Onglets'
+import { Onglets, type Onglet } from '@/components/shared/Onglets'
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -11,7 +11,10 @@ import {
   Clock,
   Copy,
   Image as ImageIcon,
+  LayoutGrid,
+  List,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Plus,
   RotateCw,
@@ -37,6 +40,8 @@ import {
   filtrerPlats,
   type FiltreStatut,
 } from '@/lib/chef/plats-filtre'
+import { useVuePlats, type VuePlats } from '@/lib/chef/vue-plats'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { refLabel, useAllergens, useDiets, useDishCategories } from '@/lib/api/referentials'
 import {
   DISH_STATUS_LABEL,
@@ -95,6 +100,11 @@ const STATUS_STYLE: Record<DishStatus, { dot: string; text: string }> = {
   suspended: { dot: 'bg-red-500', text: 'text-red-700' },
   archived: { dot: 'bg-ink-soft/40', text: 'text-ink-soft' },
 }
+
+const VUES: Onglet<VuePlats>[] = [
+  { id: 'cartes', label: 'Cartes', Icon: LayoutGrid },
+  { id: 'liste', label: 'Liste', Icon: List },
+]
 
 export default function RecettesPage() {
   return (
@@ -156,6 +166,7 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   // Retour de recette du 26/11 : retrouver un plat parmi beaucoup.
   const [recherche, setRecherche] = useState('')
   const [statut, setStatut] = useState<FiltreStatut>('tous')
+  const [vue, setVue] = useVuePlats()
 
   if (query.isPending) return <TabSkeleton layout="plats" />
   if (query.isError) return <Failure onRetry={() => query.refetch()} what="vos plats" />
@@ -216,6 +227,13 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
             onChange={setStatut}
             items={FILTRES.map((f) => ({ ...f, count: comptes[f.id] }))}
           />
+          <Onglets
+            label="Affichage de vos plats"
+            value={vue}
+            onChange={setVue}
+            items={VUES}
+            className="sm:ml-auto"
+          />
         </div>
       )}
 
@@ -241,6 +259,12 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
             </button>
           }
         />
+      ) : vue === 'liste' ? (
+        <ul className="panel mt-4 divide-y divide-[var(--line)] overflow-hidden">
+          {visibles.map((dish) => (
+            <DishRow key={dish.id} dish={dish} />
+          ))}
+        </ul>
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {visibles.map((dish) => (
@@ -256,21 +280,118 @@ function DishesTab({ query }: { query: ReturnType<typeof useDishes> }) {
   )
 }
 
-function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string | null }) {
+/* Les gestes d'un plat, les mêmes en carte et en ligne : mêmes messages, même
+   confirmation avant de supprimer. */
+function useDishGestures(dish: Dish) {
   const toast = useToast()
   const router = useRouter()
-  const publish = usePublishDish()
+  const publication = usePublishDish()
   const remove = useDeleteDish()
-  const duplicate = useDuplicateDish()
+  const copie = useDuplicateDish()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const publish = () =>
+    publication.mutate(
+      { id: dish.id, publish: true },
+      {
+        onSuccess: () => toast.success(`« ${dish.name} » est publié`),
+        onError: (e) => toast.error('La publication a été refusée', apiMessage(e)),
+      },
+    )
+
+  const unpublish = () =>
+    publication.mutate(
+      { id: dish.id, publish: false },
+      {
+        onSuccess: () =>
+          toast.info(`« ${dish.name} » n’est plus visible`, 'Il reste dans vos plats, en brouillon.'),
+        onError: () => toast.error('La dépublication a échoué'),
+      },
+    )
+
+  const duplicate = () =>
+    copie.mutate(dish.id, {
+      onSuccess: (copy) => {
+        toast.success(`« ${copy.name} » créé en brouillon`)
+        router.push(`/espace-chef/recettes/${copy.id}`)
+      },
+      onError: (e) => toast.error('La copie a échoué', apiMessage(e)),
+    })
+
+  const deleteDialog = (
+    <ConfirmDialog
+      open={confirmDelete}
+      onClose={() => setConfirmDelete(false)}
+      onConfirm={() =>
+        remove.mutate(dish.id, {
+          onSuccess: () => {
+            setConfirmDelete(false)
+            toast.success(`« ${dish.name} » supprimé`)
+          },
+          onError: (e) => toast.error('La suppression a échoué', apiMessage(e)),
+        })
+      }
+      pending={remove.isPending}
+      tone="danger"
+      title={`Supprimer « ${dish.name} » ?`}
+      lead="Le plat, sa recette et sa photo disparaissent. C’est définitif."
+      detail="S’il fait partie d’une de vos cartes, il en sort aussi. Un plat déjà cuisiné pour un client ne peut pas être supprimé : l’API refusera."
+      confirmLabel="Supprimer le plat"
+    />
+  )
+
+  return {
+    blockers: publishBlockers(dish),
+    busy: publication.isPending || remove.isPending,
+    publishing: publication.isPending,
+    duplicating: copie.isPending,
+    publish,
+    unpublish,
+    duplicate,
+    askDelete: () => setConfirmDelete(true),
+    deleteDialog,
+  }
+}
+
+/** « Prête » ou non, et les allergènes à confirmer : la même lecture en carte et en ligne. */
+function ReadinessPills({ dish }: { dish: Dish }) {
+  return (
+    <>
+      {dish.readiness?.ready ? (
+        <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs font-semibold text-mint-ink">
+          Prête · version {dish.recipeVersion}
+        </span>
+      ) : (
+        <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs font-semibold text-ink-mid">
+          Pas encore Prête
+        </span>
+      )}
+      {dish.readiness?.problems.some((p) => p.code === 'ALLERGENS_UNVERIFIED') && (
+        <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-[#8B6200]">
+          Allergènes à confirmer
+        </span>
+      )}
+      <InfoPopover label="Que veut dire « Prête » ?">
+        Une fiche est Prête quand tout ce qui sert à cuisiner et à faire les courses
+        est rempli, et ses allergènes confirmés. Un plat publié dont un ingrédient a
+        changé reste en ligne, mais ne peut plus être réservé avant la confirmation
+        de ses allergènes.
+      </InfoPopover>
+    </>
+  )
+}
+
+function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string | null }) {
+  const toast = useToast()
   const photo = useDishPhoto()
   const diets = useDiets()
   const allergens = useAllergens()
+  const gestes = useDishGestures(dish)
   const [photoError, setPhotoError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const blockers = publishBlockers(dish)
+  const blockers = gestes.blockers
   const style = STATUS_STYLE[dish.status]
-  const busy = publish.isPending || remove.isPending || photo.isPending
+  const busy = gestes.busy || photo.isPending
 
   function pickPhoto(file: File | null) {
     setPhotoError(null)
@@ -327,26 +448,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
           </p>
 
           <p className="mt-1 flex flex-wrap items-center gap-1.5">
-            {dish.readiness?.ready ? (
-              <span className="rounded-full bg-mint/60 px-2 py-0.5 text-xs font-semibold text-mint-ink">
-                Prête · version {dish.recipeVersion}
-              </span>
-            ) : (
-              <span className="rounded-full bg-cream-soft px-2 py-0.5 text-xs font-semibold text-ink-mid">
-                Pas encore Prête
-              </span>
-            )}
-            {dish.readiness?.problems.some((p) => p.code === 'ALLERGENS_UNVERIFIED') && (
-              <span className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-semibold text-[#8B6200]">
-                Allergènes à confirmer
-              </span>
-            )}
-            <InfoPopover label="Que veut dire « Prête » ?">
-              Une fiche est Prête quand tout ce qui sert à cuisiner et à faire les courses
-              est rempli, et ses allergènes confirmés. Un plat publié dont un ingrédient a
-              changé reste en ligne, mais ne peut plus être réservé avant la confirmation
-              de ses allergènes.
-            </InfoPopover>
+            <ReadinessPills dish={dish} />
           </p>
 
           {dish.variantOfId && (
@@ -428,19 +530,11 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
         </Link>
         <span className="inline-flex items-center gap-0.5">
           <button
-            onClick={() =>
-              duplicate.mutate(dish.id, {
-                onSuccess: (copy) => {
-                  toast.success(`« ${copy.name} » créé en brouillon`)
-                  router.push(`/espace-chef/recettes/${copy.id}`)
-                },
-                onError: (e) => toast.error('La copie a échoué', apiMessage(e)),
-              })
-            }
-            disabled={busy || duplicate.isPending}
+            onClick={gestes.duplicate}
+            disabled={busy || gestes.duplicating}
             className="btn btn-outline text-xs"
           >
-            {duplicate.isPending ? (
+            {gestes.duplicating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Copy className="h-3.5 w-3.5" aria-hidden />
@@ -455,45 +549,17 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
         </span>
 
         {dish.status === 'published' ? (
-          <button
-            onClick={() =>
-              publish.mutate(
-                { id: dish.id, publish: false },
-                {
-                  onSuccess: () =>
-                    toast.info(
-                      `« ${dish.name} » n’est plus visible`,
-                      'Il reste dans vos plats, en brouillon.',
-                    ),
-                  onError: () => toast.error('La dépublication a échoué'),
-                },
-              )
-            }
-            disabled={busy}
-            className="btn btn-outline text-xs"
-          >
-            {publish.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          <button onClick={gestes.unpublish} disabled={busy} className="btn btn-outline text-xs">
+            {gestes.publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             Dépublier
           </button>
         ) : (
           <button
-            onClick={() =>
-              publish.mutate(
-                { id: dish.id, publish: true },
-                {
-                  onSuccess: () => toast.success(`« ${dish.name} » est publié`),
-                  onError: (e) =>
-                    toast.error(
-                      'La publication a été refusée',
-                      apiMessage(e),
-                    ),
-                },
-              )
-            }
+            onClick={gestes.publish}
             disabled={busy || blockers.length > 0}
             className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {publish.isPending ? (
+            {gestes.publishing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Check className="h-3.5 w-3.5" />
@@ -503,7 +569,7 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
         )}
 
         <button
-          onClick={() => setConfirmDelete(true)}
+          onClick={gestes.askDelete}
           aria-label={`Supprimer ${dish.name}`}
           className="ml-auto text-ink-soft hover:text-red-700"
         >
@@ -511,29 +577,113 @@ function DishCard({ dish, variantOfName }: { dish: Dish; variantOfName: string |
         </button>
       </footer>
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        onConfirm={() =>
-          remove.mutate(dish.id, {
-            onSuccess: () => {
-              setConfirmDelete(false)
-              toast.success(`« ${dish.name} » supprimé`)
-            },
-            onError: (e) =>
-              toast.error(
-                'La suppression a échoué',
-                apiMessage(e),
-              ),
-          })
-        }
-        pending={remove.isPending}
-        tone="danger"
-        title={`Supprimer « ${dish.name} » ?`}
-        lead="Le plat, sa recette et sa photo disparaissent. C’est définitif."
-        detail="S’il fait partie d’une de vos cartes, il en sort aussi. Un plat déjà cuisiné pour un client ne peut pas être supprimé : l’API refusera."
-        confirmLabel="Supprimer le plat"
-      />
+      {gestes.deleteDialog}
+    </li>
+  )
+}
+
+/* Une ligne de la vue Liste (retour de recette du 26/11) : de quoi reconnaître
+   le plat et agir dessus. La photo se change en vue Cartes ou dans la fiche. */
+function DishRow({ dish }: { dish: Dish }) {
+  const gestes = useDishGestures(dish)
+  const style = STATUS_STYLE[dish.status]
+
+  return (
+    <li className="row-link flex-wrap">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-cream-soft">
+        {dish.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dish.imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <ImageIcon className="h-4 w-4 text-ink-soft" aria-hidden />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <Link
+            href={`/espace-chef/recettes/${dish.id}`}
+            className="font-display text-base font-bold leading-tight text-navy hover:text-amber-ink"
+          >
+            {dish.name}
+          </Link>
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${style.text}`}>
+            <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+            {DISH_STATUS_LABEL[dish.status]}
+          </span>
+        </p>
+        <p className="mt-1 flex flex-wrap items-center gap-1.5">
+          <ReadinessPills dish={dish} />
+        </p>
+        {dish.status !== 'published' && gestes.blockers.length > 0 && (
+          <p className="mt-1 flex items-start gap-1.5 text-xs text-ink-soft">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
+            <span className="line-clamp-1">Pour publier, il manque {gestes.blockers.join(', ')}.</span>
+          </p>
+        )}
+      </div>
+
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+        <Link href={`/espace-chef/recettes/${dish.id}`} className="btn btn-outline text-xs">
+          Modifier
+        </Link>
+        {/* Un seul bouton plein par vue (« Nouveau plat ») : ici, Publier a un contour. */}
+        {dish.status === 'published' ? (
+          <button onClick={gestes.unpublish} disabled={gestes.busy} className="btn btn-outline text-xs">
+            {gestes.publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            Dépublier
+          </button>
+        ) : (
+          <button
+            onClick={gestes.publish}
+            disabled={gestes.busy || gestes.blockers.length > 0}
+            className="btn btn-outline text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {gestes.publishing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Publier
+          </button>
+        )}
+        {/* Non modal : la confirmation de suppression (un Dialog Radix) s'ouvre
+            depuis ce menu sans laisser la page bloquée derrière. */}
+        <DropdownMenu.Root modal={false}>
+          <DropdownMenu.Trigger asChild>
+            <button
+              type="button"
+              aria-label={`Plus d’actions pour ${dish.name}`}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] text-ink-mid hover:bg-cream-soft hover:text-navy"
+            >
+              <MoreHorizontal className="h-4 w-4" aria-hidden />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={6}
+              className="z-50 min-w-[11rem] rounded-xl border border-[rgba(31,42,55,0.1)] bg-paper p-1.5 shadow-[0_20px_50px_-20px_rgba(31,42,55,0.35)]"
+            >
+              <DropdownMenu.Item
+                disabled={gestes.busy || gestes.duplicating}
+                onSelect={gestes.duplicate}
+                className="flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-navy outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-cream-soft data-[disabled]:opacity-50"
+              >
+                <Copy className="h-4 w-4" aria-hidden /> Dupliquer
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={gestes.askDelete}
+                className="flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-red-700 outline-none data-[highlighted]:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden /> Supprimer
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+
+      {gestes.deleteDialog}
     </li>
   )
 }
