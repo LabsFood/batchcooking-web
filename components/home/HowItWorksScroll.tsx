@@ -22,8 +22,8 @@ import {
    Sous `lg` (et en `prefers-reduced-motion`, où l'épinglage n'apporte que de
    la gêne), les mêmes étapes s'empilent simplement.
 
-   Chaque photo illustre SON étape : les plats qu'on choisit, le chef qu'on
-   réserve, les ingrédients de la liste de courses, le chef en cuisine.
+   Chaque photo illustre SON étape : les plats qu'on choisit, le calendrier
+   qu'on réserve, l'étal des courses, le chef en cuisine.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const ETAPES = [
@@ -41,17 +41,17 @@ const ETAPES = [
     titre: 'Réservez votre session',
     texte:
       'La date, le créneau, votre batch cooker : tout se confirme en ligne. Vous ne réglez que votre moitié — le crédit d’impôt de 50 % est déduit au paiement.',
-    src: '/images/IvyChef.png',
-    alt: 'Votre batch cooker, en tenue de chef',
-    position: 'object-top',
+    src: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=900&auto=format&fit=crop',
+    alt: 'Calendrier et planning du mois — choisir sa date',
+    position: 'object-center',
   },
   {
     nombre: '03',
     titre: 'Recevez la liste de courses',
     texte:
       'Relue par votre batch cooker, classée par rayons. Cochez ce que vous avez déjà : il n’achète que le reste.',
-    src: 'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=900&auto=format&fit=crop',
-    alt: 'Panier d’ingrédients frais — fruits et légumes de la liste de courses',
+    src: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&auto=format&fit=crop',
+    alt: 'Étal de fruits et légumes frais — les courses de la semaine',
     position: 'object-center',
   },
   {
