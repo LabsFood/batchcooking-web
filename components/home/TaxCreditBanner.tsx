@@ -58,6 +58,9 @@ export default function TaxCreditBanner() {
                   className="h-7 w-auto"
                 />
               </div>
+              <p className="mt-3 text-sm text-white/60">
+                Organisme agréé Services à la Personne — n°&nbsp;d&apos;agrément&nbsp;SAP100715036
+              </p>
             </motion.div>
 
             <motion.div

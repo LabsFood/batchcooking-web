@@ -179,6 +179,8 @@ export default function Footer() {
               <p>© {new Date().getFullYear()} LAB&apos;S FOOD - BATCHCOOKING</p>
               <span className="hidden md:inline opacity-30">·</span>
               <p>LAB&apos;S FOOD - BATCHCOOKING SASU · 200 rue de la Croix Nivert, 75015 Paris</p>
+              <span className="hidden md:inline opacity-30">·</span>
+              <p>Agréé Services à la Personne n°&nbsp;SAP100715036</p>
             </div>
             <div className="flex items-center gap-3 text-xs text-cream-soft/55">
               <span>Paiement sécurisé</span>
