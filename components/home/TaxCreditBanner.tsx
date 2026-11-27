@@ -70,13 +70,17 @@ export default function TaxCreditBanner() {
               <span aria-hidden className="h-9 w-px bg-[rgba(31,42,55,0.12)]" />
               <Image src="/logo-urssaf.png" alt="Urssaf" width={550} height={103} className="h-7 w-auto" />
             </div>
-            <p className="mt-3 text-sm text-white/60">
-              Organisme agréé Services à la Personne — n°&nbsp;d&apos;agrément&nbsp;SAP100715036
-            </p>
           </motion.div>
 
-          {/* ── Le geste : 100 € barré, 50 € restant ───────────────── */}
+          {/* ── Le geste : 100 € barré, 50 € restant — présenté comme un exemple ── */}
           <motion.div {...fadeUpInView(0.08)} className="lg:col-span-6">
+            {/* Ce n'est pas un prix : c'est un exemple de calcul, et il le dit d'abord. */}
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-amber lg:text-center">
+              Exemple
+            </p>
+            <p className="mb-5 text-base text-white/80 lg:text-center">
+              Pour une session facturée 100&nbsp;€, vous ne payez que&nbsp;:
+            </p>
             <div className="flex flex-wrap items-baseline justify-start gap-x-10 gap-y-4 lg:justify-center">
               <motion.span
                 style={calme ? undefined : { opacity: estompe }}
@@ -99,7 +103,8 @@ export default function TaxCreditBanner() {
               </span>
             </div>
             <p className="mt-1 text-sm text-white/55 lg:text-center">
-              une session facturée 100&nbsp;€, après crédit d&apos;impôt — sous conditions d&apos;éligibilité
+              après crédit d&apos;impôt de 50&nbsp;%, sous conditions d&apos;éligibilité. Le prix d&apos;une
+              session dépend du batch cooker et de la formule choisie.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 lg:justify-center">
