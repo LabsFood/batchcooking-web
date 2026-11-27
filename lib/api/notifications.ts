@@ -35,6 +35,8 @@ const TITRES: Record<string, string> = {
   'shopping_list.sent': 'Votre liste de courses est prête à vérifier',
   'shopping_list.updated': 'Votre liste de courses a été mise à jour',
   'shopping_list.final_received': 'Un client a renvoyé sa liste de courses',
+  'shopping_list.marks_updated': 'Votre client a avancé sur la liste de courses',
+  'shopping_list.reply': 'Votre batch cooker a répondu à vos commentaires',
   'allergy.conflict': 'Un plat de votre commande est à remplacer (allergie)',
   'mission.allergy_conflict': 'Un plat d’une prestation est à remplacer (allergie du client)',
   recipe_allergens_changed:
@@ -81,6 +83,8 @@ const LIENS: Record<string, (subjectId: string) => string> = {
   'shopping_list.sent': () => '/espace-client/courses',
   'shopping_list.updated': () => '/espace-client/courses',
   'shopping_list.final_received': () => '/espace-chef/prestations',
+  'shopping_list.marks_updated': () => '/espace-chef/prestations',
+  'shopping_list.reply': () => '/espace-client/courses',
   'allergy.conflict': (id) => `/espace-client/commandes/${id}`,
   'mission.allergy_conflict': () => '/espace-chef/prestations',
   // Le sujet est le plat : sa fiche, où l'on confirme de nouveau les allergènes.

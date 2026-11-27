@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   Check,
@@ -18,6 +18,7 @@ import {
   hour,
   useMissionShoppingList,
   useMyBookings,
+  useSaveShoppingMarks,
   useSubmitShoppingList,
   type Booking,
   type MissionLine,
@@ -362,7 +363,7 @@ function ListeLibre({ booking, onRetour }: ListeProps) {
 
 /* ── Cas 1 : le batch cooker fait les courses, le client répond ─────────────── */
 
-type Marque = { alreadyHave: boolean; comment: string }
+type Marque = { alreadyHave: boolean; comment: string; haveQty: string }
 
 /** Une ligne par ingrédient et par unité : c'est ainsi que l'API les reconnaît. */
 const cle = (l: MissionLine) => `${l.name}|${l.unit}`
@@ -371,8 +372,24 @@ const TITRE: Record<ShoppingListStatus, string> = {
   preparing: 'Votre batch cooker prépare la liste',
   sent: 'Vérifiez votre liste de courses',
   update_sent: 'Votre liste a été mise à jour',
-  final_received: 'Liste envoyée à votre batch cooker',
+  final_received: 'Vous avez terminé votre liste',
   frozen: 'Liste figée',
+}
+
+/** Les commentaires partent après une courte pause de frappe, les coches tout de suite. */
+const DEBOUNCE_MS = 700
+
+/** Une marque vide (rien coché, rien écrit) est retirée côté API. */
+function versMark(l: MissionLine, m: Marque): ShoppingMark {
+  const comment = m.comment.trim()
+  const have = Number(m.haveQty.replace(',', '.'))
+  return {
+    name: l.name,
+    unit: l.unit,
+    alreadyHave: m.alreadyHave,
+    ...(m.haveQty.trim() && have > 0 && { haveQty: have }),
+    ...(comment && { comment }),
+  }
 }
 
 function Reponse({
@@ -383,50 +400,87 @@ function Reponse({
 }: ListeProps & { liste: MissionShoppingList; onRecharger: () => void }) {
   const toast = useToast()
   const envoyer = useSubmitShoppingList()
+  const enregistrer = useSaveShoppingMarks()
   const status = liste.status ?? 'preparing'
   const modifiable =
     status === 'sent' || status === 'update_sent' || status === 'final_received'
   const groupes = liste.groups
   const lignes = groupes.flatMap((g) => g.lines)
+  const apportes = liste.providedByChef ?? []
 
-  // La réponse telle que l'API la connaît : le point de départ, et la référence
-  // pour savoir s'il reste des modifications à envoyer.
-  const depart = useMemo(
-    () =>
-      Object.fromEntries(
-        groupes
-          .flatMap((g) => g.lines)
-          .map((l) => [cle(l), { alreadyHave: !!l.alreadyHave, comment: l.comment ?? '' }]),
-      ) as Record<string, Marque>,
-    [groupes],
+  const [marques, setMarques] = useState<Record<string, Marque>>(() =>
+    Object.fromEntries(
+      lignes.map((l) => [
+        cle(l),
+        {
+          alreadyHave: !!l.alreadyHave,
+          comment: l.comment ?? '',
+          haveQty: l.haveQty != null ? String(l.haveQty) : '',
+        },
+      ]),
+    ),
   )
-  const [marques, setMarques] = useState(depart)
   const [ouverts, setOuverts] = useState<string[]>([])
 
-  const changer = (k: string, patch: Partial<Marque>) =>
+  // Les lignes touchées depuis le dernier envoi à l'API, et la version des marques en cours.
+  const sale = useRef(new Set<string>())
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const courant = useRef({ marques, lignes, version: liste.version ?? 0 })
+  useEffect(() => {
+    courant.current = { marques, lignes, version: liste.version ?? 0 }
+  })
+
+  const erreur = (e: unknown, titre: string) => {
+    const body = e instanceof ApiError ? e.body : null
+    const code = (body as { code?: string } | null)?.code
+    // 422 : quantité « déjà chez moi » refusée (elle doit être supérieure à zéro).
+    const texte =
+      reasonText(body) ??
+      (e instanceof ApiError && e.status === 422
+        ? 'Quantité refusée : indiquez un nombre supérieur à zéro.'
+        : undefined)
+    toast.error(titre, texte)
+    if (code === 'SHOPPING_LIST_UPDATED' || code === 'SHOPPING_LIST_FROZEN') onRecharger()
+  }
+
+  const vider = () => {
+    clearTimeout(timer.current)
+    const { marques: m, lignes: ls, version } = courant.current
+    const touchees = ls.filter((l) => sale.current.has(cle(l)))
+    sale.current.clear()
+    if (touchees.length === 0) return
+    enregistrer.mutate(
+      { id: booking.id, version, marks: touchees.map((l) => versMark(l, m[cle(l)])) },
+      { onError: (e) => erreur(e, 'Votre dernière modification n’a pas été enregistrée') },
+    )
+  }
+
+  // Une page quittée avec un commentaire en cours ne le perd pas.
+  useEffect(() => () => vider(), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const changer = (k: string, patch: Partial<Marque>, differe = false) => {
     setMarques((m) => ({ ...m, [k]: { ...m[k], ...patch } }))
+    sale.current.add(k)
+    clearTimeout(timer.current)
+    // `courant` ne voit la nouvelle valeur qu'au rendu suivant : on vide après lui.
+    timer.current = setTimeout(vider, differe ? DEBOUNCE_MS : 0)
+  }
 
   const possedes = Object.values(marques).filter((m) => m.alreadyHave).length
   const commentes = Object.values(marques).filter((m) => m.comment.trim()).length
-  const modifie = JSON.stringify(marques) !== JSON.stringify(depart)
 
   const envoi = () => {
-    const marks: ShoppingMark[] = lignes.flatMap((l) => {
-      const m = marques[cle(l)]
-      const comment = m.comment.trim()
-      if (!m.alreadyHave && !comment) return []
-      return [{ name: l.name, unit: l.unit, alreadyHave: m.alreadyHave, ...(comment && { comment }) }]
-    })
+    clearTimeout(timer.current)
+    sale.current.clear()
+    const marks = lignes
+      .map((l) => versMark(l, marques[cle(l)]))
+      .filter((mk) => mk.alreadyHave || mk.haveQty || mk.comment)
     envoyer.mutate(
       { id: booking.id, version: liste.version ?? 0, marks },
       {
         onSuccess: () =>
           toast.success('Liste envoyée', 'Votre batch cooker la reçoit tout de suite.'),
-        onError: (e) => {
-          const body = e instanceof ApiError ? e.body : null
-          toast.error('La liste n’a pas été envoyée', reasonText(body) ?? undefined)
-          if ((body as { code?: string } | null)?.code === 'SHOPPING_LIST_UPDATED') onRecharger()
-        },
+        onError: (e) => erreur(e, 'La liste n’a pas été envoyée'),
       },
     )
   }
@@ -458,19 +512,19 @@ function Reponse({
                 {lignes.length} au total
                 <InfoPopover label="Que veut dire « j’ai déjà » ?">
                   Cochez ce que vous avez chez vous en quantité suffisante : votre batch
-                  cooker ne l’achète pas. Si la quantité change dans une mise à jour de
-                  la liste, la case se décoche : vérifiez-la.
+                  cooker ne l’achète pas. Vos coches sont enregistrées au fur et à
+                  mesure. Si la quantité change dans une mise à jour de la liste, la
+                  case se décoche : vérifiez-la.
                 </InfoPopover>
               </p>
             )}
             {limite && (
               <p className="mt-2 flex flex-wrap items-center gap-1 text-[13px] font-semibold text-navy">
-                {status === 'frozen' ? `Figée depuis ${limite}` : `À renvoyer au plus tard ${limite}`}
+                {status === 'frozen' ? `Figée depuis ${limite}` : `À terminer au plus tard ${limite}`}
                 <InfoPopover label="Pourquoi cette date limite ?">
-                  Jusqu’à midi la veille de la prestation, vous pouvez renvoyer votre
+                  Jusqu’à midi la veille de la prestation, vous pouvez modifier votre
                   liste autant de fois que vous voulez. Ensuite, elle est figée : votre
-                  batch cooker achète ce qu’elle contient. Si vous ne l’avez jamais
-                  renvoyée, il achète toute la liste.
+                  batch cooker achète ce qu’elle contient.
                 </InfoPopover>
               </p>
             )}
@@ -499,45 +553,49 @@ function Reponse({
               ) : (
                 <Send className="h-4 w-4" aria-hidden />
               )}
-              {status === 'final_received'
-                ? 'Renvoyer ma liste'
-                : 'Envoyer ma liste finale au batch cooker'}
+              J’ai fini
+              <InfoPopover label="Que fait « J’ai fini » ?" className="text-inherit">
+                Vos coches sont déjà visibles par votre batch cooker. « J’ai fini » le
+                prévient que votre liste est complète ; vous pouvez encore la modifier
+                jusqu’à la date limite.
+              </InfoPopover>
             </button>
           )}
         </div>
 
-        {modifiable && modifie && (
-          <p className="mt-3 text-[12px] font-semibold text-amber-ink">
-            Modifications non envoyées : votre batch cooker voit encore la version
-            précédente.
-          </p>
-        )}
-
         <Retour onRetour={onRetour} />
       </div>
 
+      {status === 'preparing' && (
+        <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
+          Votre batch cooker prépare votre liste de courses. Vous serez prévenu dès
+          qu’elle sera prête à vérifier.
+        </p>
+      )}
+
       {modifiable && (
         <Hint id="courses-liste-finale">
-          Cochez ce que vous avez déjà, commentez une ligne si besoin, puis envoyez votre
-          liste finale. Sans envoi avant midi la veille, votre batch cooker achète toute
-          la liste.
+          Cochez ce que vous avez déjà, indiquez une quantité partielle ou commentez une
+          ligne : tout est enregistré au fur et à mesure. Appuyez sur « J’ai fini » quand
+          votre liste est complète.
         </Hint>
       )}
 
       {status === 'update_sent' && (
         <p className="rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-[#8B6200]">
           Votre batch cooker a modifié la liste depuis votre dernier envoi. Les lignes
-          dont la quantité a changé ont été décochées : vérifiez-les, puis renvoyez
-          votre liste.
+          dont la quantité a changé ont été décochées : vérifiez-les.
         </p>
       )}
 
-      {groupes.length === 0 ? (
+      {status !== 'preparing' && groupes.length === 0 && apportes.length === 0 && (
         <p className="rounded-2xl card-shell p-8 text-center text-sm text-ink-mid">
           Aucun ingrédient pour l’instant : les recettes de cette session ne sont
           pas encore détaillées.
         </p>
-      ) : (
+      )}
+
+      {groupes.length > 0 && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {groupes.map(({ aisle, lines }) => (
             <section
@@ -558,7 +616,9 @@ function Reponse({
                 {lines.map((l) => {
                   const k = cle(l)
                   const m = marques[k]
-                  const ouvert = ouverts.includes(k) || m.comment !== ''
+                  if (!m) return null
+                  const ouvert = ouverts.includes(k) || m.comment !== '' || m.haveQty !== ''
+                  const achat = l.toBuyQty != null && l.haveQty ? l.toBuyQty : null
                   return (
                     <li key={k}>
                       <div className="flex items-center gap-1">
@@ -600,28 +660,65 @@ function Reponse({
                           <button
                             type="button"
                             onClick={() => setOuverts((o) => [...o, k])}
-                            aria-label={`Commenter ${l.name}`}
+                            aria-label={`Commenter ou partager ${l.name}`}
                             className="hit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-cream-soft hover:text-navy"
                           >
                             <MessageSquare className="h-4 w-4" aria-hidden />
                           </button>
                         )}
                       </div>
+                      {achat != null && (
+                        <p className="ml-11 mt-0.5 text-xs font-semibold text-navy">
+                          À acheter : {displayQuantity(achat, l.unit)}
+                        </p>
+                      )}
                       {ouvert &&
                         (modifiable ? (
-                          <input
-                            value={m.comment}
-                            onChange={(e) => changer(k, { comment: e.target.value })}
-                            maxLength={280}
-                            placeholder="Votre commentaire : marque, variété, quantité…"
-                            aria-label={`Commentaire sur ${l.name}`}
-                            className="input-base mt-1 w-full py-1.5 text-[13px]"
-                          />
+                          <div className="mt-1 space-y-1">
+                            {l.qty > 0 && !m.alreadyHave && (
+                              <label className="flex items-center gap-2 text-[13px] text-ink-mid">
+                                Déjà chez moi :
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step="any"
+                                  value={m.haveQty}
+                                  onChange={(e) =>
+                                    changer(k, { haveQty: e.target.value }, true)
+                                  }
+                                  aria-label={`Quantité de ${l.name} déjà chez vous`}
+                                  className="input-base w-24 py-1 text-[13px]"
+                                />
+                                <span className="text-xs text-ink-soft">{l.unit}</span>
+                                <InfoPopover label="Comment marche la quantité déjà chez moi ?">
+                                  Indiquez ce qu’il vous reste : votre batch cooker
+                                  n’achète que la différence. Une quantité égale ou
+                                  supérieure à la ligne revient à cocher « j’ai déjà ».
+                                  Elle doit être supérieure à zéro.
+                                </InfoPopover>
+                              </label>
+                            )}
+                            <input
+                              value={m.comment}
+                              onChange={(e) => changer(k, { comment: e.target.value }, true)}
+                              maxLength={280}
+                              placeholder="Votre commentaire : marque, variété, quantité…"
+                              aria-label={`Commentaire sur ${l.name}`}
+                              className="input-base w-full py-1.5 text-[13px]"
+                            />
+                          </div>
                         ) : (
-                          <p className="ml-11 mt-0.5 text-xs text-ink-mid">
-                            « {m.comment} »
-                          </p>
+                          m.comment && (
+                            <p className="ml-11 mt-0.5 text-xs text-ink-mid">« {m.comment} »</p>
+                          )
                         ))}
+                      {l.chefReply && (
+                        <p className="ml-11 mt-1 rounded-lg bg-cream-soft px-3 py-1.5 text-xs text-navy">
+                          <span className="font-semibold">Votre batch cooker : </span>
+                          {l.chefReply.reply}
+                        </p>
+                      )}
                     </li>
                   )
                 })}
@@ -629,6 +726,26 @@ function Reponse({
             </section>
           ))}
         </div>
+      )}
+
+      {apportes.length > 0 && (
+        <section className="rounded-2xl card-shell p-5">
+          <h3 className="mb-1 flex items-center gap-1 font-display text-base font-bold text-navy">
+            Apporté par votre batch cooker
+            <InfoPopover label="Pourquoi ces produits ne sont pas à cocher ?">
+              Votre batch cooker a ces produits de base chez lui et les apporte : vous
+              n’avez rien à acheter ni à cocher.
+            </InfoPopover>
+          </h3>
+          <ul className="space-y-1">
+            {apportes.map((l) => (
+              <li key={cle(l)} className="flex justify-between gap-3 px-3 py-1.5 text-sm text-ink-mid">
+                <span>{l.name}</span>
+                <span className="tabular-nums shrink-0 text-xs text-ink-soft">{quantite(l)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   )
