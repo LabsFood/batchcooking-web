@@ -103,12 +103,14 @@ export interface Address {
 export interface Testimonial {
   id: string
   clientName: string
-  clientCity: string
+  /** Absente quand le client ne l'a pas donnée : on n'en invente pas. */
+  clientCity?: string
   clientAvatar?: string
-  rating: number
+  /** Absente quand l'avis n'a pas été noté : pas d'étoiles inventées. */
+  rating?: number
   text: string
   date: string
-  planUsed: PlanId
+  planUsed?: PlanId
   verified: boolean
 }
 
