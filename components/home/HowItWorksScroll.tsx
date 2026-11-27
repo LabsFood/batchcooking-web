@@ -59,9 +59,9 @@ const ETAPES = [
     titre: 'Le chef cuisine chez vous',
     texte:
       'Deux à trois heures de cuisine, une semaine de repas au frigo, la cuisine rendue propre. Il ne reste qu’à réchauffer.',
-    src: '/images/ivyNewPic.jpeg',
-    alt: 'Batch cooker Lab’s Food en tenue, prête à cuisiner chez vous',
-    position: 'object-top',
+    src: '/images/cuisine.jpeg',
+    alt: 'Batch cooker Lab’s Food dans la cuisine d’un client, devant les plats de la semaine',
+    position: 'object-[50%_70%]',
   },
 ]
 
