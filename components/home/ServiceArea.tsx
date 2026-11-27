@@ -2,45 +2,29 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, BadgeCheck, Home, ShieldCheck } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { fadeUpInView } from '@/lib/motion'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   « Partout en France » — refonte du 26/11.
+   « Partout en France » — simplifiée le 27/11.
 
-   La vraie carte (Google Maps, chargée paresseusement) dans un cadre de la
-   charte, et à côté ce qu'elle veut dire : à domicile, certifiés, agréés.
-   La carte est un décor cliquable ; tout ce qu'elle dit est dans le texte.
+   La section ne dit qu'une chose, et elle est vraie : Lab's Food intervient en
+   France. Pas de ville mise en avant, pas de promesse sur les batch cookers
+   qui ne serait pas vérifiée. La carte (Google Maps, chargée paresseusement)
+   montre la France ; le texte le dit, et le bouton mène aux cartes des batch
+   cookers.
    ───────────────────────────────────────────────────────────────────────────── */
-
-const FAITS = [
-  {
-    Icon: Home,
-    titre: 'Chez vous, à domicile',
-    texte: 'Le batch cooker se déplace avec son matériel et cuisine dans votre cuisine.',
-  },
-  {
-    Icon: BadgeCheck,
-    titre: 'Certifiés et assurés',
-    texte: 'Chaque batch cooker est vérifié, formé à l’hygiène et couvert par une assurance.',
-  },
-  {
-    Icon: ShieldCheck,
-    titre: 'Agréé Services à la Personne',
-    texte: 'N° SAP100715036 — 50 % de crédit d’impôt sur chaque session.',
-  },
-]
 
 export default function ServiceArea() {
   return (
     <section className="section-padding section-cream relative overflow-hidden">
       <div className="container-xl">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-20">
-          {/* ── La carte, la vraie ─────────────────────────────────── */}
+          {/* ── La carte ───────────────────────────────────────────── */}
           {/* slow-out : la carte se pose en 240 ms */}
           <motion.div
             {...fadeUpInView()}
-            className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-[var(--line)] shadow-[0_30px_70px_-30px_rgba(31,42,55,0.35)] lg:aspect-auto lg:h-[460px]"
+            className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-[var(--line)] shadow-[0_30px_70px_-30px_rgba(31,42,55,0.35)] lg:aspect-auto lg:h-[420px]"
           >
             {/* En absolu : h-full seul ne vaut rien dans un cadre sans hauteur fixe. */}
             <iframe
@@ -49,34 +33,19 @@ export default function ServiceArea() {
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              title="Zone d'intervention Lab's Food — France entière"
+              title="Zone d'intervention Lab's Food — France"
             />
           </motion.div>
 
-          {/* ── Ce que la carte veut dire ──────────────────────────── */}
+          {/* ── Le message ─────────────────────────────────────────── */}
           <motion.div {...fadeUpInView(0.08)}>
-            <h2 className="h-section mb-5">Partout en France, chez vous.</h2>
-            <p className="mb-9 max-w-xl leading-relaxed text-ink-mid">
-              Les premiers batch cookers cuisinent sur la Côte d&apos;Azur, et le réseau
-              grandit dans toute la France. Indiquez vos dates et votre région : vous verrez
-              qui peut venir chez vous.
+            <h2 className="h-section mb-5">Lab&apos;s Food intervient partout en France.</h2>
+            <p className="max-w-xl leading-relaxed text-ink-mid">
+              Indiquez vos dates et votre région : vous verrez les batch cookers qui peuvent
+              venir cuisiner chez vous.
             </p>
 
-            <ul className="space-y-6">
-              {FAITS.map(({ Icon, titre, texte }) => (
-                <li key={titre} className="flex gap-4">
-                  <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-amber-soft">
-                    <Icon className="h-5 w-5 text-amber-deep" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="mb-1 font-semibold text-navy">{titre}</p>
-                    <p className="text-sm leading-relaxed text-ink-mid">{texte}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <Link href="/menu" className="btn btn-navy mt-10">
+            <Link href="/menu" className="btn btn-navy mt-9">
               Trouver un batch cooker
               <ArrowRight className="icon-arrow h-4 w-4" />
             </Link>
