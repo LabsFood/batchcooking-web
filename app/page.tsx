@@ -12,7 +12,7 @@ import JoinUs from '@/components/home/JoinUs'
 
 export default function HomePage() {
   return (
-    <div className="page-transition">
+    <div className="page-transition accueil-justifie">
       <JsonLd data={homeGraph()} />
       <Hero />
       <HowItWorksScroll />

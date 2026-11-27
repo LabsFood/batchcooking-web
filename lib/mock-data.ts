@@ -338,4 +338,78 @@ export const TESTIMONIALS: Testimonial[] = [
     planUsed: 'essentiel',
     verified: true,
   },
+  // Plats et prestations du chef — repris du site principal (lib/content.ts, avis « service »).
+  // Ni note ni ville dans la source : on n'en ajoute pas.
+  {
+    id: 't4',
+    clientName: 'Junior',
+    text:
+      'J\'ai eu l\'occasion de goûter plusieurs plats d\'Ivy et je n\'ai jamais été déçu. Une cuisine généreuse, savoureuse et faite avec passion. On sent le soin apporté aux détails. Foncez les yeux fermés, elle gère de fou.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't5',
+    clientName: 'Franck',
+    text:
+      'Très bon plat fait par Ivy. Avec passion et amour. La qualité est irréprochable. Je recommande à 100 %.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't6',
+    clientName: 'Jennifer',
+    text:
+      'En tant que Béninoise, j\'ai été conquise par le ndolè de Lab\'s Food. J\'y ai retrouvé réconfort, amour et le goût du 237. Excellent !',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't7',
+    clientName: 'Daryl Wilfried',
+    text:
+      'Le ndolé du chef à couper le souffle. Une réelle extase pour les papilles gustatives.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't8',
+    clientName: 'Arthur Tenkam',
+    text:
+      'J\'ai contacté Lab\'s Food pour un plantain poulet DG et vraiment ma satisfaction était à 100 %. Merci encore Lab\'s Food !',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't9',
+    clientName: 'David Carpentier',
+    text:
+      'Un service au top ! Les goûts et les saveurs vous font voyager depuis votre salon.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't10',
+    clientName: 'Steve Enygma',
+    text:
+      'Des plats savoureux et un service qui réchauffent le cœur.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't11',
+    clientName: 'Ange',
+    text:
+      'Je me suis régalée. Dites-vous qu\'au début je me disais « qu\'est-ce que celle-ci a encore fabriqué ? » En tout cas sa créativité est à saluer, et rassurez-vous, le goût suit.',
+    date: '2026',
+    verified: false,
+  },
+  {
+    id: 't12',
+    clientName: 'Kelian',
+    text:
+      'Le riz de Lab\'s Food ? D\'en parler ? Vous n\'êtes pas prêts !',
+    date: '2026',
+    verified: false,
+  },
 ]

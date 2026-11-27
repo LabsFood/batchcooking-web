@@ -63,16 +63,15 @@ export default function Concept() {
             {...fadeUpInView(0.08)}
             className="lg:col-span-7"
           >
-            <h2 className="h-section mb-6">Le batch cooking, réinventé chez vous.</h2>
+            <h2 className="h-section mb-6">Le batch cooking, chez vous.</h2>
             <p className="mb-4 max-w-xl leading-relaxed text-ink-mid">
               Un batch cooker vient chez vous, cuisine tous vos repas de la semaine en une seule
               session, range tout et vous laisse une cuisine propre. Il ne reste qu&apos;à ouvrir
               le frigo.
             </p>
             <p className="mb-10 max-w-xl leading-relaxed text-ink-mid">
-              Séniors, végétarien, allergie ou régime spécifique : chaque menu s&apos;adapte à
-              votre profil. Et chaque semaine fait voyager — cuisines européennes, africaines,
-              américaines…
+              Familles, jeunes mamans, sportifs, séniors, végétariens : vous indiquez vos
+              allergies, vos goûts et votre régime, et chaque menu est pensé pour vous.
             </p>
 
             <div className="grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2">

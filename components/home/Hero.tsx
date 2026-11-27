@@ -102,21 +102,6 @@ export default function Hero() {
                 sizes="(min-width: 1024px) 40vw, 90vw"
                 className="h-full w-full object-cover"
               />
-
-              {/* Badge « Chef à domicile », en bas à droite */}
-              <div className="absolute -bottom-4 -right-4 flex max-w-[260px] items-center gap-3 rounded-2xl border border-[rgba(31,26,20,0.06)] bg-paper p-4 shadow-[0_20px_50px_-15px_rgba(31,26,20,0.25)] md:-bottom-6 md:-right-8">
-                <Image
-                  src="/images/IvyChef.png"
-                  alt=""
-                  width={44}
-                  height={44}
-                  className="h-11 w-11 flex-shrink-0 rounded-full object-cover object-top ring-2 ring-amber"
-                />
-                <div>
-                  <p className="text-sm font-semibold leading-tight text-navy">Chef à domicile</p>
-                  <p className="mt-0.5 text-xs text-ink-soft">certifié &amp; assuré chez vous</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
