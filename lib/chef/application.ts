@@ -133,14 +133,6 @@ export function requiredDocuments(v: {
       required: true,
     })
   }
-  if (v.sapDeclared === 'no' && v.sapCooperative === 'yes') {
-    docs.push({
-      id: 'sap-cooperative',
-      label: 'Attestation d’adhésion à une coopérative SAP',
-      hint: 'Délivrée par votre coopérative, à votre nom, pour l’année en cours.',
-      required: true,
-    })
-  }
 
   docs.push(
     { id: 'rc-pro', label: 'Assurance responsabilité civile professionnelle', hint: 'Attestation de l’année en cours.', required: false },
@@ -253,11 +245,15 @@ const statusSchema = z
   })
 
 /**
- * Ni déclaration SAP ni coopérative : pas d'embarquement. Lab’s Food n'est pas
- * une coopérative et ne porte la déclaration de personne (exigence URSSAF).
+ * Pas de déclaration SAP à son nom : pas d'embarquement pour l'instant. Tous les
+ * batch cookers déclarent leur activité eux-mêmes (NOVA) ; la suite est un
+ * accompagnement par l'équipe, via le formulaire de contact.
  */
 export const NO_SAP_MESSAGE =
-  'Sans déclaration de services à la personne ni adhésion à une coopérative SAP, nous ne pouvons pas vous embarquer : Lab’s Food n’est pas une coopérative. Revenez vers nous dès que vous avez l’une ou l’autre.'
+  'Sans déclaration de services à la personne à votre nom, nous ne pouvons pas vous embarquer pour l’instant.'
+/** Le lien qui suit `NO_SAP_MESSAGE` à l'écran, vers le formulaire de contact. */
+export const NO_SAP_CONTACT_LABEL = 'Contactez-nous'
+export const NO_SAP_CONTACT_SUFFIX = ' pour un accompagnement.'
 
 const companySchema = z
   .object({
@@ -267,8 +263,6 @@ const companySchema = z
     siret: z.string().optional(),
     /** « Avez-vous une déclaration SAP ? » : 'yes' | 'no', '' sans réponse. */
     sapDeclared: z.string(),
-    /** Si non : « Avez-vous adhéré à une coopérative SAP ? » */
-    sapCooperative: z.string(),
     sapNumber: z.string().optional(),
   })
   .superRefine((v, ctx) => {
@@ -294,11 +288,11 @@ const companySchema = z
         message: 'Format attendu : SAP suivi des 9 chiffres du SIREN, par exemple SAP123456789.',
       })
     }
-    if (v.sapDeclared === 'no' && v.sapCooperative !== 'yes') {
+    if (v.sapDeclared === 'no') {
       ctx.addIssue({
-        path: ['sapCooperative'],
+        path: ['sapDeclared'],
         code: 'custom',
-        message: v.sapCooperative === 'no' ? NO_SAP_MESSAGE : 'Répondez à cette question.',
+        message: `${NO_SAP_MESSAGE} ${NO_SAP_CONTACT_LABEL}${NO_SAP_CONTACT_SUFFIX}`,
       })
     }
   })
@@ -357,7 +351,6 @@ export const DEFAULT_VALUES: ApplicationValues = {
   legalForm: undefined as unknown as LegalForm,
   siret: '',
   sapDeclared: '',
-  sapCooperative: '',
   sapNumber: '',
   consent: false,
 }
@@ -419,12 +412,10 @@ export function buildPayload(v: ApplicationValues, acceptedAt: string): Applicat
     company: {
       legalForm: v.legalForm,
       siret: registered ? (v.siret ?? '').replace(/\s/g, '') : null,
-      // Type B = la coopérative du candidat porte la déclaration ; l'étape
-      // bloque le cas « ni l'une ni l'autre » avant l'envoi.
+      // Déclaration à son nom (NOVA) obligatoire : l'étape bloque « non » avant l'envoi.
       sap: {
-        path: v.sapDeclared === 'yes' ? 'type-a' : 'type-b',
-        declarationNumber:
-          v.sapDeclared === 'yes' ? (v.sapNumber ?? '').replace(/\s/g, '').toUpperCase() : null,
+        path: 'type-a',
+        declarationNumber: (v.sapNumber ?? '').replace(/\s/g, '').toUpperCase(),
       },
     },
     consent: { privacyPolicy: true, terms: true, acceptedAt },
@@ -471,7 +462,6 @@ export function valuesFromAnswers(a: ApplicationAnswersLike): ApplicationValues 
     legalForm: (a.company?.legalForm ?? undefined) as LegalForm,
     siret: a.company?.siret ?? '',
     sapDeclared: sapPath === 'type-a' ? 'yes' : sapPath === 'type-b' ? 'no' : '',
-    sapCooperative: sapPath === 'type-b' ? 'yes' : '',
     sapNumber: sapPath === 'type-a' ? (a.company?.sap?.declarationNumber ?? '') : '',
     consent: false,
   }

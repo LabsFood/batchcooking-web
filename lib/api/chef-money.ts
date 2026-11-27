@@ -417,7 +417,8 @@ export const moneyCents = (cents?: number | null) =>
 
 export const SAP_LABEL: Record<SapDeclarationType, string> = {
   type_a_nova: 'Déclaration à mon nom (NOVA)',
-  type_b_cooperative: 'Par une coopérative',
+  // Ancienne voie, plus proposée : lue seulement, jusqu'à ce que le batch cooker renseigne son NOVA.
+  type_b_cooperative: 'Déclaration NOVA à renseigner',
 }
 
 /** Les statuts que l'API rend, dits en français. Un inconnu passe tel quel. */

@@ -22,6 +22,7 @@ import ZonePicker from '@/components/chef/application/ZonePicker'
 import CityField from '@/components/chef/application/CityField'
 import { useCommunes } from '@/lib/api/referentials'
 import { CheckBox, FieldError, Note, RadioCard, TextField } from '@/components/chef/application/fields'
+import { NoSapNote } from '@/components/chef/NoSapNote'
 import PhoneField from '@/components/shared/PhoneField'
 import { Hint } from '@/components/shared/Hint'
 import { Skeleton, SkeletonGroup } from '@/components/shared/Skeleton'
@@ -30,7 +31,6 @@ import { regionLabel } from '@/lib/chef/regions'
 import {
   DEFAULT_VALUES,
   LEGAL_FORMS,
-  NO_SAP_MESSAGE,
   WORK_STATUSES,
   buildPayload,
   labelOf,
@@ -565,7 +565,7 @@ function ApplicationForm({
 
                 <Group
                   legend="Services à la personne"
-                  hint="Toute personne embarquée sur Lab’s Food doit être déclarée en services à la personne, à son nom ou par sa coopérative."
+                  hint="Toute personne embarquée sur Lab’s Food doit être déclarée en services à la personne, à son nom."
                 >
                   <fieldset>
                     <legend className="mb-2.5 text-sm font-semibold text-navy">
@@ -592,7 +592,9 @@ function ApplicationForm({
                         title="Non"
                       />
                     </div>
-                    <FieldError id="sapDeclared-error" message={errors.sapDeclared} />
+                    {values.sapDeclared !== 'no' && (
+                      <FieldError id="sapDeclared-error" message={errors.sapDeclared} />
+                    )}
                   </fieldset>
 
                   {values.sapDeclared === 'yes' && (
@@ -628,44 +630,9 @@ function ApplicationForm({
                       transition={{ duration: DURATION.fast, ease: EASE_OUT }}
                       className="overflow-hidden"
                     >
-                      <fieldset className="space-y-4 pt-5">
-                        <legend className="mb-2.5 text-sm font-semibold text-navy">
-                          Avez-vous adhéré à une coopérative SAP ?
-                        </legend>
-                        <div
-                          className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
-                          aria-invalid={errors.sapCooperative ? true : undefined}
-                          tabIndex={errors.sapCooperative ? -1 : undefined}
-                        >
-                          <RadioCard
-                            name="sapCooperative"
-                            value="yes"
-                            checked={values.sapCooperative === 'yes'}
-                            onChange={(v) => set('sapCooperative', v)}
-                            title="Oui"
-                            description="Votre coopérative porte la déclaration pour vous."
-                          />
-                          <RadioCard
-                            name="sapCooperative"
-                            value="no"
-                            checked={values.sapCooperative === 'no'}
-                            onChange={(v) => set('sapCooperative', v)}
-                            title="Non"
-                          />
-                        </div>
-                        {values.sapCooperative === 'no' ? (
-                          <Note tone="amber" icon={<AlertCircle className="h-4 w-4" />}>
-                            {NO_SAP_MESSAGE}
-                          </Note>
-                        ) : (
-                          <FieldError id="sapCooperative-error" message={errors.sapCooperative} />
-                        )}
-                        {values.sapCooperative === 'yes' && (
-                          <Note icon={<FileText className="h-4 w-4" />}>
-                            L’attestation d’adhésion à votre coopérative vous sera demandée à l’étape suivante.
-                          </Note>
-                        )}
-                      </fieldset>
+                      <div className="pt-5">
+                        <NoSapNote />
+                      </div>
                     </motion.div>
                   )}
                 </Group>
@@ -744,7 +711,7 @@ function ApplicationForm({
                       value={
                         values.sapDeclared === 'yes'
                           ? `Déclaration propre · ${values.sapNumber}`
-                          : 'Déclaration portée par votre coopérative SAP'
+                          : 'Déclaration à votre nom'
                       }
                     />
                   </Review>
