@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Bell, Globe2, LogOut, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ChefPage, { Card } from '@/components/chef/ChefPage'
 import DeleteMyAccount from '@/components/client/DeleteMyAccount'
@@ -37,6 +38,12 @@ export default function ChefSettingsPage() {
             <Field label="Nom" value={user?.name || '—'} />
             <Field label="Email" value={user?.email || '—'} />
           </div>
+        </Card>
+
+        <Card title="Liste de courses">
+          <Link href="/espace-chef/parametres/produits-de-base" className="btn btn-outline w-full justify-start text-sm">
+            Mes produits de base (ce que j’apporte toujours)
+          </Link>
         </Card>
 
         <Card title="Notifications">

@@ -713,6 +713,14 @@ export interface MissionLine {
   comment?: string | null
   /** Facultative dans toutes les recettes qui la demandent : affichée avec un badge. */
   optional?: true
+  /** Quantité déjà au placard (partiel) ; `null` si rien ou tout. */
+  haveQty?: number | null
+  /** Quantité à acheter après déduction de `haveQty` (arrondi d'affichage). */
+  toBuyQty?: number
+  /** Réponse du batch cooker au commentaire actuel. */
+  chefReply?: { reply: string; repliedAt: string } | null
+  /** Vue batch cooker : « j'apporte » (produit de base qu'il a toujours). */
+  providedByChef?: boolean
 }
 
 /**
@@ -748,6 +756,18 @@ export interface MissionShoppingList {
   finalReceivedAt?: string | null
   /** Recettes lot 4 : « Courses faites », et le total du ticket s'il a été saisi. */
   groceries?: Groceries
+  /** Coches du client : `null` si elles ne répondent pas à la version courante. */
+  marksUpdatedAt?: string | null
+  /** Vue batch cooker : des corrections n'ont pas encore été envoyées. */
+  pendingChanges?: boolean
+  /** Vue batch cooker : écart avec la version envoyée (`null` avant le 1er envoi). */
+  changesSinceSent?: {
+    added: MissionLine[]
+    removed: MissionLine[]
+    changed: { before: MissionLine; after: MissionLine }[]
+  } | null
+  /** Vue client : lignes apportées par le batch cooker, sans case à cocher. */
+  providedByChef?: MissionLine[]
 }
 
 export interface Groceries {
@@ -796,7 +816,13 @@ export const useSaveMissionShoppingList = () =>
     (f, { id, lines }) =>
       f<MissionShoppingList>(`/chef-missions/${id}/shopping-list`, {
         method: 'PUT',
-        body: { lines: lines.map(({ name, qty, unit, aisle }) => ({ name, qty, unit, aisle })) },
+        body: { lines: lines.map(({ name, qty, unit, aisle, providedByChef }) => ({
+            name,
+            qty,
+            unit,
+            aisle,
+            providedByChef,
+          })) },
       }),
   )
 
@@ -818,8 +844,60 @@ export const useSendMissionShoppingList = () =>
 export interface ShoppingMark {
   name: string
   unit: string
-  alreadyHave: boolean
+  alreadyHave?: boolean
+  /** Quantité déjà au placard : 0 < haveQty < qty (≥ qty équivaut à alreadyHave). */
+  haveQty?: number
   comment?: string
+}
+
+/** `PATCH /me/bookings/{id}/shopping-list/marks` — coches au fil de l'eau (fusion par ligne). */
+export const useSaveShoppingMarks = () =>
+  useMissionMutation<{ id: string; version: number; marks: ShoppingMark[] }>(
+    (f, { id, version, marks }) =>
+      f<MissionShoppingList>(`/me/bookings/${id}/shopping-list/marks`, {
+        method: 'PATCH',
+        body: { version, marks },
+      }),
+  )
+
+export interface ChefReply {
+  name: string
+  unit: string
+  /** 280 caractères max ; `null` efface la réponse. */
+  reply: string | null
+}
+
+/** `PATCH /chef-missions/{id}/shopping-list/replies` — réponses aux commentaires du client. */
+export const useReplyShoppingComments = () =>
+  useMissionMutation<{ id: string; replies: ChefReply[] }>((f, { id, replies }) =>
+    f<MissionShoppingList>(`/chef-missions/${id}/shopping-list/replies`, {
+      method: 'PATCH',
+      body: { replies },
+    }),
+  )
+
+/** `GET` / `PUT /me/chef/pantry-staples` — produits que le batch cooker apporte toujours. */
+export function usePantryStaples() {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'chef', 'pantry-staples'],
+    queryFn: () => apiFetch<{ staples: string[] }>('/me/chef/pantry-staples'),
+  })
+}
+
+export function useSavePantryStaples() {
+  const apiFetch = useApiFetch()
+  const qc = useQueryClient()
+  const meKey = useMeKey()
+  return useMutation({
+    mutationFn: (staples: string[]) =>
+      apiFetch<{ staples: string[] }>('/me/chef/pantry-staples', {
+        method: 'PUT',
+        body: { staples },
+      }),
+    onSuccess: (data) => qc.setQueryData([...meKey, 'chef', 'pantry-staples'], data),
+  })
 }
 
 /**

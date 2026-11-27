@@ -41,8 +41,11 @@ export interface MethodOption {
   /** Avance immédiate : ce que l'URSSAF prélèvera ensuite sur son compte. */
   debitedLaterCents?: number
   maxCesuCents?: number
-  /** Le numéro avec lequel le client paie son batch cooker chez son émetteur. */
-  crcesuNan?: string | null
+  /** CESU : le NAN de Lab’s Food (jamais celui du batch cooker), à saisir chez l’émetteur. */
+  payeeNan?: string | null
+  payeeName?: string | null
+  /** CESU : la référence de la commande, à indiquer avec le paiement. */
+  paymentReference?: string | null
 }
 
 export interface PaymentOptions {
@@ -301,7 +304,8 @@ export interface PaymentStatus {
   currency: string
   fullyCovered: boolean
   cesuAvailable: boolean
-  crcesuNan?: string | null
+  payeeNan?: string | null
+  payeeName?: string | null
 }
 
 /**

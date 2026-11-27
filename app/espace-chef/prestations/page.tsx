@@ -81,11 +81,13 @@ import {
   useRemoveBookingPhoto,
   useRepinMissionRecipes,
   useResetMissionShoppingList,
+  useReplyShoppingComments,
   useSaveMissionShoppingList,
   useSendMissionShoppingList,
   type Booking,
   type BookingStatus,
   type MissionLine,
+  type MissionShoppingList,
   type ShoppingListStatus,
 } from '@/lib/api/bookings'
 import { apiMessage } from '@/lib/api/messages'
@@ -1257,6 +1259,7 @@ function ShoppingCard({
   const toutes = groupes.flatMap((g) => g.lines)
   const dejaLa = toutes.filter((l) => l.alreadyHave)
   const commentees = toutes.filter((l) => l.comment)
+  const partielles = toutes.filter((l) => !l.alreadyHave && l.haveQty)
 
   const envoi = () =>
     envoyer.mutate(missionId, {
@@ -1321,6 +1324,21 @@ function ShoppingCard({
                   Date limite : {longDate(liste.deadline)} à {hour(liste.deadline)}
                 </p>
               )}
+              {liste?.pendingChanges && (
+                <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[12px] font-semibold text-amber-ink">
+                  <span className="rounded-full bg-amber-soft px-2 py-0.5">
+                    Modifications non envoyées
+                  </span>
+                  <InfoPopover label="Que veulent dire les modifications non envoyées ?">
+                    Vos corrections sont enregistrées, mais le client voit encore la
+                    dernière version envoyée. Il ne les verra qu’avec « Envoyer la mise à
+                    jour » ; ses lignes dont la quantité change seront alors décochées.
+                  </InfoPopover>
+                </p>
+              )}
+              {liste?.pendingChanges && liste.changesSinceSent && (
+                <ChangesSinceSent diff={liste.changesSinceSent} />
+              )}
               {status !== 'frozen' && (
                 <button
                   type="button"
@@ -1350,7 +1368,16 @@ function ShoppingCard({
             />
           )}
 
-          {(dejaLa.length > 0 || commentees.length > 0) && (
+          {!liste?.shoppingByClient && (liste?.version ?? 0) > 0 && !liste?.marksUpdatedAt && (
+            <p className="mb-3 flex flex-wrap items-center gap-1 text-[12px] leading-relaxed text-ink-soft">
+              Le client n’a pas encore répondu à cette version de la liste.
+              <InfoPopover label="Pourquoi je ne vois pas ses coches ?">
+                Ses coches ne s’affichent que lorsqu’elles portent sur la dernière
+                liste envoyée. Après un renvoi, il doit la vérifier à nouveau.
+              </InfoPopover>
+            </p>
+          )}
+          {(dejaLa.length > 0 || partielles.length > 0 || commentees.length > 0) && (
             <div className="mb-3 space-y-2 text-[12px] leading-relaxed">
               {dejaLa.length > 0 && (
                 <p className="text-ink-mid">
@@ -1358,11 +1385,36 @@ function ShoppingCard({
                   {dejaLa.map((l) => l.name).join(', ')}
                 </p>
               )}
+              {partielles.length > 0 && (
+                <div className="text-ink-mid">
+                  <p className="font-semibold text-navy">À acheter en moins :</p>
+                  <ul className="space-y-0.5">
+                    {partielles.map((l) => (
+                      <li key={`${l.name}|${l.unit}`}>
+                        {l.name} : il en a {displayQuantity(l.haveQty ?? 0, l.unit)}, achetez{' '}
+                        <strong className="text-navy">
+                          {displayQuantity(l.toBuyQty ?? l.qty, l.unit)}
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {commentees.length > 0 && (
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {commentees.map((l) => (
                     <li key={`${l.name}|${l.unit}`} className="text-ink-mid">
                       <span className="font-semibold text-navy">{l.name}</span> : « {l.comment} »
+                      {!liste?.shoppingByClient && status !== 'frozen' && (
+                        <ReplyField
+                          key={l.chefReply?.repliedAt ?? 'none'}
+                          missionId={missionId}
+                          line={l}
+                        />
+                      )}
+                      {(liste?.shoppingByClient || status === 'frozen') && l.chefReply && (
+                        <span className="block text-ink-soft">Votre réponse : {l.chefReply.reply}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1383,6 +1435,73 @@ function ShoppingCard({
         </>
       )}
     </Card>
+  )
+}
+
+/** Ce qui change entre la liste envoyée et la liste en cours. */
+function ChangesSinceSent({
+  diff,
+}: {
+  diff: NonNullable<MissionShoppingList['changesSinceSent']>
+}) {
+  const q = (l: MissionLine) => `${l.name} (${displayQuantity(l.qty, l.unit)})`
+  return (
+    <ul className="mt-1 space-y-0.5 text-[12px] text-ink-mid">
+      {diff.added.map((l) => (
+        <li key={`a|${l.name}|${l.unit}`}>+ Ajoutée : {q(l)}</li>
+      ))}
+      {diff.removed.map((l) => (
+        <li key={`r|${l.name}|${l.unit}`}>− Retirée : {q(l)}</li>
+      ))}
+      {diff.changed.map(({ before, after }) => (
+        <li key={`c|${after.name}|${after.unit}`}>
+          ± {after.name} : {displayQuantity(before.qty, before.unit)} →{' '}
+          {displayQuantity(after.qty, after.unit)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Réponse du batch cooker au commentaire d'une ligne (280 caractères ; vide efface). */
+function ReplyField({ missionId, line }: { missionId: string; line: MissionLine }) {
+  const toast = useToast()
+  const reply = useReplyShoppingComments()
+  const [texte, setTexte] = useState(line.chefReply?.reply ?? '')
+  const envoie = () =>
+    reply.mutate(
+      {
+        id: missionId,
+        replies: [{ name: line.name, unit: line.unit, reply: texte.trim() || null }],
+      },
+      {
+        onSuccess: () => toast.success('Réponse envoyée', 'Le client est prévenu.'),
+        onError: (e) =>
+          toast.error(
+            'La réponse n’a pas été envoyée',
+            reasonText(e instanceof ApiError ? e.body : null) ?? apiMessage(e),
+          ),
+      },
+    )
+  return (
+    <span className="mt-1 flex items-center gap-1.5">
+      <input
+        value={texte}
+        onChange={(e) => setTexte(e.target.value)}
+        maxLength={280}
+        placeholder="Répondre au client…"
+        aria-label={`Réponse à propos de ${line.name}`}
+        className="input-base min-w-0 flex-1 py-1 text-[12px]"
+      />
+      <button
+        type="button"
+        onClick={envoie}
+        disabled={reply.isPending || texte.trim() === (line.chefReply?.reply ?? '')}
+        className="btn btn-outline px-2.5 py-1 text-xs disabled:opacity-50"
+      >
+        {reply.isPending ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : 'Répondre'}
+      </button>
+    </span>
   )
 }
 
@@ -1486,7 +1605,14 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
           <strong className="font-semibold text-navy">
             Vos corrections survivent aux recalculs
           </strong>{' '}
-          — une ligne retirée reste retirée. Si la liste est déjà envoyée, le client
+          — une ligne retirée reste retirée. « J’apporte » marque un produit que vous
+          avez déjà : il apparaît à part chez le client, sans case à cocher.
+          <InfoPopover label="Que fait « J’apporte » ?">
+            La ligne reste dans votre liste mais le client la voit dans « Apporté par
+            votre batch cooker », sans case à cocher. Pour en apporter toujours les
+            mêmes, déclarez-les dans vos paramètres.
+          </InfoPopover>{' '}
+          Si la liste est déjà envoyée, le client
           ne voit vos corrections qu’après « Envoyer la mise à jour ».
         </p>
         {query.data?.persons != null && (
@@ -1568,6 +1694,15 @@ function ShoppingEditor({ missionId }: { missionId: string }) {
                   corrigée
                 </span>
               )}
+              <label className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-ink-mid">
+                <input
+                  type="checkbox"
+                  checked={!!l.providedByChef}
+                  onChange={(e) => changer(i, { providedByChef: e.target.checked })}
+                  aria-label={`J’apporte ${l.name || 'cette ligne'}`}
+                />
+                J’apporte
+              </label>
               <button
                 type="button"
                 onClick={() => setBrouillon(lignes.filter((_, j) => j !== i))}

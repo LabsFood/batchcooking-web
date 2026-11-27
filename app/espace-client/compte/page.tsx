@@ -48,7 +48,7 @@ export default function AccountPage() {
 
 /* ── Factures ──────────────────────────────────────────────────────────────── */
 
-/** Une facture par paiement par carte, au nom du batch cooker. */
+/** Une facture par paiement, au nom de Lab’s Food (prix net). */
 function Factures() {
   return (
     <section className="card-shell rounded-2xl p-5 lg:p-6">
@@ -56,8 +56,8 @@ function Factures() {
         Mes factures <PaymentInvoicesInfo side="client" />
       </h2>
       <p className="mb-4 mt-1 max-w-prose text-sm leading-relaxed text-ink-mid">
-        Une facture par paiement par carte, au nom de votre batch cooker. Elles se
-        retrouvent aussi sur chaque session.
+        Une facture par paiement, TVA comprise. Elles se retrouvent aussi sur
+        chaque session.
       </p>
       <PaymentInvoiceList side="client" emptyText="Aucune facture pour l’instant." />
     </section>
@@ -211,12 +211,25 @@ function Attestation() {
               </p>
             </div>
 
+            {a.data.issuer?.sapDeclarationNumber && (
+              <p className="mt-3 rounded-2xl bg-mint px-4 py-3 text-[13px] leading-relaxed text-navy">
+                Attestation émise par <strong>Lab’s Food</strong>, déclaration de
+                services à la personne n°{' '}
+                <strong className="tabular-nums">
+                  {a.data.issuer.sapDeclarationNumber}
+                </strong>
+                , pour toutes vos prestations.
+              </p>
+            )}
+
             {a.data.platformAttestedAmountCents !== a.data.eligibleAmountCents && (
               <p className="mt-3 flex items-start gap-2 rounded-2xl bg-amber-soft/60 px-4 py-3 text-[13px] leading-relaxed text-navy">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-ink" aria-hidden />
-                Lab’s Food atteste {centimes(a.data.platformAttestedAmountCents)}.
-                Le reste est attesté par les batch cookers qui déclarent leur
-                activité eux-mêmes : demandez-leur leur attestation.
+                Lab’s Food atteste {centimes(a.data.platformAttestedAmountCents)}. Les{' '}
+                {centimes(
+                  a.data.eligibleAmountCents - a.data.platformAttestedAmountCents,
+                )}{' '}
+                réglés en e-CESU sont attestés par votre émetteur de CESU.
               </p>
             )}
 
@@ -233,24 +246,12 @@ function Attestation() {
                       </p>
                       <p className="mt-0.5 text-xs text-ink-soft">
                         {p.paymentsCount} règlement{p.paymentsCount > 1 ? 's' : ''}
-                        {p.novaCode
-                          ? ` · déclaration ${p.novaCode}`
-                          : p.cooperativeName
-                            ? ` · via ${p.cooperativeName}`
-                            : ''}
                       </p>
                     </div>
                     <p className="font-display text-base font-bold text-navy">
                       {centimes(p.eligibleAmountCents)}
                     </p>
                   </div>
-                  {!p.sapDeclared && (
-                    <p className="mt-2 text-xs leading-relaxed text-amber-ink">
-                      Ce batch cooker n’a pas déclaré son activité de service à la
-                      personne : ces montants n’ouvrent pas droit au crédit
-                      d’impôt.
-                    </p>
-                  )}
                   {p.notes.map((n) => (
                     <p key={n} className="mt-1 text-xs leading-relaxed text-ink-soft">
                       {n}

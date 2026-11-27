@@ -15,6 +15,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
+import { useMeKey } from './keys'
 import { upsertMessage, useMessagingKeys, type Message } from './messaging'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
@@ -26,6 +27,10 @@ type ServerEvent =
   | { event: 'ready' }
   | { event: 'message.created'; data: { conversationId: string; message: Message } }
   | { event: 'conversation.updated'; data: { conversationId: string } }
+  | {
+      event: 'shopping_list.changed'
+      data: { bookingId: string; version: number; marksUpdatedAt: string | null }
+    }
 
 function socketUrl(): string | null {
   if (!API_URL) return null
@@ -41,6 +46,12 @@ export function useMessagingSocket(): void {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const queryClient = useQueryClient()
   const keys = useMessagingKeys()
+  // Par référence : le tableau change à chaque rendu, il ne doit pas rouvrir le socket.
+  const meKey = useMeKey()
+  const meKeyRef = useRef(meKey)
+  useEffect(() => {
+    meKeyRef.current = meKey
+  }, [meKey])
 
   // Par référence : si Clerk renvoie une nouvelle fonction à un rendu, ce n'est
   // pas une raison de couper le socket pour le rouvrir.
@@ -79,6 +90,11 @@ export function useMessagingSocket(): void {
             queryKey: keys.conversation(event.data.conversationId),
           })
           refreshLists()
+          break
+        case 'shopping_list.changed':
+          void queryClient.invalidateQueries({
+            queryKey: [...meKeyRef.current, 'mission', event.data.bookingId, 'shopping-list'],
+          })
           break
       }
     }

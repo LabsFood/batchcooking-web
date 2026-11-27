@@ -66,9 +66,9 @@ export interface WeekChef {
   /**
    * Le CESU préfinancé est accepté — arrivé le 17/10.
    *
-   * `true` seulement si le batch cooker a activé le CESU **et** déclaré son
-   * numéro NAN. Le numéro lui-même se lit sur `GET /chefs/{id}/cesu-info`,
-   * au moment de payer — pas avant.
+   * `true` seulement si le batch cooker a activé le CESU, que son mandat est
+   * signé et que le NAN de Lab's Food est configuré. Les titres sont encaissés
+   * sur ce NAN unique, lu au moment de payer.
    */
   acceptsCesu?: boolean
 }

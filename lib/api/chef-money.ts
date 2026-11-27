@@ -12,10 +12,12 @@ import { useMeKey } from './keys'
    Quatre choses distinctes, que les écrans mélangeaient jusqu'ici parce qu'ils
    étaient écrits sur des données inventées :
 
-   - **les paiements CESU** (`/me/chef/cesu-payments`) : un client déclare
-     avoir payé en CESU préfinancé ; le batch cooker confirme avoir reçu les
-     titres, ou refuse en disant pourquoi. Tant qu'il n'a rien fait, personne
-     ne sait si l'argent est arrivé ;
+   - **les paiements CESU** (`/me/chef/cesu-payments`) : le client paie Labs
+     Food en CESU préfinancé ; le rapprochement bancaire solde la déclaration.
+     Le batch cooker suit le statut, il n'a plus rien à confirmer ;
+   - **les versements** (`/me/chef/payouts`) et **les autofactures**
+     (`/me/chef/payout-statements`) : ce que Lab’s Food lui achète au prix net
+     et lui vire (flux « prix net ») ;
    - **les factures de commission** (`/me/chef/commission-invoices`) : ce que
      Lab's Food lui facture, et les prélèvements qui vont avec ;
    - **la déclaration SAP** (`/me/chef-profile/sap`) : la voie choisie —
@@ -73,33 +75,84 @@ export function useChefCesuPayments(status?: string) {
   })
 }
 
-function useCesuMutation<V>(run: (f: ReturnType<typeof useApiFetch>, v: V) => Promise<unknown>) {
+/* ── Les versements (« prix net ») ──────────────────────────────────────────── */
+
+export type PayoutView = 'payable' | 'awaiting' | 'paid'
+
+export interface ChefPayoutLine {
+  id: string | null
+  paymentId: string
+  /** `cb` (net transféré sur le compte Stripe), `cesu`, `avance_immediate`. */
+  method: string
+  bookingReference: string | null
+  amountTtcCents: number
+  vatRateBps: number
+  amountHtCents: number
+  amountVatCents: number
+  commissionRateBps: number
+  commissionCents: number
+  cesuFeeBps: number
+  cesuFeeCents: number
+  netCents: number
+  receivedAt: string | null
+  paidAt: string | null
+  statementId: string | null
+}
+
+export interface ChefPayouts {
+  counts: Record<PayoutView, number>
+  totalNetCents: number
+  lines: ChefPayoutLine[]
+}
+
+/** `GET /me/chef/payouts` — ce que Lab’s Food me doit (`payable`) ou m'a viré (`paid`). */
+export function useMyPayouts(view: PayoutView, from?: string) {
   const apiFetch = useApiFetch()
-  const qc = useQueryClient()
   const meKey = useMeKey()
-  return useMutation({
-    mutationFn: (v: V) => run(apiFetch, v),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [...meKey, 'cesu-payments'] }),
+  return useQuery({
+    queryKey: [...meKey, 'payouts', view, from ?? ''],
+    queryFn: () => {
+      const q = new URLSearchParams({ view })
+      if (from) q.set('from', from)
+      return apiFetch<ChefPayouts>(`/me/chef/payouts?${q.toString()}`)
+    },
   })
 }
 
-/**
- * `POST /me/chef/cesu-payments/{id}/confirm` — « j'ai bien reçu les titres ».
- *
- * C'est ce geste qui solde la prestation côté client : sans lui, elle reste
- * en attente de règlement même si la session a eu lieu.
- */
-export function useConfirmCesuPayment() {
-  return useCesuMutation<string>((f, id) =>
-    f(`/me/chef/cesu-payments/${id}/confirm`, { method: 'POST' }),
-  )
+export interface PayoutStatement {
+  id: string
+  number: string
+  issuedAt: string
+  netCents: number
+  lines: number
 }
 
-/** `POST /me/chef/cesu-payments/{id}/reject` — le motif part au client. */
-export function useRejectCesuPayment() {
-  return useCesuMutation<{ id: string; reason: string }>((f, { id, reason }) =>
-    f(`/me/chef/cesu-payments/${id}/reject`, { method: 'POST', body: { reason } }),
-  )
+/** `GET /me/chef/payout-statements` — mes autofactures, la plus récente d'abord. */
+export function useMyPayoutStatements() {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'payout-statements'],
+    queryFn: async () => {
+      const res = await apiFetch<unknown>('/me/chef/payout-statements')
+      return Array.isArray(res) ? (res as PayoutStatement[]) : []
+    },
+  })
+}
+
+/** Un lien de 5 minutes vers le PDF d'une autofacture. */
+export function usePayoutStatementDownload() {
+  const apiFetch = useApiFetch()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ url: string }>(`/me/chef/payout-statements/${id}/download`),
+  })
+}
+
+export const PAYOUT_METHOD_LABEL: Record<string, string> = {
+  cesu: 'CESU',
+  avance_immediate: 'Avance immédiate',
+  cb: 'Carte',
 }
 
 /* ── Les factures de commission ────────────────────────────────────────────── */
@@ -162,9 +215,6 @@ export interface SapProfile {
   cooperativeMembershipProof: string | null
   /** Accepter les titres CESU préfinancés. */
   acceptsCesu: boolean
-  /** Le numéro d'affiliation CRCESU, et où en est l'affiliation. */
-  crcesuNan: string | null
-  crcesuAffiliationStatus: string
   /** L'avance immédiate URSSAF, instruite par l'équipe. */
   urssafTiersPrestationStatus: string
 }
@@ -175,7 +225,6 @@ export interface SapInput {
   cooperativeName?: string | null
   cooperativeMembershipProof?: string | null
   acceptsCesu?: boolean
-  crcesuNan?: string | null
 }
 
 export function useSapProfile() {
@@ -184,6 +233,22 @@ export function useSapProfile() {
   return useQuery({
     queryKey: [...meKey, 'sap'],
     queryFn: () => apiFetch<SapProfile>('/me/chef-profile/sap'),
+    retry: false,
+  })
+}
+
+/**
+ * `GET /me/chef-profile/cesu-fee` : le taux des frais de traitement et
+ * d'encaissement des CESU appliqué à ce batch cooker (en points de base,
+ * 1000 = 10 %). Il se calcule sur sa part après commission ; le client ne
+ * paie jamais plus cher.
+ */
+export function useCesuFee() {
+  const apiFetch = useApiFetch()
+  const meKey = useMeKey()
+  return useQuery({
+    queryKey: [...meKey, 'cesu-fee'],
+    queryFn: () => apiFetch<{ feeBps: number }>('/me/chef-profile/cesu-fee'),
     retry: false,
   })
 }
@@ -352,7 +417,8 @@ export const moneyCents = (cents?: number | null) =>
 
 export const SAP_LABEL: Record<SapDeclarationType, string> = {
   type_a_nova: 'Déclaration à mon nom (NOVA)',
-  type_b_cooperative: 'Par une coopérative',
+  // Ancienne voie, plus proposée : lue seulement, jusqu'à ce que le batch cooker renseigne son NOVA.
+  type_b_cooperative: 'Déclaration NOVA à renseigner',
 }
 
 /** Les statuts que l'API rend, dits en français. Un inconnu passe tel quel. */
@@ -370,8 +436,7 @@ const STATUT: Record<string, string> = {
   none: 'Aucun',
   approved: 'Approuvé',
   refused: 'Refusé',
-  /* Les trois valeurs réellement envoyées par l'API pour l'affiliation CRCESU
-     et l'habilitation URSSAF. `not_started` manquait : un batch cooker sans
+  /* Les trois valeurs réellement envoyées par l'API pour l'habilitation URSSAF. `not_started` manquait : un batch cooker sans
      démarche lisait « not_started » à l'écran. Les deux clefs suivantes ne
      viennent d'aucune réponse de l'API — elles datent d'un vocabulaire inventé
      côté console — mais rien ne coûte à les garder le temps qu'un relevé
@@ -382,7 +447,3 @@ const STATUT: Record<string, string> = {
 }
 
 export const statutLabel = (s?: string | null) => (s ? (STATUT[s] ?? s) : '—')
-
-/** Un paiement CESU qui attend le geste du batch cooker. */
-export const cesuAttendMoi = (p: CesuPayment) =>
-  p.settlementStatus === 'declared'

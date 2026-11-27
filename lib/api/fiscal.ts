@@ -17,15 +17,26 @@ import { useMeKey } from './keys'
 
    L'attestation distingue deux montants, et c'est la nuance qui compte :
    `eligibleAmountCents` est ce qui ouvre droit, `platformAttestedAmountCents`
-   est ce que **Lab's Food** atteste. Quand un batch cooker déclare lui-même son
-   activité (voie NOVA), c'est lui qui atteste sa part : la différence n'est
-   pas une erreur, elle doit s'expliquer à l'écran.
+   est ce que **Lab's Food** atteste, sous la déclaration SAP de la SAS
+   (`issuer`), pour toutes les prestations. Seule la part réglée en e-CESU
+   reste attestée par l'émetteur du CESU : la différence doit s'expliquer à
+   l'écran. La déclaration propre du batch cooker ne sert qu'à vérifier son
+   dossier, elle ne s'affiche pas au client.
    ───────────────────────────────────────────────────────────────────────────── */
+
+/** Lab's Food, sous la déclaration SAP de la SAS : qui émet l'attestation. */
+export interface AttestationIssuer {
+  name: string
+  legalName: string
+  siren: string | null
+  address: string | null
+  sapDeclarationNumber: string | null
+}
 
 export interface AttestationProvider {
   chefProfileId: string
   chefDisplayName: string
-  /** `false` : ce batch cooker n'a pas déclaré son activité SAP. */
+  /** Vérification du dossier du batch cooker seulement : jamais affiché au client. */
   sapDeclared: boolean
   declarationType: string | null
   novaCode: string | null
@@ -40,6 +51,8 @@ export interface AttestationProvider {
 }
 
 export interface FiscalAttestation {
+  /** Absent tant que l'API n'est pas déployée avec l'émetteur. */
+  issuer?: AttestationIssuer
   clientId: string
   clientName: string | null
   clientEmail: string

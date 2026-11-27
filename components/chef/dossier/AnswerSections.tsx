@@ -15,7 +15,14 @@ import { useToast } from '@/components/shared/Toaster'
 import { Note, RadioCard, TextField } from '@/components/chef/application/fields'
 import CityField from '@/components/chef/application/CityField'
 import ZonePicker from '@/components/chef/application/ZonePicker'
-import { NO_SAP_MESSAGE, isValidSiret, type Zone } from '@/lib/chef/application'
+import {
+  NO_SAP_CONTACT_LABEL,
+  NO_SAP_CONTACT_SUFFIX,
+  NO_SAP_MESSAGE,
+  isValidSiret,
+  type Zone,
+} from '@/lib/chef/application'
+import { NoSapNote } from '@/components/chef/NoSapNote'
 import PhoneField from '@/components/shared/PhoneField'
 import { formatE164, isValidE164 } from '@/lib/phone'
 import { regionLabel } from '@/lib/chef/regions'
@@ -56,10 +63,10 @@ export const LEGAL_FORM_LABEL: Record<string, string> = {
   'not-registered': 'Je n’ai pas encore d’entreprise',
 }
 
-/** Lab’s Food n'est pas une coopérative : la déclaration est la sienne, ou celle de sa coopérative. */
+/** La déclaration est toujours la sienne. Un ancien « type-b » se lit comme « à compléter ». */
 const SAP_LABEL: Record<string, string> = {
   'type-a': 'Déclaration SAP à mon nom',
-  'type-b': 'Par ma coopérative SAP',
+  'type-b': 'Déclaration SAP à mon nom à renseigner',
 }
 
 type ZoneLue = NonNullable<ChefApplication['interventionZones']>[number]
@@ -268,8 +275,6 @@ export default function AnswerSections({
   const [siret, setSiret] = useState(a.company?.siret ?? '')
   const [sap, setSap] = useState(a.company?.sap?.path ?? 'type-b')
   const [numSap, setNumSap] = useState(a.company?.sap?.declarationNumber ?? '')
-  // Type B enregistré = adhérent d'une coopérative SAP. « Non » bloque l'enregistrement.
-  const [coop, setCoop] = useState('yes')
 
   // ── Zones ─────────────────────────────────────────────────────────────────
   const [zones, setZones] = useState<Zone[]>(() =>
@@ -305,7 +310,6 @@ export default function AnswerSections({
       setSiret(r.company?.siret ?? '')
       setSap(r.company?.sap?.path ?? 'type-b')
       setNumSap(r.company?.sap?.declarationNumber ?? '')
-      setCoop('yes')
     } else {
       setZones(
         zonesLues.map((z) => ({
@@ -534,8 +538,8 @@ export default function AnswerSections({
             setErreur('Le numéro de déclaration s’écrit SAP suivi de neuf chiffres.')
             return
           }
-          if (sap === 'type-b' && coop !== 'yes') {
-            setErreur(NO_SAP_MESSAGE)
+          if (sap === 'type-b') {
+            setErreur(`${NO_SAP_MESSAGE} ${NO_SAP_CONTACT_LABEL}${NO_SAP_CONTACT_SUFFIX}`)
             return
           }
           envoyer(
@@ -629,27 +633,7 @@ export default function AnswerSections({
           )}
         </fieldset>
 
-        {sap === 'type-b' && (
-          <fieldset className="space-y-2.5">
-            <legend className="mb-2.5 text-sm font-semibold text-navy">
-              Avez-vous adhéré à une coopérative SAP ?
-            </legend>
-            <RadioCard
-              name="dossier-coop"
-              value="yes"
-              checked={coop === 'yes'}
-              onChange={setCoop}
-              title="Oui"
-              description="Votre coopérative porte la déclaration ; son attestation d’adhésion vous est demandée."
-            />
-            <RadioCard name="dossier-coop" value="no" checked={coop === 'no'} onChange={setCoop} title="Non" />
-            {coop === 'no' && (
-              <Note tone="amber" icon={<AlertTriangle className="h-4 w-4" />}>
-                {NO_SAP_MESSAGE}
-              </Note>
-            )}
-          </fieldset>
-        )}
+        {sap === 'type-b' && <NoSapNote />}
       </Section>
 
       <Section

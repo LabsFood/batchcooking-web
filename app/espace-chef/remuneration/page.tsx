@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
-  Building2,
   Check,
   CreditCard,
   ExternalLink,
@@ -26,6 +25,7 @@ import {
   SAP_LABEL,
   statutLabel,
   useSapProfile,
+  useCesuFee,
   useSaveSapProfile,
   useConfirmSepaMandate,
   useSepaMandate,
@@ -45,10 +45,9 @@ import {
    qui existe, et qui décide vraiment de la façon dont l'argent circule, c'est
    trois choses que personne ne pouvait régler :
 
-   - **la voie de déclaration SAP.** Voie A : le batch cooker déclare son
-     activité en son nom (numéro NOVA). Voie B : une coopérative la porte pour
-     lui. Ce choix décide de qui facture le client et de l'ouverture du crédit
-     d'impôt ;
+   - **la déclaration SAP.** Le batch cooker déclare son activité en son nom
+     (numéro NOVA) ; ce numéro sert à vérifier son dossier. Lab's Food facture
+     le client et règle le batch cooker au prix net ;
    - **le compte Stripe** qui reçoit les virements ;
    - **le mandat SEPA** qui autorise Lab's Food à prélever sa commission. Il
      se signe sur une page Stripe (l'IBAN ne passe jamais par nous) ; au
@@ -56,9 +55,11 @@ import {
      CESU ni l'avance immédiate ne sont proposés aux clients : leur commission
      ne peut être que prélevée.
 
-   Deux statuts sont en lecture seule parce que c'est l'équipe qui les
-   instruit : l'affiliation CRCESU et l'avance immédiate URSSAF. L'écran le
-   dit plutôt que d'offrir un bouton qui ne ferait rien.
+   L'avance immédiate URSSAF est en lecture seule parce que c'est l'équipe
+   qui l'instruit. Les titres CESU sont encaissés sur le NAN de Lab's Food
+   (Lab’s Food), qui reverse sa part au batch cooker : il n'a
+   plus de NAN à renseigner, seulement à choisir s'il accepte le CESU, en
+   connaissant les frais de traitement et d'encaissement appliqués.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const VOIES: { id: SapDeclarationType; titre: string; quoi: string; pour: string }[] = [
@@ -66,13 +67,7 @@ const VOIES: { id: SapDeclarationType; titre: string; quoi: string; pour: string
     id: 'type_a_nova',
     titre: SAP_LABEL.type_a_nova,
     quoi: 'Vous déclarez votre activité de service à la personne en votre nom, avec un numéro NOVA obtenu auprès de la DDETS.',
-    pour: 'Vous facturez vos clients, et ce sont vos factures qui ouvrent leur crédit d’impôt.',
-  },
-  {
-    id: 'type_b_cooperative',
-    titre: SAP_LABEL.type_b_cooperative,
-    quoi: 'Une coopérative d’activité porte la déclaration : vous y êtes affilié, elle facture à votre place.',
-    pour: 'Rien à déclarer vous-même, mais la coopérative prélève sa part et édite les factures.',
+    pour: 'Lab’s Food facture vos clients et vous règle le prix net de vos prestations. Votre numéro NOVA sert à vérifier votre dossier.',
   },
 ]
 
@@ -89,6 +84,13 @@ function PayoutMode() {
   const toast = useToast()
   const { user } = useAuth()
   const sap = useSapProfile()
+  const cesuFee = useCesuFee()
+  // « 10 % de frais » quand le taux est connu, sinon « des frais » : la phrase
+  // reste juste même si l'appel échoue.
+  const fraisCesu =
+    cesuFee.data != null
+      ? `${(cesuFee.data.feeBps / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % de frais`
+      : 'des frais'
   const save = useSaveSapProfile()
   const stripe = useStripeStatus()
   const lien = useStripeLink()
@@ -166,23 +168,18 @@ function PayoutMode() {
   const ouvrir = () => {
     if (!d) return
     setBrouillon({
-      declarationType: d.declarationType ?? 'type_a_nova',
+      declarationType: 'type_a_nova',
       novaCode: d.novaCode ?? '',
-      cooperativeName: d.cooperativeName ?? '',
       acceptsCesu: d.acceptsCesu,
-      crcesuNan: d.crcesuNan ?? '',
     })
   }
 
   function enregistrer() {
     if (!v) return
     const corps: SapInput = {
-      declarationType: v.declarationType,
+      declarationType: 'type_a_nova',
       acceptsCesu: v.acceptsCesu,
-      ...(v.declarationType === 'type_a_nova'
-        ? { novaCode: v.novaCode?.trim() || null }
-        : { cooperativeName: v.cooperativeName?.trim() || null }),
-      ...(v.acceptsCesu ? { crcesuNan: v.crcesuNan?.trim() || null } : {}),
+      novaCode: v.novaCode?.trim() || null,
     }
     save.mutate(corps, {
       onSuccess: () => {
@@ -196,14 +193,14 @@ function PayoutMode() {
   return (
     <ChefPage
       title="Mode de rémunération"
-      subtitle="Sous quelle voie vous déclarez, où vous êtes payé, et comment la commission est prélevée."
+      subtitle="Votre déclaration SAP, où vous êtes payé, et comment la commission est prélevée."
     >
       <div className="space-y-5">
         <ApprovalGate quoi="Votre déclaration s’enregistre" />
 
         {/* ── La voie de déclaration ───────────────────────────────────── */}
         <Card
-          title="Ma voie de déclaration"
+          title="Ma déclaration SAP"
           action={
             d && !v ? (
               <button onClick={ouvrir} className="btn btn-outline text-xs">
@@ -234,11 +231,7 @@ function PayoutMode() {
                       }`}
                     >
                       <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-                        {voie.id === 'type_a_nova' ? (
-                          <FileCheck2 className="h-4 w-4 text-terra" aria-hidden />
-                        ) : (
-                          <Building2 className="h-4 w-4 text-terra" aria-hidden />
-                        )}
+                        <FileCheck2 className="h-4 w-4 text-terra" aria-hidden />
                         {voie.titre}
                       </p>
                       <p className="mt-1 text-[12px] leading-relaxed text-ink-mid">
@@ -252,33 +245,17 @@ function PayoutMode() {
                 })}
               </div>
 
-              {v.declarationType === 'type_a_nova' ? (
-                <label className="mt-3 block">
-                  <span className="mb-1 block text-[11px] text-ink-soft">
-                    Numéro de déclaration NOVA
-                  </span>
-                  <input
-                    value={v.novaCode ?? ''}
-                    onChange={(e) => setBrouillon({ ...v, novaCode: e.target.value })}
-                    placeholder="SAP123456789"
-                    className="input-base py-2"
-                  />
-                </label>
-              ) : (
-                <label className="mt-3 block">
-                  <span className="mb-1 block text-[11px] text-ink-soft">
-                    Nom de la coopérative
-                  </span>
-                  <input
-                    value={v.cooperativeName ?? ''}
-                    onChange={(e) =>
-                      setBrouillon({ ...v, cooperativeName: e.target.value })
-                    }
-                    placeholder="Coopérative des métiers"
-                    className="input-base py-2"
-                  />
-                </label>
-              )}
+              <label className="mt-3 block">
+                <span className="mb-1 block text-[11px] text-ink-soft">
+                  Numéro de déclaration NOVA
+                </span>
+                <input
+                  value={v.novaCode ?? ''}
+                  onChange={(e) => setBrouillon({ ...v, novaCode: e.target.value })}
+                  placeholder="SAP123456789"
+                  className="input-base py-2"
+                />
+              </label>
 
               <label className="mt-3 flex cursor-pointer items-start gap-3 border-t border-[rgba(31,42,55,0.08)] pt-3">
                 <input
@@ -292,25 +269,22 @@ function PayoutMode() {
                     J’accepte les titres CESU préfinancés
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                    Le badge « CESU accepté » apparaît alors sur votre vitrine —
-                    une fois votre numéro d’affiliation renseigné et votre mandat
-                    de prélèvement signé.
+                    Le badge « CESU accepté » apparaît alors sur votre vitrine,
+                    une fois votre mandat de prélèvement signé. Vos clients
+                    paient Lab’s Food, qui vous reverse votre part.
                   </span>
                 </span>
               </label>
 
               {v.acceptsCesu && (
-                <label className="mt-3 block pl-7">
-                  <span className="mb-1 block text-[11px] text-ink-soft">
-                    Numéro d’affiliation CRCESU (NAN)
+                <p className="mt-3 ml-7 flex items-start gap-2 rounded-xl border border-[rgba(154,91,0,0.25)] bg-[rgba(243,156,18,0.08)] px-3 py-2 text-xs leading-relaxed text-[#9A5B00]">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    En activant les CESU, vous acceptez {fraisCesu} de
+                    traitement et d’encaissement des CESU, calculés sur votre
+                    part après commission. Votre client ne paie jamais plus cher.
                   </span>
-                  <input
-                    value={v.crcesuNan ?? ''}
-                    onChange={(e) => setBrouillon({ ...v, crcesuNan: e.target.value })}
-                    placeholder="123456789"
-                    className="input-base py-2"
-                  />
-                </label>
+                </p>
               )}
 
               <div className="mt-4 flex gap-2">
@@ -337,16 +311,14 @@ function PayoutMode() {
           ) : (
             <>
               <p className="text-sm font-semibold text-navy">
-                {d?.declarationType ? SAP_LABEL[d.declarationType] : 'Aucune voie déclarée'}
+                {d?.declarationType === 'type_a_nova'
+                  ? SAP_LABEL.type_a_nova
+                  : 'Déclaration NOVA à renseigner'}
               </p>
               <p className="mt-1 text-[13px] leading-relaxed text-ink-mid">
-                {d?.declarationType === 'type_a_nova'
-                  ? d.novaCode
-                    ? `Numéro NOVA : ${d.novaCode}`
-                    : 'Numéro NOVA non renseigné : le crédit d’impôt de vos clients en dépend.'
-                  : d?.declarationType === 'type_b_cooperative'
-                    ? (d.cooperativeName ?? 'Coopérative non renseignée')
-                    : 'Choisissez votre voie : elle décide de qui facture vos clients.'}
+                {d?.declarationType === 'type_a_nova' && d.novaCode
+                  ? `Numéro NOVA : ${d.novaCode}`
+                  : 'Renseignez votre numéro NOVA : il sert à vérifier votre dossier.'}
               </p>
 
               <dl className="mt-4 space-y-2 border-t border-[rgba(31,42,55,0.08)] pt-4 text-[13px]">
@@ -354,12 +326,6 @@ function PayoutMode() {
                   label="Titres CESU préfinancés"
                   value={d?.acceptsCesu ? 'Acceptés' : 'Non acceptés'}
                 />
-                {d?.acceptsCesu && (
-                  <Ligne
-                    label="Affiliation CRCESU"
-                    value={`${statutLabel(d.crcesuAffiliationStatus)}${d.crcesuNan ? ` · NAN ${d.crcesuNan}` : ''}`}
-                  />
-                )}
                 <Ligne
                   label="Avance immédiate URSSAF"
                   value={statutLabel(d?.urssafTiersPrestationStatus)}
@@ -368,8 +334,9 @@ function PayoutMode() {
 
               <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                L’affiliation CRCESU et l’avance immédiate sont instruites par
-                l’équipe Lab’s Food : elles ne se changent pas depuis cet écran.
+                Les titres CESU sont encaissés par Lab’s Food, qui vous reverse
+                votre part : vous n’avez pas de démarche CRCESU à faire.
+                L’avance immédiate est instruite par l’équipe.
               </p>
             </>
           )}
@@ -535,8 +502,8 @@ function PayoutMode() {
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           Ces informations ne sortent jamais vers un client. Seul le badge
           <Wallet className="mx-1 inline h-3 w-3 align-[-1px]" aria-hidden />
-          « CESU accepté » apparaît sur votre vitrine, et seulement si votre
-          affiliation est complète et votre mandat signé.
+          « CESU accepté » apparaît sur votre vitrine, et seulement si vous
+          acceptez le CESU et que votre mandat est signé.
         </p>
       </div>
     </ChefPage>

@@ -16,15 +16,15 @@ export function PaymentInvoicesInfo({ side }: { side: Side }) {
     <InfoPopover label="Qu’est-ce que cette facture ?">
       {side === 'client' ? (
         <>
-          Votre batch cooker est le prestataire : la facture est établie à son nom, par
-          Lab’s Food qui encaisse le paiement par carte via Stripe. Une facture par paiement
-          par carte. Les titres CESU et l’avance immédiate n’en produisent pas pour l’instant.
+          Lab’s Food est votre prestataire : la facture est à son nom,
+          TVA comprise, une par paiement (carte, CESU ou avance immédiate). Les factures
+          plus anciennes sont au nom de votre batch cooker.
         </>
       ) : (
         <>
-          Vos factures de vente : émises en votre nom par Lab’s Food, une par paiement par
-          carte de vos clients. Conservez-les dix ans. Ce que Lab’s Food vous facture, la
-          commission, est dans Revenus &amp; paiements.
+          Les factures de vos clients pour vos prestations. Lab’s Food les émet désormais
+          en son nom ; les plus anciennes sont à votre nom, conservez-les dix ans. Ce que
+          Lab’s Food vous verse, et vos autofactures, sont dans Revenus &amp; paiements.
         </>
       )}{' '}
       Un paiement fait avant l’ouverture des factures en reçoit une après coup : elle porte
@@ -35,7 +35,7 @@ export function PaymentInvoicesInfo({ side }: { side: Side }) {
 
 /**
  * Les factures du compte, ou d'une seule commande avec `bookingId`. Sans
- * `emptyText`, une liste vide ne rend rien : une commande réglée en CESU n'a
+ * `emptyText`, une liste vide ne rend rien : une commande sans paiement reçu n'a
  * simplement pas de facture ici.
  */
 export function PaymentInvoiceList({

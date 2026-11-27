@@ -1,17 +1,14 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
-  Check,
+  Download,
   FileText,
   Info,
   Loader2,
   Receipt,
-  TrendingUp,
   Wallet,
-  X,
 } from 'lucide-react'
 import ChefPage, { Card, Empty } from '@/components/chef/ChefPage'
 import ApprovalGate from '@/components/chef/ApprovalGate'
@@ -21,110 +18,108 @@ import { apiMessage } from '@/lib/api/messages'
 import { MICRO_ALERT_RATIO, MICRO_CEILING_EUR } from '@/lib/chef/states'
 import { useChefBookings } from '@/lib/api/bookings'
 import {
-  cesuAttendMoi,
   moneyCents,
+  PAYOUT_METHOD_LABEL,
   statutLabel,
   useChefCesuPayments,
   useCommissionInvoices,
-  useConfirmCesuPayment,
-  useRejectCesuPayment,
-  type CesuPayment,
+  useMyPayouts,
+  useMyPayoutStatements,
+  usePayoutStatementDownload,
+  type ChefPayoutLine,
   type CommissionInvoice,
+  type PayoutStatement,
 } from '@/lib/api/chef-money'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Revenus & paiements.
+   Revenus & paiements, flux « prix net » (26/11/2026).
 
-   Cet écran affichait un solde, un prochain versement et un détail par
-   prestation — tout cela inventé : `lib/chef/mock.ts`. Il n'y a pas de solde
-   dans l'API, et aucune date de versement n'est promise à personne. Ce qui
-   existe, et qui manquait à l'écran, c'est plus utile que ça :
+   Le client paie Lab’s Food, TVA comprise. La SAS achète la
+   prestation au batch cooker au prix net et le lui vire, avec une autofacture
+   (art. 289 I-2 CGI) : il n'a rien à émettre ni à confirmer. Cet écran montre :
 
-   - **les paiements CESU qui attendent un geste.** Un client déclare avoir
-     payé en titres ; tant que le batch cooker ne confirme pas les avoir reçus,
-     la prestation reste en attente de règlement. C'est la seule chose de cet
-     écran qui bloque de l'argent, et elle était invisible ;
-   - **les factures de commission** de Lab's Food, et leurs prélèvements ;
-   - **ce qui a été encaissé**, calculé sur les prestations réellement payées
-     (`paidCents`), et annoncé comme tel.
+   - **ce qui a été versé** cette année et **ce qui est à recevoir** (argent
+     déjà reçu par Lab’s Food, virement sous 2 jours ouvrés) ;
+   - **le détail de chaque montant** : TTC, TVA (10 %), HT, part Lab’s Food,
+     frais CESU, net ;
+   - **les autofactures** à télécharger ;
+   - **les paiements CESU** des clients, en lecture seule : le rapprochement
+     bancaire les solde ;
+   - **les factures de commission**, qui ne concernent plus que les
+     prestations d'avant ce changement (la carte est au prix net depuis le
+     26/11/2026, son net est transféré sur le compte Stripe).
 
-   Le plafond de la micro-entreprise reste affiché, mais sur du réel et avec
-   sa réserve : l'API ne connaît que ce qui passe par Lab's Food.
+   Le plafond de la micro-entreprise reste affiché, avec sa réserve : l'API ne
+   connaît que ce qui passe par Lab's Food.
    ───────────────────────────────────────────────────────────────────────────── */
 
 const ANNEE = new Date().getFullYear()
+const DEBUT_ANNEE = `${ANNEE}-01-01`
+
+const pct = (bps: number) => `${(bps / 100).toLocaleString('fr-FR')} %`
+const jour = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'
 
 export default function ChefEarningsPage() {
   const bookings = useChefBookings()
+  const aRecevoir = useMyPayouts('payable')
+  const verses = useMyPayouts('paid', DEBUT_ANNEE)
+  const autofactures = useMyPayoutStatements()
   const cesu = useChefCesuPayments()
   const factures = useCommissionInvoices()
 
+  /* Le plafond se juge sur tout ce qui est encaissé, carte comprise : la somme
+     des prestations payées de l'année. */
   const prestations = bookings.data?.data ?? []
-
-  /* Ce qui a été encaissé, et ce que Lab's Food a retenu, sur l'année en
-     cours : la somme des prestations qui portent un paiement. */
-  const annee = prestations.filter(
-    (b) => b.paidCents && new Date(b.startsAt).getFullYear() === ANNEE,
-  )
-  const netAnnee = annee.reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
-  // Seulement la commission prélevée sur ce qui est payé : `commissionCents`
-  // y ajoute l'estimation sur le reste à payer.
-  const commissionAnnee = annee.reduce(
-    (n, b) => n + Math.max(0, (b.paidCents ?? 0) - (b.collectedNetCents ?? 0)),
-    0,
-  )
-  // Une prestation payée en partie compte dans les sommes, pas dans ce décompte.
-  const reglees = annee.filter((b) => b.commissionEstimated === false)
-  const mois = new Date().getMonth()
-  const netMois = annee
-    .filter((b) => new Date(b.startsAt).getMonth() === mois)
+  const netAnnee = prestations
+    .filter((b) => b.paidCents && new Date(b.startsAt).getFullYear() === ANNEE)
     .reduce((n, b) => n + (b.collectedNetCents ?? 0), 0)
-
   const ratio = netAnnee / 100 / MICRO_CEILING_EUR
   const alerte = ratio >= MICRO_ALERT_RATIO
 
-  const aTraiter = (cesu.data ?? []).filter(cesuAttendMoi)
-  const traites = (cesu.data ?? []).filter((p) => !cesuAttendMoi(p))
+  const lignes = [
+    ...(aRecevoir.data?.lines ?? []).map((l) => ({ ...l, verse: false })),
+    ...(verses.data?.lines ?? []).map((l) => ({ ...l, verse: true })),
+  ]
+  const lignesPending = aRecevoir.isPending || verses.isPending
+  const lignesError = aRecevoir.error ?? verses.error
 
   return (
     <ChefPage
       title="Revenus & paiements"
-      subtitle="Ce que vous avez encaissé, ce qui attend votre accord, et ce que Lab’s Food vous facture."
+      subtitle="Ce que Lab’s Food vous verse, et le détail de chaque montant."
     >
       <div className="space-y-5">
         <ApprovalGate quoi="Vos revenus s’affichent" />
 
-        {/* ── Les chiffres de l'année ──────────────────────────────────── */}
+        {/* ── Les chiffres ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card>
-            <p className="eyebrow mb-2">Net encaissé en {ANNEE}</p>
-            {bookings.isPending ? (
+            <p className="eyebrow mb-2">Versé en {ANNEE}</p>
+            {verses.isPending ? (
               <Skeleton className="h-10 w-40" />
             ) : (
               <p className="tabular-nums font-display text-4xl font-bold text-navy">
-                {moneyCents(netAnnee) ?? '0 €'}
+                {moneyCents(verses.data?.totalNetCents ?? 0)}
               </p>
             )}
             <p className="mt-1 text-xs text-ink-soft">
-              Sur {reglees.length} prestation{reglees.length > 1 ? 's' : ''} réglée
-              {reglees.length > 1 ? 's' : ''}
+              Sur {verses.data?.counts.paid ?? 0} prestation
+              {(verses.data?.counts.paid ?? 0) > 1 ? 's' : ''}
             </p>
           </Card>
 
           <Card>
-            <TrendingUp className="mb-2 h-4 w-4 text-amber-ink" aria-hidden />
-            {bookings.isPending ? (
+            <p className="eyebrow mb-2">À recevoir</p>
+            {aRecevoir.isPending ? (
               <Skeleton className="h-8 w-28" />
             ) : (
               <p className="tabular-nums font-display text-2xl font-bold text-navy">
-                {moneyCents(netMois) ?? '0 €'}
+                {moneyCents(aRecevoir.data?.totalNetCents ?? 0)}
               </p>
             )}
-            <p className="mt-1 text-xs uppercase tracking-wide text-ink-soft">
-              Net ce mois-ci
-            </p>
-            <p className="tabular-nums mt-2 text-xs leading-relaxed text-ink-soft">
-              Commission retenue cette année : {moneyCents(commissionAnnee) ?? '0 €'}
+            <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+              Argent reçu par Lab’s Food, virement sous 2 jours ouvrés
             </p>
           </Card>
 
@@ -158,62 +153,86 @@ export default function ChefEarningsPage() {
           </p>
         )}
 
-        {/* ── Le CESU qui attend ───────────────────────────────────────── */}
-        <Card title={`Titres CESU à confirmer (${aTraiter.length})`}>
+        {/* ── Mes versements ───────────────────────────────────────────── */}
+        <Card title="Mes versements">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Quand un client règle en CESU préfinancé, il le déclare ici. La
-            prestation reste en attente de règlement <strong>tant que vous
-            n’avez pas confirmé</strong> avoir reçu les titres.
+            Le client paie Lab’s Food. Lab’s Food vous achète la prestation au prix
+            net et vous le vire : sur votre compte Stripe pour la carte, par
+            virement bancaire pour le CESU et l’avance immédiate. La TVA payée par
+            le client va à l’État.
           </p>
+          {lignesPending ? (
+            <LignesSkeleton />
+          ) : lignesError ? (
+            <p className="mt-3 text-[13px] text-ink-soft">{apiMessage(lignesError)}</p>
+          ) : lignes.length === 0 ? (
+            <Empty text="Aucun versement pour l’instant." />
+          ) : (
+            <TableVersements lignes={lignes} />
+          )}
+        </Card>
 
+        {/* ── Mes autofactures ─────────────────────────────────────────── */}
+        <Card title="Mes autofactures">
+          <p className="text-[13px] leading-relaxed text-ink-mid">
+            Lab’s Food les établit à votre nom à chaque virement
+            (autofacturation). Elles valent facture pour votre comptabilité :
+            vous n’avez rien à émettre.
+          </p>
+          {autofactures.isPending ? (
+            <LignesSkeleton />
+          ) : autofactures.isError ? (
+            <p className="mt-3 text-[13px] text-ink-soft">{apiMessage(autofactures.error)}</p>
+          ) : (autofactures.data ?? []).length === 0 ? (
+            <Empty text="Aucune autofacture pour l’instant." />
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {(autofactures.data ?? []).map((a) => (
+                <AutofactureRow key={a.id} autofacture={a} />
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        {/* ── Le CESU des clients, en lecture seule ────────────────────── */}
+        <Card title="Paiements CESU de vos clients">
+          <p className="text-[13px] leading-relaxed text-ink-mid">
+            Vos clients paient en CESU à Lab’s Food, plus à vous. Vous n’avez plus
+            rien à confirmer : on rapproche le virement du CRCESU automatiquement.
+          </p>
           {cesu.isPending ? (
             <LignesSkeleton />
           ) : cesu.isError ? (
             <p className="mt-3 text-[13px] text-ink-soft">{apiMessage(cesu.error)}</p>
-          ) : aTraiter.length === 0 ? (
-            <Empty text="Rien à confirmer pour l’instant." />
+          ) : (cesu.data ?? []).length === 0 ? (
+            <Empty text="Aucun paiement CESU pour l’instant." />
           ) : (
-            <ul className="mt-3 space-y-2">
-              {aTraiter.map((p) => (
-                <CesuRow key={p.paymentId} paiement={p} />
+            <ul className="mt-3 space-y-1.5">
+              {(cesu.data ?? []).map((p) => (
+                <li
+                  key={p.paymentId}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-cream-soft px-3 py-2 text-[12px]"
+                >
+                  <span className="tabular-nums font-semibold text-navy">
+                    {moneyCents(p.amountTtc)}
+                  </span>
+                  <span className="text-ink-mid">{p.clientName ?? 'Client'}</span>
+                  <span className="font-mono text-xs text-ink-soft">
+                    {p.bookingReference ?? ''}
+                  </span>
+                  <span className="ml-auto text-ink-soft">
+                    {statutLabel(p.settlementStatus)}
+                  </span>
+                </li>
               ))}
             </ul>
           )}
-
-          {traites.length > 0 && (
-            <div className="mt-4 border-t border-[rgba(31,42,55,0.07)] pt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                Déjà traités
-              </p>
-              <ul className="space-y-1.5">
-                {traites.map((p) => (
-                  <li
-                    key={p.paymentId}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-cream-soft px-3 py-2 text-[12px]"
-                  >
-                    <span className="font-semibold text-navy">
-                      {moneyCents(p.amountTtc)}
-                    </span>
-                    <span className="text-ink-mid">{p.clientName ?? 'Client'}</span>
-                    <span className="font-mono text-xs text-ink-soft">
-                      {p.bookingReference ?? ''}
-                    </span>
-                    <span className="ml-auto text-ink-soft">
-                      {statutLabel(p.settlementStatus)}
-                      {p.rejectionReason ? ` — « ${p.rejectionReason} »` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </Card>
 
-        {/* ── Les factures de commission ───────────────────────────────── */}
+        {/* ── Les factures de commission (carte) ───────────────────────── */}
         <Card title="Factures de commission">
           <p className="text-[13px] leading-relaxed text-ink-mid">
-            Ce que Lab’s Food vous facture sur les prestations encaissées, et
-            les prélèvements correspondants.
+            Seulement pour les prestations réglées avant le passage au prix net.
           </p>
 
           {factures.isPending ? (
@@ -233,8 +252,8 @@ export default function ChefEarningsPage() {
 
         <p className="flex items-start gap-2 px-1 text-[12px] leading-relaxed text-ink-soft">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Comment vous êtes payé — voie de déclaration, compte bancaire, mandat
-          de prélèvement — se règle dans{' '}
+          Comment vous êtes payé — compte bancaire, mandat de prélèvement — se
+          règle dans{' '}
           <Link
             href="/espace-chef/remuneration"
             className="font-semibold text-amber-ink hover:underline"
@@ -248,9 +267,7 @@ export default function ChefEarningsPage() {
   )
 }
 
-/* ── Un paiement CESU en attente ───────────────────────────────────────────── */
-
-/** Deux rangées de liste (montant + détail, p-3.5) : la hauteur de `CesuRow` et `FactureRow`. */
+/** Deux rangées de liste (montant + détail, p-3.5). */
 function LignesSkeleton() {
   return (
     <SkeletonGroup className="mt-3 space-y-2">
@@ -267,120 +284,95 @@ function LignesSkeleton() {
   )
 }
 
-function CesuRow({ paiement: p }: { paiement: CesuPayment }) {
-  const toast = useToast()
-  const confirmer = useConfirmCesuPayment()
-  const refuser = useRejectCesuPayment()
-  const [motif, setMotif] = useState<string | null>(null)
+/* ── Le tableau des versements ─────────────────────────────────────────────── */
 
-  const occupe = confirmer.isPending || refuser.isPending
-
+function TableVersements({ lignes }: { lignes: (ChefPayoutLine & { verse: boolean })[] }) {
+  const th = 'px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-soft'
+  const num = 'tabular-nums px-2 py-2 text-right whitespace-nowrap'
   return (
-    <li className="rounded-2xl border border-[rgba(31,42,55,0.08)] bg-paper p-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-display text-base font-bold text-navy">
-            {moneyCents(p.amountTtc)}
-            <span className="ml-2 text-[12px] font-normal text-ink-mid">
-              {p.clientName ?? 'Client'}
-            </span>
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-ink-soft">
-            <span className="font-mono">{p.bookingReference ?? ''}</span>
-            <span>{p.issuer}</span>
-            <span>{p.medium === 'paper' ? 'Titres papier' : 'Dématérialisé'}</span>
-            <span>
-              déclaré le{' '}
-              {new Date(p.declaredAt).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-              })}
-            </span>
-          </p>
-          {p.clientProofRef && (
-            <p className="mt-1 text-xs text-ink-soft">
-              Référence donnée par le client : {p.clientProofRef}
-            </p>
-          )}
-        </div>
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full min-w-[720px] text-[12px]">
+        <thead className="border-b border-[rgba(31,42,55,0.08)]">
+          <tr>
+            <th className={th}>Réservation</th>
+            <th className={th}>Paiement</th>
+            <th className={`${th} text-right`}>Prix TTC</th>
+            <th className={`${th} text-right`}>TVA</th>
+            <th className={`${th} text-right`}>Prix HT</th>
+            <th className={`${th} text-right`}>Part Lab’s Food</th>
+            <th className={`${th} text-right`}>Frais CESU</th>
+            <th className={`${th} text-right`}>Net</th>
+            <th className={th}>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lignes.map((l) => (
+            <tr key={l.id ?? l.paymentId} className="border-b border-[rgba(31,42,55,0.05)]">
+              <td className="px-2 py-2 font-mono text-xs text-ink-mid">
+                {l.bookingReference ?? '—'}
+              </td>
+              <td className="px-2 py-2 text-ink-mid">
+                {PAYOUT_METHOD_LABEL[l.method] ?? l.method}
+              </td>
+              <td className={num}>{moneyCents(l.amountTtcCents)}</td>
+              <td className={num}>
+                {moneyCents(l.amountVatCents)}{' '}
+                <span className="text-ink-soft">({pct(l.vatRateBps)})</span>
+              </td>
+              <td className={num}>{moneyCents(l.amountHtCents)}</td>
+              <td className={num}>
+                − {moneyCents(l.commissionCents)}{' '}
+                <span className="text-ink-soft">({pct(l.commissionRateBps)})</span>
+              </td>
+              <td className={num}>
+                {l.cesuFeeCents > 0 ? `− ${moneyCents(l.cesuFeeCents)}` : '—'}
+              </td>
+              <td className={`${num} font-semibold text-navy`}>{moneyCents(l.netCents)}</td>
+              <td className="px-2 py-2 whitespace-nowrap text-ink-mid">
+                {l.verse ? `Versé le ${jour(l.paidAt)}` : 'À recevoir'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
-        {motif === null ? (
-          <div className="flex shrink-0 gap-2">
-            <button
-              onClick={() =>
-                confirmer.mutate(p.paymentId, {
-                  onSuccess: () =>
-                    toast.success(
-                      'Paiement confirmé',
-                      'La prestation est soldée côté client.',
-                    ),
-                  onError: (e) => toast.error('La confirmation a échoué', apiMessage(e)),
-                })
-              }
-              disabled={occupe}
-              className="btn btn-primary text-xs"
-            >
-              {confirmer.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Check className="h-3.5 w-3.5" aria-hidden />
-              )}
-              J’ai reçu les titres
-            </button>
-            <button
-              onClick={() => setMotif('')}
-              disabled={occupe}
-              className="btn text-xs text-ink-mid hover:text-red-700"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden /> Pas reçus
-            </button>
-          </div>
-        ) : null}
+/* ── Une autofacture ───────────────────────────────────────────────────────── */
+
+function AutofactureRow({ autofacture: a }: { autofacture: PayoutStatement }) {
+  const toast = useToast()
+  const telecharger = usePayoutStatementDownload()
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cream-soft p-3.5">
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+          <FileText className="h-3.5 w-3.5 text-amber-ink" aria-hidden />
+          {a.number}
+        </p>
+        <p className="mt-0.5 text-xs text-ink-soft">
+          {jour(a.issuedAt)} · {a.lines} prestation{a.lines > 1 ? 's' : ''} ·{' '}
+          <span className="tabular-nums">{moneyCents(a.netCents)}</span>
+        </p>
       </div>
-
-      {motif !== null && (
-        <div className="mt-3 border-t border-[rgba(31,42,55,0.07)] pt-3">
-          <label className="block">
-            <span className="mb-1 block text-xs text-ink-soft">
-              Ce que le client lira — dites ce qui manque, pas « non »
-            </span>
-            <input
-              value={motif}
-              onChange={(e) => setMotif(e.target.value)}
-              placeholder="Les titres ne sont jamais arrivés."
-              maxLength={300}
-              className="input-base py-2"
-              autoFocus
-            />
-          </label>
-          <div className="mt-2 flex gap-2">
-            <button
-              onClick={() =>
-                refuser.mutate(
-                  { id: p.paymentId, reason: motif.trim() },
-                  {
-                    onSuccess: () => {
-                      setMotif(null)
-                      toast.info('Paiement refusé', 'Le client est prévenu.')
-                    },
-                    onError: (e) => toast.error('Le refus a échoué', apiMessage(e)),
-                  },
-                )
-              }
-              disabled={motif.trim().length < 3 || refuser.isPending}
-              className="btn btn-outline text-xs disabled:opacity-55"
-            >
-              {refuser.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              )}
-              Envoyer le refus
-            </button>
-            <button onClick={() => setMotif(null)} className="btn text-xs text-ink-soft">
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      <button
+        onClick={() =>
+          telecharger.mutate(a.id, {
+            onSuccess: ({ url }) => window.open(url, '_blank', 'noopener'),
+            onError: (e) => toast.error('Le téléchargement a échoué', apiMessage(e)),
+          })
+        }
+        disabled={telecharger.isPending}
+        className="btn btn-outline text-xs"
+      >
+        {telecharger.isPending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        ) : (
+          <Download className="h-3.5 w-3.5" aria-hidden />
+        )}
+        PDF
+      </button>
     </li>
   )
 }
