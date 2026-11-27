@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
@@ -13,7 +14,8 @@ import { readConsent } from '@/lib/analytics'
    Tout le monde affiche « −50 % » cette semaine-là. Nous aussi, sauf que chez
    nous c'est vrai toute l'année : avec l'avance immédiate de l'URSSAF, le
    crédit d'impôt de 50 % des services à la personne est déduit au moment de
-   payer. On barre donc « Black Friday » et on écrit « tous les jours ».
+   payer. La fenêtre montre le visuel de la campagne (public/images/
+   blackFriday.jpeg, fourni par Lab's Food le 27/11), qui dit tout cela.
 
    Ce n'est pas une promotion et le texte ne prétend pas en être une : pas de
    compte à rebours, pas d'« offre limitée ». C'est le prix habituel, dit au
@@ -86,97 +88,43 @@ export default function PromoBlackFriday() {
     <Dialog.Root open={ouvert} onOpenChange={fermer}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-navy-deep/75 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] grid max-h-[92vh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 grid-cols-1 overflow-y-auto overflow-x-hidden rounded-3xl bg-paper shadow-[0_40px_90px_-30px_rgba(10,16,24,0.6)] focus:outline-none md:grid-cols-2 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95">
-          {/* La croix, au coin de la fenêtre : sur mobile elle se pose sur le noir,
-              sur grand écran sur le blanc. */}
+        {/* Le visuel de la campagne, en entier : il porte tout le message. Sa
+            largeur suit la hauteur de l'écran, pour qu'il tienne toujours sans
+            défiler (format 4:5, plus la barre du lien dessous). */}
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 z-[60] w-[min(28rem,calc(100vw-2rem),calc((92vh-3.5rem)*0.8))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl bg-paper shadow-[0_40px_90px_-30px_rgba(10,16,24,0.6)] focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+        >
+          <Dialog.Title className="sr-only">Pas besoin d’attendre le Black Friday</Dialog.Title>
+          <Dialog.Description className="sr-only">
+            Chez Lab’s Food, c’est moins 50 % tous les jours grâce au crédit d’impôt.
+          </Dialog.Description>
+
           <Dialog.Close
             aria-label="Fermer"
-            className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber md:text-ink-mid md:hover:bg-cream-soft md:hover:text-navy"
+            className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-navy-deep/25 text-white backdrop-blur-sm transition-colors hover:bg-navy-deep/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <X className="h-5 w-5" />
           </Dialog.Close>
 
-          {/* ── Le noir du Black Friday, et ce qu'on y écrit à la place ── */}
-          <div className="relative flex flex-col justify-between overflow-hidden bg-[#0E1620] px-6 pb-6 pt-7 text-white sm:px-9 sm:pb-9 sm:pt-10">
-            {/* Des gamelles noires, vues de haut : le « black » du Black Friday,
-                version batch cooking. Le voile garde le texte lisible. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/gamelles/gamelle-a03.jpg"
-              alt=""
-              aria-hidden
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  'linear-gradient(180deg, rgba(14,22,32,0.92) 0%, rgba(14,22,32,0.55) 45%, rgba(14,22,32,0.94) 100%)',
-              }}
-            />
+          <Image
+            src="/images/blackFriday.jpeg"
+            alt="Pas besoin d’attendre le Black Friday. Chez nous, c’est moins 50 % tous les jours grâce au crédit d’impôt. Lab’s Food, notre service de batch cooking disponible partout en France."
+            width={1638}
+            height={2048}
+            sizes="(min-width: 480px) 28rem, 100vw"
+            className="block h-auto w-full"
+          />
 
-            <div className="relative">
-              {/* « Black Friday », barré à la main. */}
-              {/* Écrit en toutes lettres, lisible sous un trait fin : on doit le
-                  lire avant de comprendre qu'il est barré. */}
-              <p className="relative inline-block font-display text-[2rem] font-bold leading-none tracking-[-0.01em] text-white sm:text-[2.4rem]">
-                Black Friday
-                <svg
-                  aria-hidden
-                  viewBox="0 0 200 20"
-                  preserveAspectRatio="none"
-                  className="absolute -left-1.5 top-[55%] h-4 w-[calc(100%+0.75rem)] -translate-y-1/2 overflow-visible"
-                >
-                  <path
-                    d="M2 12 C 50 7, 110 14, 198 8"
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-              </p>
-              <p className="mt-2 font-display text-2xl font-bold italic text-amber sm:text-[1.7rem]">
-                tous les jours.
-              </p>
-            </div>
-
-            <div className="relative mt-6 md:mt-14">
-              <p
-                className="font-display font-bold leading-[0.85] tracking-[-0.04em] text-white"
-                style={{ fontSize: 'clamp(4.5rem, 14vw, 8.5rem)' }}
+          <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+            <p className="text-xs text-ink-soft">Crédit d’impôt services à la personne, sous conditions.</p>
+            <Dialog.Close asChild>
+              <Link
+                href="/avantage-fiscal"
+                className="hit shrink-0 text-sm font-semibold text-navy underline decoration-navy/30 underline-offset-4 transition-colors hover:text-amber-deep hover:decoration-amber-deep"
               >
-                <span className="-mr-[0.09em] inline-block">−</span>50<span className="text-amber">%</span>
-              </p>
-            </div>
-          </div>
-
-          {/* ── Ce que ça veut dire ── */}
-          <div className="relative flex flex-col justify-center px-6 pb-6 pt-6 sm:px-9 sm:pb-8 sm:pt-12">
-            <Dialog.Title className="font-display text-[1.6rem] md:pr-10 font-bold leading-[1.1] tracking-[-0.01em] text-navy [text-wrap:balance] sm:text-3xl">
-              Pas de promo chez nous. Juste la moitié du prix, toute l’année.
-            </Dialog.Title>
-
-            <Dialog.Description className="mt-3 text-[0.95rem] leading-relaxed text-ink-mid">
-              Avec l’avance immédiate, vos 50 % de crédit d’impôt sont déduits dès le paiement.
-            </Dialog.Description>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 sm:mt-8">
-              <Dialog.Close asChild>
-                <Link
-                  href="/avantage-fiscal"
-                  className="hit text-sm font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy"
-                >
-                  Comment ça marche ?
-                </Link>
-              </Dialog.Close>
-            </div>
-
-            <p className="mt-auto pt-6 text-[11px] leading-relaxed text-ink-soft">
-              Crédit d’impôt services à la personne, sous conditions.
-            </p>
+                Comment ça marche ?
+              </Link>
+            </Dialog.Close>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
