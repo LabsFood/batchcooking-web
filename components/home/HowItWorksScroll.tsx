@@ -31,7 +31,7 @@ const ETAPES = [
     nombre: '01',
     titre: 'Choisissez vos plats',
     texte:
-      'Chaque batch cooker tient sa propre carte. Parcourez les menus de la semaine et cochez ce qui vous fait envie.',
+      'Parcourez les cartes des batch cookers et choisissez les plats qui vous font envie. Rien ne vous correspond ? Faites une demande sur mesure : ils vous proposent un menu rien que pour vous.',
     src: '/images/gamelles/gamelle-a06.jpg',
     alt: 'Gamelle de poulet au curcuma, riz et brocoli — un plat de la carte',
     position: 'object-center',
@@ -40,7 +40,7 @@ const ETAPES = [
     nombre: '02',
     titre: 'Réservez votre session',
     texte:
-      'La date, le créneau, votre batch cooker : tout se confirme en ligne. Vous ne réglez que votre moitié — le crédit d’impôt de 50 % est déduit au paiement.',
+      'La date, le créneau, votre batch cooker : tout se confirme en ligne.',
     src: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=900&auto=format&fit=crop',
     alt: 'Calendrier et planning du mois — choisir sa date',
     position: 'object-center',
@@ -49,7 +49,7 @@ const ETAPES = [
     nombre: '03',
     titre: 'Recevez la liste de courses',
     texte:
-      'Relue par votre batch cooker, classée par rayons. Cochez ce que vous avez déjà : il n’achète que le reste.',
+      'Relue par votre batch cooker, classée par rayons. Les courses, c’est vous qui choisissez : vous les faites vous-même, ou votre batch cooker s’en charge.',
     src: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&auto=format&fit=crop',
     alt: 'Étal de fruits et légumes frais — les courses de la semaine',
     position: 'object-center',
